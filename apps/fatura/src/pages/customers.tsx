@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { GIB_COUNTRIES } from "@/lib/gib-constants.ts";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import type { Recipient } from "@/lib/types.ts";
@@ -60,11 +68,6 @@ export function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">Müşteriler</h2>
-        <p className="text-sm text-muted-foreground">Kayıtlı alıcı bilgileriniz</p>
-      </div>
-
       {/* Add / Edit Form */}
       {editing ? (
         <Card>
@@ -128,10 +131,21 @@ export function CustomersPage() {
               </div>
               <div className="space-y-2">
                 <Label>Ülke</Label>
-                <Input
+                <Select
                   value={editing.country}
-                  onChange={(e) => setEditing((p) => p && { ...p, country: e.target.value })}
-                />
+                  onValueChange={(v) => setEditing((p) => p && { ...p, country: v })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Ülke seçin..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GIB_COUNTRIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="flex gap-2 justify-end">
@@ -143,24 +157,6 @@ export function CustomersPage() {
           </CardContent>
         </Card>
       ) : (
-        <Button variant="outline" onClick={startNew}>
-          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} data-icon="inline-start" />
-          Yeni Müşteri
-        </Button>
-      )}
-
-      {/* Customer List */}
-      {savedRecipients.length === 0 && !editing && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              Henüz müşteri yok. Yeni Müşteri butonuna tıklayarak ekleyin.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {savedRecipients.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           {savedRecipients.map((r) => (
             <Card key={r.id}>
@@ -201,6 +197,14 @@ export function CustomersPage() {
               </CardContent>
             </Card>
           ))}
+          <button
+            type="button"
+            onClick={startNew}
+            className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+          >
+            <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} className="size-6" />
+            <span className="text-sm font-medium">Yeni Müşteri</span>
+          </button>
         </div>
       )}
 

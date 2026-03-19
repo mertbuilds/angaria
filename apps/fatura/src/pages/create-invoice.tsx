@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { PlusSignIcon, Delete01Icon, SaveAllIcon } from "@hugeicons/core-free-icons";
+import { PlusSignIcon, Delete01Icon } from "@hugeicons/core-free-icons";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +23,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker.tsx";
+
+import { AutocompleteInput } from "@/components/autocomplete-input.tsx";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
+import {
+  GIB_COUNTRIES,
+  GIB_CURRENCIES,
+  GIB_UNIT_TYPES,
+  GIB_INVOICE_TYPES,
+  GIB_CITIES,
+} from "@/lib/gib-constants.ts";
 import * as angaria from "@/lib/angaria.ts";
 import { format, parse } from "date-fns";
 
@@ -45,21 +55,6 @@ const parseGIB = (s: string): Date | undefined => {
 /** Date → DD/MM/YYYY string */
 const toGIB = (d: Date | undefined): string => (d ? format(d, GIB_FORMAT) : "");
 
-const UNIT_TYPES = [
-  { value: "C62", label: "Adet" },
-  { value: "HUR", label: "Saat" },
-  { value: "DAY", label: "Gün" },
-  { value: "MON", label: "Ay" },
-  { value: "KGM", label: "Kilogram" },
-  { value: "LTR", label: "Litre" },
-  { value: "MTR", label: "Metre" },
-  { value: "MTK", label: "Metrekare" },
-  { value: "MTQ", label: "Metreküp" },
-  { value: "SET", label: "Set" },
-  { value: "PA", label: "Paket" },
-  { value: "BX", label: "Kutu" },
-];
-
 export function CreateInvoicePage() {
   const {
     creds,
@@ -78,7 +73,6 @@ export function CreateInvoicePage() {
     advancedFields,
     setAdvancedFields,
     viewMode,
-    setViewMode,
     newId,
     defaultItemAdvanced,
   } = useStore();
@@ -87,7 +81,9 @@ export function CreateInvoicePage() {
   const [invoiceHTML, setInvoiceHTML] = useState<string | null>(null);
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
-  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const lastCheckedRef = useRef<string | null>(null);
 
   const advanced = viewMode === "advanced";
 
@@ -107,15 +103,6 @@ export function CreateInvoicePage() {
     if (found) setRecipient({ ...found });
   }
 
-  function saveItemTemplate(item: (typeof items)[0]) {
-    setSavedItems((prev) => {
-      const idx = prev.findIndex((i) => i.id === item.id);
-      if (idx >= 0) return prev.map((i, j) => (j === idx ? { ...item } : i));
-      return [...prev, { ...item }];
-    });
-    toast.success("Kalem şablonu kaydedildi");
-  }
-
   function updateItem(id: string, field: string, value: string | number) {
     setItems((prev) =>
       prev.map((i) => {
@@ -130,6 +117,24 @@ export function CreateInvoicePage() {
     );
   }
 
+  // Auto-sync items with non-empty names to saved item templates
+  useEffect(() => {
+    const namedItems = items.filter((i) => i.name.trim());
+    if (namedItems.length === 0) return;
+    setSavedItems((prev) => {
+      let next = [...prev];
+      for (const item of namedItems) {
+        const idx = next.findIndex((s) => s.name === item.name);
+        if (idx >= 0) {
+          next[idx] = { ...item, id: next[idx].id };
+        } else {
+          next = [...next, { ...item }];
+        }
+      }
+      return next;
+    });
+  }, [items, setSavedItems]);
+
   function addItem() {
     setItems((prev) => [
       ...prev,
@@ -137,10 +142,40 @@ export function CreateInvoicePage() {
     ]);
   }
 
-  function confirmRemoveItem() {
-    if (!deleteItemId) return;
-    setItems((prev) => (prev.length > 1 ? prev.filter((i) => i.id !== deleteItemId) : prev));
-    setDeleteItemId(null);
+  function toggleSelectItem(id: string, shiftKey: boolean) {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (shiftKey && lastCheckedRef.current) {
+        const ids = items.map((i) => i.id);
+        const from = ids.indexOf(lastCheckedRef.current);
+        const to = ids.indexOf(id);
+        const [start, end] = from < to ? [from, to] : [to, from];
+        for (let i = start; i <= end; i++) next.add(ids[i]);
+      } else {
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+    lastCheckedRef.current = id;
+  }
+
+  function toggleSelectAll() {
+    if (selectedItemIds.size === items.length) {
+      setSelectedItemIds(new Set());
+    } else {
+      setSelectedItemIds(new Set(items.map((i) => i.id)));
+    }
+  }
+
+  function confirmRemoveItems() {
+    if (selectedItemIds.size === 0) return;
+    setItems((prev) => {
+      const remaining = prev.filter((i) => !selectedItemIds.has(i.id));
+      return remaining.length > 0 ? remaining : [prev[0]];
+    });
+    setSelectedItemIds(new Set());
+    setShowDeleteConfirm(false);
   }
 
   function loadItemTemplate(templateId: string, itemId: string) {
@@ -248,37 +283,6 @@ export function CreateInvoicePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Yeni Fatura</h2>
-          <p className="text-sm text-muted-foreground">Tüm alanları doldurup taslak oluşturun</p>
-        </div>
-        <div className="flex items-center gap-1.5 rounded-lg border bg-muted/50 p-1">
-          <button
-            type="button"
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-              !advanced
-                ? "bg-background text-foreground shadow-sm ring-1 ring-border"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => setViewMode("simple")}
-          >
-            Basit
-          </button>
-          <button
-            type="button"
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-              advanced
-                ? "bg-background text-foreground shadow-sm ring-1 ring-border"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => setViewMode("advanced")}
-          >
-            Gelişmiş
-          </button>
-        </div>
-      </div>
-
       {/* Invoice Settings */}
       <Card>
         <CardHeader>
@@ -296,12 +300,11 @@ export function CreateInvoicePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ISTISNA">İstisna</SelectItem>
-                  <SelectItem value="SATIS">Satış</SelectItem>
-                  <SelectItem value="IADE">İade</SelectItem>
-                  <SelectItem value="TEVKIFAT">Tevkifat</SelectItem>
-                  <SelectItem value="OZELMATRAH">Özel Matrah</SelectItem>
-                  <SelectItem value="IHRACKAYITLI">İhraç Kayıtlı</SelectItem>
+                  {GIB_INVOICE_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -315,10 +318,11 @@ export function CreateInvoicePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="TRY">TRY</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
+                  {GIB_CURRENCIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.value} - {c.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -353,6 +357,7 @@ export function CreateInvoicePage() {
                   step="1"
                   value={advancedFields.manualTime}
                   onChange={(e) => setAdvancedFields((f) => ({ ...f, manualTime: e.target.value }))}
+                  className="appearance-none tabular-nums [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                 />
               </div>
             </div>
@@ -434,10 +439,21 @@ export function CreateInvoicePage() {
             </div>
             <div className="space-y-2">
               <Label>Ülke</Label>
-              <Input
+              <Select
                 value={recipient.country}
-                onChange={(e) => setRecipient((r) => ({ ...r, country: e.target.value }))}
-              />
+                onValueChange={(v) => setRecipient((r) => ({ ...r, country: v }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Ülke seçin..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {GIB_COUNTRIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -446,10 +462,21 @@ export function CreateInvoicePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Şehir</Label>
-                <Input
+                <Select
                   value={recipient.city}
-                  onChange={(e) => setRecipient((r) => ({ ...r, city: e.target.value }))}
-                />
+                  onValueChange={(v) => setRecipient((r) => ({ ...r, city: v }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Şehir seçin..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GIB_CITIES.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>İlçe</Label>
@@ -495,173 +522,190 @@ export function CreateInvoicePage() {
       {/* Items */}
       <Card>
         <CardHeader>
-          <CardTitle>Kalemler</CardTitle>
+          <CardTitle className="leading-8">Kalemler</CardTitle>
           <CardAction>
-            <Button variant="outline" size="sm" onClick={addItem}>
-              <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} data-icon="inline-start" />
-              Kalem Ekle
+            <Button
+              variant="destructive"
+              size="sm"
+              className={selectedItemIds.size > 0 ? "" : "invisible"}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} data-icon="inline-start" />
+              {selectedItemIds.size} Sil
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {items.map((item, idx) => (
-            <div key={item.id} className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">#{idx + 1}</span>
-                <div className="flex items-center gap-1">
-                  {savedItems.length > 0 && (
-                    <Select onValueChange={(v) => loadItemTemplate(v, item.id)}>
-                      <SelectTrigger size="sm" className="w-36">
-                        <SelectValue placeholder="Şablon yükle..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {savedItems.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => saveItemTemplate(item)}
-                    title="Şablon olarak kaydet"
+        <CardContent className="p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="w-10 px-3 py-2">
+                  <Checkbox
+                    checked={items.length > 0 && selectedItemIds.size === items.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </th>
+                <th className="px-2 py-2 text-left font-medium">Mal / Hizmet</th>
+                <th className="w-20 px-2 py-2 text-left font-medium">Miktar</th>
+                {advanced && <th className="w-24 px-2 py-2 text-left font-medium">Birim</th>}
+                <th className="w-28 px-2 py-2 text-left font-medium">Birim Fiyat</th>
+                <th className="w-20 px-2 py-2 text-left font-medium">KDV %</th>
+                <th className="w-28 px-2 py-2 text-right font-medium">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id} className="group border-b last:border-0">
+                  <td
+                    className="w-10 px-3 py-2 cursor-pointer"
+                    onClick={(e) => toggleSelectItem(item.id, e.shiftKey)}
                   >
-                    <HugeiconsIcon icon={SaveAllIcon} strokeWidth={1.5} />
-                  </Button>
-                  {items.length > 1 && (
-                    <Button
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() => setDeleteItemId(item.id)}
-                    >
-                      <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <Input
-                value={item.name}
-                onChange={(e) => updateItem(item.id, "name", e.target.value)}
-                placeholder="Mal / Hizmet adı"
-              />
-              <div className={`grid gap-3 ${advanced ? "grid-cols-4" : "grid-cols-3"}`}>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Miktar</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={item.quantity}
-                    onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))}
-                  />
-                </div>
-                {advanced && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Birim</Label>
-                    <Select
-                      value={item.unitType}
-                      onValueChange={(v) => updateItem(item.id, "unitType", v)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UNIT_TYPES.map((u) => (
-                          <SelectItem key={u.value} value={u.value}>
-                            {u.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Birim Fiyat</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={item.unitPrice || ""}
-                    onChange={(e) => updateItem(item.id, "unitPrice", Number(e.target.value))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">KDV %</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={item.VATRate}
-                    onChange={(e) => updateItem(item.id, "VATRate", Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              {/* Advanced: Discount & GTIP */}
-              {advanced && (
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">İskonto %</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={item.discountRate || ""}
-                      onChange={(e) => updateItem(item.id, "discountRate", Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">İskonto Tutarı</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={item.discountAmount || ""}
-                      onChange={(e) =>
-                        updateItem(item.id, "discountAmount", Number(e.target.value))
+                    <Checkbox checked={selectedItemIds.has(item.id)} onCheckedChange={() => {}} />
+                  </td>
+                  <td className="px-2 py-2">
+                    <AutocompleteInput
+                      value={item.name}
+                      onChange={(v) => updateItem(item.id, "name", v)}
+                      onSelect={(id) => loadItemTemplate(id, item.id)}
+                      onCreate={(name) =>
+                        setSavedItems((prev) => [...prev, { ...item, id: newId(), name }])
                       }
+                      suggestions={savedItems.map((s) => ({ id: s.id, label: s.name }))}
+                      placeholder="Mal / Hizmet adı"
+                      className="h-8"
                     />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">İskonto Nedeni</Label>
+                  </td>
+                  <td className="px-2 py-2">
                     <Input
-                      value={item.discountReason}
-                      onChange={(e) => updateItem(item.id, "discountReason", e.target.value)}
+                      inputMode="numeric"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value) || 0)}
+                      className="h-8"
                     />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">GTİP</Label>
-                    <Input
-                      value={item.gtip}
-                      onChange={(e) => updateItem(item.id, "gtip", e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>
-                  Tutar: {formatMoney(invoiceSettings.currency, item.quantity * item.unitPrice)}
-                </span>
-                {advanced && item.discountAmount > 0 && (
-                  <span>
-                    İskonto: -{formatMoney(invoiceSettings.currency, item.discountAmount)}
-                  </span>
-                )}
-                <span>
-                  KDV:{" "}
-                  {formatMoney(
-                    invoiceSettings.currency,
-                    (item.quantity * item.unitPrice - (item.discountAmount || 0)) *
-                      (item.VATRate / 100),
+                  </td>
+                  {advanced && (
+                    <td className="px-2 py-2">
+                      <Select
+                        value={item.unitType}
+                        onValueChange={(v) => updateItem(item.id, "unitType", v)}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GIB_UNIT_TYPES.map((u) => (
+                            <SelectItem key={u.value} value={u.value}>
+                              {u.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
                   )}
-                </span>
+                  <td className="px-2 py-2">
+                    <Input
+                      inputMode="decimal"
+                      value={item.unitPrice || ""}
+                      onChange={(e) =>
+                        updateItem(item.id, "unitPrice", Number(e.target.value) || 0)
+                      }
+                      className="h-8"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <Input
+                      inputMode="numeric"
+                      value={item.VATRate}
+                      onChange={(e) => updateItem(item.id, "VATRate", Number(e.target.value) || 0)}
+                      className="h-8"
+                    />
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {formatMoney(
+                      invoiceSettings.currency,
+                      item.quantity * item.unitPrice - (item.discountAmount || 0),
+                    )}
+                    <div className="whitespace-nowrap text-xs text-muted-foreground">
+                      +
+                      {formatMoney(
+                        invoiceSettings.currency,
+                        (item.quantity * item.unitPrice - (item.discountAmount || 0)) *
+                          (item.VATRate / 100),
+                      )}{" "}
+                      KDV
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Advanced: expanded discount/GTIP fields below table */}
+          {advanced &&
+            items.some((i) => i.discountRate || i.discountAmount || i.discountReason || i.gtip) && (
+              <div className="space-y-3 border-t px-4 py-3">
+                {items.map(
+                  (item) =>
+                    (item.discountRate ||
+                      item.discountAmount ||
+                      item.discountReason ||
+                      item.gtip) && (
+                      <div key={item.id} className="space-y-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {item.name || "Adsız kalem"} — İskonto & GTİP
+                        </span>
+                        <div className="grid grid-cols-4 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">İskonto %</Label>
+                            <Input
+                              inputMode="numeric"
+                              value={item.discountRate || ""}
+                              onChange={(e) =>
+                                updateItem(item.id, "discountRate", Number(e.target.value) || 0)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">İskonto Tutarı</Label>
+                            <Input
+                              inputMode="decimal"
+                              value={item.discountAmount || ""}
+                              onChange={(e) =>
+                                updateItem(item.id, "discountAmount", Number(e.target.value) || 0)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">İskonto Nedeni</Label>
+                            <Input
+                              value={item.discountReason}
+                              onChange={(e) =>
+                                updateItem(item.id, "discountReason", e.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">GTİP</Label>
+                            <Input
+                              value={item.gtip}
+                              onChange={(e) => updateItem(item.id, "gtip", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ),
+                )}
               </div>
-            </div>
-          ))}
+            )}
         </CardContent>
+        <button
+          type="button"
+          onClick={addItem}
+          className="flex w-full items-center justify-center gap-2 border-t py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} className="size-4" />
+          Kalem Ekle
+        </button>
       </Card>
 
       {/* Note */}
@@ -714,9 +758,7 @@ export function CreateInvoicePage() {
             <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
               <span className="text-sm text-muted-foreground">Ödenecek Tutar</span>
               <Input
-                type="number"
-                min={0}
-                step="0.01"
+                inputMode="decimal"
                 className="w-40 text-right"
                 value={advancedFields.paymentTotal || ""}
                 onChange={(e) => setAdvancedFields((f) => ({ ...f, paymentTotal: e.target.value }))}
@@ -796,11 +838,11 @@ export function CreateInvoicePage() {
       </Dialog>
 
       <ConfirmDialog
-        open={deleteItemId !== null}
-        onOpenChange={(open) => !open && setDeleteItemId(null)}
-        title="Kalemi Sil"
-        description="Bu kalemi silmek istediğinize emin misiniz?"
-        onConfirm={confirmRemoveItem}
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Kalemleri Sil"
+        description={`${selectedItemIds.size} kalemi silmek istediğinize emin misiniz?`}
+        onConfirm={confirmRemoveItems}
       />
     </div>
   );

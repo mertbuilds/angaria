@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { format, parse } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -31,44 +32,55 @@ interface Invoice {
   ettn?: string;
 }
 
-export function InvoicesPage() {
-  const { creds } = useStore();
+async function fetchDrafts(
+  username: string,
+  password: string,
+  testMode: boolean,
+  startDate: string,
+  endDate: string,
+): Promise<Invoice[]> {
+  const session = await angaria.login(username, password, testMode);
+  try {
+    return (await angaria.getDrafts(session, startDate, endDate)) as Invoice[];
+  } finally {
+    angaria.logout(session).catch(() => {});
+  }
+}
 
-  const [listStartDate, setListStartDate] = useState(() => {
-    const now = new Date();
-    const p = (n: number) => String(n).padStart(2, "0");
-    return `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
-  });
-  const [listEndDate, setListEndDate] = useState(() => listStartDate);
-  const [invoiceList, setInvoiceList] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(false);
+export function InvoicesPage() {
+  const { creds, invoiceDateRange, setInvoiceDateRange } = useStore();
+  const queryClient = useQueryClient();
+
+  const listStartDate = invoiceDateRange.start;
+  const listEndDate = invoiceDateRange.end;
+  const setListStartDate = (d: string) => setInvoiceDateRange((prev) => ({ ...prev, start: d }));
+  const setListEndDate = (d: string) => setInvoiceDateRange((prev) => ({ ...prev, end: d }));
+
   const [viewHTML, setViewHTML] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
 
-  async function fetchInvoices() {
-    if (!creds.username || !creds.password) {
-      toast.error("GİB kullanıcı bilgileri gerekli — Ayarlar'dan girin");
-      return;
-    }
-    setLoading(true);
-    try {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
-      try {
-        const drafts = await angaria.getDrafts(session, listStartDate, listEndDate);
-        setInvoiceList(drafts as Invoice[]);
-      } finally {
-        angaria.logout(session).catch(() => {});
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const hasCredentials = Boolean(creds.username && creds.password);
+
+  const {
+    data: invoiceList = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ["invoices", creds.username, creds.testMode, listStartDate, listEndDate],
+    queryFn: () =>
+      fetchDrafts(creds.username, creds.password, creds.testMode, listStartDate, listEndDate),
+    enabled: hasCredentials && Boolean(listStartDate) && Boolean(listEndDate),
+    staleTime: 60_000,
+    retry: false,
+    meta: { onError: true },
+  });
+
+  const loading = isLoading || isFetching || loadingAction;
 
   async function viewInvoice(uuid: string, onayDurumu: string) {
-    if (!creds.username || !creds.password) return;
-    setLoading(true);
+    if (!hasCredentials) return;
+    setLoadingAction(true);
     try {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
@@ -80,7 +92,7 @@ export function InvoicesPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
     } finally {
-      setLoading(false);
+      setLoadingAction(false);
     }
   }
 
@@ -93,8 +105,8 @@ export function InvoicesPage() {
       toast.error("Bu belge zaten silinmiş!");
       return;
     }
-    if (!creds.username || !creds.password) return;
-    setLoading(true);
+    if (!hasCredentials) return;
+    setLoadingAction(true);
     try {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
@@ -104,14 +116,14 @@ export function InvoicesPage() {
           invoice as unknown as Record<string, unknown>,
         );
         toast.success("Fatura silindi");
-        await fetchInvoices();
+        await queryClient.invalidateQueries({ queryKey: ["invoices"] });
       } finally {
         angaria.logout(session).catch(() => {});
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
     } finally {
-      setLoading(false);
+      setLoadingAction(false);
     }
   }
 
@@ -128,39 +140,27 @@ export function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">Faturalarım</h2>
-        <p className="text-sm text-muted-foreground">GİB portalda düzenlenen faturalar</p>
+      <div className="flex items-end gap-4">
+        <div className="flex-1 space-y-1">
+          <Label>Başlangıç</Label>
+          <DatePicker
+            value={parseGIB(listStartDate)}
+            onChange={(d) => setListStartDate(toGIB(d))}
+          />
+        </div>
+        <div className="flex-1 space-y-1">
+          <Label>Bitiş</Label>
+          <DatePicker value={parseGIB(listEndDate)} onChange={(d) => setListEndDate(toGIB(d))} />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={loading}
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["invoices"] })}
+        >
+          {loading ? "Yükleniyor..." : "Yenile"}
+        </Button>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Tarih Aralığı</CardTitle>
-          <CardAction>
-            <Button size="sm" disabled={loading} onClick={fetchInvoices}>
-              {loading ? "Yükleniyor..." : "Sorgula"}
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Başlangıç</Label>
-              <DatePicker
-                value={parseGIB(listStartDate)}
-                onChange={(d) => setListStartDate(toGIB(d))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Bitiş</Label>
-              <DatePicker
-                value={parseGIB(listEndDate)}
-                onChange={(d) => setListEndDate(toGIB(d))}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {invoiceList.length > 0 && (
         <Card>
@@ -213,7 +213,7 @@ export function InvoicesPage() {
       {invoiceList.length === 0 && !loading && (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Tarih aralığı seçip Sorgula butonuna tıklayın</p>
+            <p className="text-muted-foreground">Bu tarih aralığında fatura bulunamadı</p>
           </CardContent>
         </Card>
       )}

@@ -92,9 +92,15 @@ function loadLocal<T>(key: string, fallback: T): T {
   }
 }
 
+function currentTime() {
+  const now = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+}
+
 export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
   manualDate: "",
-  manualTime: "",
+  manualTime: currentTime(),
   irsaliyeNumarasi: "",
   irsaliyeTarihi: "",
   paymentTotal: "",
@@ -121,6 +127,8 @@ interface Store {
   setAdvancedFields: React.Dispatch<React.SetStateAction<AdvancedInvoiceFields>>;
   viewMode: "simple" | "advanced";
   setViewMode: React.Dispatch<React.SetStateAction<"simple" | "advanced">>;
+  invoiceDateRange: { start: string; end: string };
+  setInvoiceDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>;
   newId: () => string;
   defaultItemAdvanced: typeof DEFAULT_ITEM_ADVANCED;
 }
@@ -188,6 +196,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     loadLocal("fatura-view-mode", "simple"),
   );
 
+  const [invoiceDateRange, setInvoiceDateRange] = useState(() => {
+    const now = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    const today = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
+    return { start: today, end: today };
+  });
+
   // Persist to localStorage
   useEffect(() => localStorage.setItem("fatura-creds", JSON.stringify(creds)), [creds]);
   useEffect(
@@ -241,6 +256,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setAdvancedFields,
         viewMode,
         setViewMode,
+        invoiceDateRange,
+        setInvoiceDateRange,
         newId,
         defaultItemAdvanced: DEFAULT_ITEM_ADVANCED,
       }}

@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar, type Page } from "@/components/app-sidebar.tsx";
-import { StoreProvider } from "@/lib/store.tsx";
+import { StoreProvider, useStore } from "@/lib/store.tsx";
 import { CreateInvoicePage } from "@/pages/create-invoice.tsx";
 import { InvoicesPage } from "@/pages/invoices.tsx";
 import { TemplatesPage } from "@/pages/templates.tsx";
@@ -17,6 +18,37 @@ const pageConfig: Record<Page, { title: string; description: string }> = {
   customers: { title: "Müşteriler", description: "Kayıtlı alıcılar" },
   settings: { title: "Ayarlar", description: "Uygulama yapılandırması" },
 };
+
+function ViewModeToggle() {
+  const { viewMode, setViewMode } = useStore();
+  const advanced = viewMode === "advanced";
+  return (
+    <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
+      <button
+        type="button"
+        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+          !advanced
+            ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+        onClick={() => setViewMode("simple")}
+      >
+        Basit
+      </button>
+      <button
+        type="button"
+        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+          advanced
+            ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+        onClick={() => setViewMode("advanced")}
+      >
+        Gelişmiş
+      </button>
+    </div>
+  );
+}
 
 function Dashboard() {
   const [page, setPage] = useState<Page>("create");
@@ -34,6 +66,11 @@ function Dashboard() {
               {config.description}
             </span>
           </div>
+          {page === "create" && (
+            <div className="ml-auto">
+              <ViewModeToggle />
+            </div>
+          )}
         </header>
         <div className="flex-1 overflow-auto">
           <div className="mx-auto max-w-3xl px-6 py-8">
@@ -49,13 +86,17 @@ function Dashboard() {
   );
 }
 
+const queryClient = new QueryClient();
+
 export function App() {
   return (
-    <TooltipProvider>
-      <StoreProvider>
-        <Toaster position="top-right" richColors />
-        <Dashboard />
-      </StoreProvider>
-    </TooltipProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <StoreProvider>
+          <Toaster position="top-right" richColors />
+          <Dashboard />
+        </StoreProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 }
