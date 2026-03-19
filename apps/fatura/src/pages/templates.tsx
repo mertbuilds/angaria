@@ -43,8 +43,8 @@ export function TemplatesPage({ onNavigate }: { onNavigate: (page: Page) => void
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Şablonlar</h2>
-        <p className="text-muted-foreground">Kayıtlı fatura şablonlarınız</p>
+        <h2 className="text-xl font-semibold tracking-tight">Şablonlar</h2>
+        <p className="text-sm text-muted-foreground">Kayıtlı fatura şablonlarınız</p>
       </div>
 
       {invoiceTemplates.length === 0 ? (

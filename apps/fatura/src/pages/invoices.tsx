@@ -1,13 +1,25 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { format, parse } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker.tsx";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import * as angaria from "@/lib/angaria.ts";
+
+const GIB_FORMAT = "dd/MM/yyyy";
+const parseGIB = (s: string): Date | undefined => {
+  if (!s) return undefined;
+  try {
+    return parse(s, GIB_FORMAT, new Date());
+  } catch {
+    return undefined;
+  }
+};
+const toGIB = (d: Date | undefined): string => (d ? format(d, GIB_FORMAT) : "");
 
 interface Invoice {
   belgeNumarasi?: string;
@@ -117,8 +129,8 @@ export function InvoicesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Faturalarım</h2>
-        <p className="text-muted-foreground">GİB portalda düzenlenen faturalar</p>
+        <h2 className="text-xl font-semibold tracking-tight">Faturalarım</h2>
+        <p className="text-sm text-muted-foreground">GİB portalda düzenlenen faturalar</p>
       </div>
 
       <Card>
@@ -134,18 +146,16 @@ export function InvoicesPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Başlangıç</Label>
-              <Input
-                value={listStartDate}
-                onChange={(e) => setListStartDate(e.target.value)}
-                placeholder="DD/MM/YYYY"
+              <DatePicker
+                value={parseGIB(listStartDate)}
+                onChange={(d) => setListStartDate(toGIB(d))}
               />
             </div>
             <div className="space-y-2">
               <Label>Bitiş</Label>
-              <Input
-                value={listEndDate}
-                onChange={(e) => setListEndDate(e.target.value)}
-                placeholder="DD/MM/YYYY"
+              <DatePicker
+                value={parseGIB(listEndDate)}
+                onChange={(d) => setListEndDate(toGIB(d))}
               />
             </div>
           </div>

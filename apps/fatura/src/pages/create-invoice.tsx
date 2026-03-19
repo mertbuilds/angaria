@@ -21,12 +21,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/ui/date-picker.tsx";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import * as angaria from "@/lib/angaria.ts";
+import { format, parse } from "date-fns";
 
 const formatMoney = (currency: string, n: number) =>
   new Intl.NumberFormat("tr-TR", { style: "currency", currency }).format(n);
+
+const GIB_FORMAT = "dd/MM/yyyy";
+
+/** DD/MM/YYYY string → Date */
+const parseGIB = (s: string): Date | undefined => {
+  if (!s) return undefined;
+  try {
+    return parse(s, GIB_FORMAT, new Date());
+  } catch {
+    return undefined;
+  }
+};
+
+/** Date → DD/MM/YYYY string */
+const toGIB = (d: Date | undefined): string => (d ? format(d, GIB_FORMAT) : "");
 
 const UNIT_TYPES = [
   { value: "C62", label: "Adet" },
@@ -231,16 +248,18 @@ export function CreateInvoicePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Fatura Oluştur</h2>
-          <p className="text-muted-foreground">e-Arşiv fatura taslağı oluşturun</p>
+      <div className="flex items-end justify-between">
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold tracking-tight">Yeni Fatura</h2>
+          <p className="text-sm text-muted-foreground">Tüm alanları doldurup taslak oluşturun</p>
         </div>
-        <div className="flex gap-1 rounded-lg border p-1">
+        <div className="flex items-center gap-1.5 rounded-lg border bg-muted/50 p-1">
           <button
             type="button"
-            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-              !advanced ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-accent"
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+              !advanced
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+                : "text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setViewMode("simple")}
           >
@@ -248,8 +267,10 @@ export function CreateInvoicePage() {
           </button>
           <button
             type="button"
-            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-              advanced ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-accent"
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+              advanced
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+                : "text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setViewMode("advanced")}
           >
@@ -319,18 +340,19 @@ export function CreateInvoicePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Düzenlenme Tarihi</Label>
-                <Input
-                  value={advancedFields.manualDate}
-                  onChange={(e) => setAdvancedFields((f) => ({ ...f, manualDate: e.target.value }))}
-                  placeholder="DD/MM/YYYY (boş = otomatik)"
+                <DatePicker
+                  value={parseGIB(advancedFields.manualDate)}
+                  onChange={(d) => setAdvancedFields((f) => ({ ...f, manualDate: toGIB(d) }))}
+                  placeholder="Otomatik"
                 />
               </div>
               <div className="space-y-2">
                 <Label>Düzenlenme Saati</Label>
                 <Input
+                  type="time"
+                  step="1"
                   value={advancedFields.manualTime}
                   onChange={(e) => setAdvancedFields((f) => ({ ...f, manualTime: e.target.value }))}
-                  placeholder="HH:MM:SS (boş = otomatik)"
                 />
               </div>
             </div>
@@ -460,12 +482,9 @@ export function CreateInvoicePage() {
               </div>
               <div className="space-y-2">
                 <Label>İrsaliye Tarihi</Label>
-                <Input
-                  value={advancedFields.irsaliyeTarihi}
-                  onChange={(e) =>
-                    setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: e.target.value }))
-                  }
-                  placeholder="DD/MM/YYYY"
+                <DatePicker
+                  value={parseGIB(advancedFields.irsaliyeTarihi)}
+                  onChange={(d) => setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: toGIB(d) }))}
                 />
               </div>
             </div>
@@ -660,11 +679,11 @@ export function CreateInvoicePage() {
       </Card>
 
       {/* Totals */}
-      <Card>
-        <CardContent className="space-y-2">
+      <Card className="overflow-hidden">
+        <CardContent className="space-y-3">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Mal/Hizmet Toplam Tutarı</span>
-            <span>
+            <span className="text-muted-foreground">Mal/Hizmet Toplam</span>
+            <span className="tabular-nums">
               {formatMoney(
                 invoiceSettings.currency,
                 items.reduce((s, i) => s + i.quantity * i.unitPrice, 0),
@@ -674,21 +693,25 @@ export function CreateInvoicePage() {
           {advanced && totalDiscount > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Toplam İskonto</span>
-              <span>-{formatMoney(invoiceSettings.currency, totalDiscount)}</span>
+              <span className="tabular-nums text-destructive">
+                -{formatMoney(invoiceSettings.currency, totalDiscount)}
+              </span>
             </div>
           )}
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Hesaplanan KDV</span>
-            <span>{formatMoney(invoiceSettings.currency, totalVAT)}</span>
+            <span className="tabular-nums">{formatMoney(invoiceSettings.currency, totalVAT)}</span>
           </div>
-          <div className="border-t pt-2">
-            <div className="flex justify-between text-lg font-bold">
-              <span>Vergiler Dahil Toplam</span>
-              <span>{formatMoney(invoiceSettings.currency, total)}</span>
-            </div>
+        </CardContent>
+        <div className="border-t bg-muted/30 px-4 py-4">
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm font-medium text-muted-foreground">Toplam</span>
+            <span className="text-2xl font-bold tabular-nums tracking-tight">
+              {formatMoney(invoiceSettings.currency, total)}
+            </span>
           </div>
           {advanced && (
-            <div className="flex items-center justify-between pt-1">
+            <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
               <span className="text-sm text-muted-foreground">Ödenecek Tutar</span>
               <Input
                 type="number"
@@ -701,7 +724,7 @@ export function CreateInvoicePage() {
               />
             </div>
           )}
-        </CardContent>
+        </div>
       </Card>
 
       {/* Action */}

@@ -61,8 +61,8 @@ export function CustomersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Müşteriler</h2>
-        <p className="text-muted-foreground">Kayıtlı alıcı bilgileriniz</p>
+        <h2 className="text-xl font-semibold tracking-tight">Müşteriler</h2>
+        <p className="text-sm text-muted-foreground">Kayıtlı alıcı bilgileriniz</p>
       </div>
 
       {/* Add / Edit Form */}
