@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Calendar03Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -29,19 +29,26 @@ export function DatePicker({
         <Button
           variant="outline"
           className={cn(
-            "w-full justify-start text-left font-normal",
+            "w-full justify-between font-normal",
             !value && "text-muted-foreground",
             className,
           )}
         >
-          <HugeiconsIcon icon={Calendar03Icon} strokeWidth={1.5} />
-          {value ? format(value, "dd/MM/yyyy", { locale: tr }) : placeholder}
+          {value ? format(value, "PPP", { locale: tr }) : placeholder}
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            strokeWidth={1.5}
+            className="size-4 opacity-50"
+            data-icon="inline-end"
+          />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto overflow-hidden p-0" align="start">
         <Calendar
           mode="single"
           selected={value}
+          captionLayout="dropdown"
+          defaultMonth={value}
           onSelect={(date) => {
             onChange(date);
             setOpen(false);
