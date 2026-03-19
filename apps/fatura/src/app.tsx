@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
-import { Plus, Trash2, Save, Settings, FileText, LogOut, ClipboardList, X } from "lucide-react";
+import { Plus, Trash2, Save, Settings, FileText, ClipboardList, X } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -175,16 +175,6 @@ export function App() {
   const grandTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const totalVAT = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.VATRate / 100), 0);
   const total = grandTotal + totalVAT;
-
-  async function doLogout() {
-    try {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
-      await angaria.logout(session);
-      toast.success("GİB oturumu kapatıldı");
-    } catch {
-      toast.error("Çıkış yapılamadı");
-    }
-  }
 
   function selectRecipient(id: string) {
     setSelectedRecipientId(id);
@@ -424,7 +414,7 @@ export function App() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FileText className="size-7" />
-            <h1 className="text-2xl font-bold tracking-tight">e-Arşiv Fatura</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Angaria</h1>
           </div>
           <div className="flex items-center gap-2">
             {invoiceTemplates.length > 0 && (
@@ -446,9 +436,6 @@ export function App() {
                 </Select>
               </div>
             )}
-            <Button variant="outline" size="icon" onClick={doLogout} title="GİB Çıkış">
-              <LogOut />
-            </Button>
             <Button variant="outline" size="icon" onClick={() => setShowSettings((s) => !s)}>
               <Settings />
             </Button>
