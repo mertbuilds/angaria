@@ -1,7 +1,7 @@
 import type { Plugin } from "vite";
 import type { IncomingMessage } from "node:http";
 import { setStorageRoot, loadData, saveData } from "./storage.ts";
-import * as fatura from "./fatura-v2.ts";
+import * as angaria from "./angaria-invoice-sdk.ts";
 
 function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
@@ -82,18 +82,18 @@ export function apiPlugin(): Plugin {
 
           if (req.method === "POST" && url.pathname === "/api/logout") {
             if (lastSession) {
-              await fatura.logout(lastSession);
+              await angaria.logout(lastSession);
               lastSession = null;
               res.end(JSON.stringify({ ok: true }));
             } else {
               // No stored session — login then immediately logout
               const body = await readBody(req);
-              const session = await fatura.login(
+              const session = await angaria.login(
                 body.username as string,
                 body.password as string,
                 body.testMode as boolean,
               );
-              await fatura.logout(session);
+              await angaria.logout(session);
               res.end(JSON.stringify({ ok: true }));
             }
             return;
@@ -103,7 +103,7 @@ export function apiPlugin(): Plugin {
             const body = await readBody(req);
             const invoice = body.invoice as Record<string, unknown>;
 
-            const session = await fatura.login(
+            const session = await angaria.login(
               body.username as string,
               body.password as string,
               body.testMode as boolean,
@@ -111,7 +111,7 @@ export function apiPlugin(): Plugin {
             lastSession = session;
 
             try {
-              const draft = await fatura.createDraftInvoice(session, {
+              const draft = await angaria.createDraftInvoice(session, {
                 date: invoice.date as string,
                 time: invoice.time as string,
                 currency: invoice.currency as string | undefined,
@@ -126,7 +126,7 @@ export function apiPlugin(): Plugin {
                 city: invoice.city as string | undefined,
                 district: invoice.district as string | undefined,
                 taxOffice: invoice.taxOffice as string | undefined,
-                items: invoice.items as fatura.InvoiceItem[],
+                items: invoice.items as angaria.InvoiceItem[],
                 grandTotal: invoice.grandTotal as number,
                 totalVAT: invoice.totalVAT as number,
                 grandTotalInclVAT: invoice.grandTotalInclVAT as number,
@@ -137,7 +137,7 @@ export function apiPlugin(): Plugin {
               // Try to get HTML preview
               let html: string | null = null;
               try {
-                html = await fatura.getInvoiceHTML(session, draft.uuid, false);
+                html = await angaria.getInvoiceHTML(session, draft.uuid, "Onaylanmadı");
               } catch {
                 // HTML preview is optional
               }
@@ -152,8 +152,68 @@ export function apiPlugin(): Plugin {
               );
             } finally {
               // Auto-logout to free the session
-              fatura.logout(session).catch(() => {});
+              angaria.logout(session).catch(() => {});
               lastSession = null;
+            }
+            return;
+          }
+
+          if (req.method === "POST" && url.pathname === "/api/invoice/list") {
+            const body = await readBody(req);
+            const session = await angaria.login(
+              body.username as string,
+              body.password as string,
+              body.testMode as boolean,
+            );
+            try {
+              const drafts = await angaria.getDrafts(
+                session,
+                body.startDate as string,
+                body.endDate as string,
+              );
+              res.end(JSON.stringify({ ok: true, drafts }));
+            } finally {
+              angaria.logout(session).catch(() => {});
+            }
+            return;
+          }
+
+          if (req.method === "POST" && url.pathname === "/api/invoice/html") {
+            const body = await readBody(req);
+            const session = await angaria.login(
+              body.username as string,
+              body.password as string,
+              body.testMode as boolean,
+            );
+            try {
+              const html = await angaria.getInvoiceHTML(
+                session,
+                body.uuid as string,
+                (body.onayDurumu as string) ?? "Onaylanmadı",
+              );
+              res.end(JSON.stringify({ ok: true, html }));
+            } finally {
+              angaria.logout(session).catch(() => {});
+            }
+            return;
+          }
+
+          if (req.method === "POST" && url.pathname === "/api/invoice/cancel") {
+            const body = await readBody(req);
+            const session = await angaria.login(
+              body.username as string,
+              body.password as string,
+              body.testMode as boolean,
+            );
+            try {
+              const result = await angaria.cancelInvoice(
+                session,
+                body.reason as string,
+                body.invoice as Record<string, unknown>,
+              );
+              res.end(JSON.stringify({ ok: true, result }));
+            } finally {
+              angaria.logout(session).catch(() => {});
             }
             return;
           }

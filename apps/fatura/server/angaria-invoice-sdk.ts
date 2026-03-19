@@ -232,8 +232,14 @@ export async function createDraftInvoice(
     invoiceData,
   );
 
-  // Check for error in response
-  if (typeof result.data === "string" && result.data.length > 0 && !result.data.includes("uuid")) {
+  // GIB returns errors as Turkish text in the data field (e.g. "Bu mükellef ... fatura kesemez")
+  // Success responses either have no data or a confirmation message containing "başarı"
+  if (
+    typeof result.data === "string" &&
+    result.data.length > 0 &&
+    !result.data.toLowerCase().includes("başarı") &&
+    (result.error === "1" || result.data.includes("kesemez") || result.data.includes("hata"))
+  ) {
     throw new Error(result.data);
   }
 
@@ -243,11 +249,11 @@ export async function createDraftInvoice(
 export async function getInvoiceHTML(
   session: SessionInfo,
   uuid: string,
-  signed: boolean,
+  onayDurumu: string,
 ): Promise<string> {
   const result = await dispatch(session, "EARSIV_PORTAL_FATURA_GOSTER", "RG_BASITTASLAKLAR", {
     ettn: uuid,
-    onayDurumu: signed ? "Onaylandı" : "Onaylanmadı",
+    onayDurumu,
   });
   return result.data as string;
 }
@@ -261,6 +267,19 @@ export async function getDrafts(
     baslangic: startDate,
     bitis: endDate,
     hangiTip: "5000/30000",
+    table: [],
   });
   return (result.data as unknown[]) ?? [];
+}
+
+export async function cancelInvoice(
+  session: SessionInfo,
+  reason: string,
+  invoice: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const result = await dispatch(session, "EARSIV_PORTAL_FATURA_SIL", "RG_BASITTASLAKLAR", {
+    silinecekler: [invoice],
+    aciklama: reason,
+  });
+  return result;
 }
