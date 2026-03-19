@@ -9,14 +9,21 @@
     "preview": "vp preview"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "catalog:",
+    "@hugeicons/core-free-icons": "catalog:",
+    "@hugeicons/react": "catalog:",
     "@tauri-apps/api": "catalog:",
     "@tauri-apps/plugin-http": "catalog:",
+    "class-variance-authority": "catalog:",
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
+    "radix-ui": "catalog:",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "shadcn": "catalog:",
     "sonner": "^2.0.3",
-    "tailwind-merge": "^3.0.0"
+    "tailwind-merge": "^3.0.0",
+    "tw-animate-css": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
