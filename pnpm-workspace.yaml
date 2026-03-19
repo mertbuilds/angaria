@@ -3,14 +3,16 @@ packages:
   - packages/*
   - tools/*
 
-catalogMode: prefer
-
 catalog:
+  "@tauri-apps/api": ^2.10.1
+  "@tauri-apps/plugin-http": ^2.5.7
   "@types/node": ^24
   typescript: ^5
   vite: npm:@voidzero-dev/vite-plus-core@latest
-  vitest: npm:@voidzero-dev/vite-plus-test@latest
   vite-plus: latest
+  vitest: npm:@voidzero-dev/vite-plus-test@latest
+
+catalogMode: prefer
 overrides:
   vite: "catalog:"
   vitest: "catalog:"

@@ -11,6 +11,7 @@ import {
   Button,
   Select,
 } from "./components/ui.tsx";
+import * as angaria from "./lib/angaria.ts";
 
 interface Recipient {
   id: string;
@@ -70,8 +71,12 @@ export function App() {
   );
 
   const [showSettings, setShowSettings] = useState(false);
-  const [savedRecipients, setSavedRecipients] = useState<Recipient[]>([]);
-  const [savedItems, setSavedItems] = useState<InvoiceItem[]>([]);
+  const [savedRecipients, setSavedRecipients] = useState<Recipient[]>(() =>
+    loadLocal("fatura-saved-recipients", []),
+  );
+  const [savedItems, setSavedItems] = useState<InvoiceItem[]>(() =>
+    loadLocal("fatura-saved-items", []),
+  );
   const [selectedRecipientId, setSelectedRecipientId] = useState("");
 
   const [recipient, setRecipient] = useState<Recipient>(() =>
@@ -141,19 +146,16 @@ export function App() {
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
 
-  // Load saved data on mount
-  useEffect(() => {
-    fetch("/api/data")
-      .then((r) => r.json())
-      .then((data) => {
-        setSavedRecipients(data.recipients ?? []);
-        setSavedItems(data.items ?? []);
-      })
-      .catch(() => {});
-  }, []);
-
   // Persist form state to localStorage
   useEffect(() => localStorage.setItem("fatura-creds", JSON.stringify(creds)), [creds]);
+  useEffect(
+    () => localStorage.setItem("fatura-saved-recipients", JSON.stringify(savedRecipients)),
+    [savedRecipients],
+  );
+  useEffect(
+    () => localStorage.setItem("fatura-saved-items", JSON.stringify(savedItems)),
+    [savedItems],
+  );
   useEffect(
     () => localStorage.setItem("fatura-v2-settings", JSON.stringify(invoiceSettings)),
     [invoiceSettings],
@@ -174,25 +176,14 @@ export function App() {
   const totalVAT = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.VATRate / 100), 0);
   const total = grandTotal + totalVAT;
 
-  async function logout() {
+  async function doLogout() {
     try {
-      const res = await fetch("/api/logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(creds),
-      });
-      const data = await res.json();
-      if (data.ok) toast.success("GİB oturumu kapatıldı");
-      else toast.error("Çıkış yapılamadı");
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      await angaria.logout(session);
+      toast.success("GİB oturumu kapatıldı");
     } catch {
       toast.error("Çıkış yapılamadı");
     }
-  }
-
-  async function reloadData() {
-    const data = await fetch("/api/data").then((r) => r.json());
-    setSavedRecipients(data.recipients ?? []);
-    setSavedItems(data.items ?? []);
   }
 
   function selectRecipient(id: string) {
@@ -201,34 +192,31 @@ export function App() {
     if (found) setRecipient({ ...found });
   }
 
-  async function saveRecipient() {
+  function saveRecipient() {
     if (!recipient.taxIDOrTRID || !recipient.title) {
       toast.error("VKN/TCKN ve ünvan gerekli");
       return;
     }
-    await fetch("/api/recipients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(recipient),
+    setSavedRecipients((prev) => {
+      const idx = prev.findIndex((r) => r.id === recipient.id);
+      if (idx >= 0) return prev.map((r, i) => (i === idx ? { ...recipient } : r));
+      return [...prev, { ...recipient }];
     });
-    await reloadData();
     toast.success("Alıcı kaydedildi");
   }
 
-  async function deleteRecipient(id: string) {
-    await fetch(`/api/recipients/${id}`, { method: "DELETE" });
-    await reloadData();
+  function deleteRecipient(id: string) {
+    setSavedRecipients((prev) => prev.filter((r) => r.id !== id));
     if (selectedRecipientId === id) setSelectedRecipientId("");
     toast.success("Alıcı silindi");
   }
 
-  async function saveItemTemplate(item: InvoiceItem) {
-    await fetch("/api/items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(item),
+  function saveItemTemplate(item: InvoiceItem) {
+    setSavedItems((prev) => {
+      const idx = prev.findIndex((i) => i.id === item.id);
+      if (idx >= 0) return prev.map((i, j) => (j === idx ? { ...item } : i));
+      return [...prev, { ...item }];
     });
-    await reloadData();
     toast.success("Kalem şablonu kaydedildi");
   }
 
@@ -289,22 +277,12 @@ export function App() {
     }
     setListLoading(true);
     try {
-      const res = await fetch("/api/invoice/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: creds.username,
-          password: creds.password,
-          testMode: creds.testMode,
-          startDate: listStartDate,
-          endDate: listEndDate,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        toast.error(`Hata: ${data.error}`);
-      } else {
-        setInvoiceList(data.drafts ?? []);
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      try {
+        const drafts = await angaria.getDrafts(session, listStartDate, listEndDate);
+        setInvoiceList(drafts as typeof invoiceList);
+      } finally {
+        angaria.logout(session).catch(() => {});
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
@@ -317,22 +295,12 @@ export function App() {
     if (!creds.username || !creds.password) return;
     setListLoading(true);
     try {
-      const res = await fetch("/api/invoice/html", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: creds.username,
-          password: creds.password,
-          testMode: creds.testMode,
-          uuid,
-          onayDurumu,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        toast.error(`Hata: ${data.error}`);
-      } else if (data.html) {
-        setViewHTML(data.html);
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      try {
+        const html = await angaria.getInvoiceHTML(session, uuid, onayDurumu);
+        setViewHTML(html);
+      } finally {
+        angaria.logout(session).catch(() => {});
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
@@ -341,7 +309,7 @@ export function App() {
     }
   }
 
-  async function cancelInvoice(invoice: (typeof invoiceList)[0]) {
+  async function doCancelInvoice(invoice: (typeof invoiceList)[0]) {
     if (invoice.onayDurumu === "Onaylandı") {
       toast.error("Onaylanmış belgeler silinemez!");
       return;
@@ -353,23 +321,17 @@ export function App() {
     if (!creds.username || !creds.password) return;
     setListLoading(true);
     try {
-      const res = await fetch("/api/invoice/cancel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: creds.username,
-          password: creds.password,
-          testMode: creds.testMode,
-          reason: "Fatura iptal edildi",
-          invoice,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        toast.error(`Hata: ${data.error}`);
-      } else {
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      try {
+        await angaria.cancelInvoice(
+          session,
+          "Fatura iptal edildi",
+          invoice as Record<string, unknown>,
+        );
         toast.success("Fatura silindi");
         await fetchInvoices();
+      } finally {
+        angaria.logout(session).catch(() => {});
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
@@ -400,52 +362,51 @@ export function App() {
     const time = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
 
     try {
-      const res = await fetch("/api/invoice/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: creds.username,
-          password: creds.password,
-          testMode: creds.testMode,
-          invoice: {
-            date,
-            time,
-            currency: invoiceSettings.currency,
-            currencyRate: invoiceSettings.currencyRate || undefined,
-            invoiceType: invoiceSettings.invoiceType,
-            taxIDOrTRID: recipient.taxIDOrTRID,
-            taxOffice: recipient.taxOffice,
-            title: recipient.title,
-            name: recipient.name,
-            surname: recipient.surname,
-            fullAddress: recipient.fullAddress,
-            country: recipient.country || undefined,
-            items: items.map((i) => ({
-              name: i.name,
-              quantity: i.quantity,
-              unitPrice: i.unitPrice,
-              price: i.quantity * i.unitPrice,
-              unitType: "HUR",
-              VATRate: i.VATRate,
-              VATAmount: i.quantity * i.unitPrice * (i.VATRate / 100),
-            })),
-            grandTotal,
-            totalVAT,
-            grandTotalInclVAT: total,
-            paymentTotal: total,
-            note,
-          },
-        }),
-      });
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      try {
+        const draft = await angaria.createDraftInvoice(session, {
+          date,
+          time,
+          currency: invoiceSettings.currency,
+          currencyRate: invoiceSettings.currencyRate || undefined,
+          invoiceType: invoiceSettings.invoiceType,
+          taxIDOrTRID: recipient.taxIDOrTRID,
+          taxOffice: recipient.taxOffice,
+          title: recipient.title,
+          name: recipient.name,
+          surname: recipient.surname,
+          fullAddress: recipient.fullAddress,
+          country: recipient.country || undefined,
+          items: items.map((i) => ({
+            name: i.name,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            price: i.quantity * i.unitPrice,
+            unitType: "HUR",
+            VATRate: i.VATRate,
+            VATAmount: i.quantity * i.unitPrice * (i.VATRate / 100),
+          })),
+          grandTotal,
+          totalVAT,
+          grandTotalInclVAT: total,
+          paymentTotal: total,
+          note,
+        });
 
-      const data = await res.json();
-      if (data.error) {
-        toast.error(`Hata: ${data.error}`);
-      } else {
         toast.success("Taslak fatura oluşturuldu!");
-        if (data.html) setInvoiceHTML(data.html);
+
+        // Try to get HTML preview
+        try {
+          const html = await angaria.getInvoiceHTML(session, draft.uuid, "Onaylanmadı");
+          setInvoiceHTML(html);
+        } catch {
+          // HTML preview is optional
+        }
+
         setTemplateName("");
         setShowTemplateSaveDialog(true);
+      } finally {
+        angaria.logout(session).catch(() => {});
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
@@ -485,7 +446,7 @@ export function App() {
                 </Select>
               </div>
             )}
-            <Button variant="outline" size="icon" onClick={logout} title="GİB Çıkış">
+            <Button variant="outline" size="icon" onClick={doLogout} title="GİB Çıkış">
               <LogOut />
             </Button>
             <Button variant="outline" size="icon" onClick={() => setShowSettings((s) => !s)}>
@@ -634,7 +595,7 @@ export function App() {
                                   variant="ghost"
                                   size="sm"
                                   className="text-destructive hover:text-destructive"
-                                  onClick={() => cancelInvoice(inv)}
+                                  onClick={() => doCancelInvoice(inv)}
                                 >
                                   Sil
                                 </Button>
