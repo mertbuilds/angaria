@@ -7,6 +7,8 @@ export interface Recipient {
   surname: string;
   fullAddress: string;
   country: string;
+  city: string;
+  district: string;
 }
 
 export interface InvoiceSettings {
@@ -21,6 +23,20 @@ export interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   VATRate: number;
+  // Advanced fields
+  unitType: string;
+  discountRate: number;
+  discountAmount: number;
+  discountReason: string;
+  gtip: string;
+}
+
+export interface AdvancedInvoiceFields {
+  manualDate: string;
+  manualTime: string;
+  irsaliyeNumarasi: string;
+  irsaliyeTarihi: string;
+  paymentTotal: string;
 }
 
 export interface Credentials {

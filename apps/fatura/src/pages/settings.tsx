@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useStore } from "@/lib/store.tsx";
 
 export function SettingsPage() {
@@ -42,15 +43,14 @@ export function SettingsPage() {
               />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-3">
+            <Switch
+              id="test-mode"
               checked={creds.testMode}
-              onChange={(e) => setCreds((c) => ({ ...c, testMode: e.target.checked }))}
-              className="rounded border-input"
+              onCheckedChange={(checked) => setCreds((c) => ({ ...c, testMode: checked }))}
             />
-            Test modu (earsivportaltest.efatura.gov.tr)
-          </label>
+            <Label htmlFor="test-mode">Test modu (earsivportaltest.efatura.gov.tr)</Label>
+          </div>
         </CardContent>
       </Card>
     </div>

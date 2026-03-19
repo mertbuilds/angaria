@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Delete01Icon } from "@hugeicons/core-free-icons";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import type { Page } from "@/components/app-sidebar.tsx";
 
@@ -18,6 +20,8 @@ export function TemplatesPage({ onNavigate }: { onNavigate: (page: Page) => void
     newId,
   } = useStore();
 
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
   function loadTemplate(id: string) {
     const t = invoiceTemplates.find((x) => x.id === id);
     if (!t) return;
@@ -29,9 +33,11 @@ export function TemplatesPage({ onNavigate }: { onNavigate: (page: Page) => void
     onNavigate("create");
   }
 
-  function deleteTemplate(id: string) {
-    setInvoiceTemplates((prev) => prev.filter((t) => t.id !== id));
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    setInvoiceTemplates((prev) => prev.filter((t) => t.id !== deleteTarget));
     toast.success("Şablon silindi");
+    setDeleteTarget(null);
   }
 
   return (
@@ -67,7 +73,11 @@ export function TemplatesPage({ onNavigate }: { onNavigate: (page: Page) => void
                   <Button size="sm" onClick={() => loadTemplate(t.id)}>
                     Kullan
                   </Button>
-                  <Button variant="destructive" size="icon-sm" onClick={() => deleteTemplate(t.id)}>
+                  <Button
+                    variant="destructive"
+                    size="icon-sm"
+                    onClick={() => setDeleteTarget(t.id)}
+                  >
                     <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
                   </Button>
                 </div>
@@ -76,6 +86,14 @@ export function TemplatesPage({ onNavigate }: { onNavigate: (page: Page) => void
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Şablonu Sil"
+        description="Bu şablonu silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

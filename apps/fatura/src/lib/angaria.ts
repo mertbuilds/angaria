@@ -1,4 +1,4 @@
-import { fetch } from "@tauri-apps/plugin-http";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
 const PROD_URL = "https://earsivportal.efatura.gov.tr";
 const TEST_URL = "https://earsivportaltest.efatura.gov.tr";
@@ -45,6 +45,8 @@ export interface InvoiceDetails {
   paymentTotal: number;
   note?: string;
   totalDiscount?: number;
+  irsaliyeNumarasi?: string;
+  irsaliyeTarihi?: string;
 }
 
 function extractCookies(response: Response): string[] {
@@ -76,7 +78,7 @@ async function dispatch(
   const callid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
   const body = `cmd=${cmd}&callid=${callid}&pageName=${pageName}&token=${session.token}&jp=${encodeURIComponent(JSON.stringify(data))}`;
 
-  const response = await fetch(`${session.baseUrl}/earsiv-services/dispatch`, {
+  const response = await tauriFetch(`${session.baseUrl}/earsiv-services/dispatch`, {
     method: "POST",
     headers: {
       accept: "application/json, text/javascript, */*; q=0.01",
@@ -101,7 +103,7 @@ export async function login(
   const baseUrl = testMode ? TEST_URL : PROD_URL;
   const cmd = testMode ? "login" : "anologin";
 
-  const response = await fetch(`${baseUrl}/earsiv-services/assos-login`, {
+  const response = await tauriFetch(`${baseUrl}/earsiv-services/assos-login`, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -124,7 +126,7 @@ export async function login(
 
 export async function logout(session: SessionInfo): Promise<void> {
   const cmd = session.baseUrl === TEST_URL ? "logout" : "anologin";
-  await fetch(`${session.baseUrl}/earsiv-services/assos-login`, {
+  await tauriFetch(`${session.baseUrl}/earsiv-services/assos-login`, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -166,8 +168,8 @@ export async function createDraftInvoice(
     vergiDairesi: details.taxOffice ?? "",
     ulke: details.country ?? "",
     bulvarcaddesokak: details.fullAddress,
-    irsaliyeNumarasi: "",
-    irsaliyeTarihi: "",
+    irsaliyeNumarasi: details.irsaliyeNumarasi ?? "",
+    irsaliyeTarihi: details.irsaliyeTarihi ?? "",
     mahalleSemtIlce: details.district ?? "",
     sehir: details.city ?? " ",
     postaKodu: "",

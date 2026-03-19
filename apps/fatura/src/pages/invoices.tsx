@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import * as angaria from "@/lib/angaria.ts";
 
@@ -30,6 +31,7 @@ export function InvoicesPage() {
   const [invoiceList, setInvoiceList] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewHTML, setViewHTML] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
 
   async function fetchInvoices() {
     if (!creds.username || !creds.password) {
@@ -183,7 +185,7 @@ export function InvoicesPage() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => cancelInvoice(inv)}
+                            onClick={() => setDeleteTarget(inv)}
                           >
                             Sil
                           </Button>
@@ -225,6 +227,19 @@ export function InvoicesPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Faturayı Sil"
+        description="Bu faturayı GİB portaldan silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+        onConfirm={() => {
+          if (deleteTarget) {
+            void cancelInvoice(deleteTarget);
+            setDeleteTarget(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -21,11 +21,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import * as angaria from "@/lib/angaria.ts";
 
 const formatMoney = (currency: string, n: number) =>
   new Intl.NumberFormat("tr-TR", { style: "currency", currency }).format(n);
+
+const UNIT_TYPES = [
+  { value: "C62", label: "Adet" },
+  { value: "HUR", label: "Saat" },
+  { value: "DAY", label: "Gün" },
+  { value: "MON", label: "Ay" },
+  { value: "KGM", label: "Kilogram" },
+  { value: "LTR", label: "Litre" },
+  { value: "MTR", label: "Metre" },
+  { value: "MTK", label: "Metrekare" },
+  { value: "MTQ", label: "Metreküp" },
+  { value: "SET", label: "Set" },
+  { value: "PA", label: "Paket" },
+  { value: "BX", label: "Kutu" },
+];
 
 export function CreateInvoicePage() {
   const {
@@ -39,46 +55,39 @@ export function CreateInvoicePage() {
     note,
     setNote,
     savedRecipients,
-    setSavedRecipients,
     savedItems,
     setSavedItems,
     setInvoiceTemplates,
+    advancedFields,
+    setAdvancedFields,
+    viewMode,
+    setViewMode,
     newId,
+    defaultItemAdvanced,
   } = useStore();
 
   const [loading, setLoading] = useState(false);
   const [invoiceHTML, setInvoiceHTML] = useState<string | null>(null);
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
-  const [selectedRecipientId, setSelectedRecipientId] = useState("");
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
 
-  const grandTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const totalVAT = items.reduce((s, i) => s + i.quantity * i.unitPrice * (i.VATRate / 100), 0);
+  const advanced = viewMode === "advanced";
+
+  const totalDiscount = items.reduce((s, i) => s + (i.discountAmount || 0), 0);
+  const grandTotal = items.reduce(
+    (s, i) => s + i.quantity * i.unitPrice - (i.discountAmount || 0),
+    0,
+  );
+  const totalVAT = items.reduce(
+    (s, i) => s + (i.quantity * i.unitPrice - (i.discountAmount || 0)) * (i.VATRate / 100),
+    0,
+  );
   const total = grandTotal + totalVAT;
 
   function selectRecipient(id: string) {
-    setSelectedRecipientId(id);
     const found = savedRecipients.find((r) => r.id === id);
     if (found) setRecipient({ ...found });
-  }
-
-  function saveRecipient() {
-    if (!recipient.taxIDOrTRID || !recipient.title) {
-      toast.error("VKN/TCKN ve ünvan gerekli");
-      return;
-    }
-    setSavedRecipients((prev) => {
-      const idx = prev.findIndex((r) => r.id === recipient.id);
-      if (idx >= 0) return prev.map((r, i) => (i === idx ? { ...recipient } : r));
-      return [...prev, { ...recipient }];
-    });
-    toast.success("Alıcı kaydedildi");
-  }
-
-  function deleteRecipient(id: string) {
-    setSavedRecipients((prev) => prev.filter((r) => r.id !== id));
-    if (selectedRecipientId === id) setSelectedRecipientId("");
-    toast.success("Alıcı silindi");
   }
 
   function saveItemTemplate(item: (typeof items)[0]) {
@@ -91,18 +100,30 @@ export function CreateInvoicePage() {
   }
 
   function updateItem(id: string, field: string, value: string | number) {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
+    setItems((prev) =>
+      prev.map((i) => {
+        if (i.id !== id) return i;
+        const updated = { ...i, [field]: value };
+        // Auto-calculate discount amount from rate
+        if (field === "discountRate") {
+          updated.discountAmount = updated.quantity * updated.unitPrice * (Number(value) / 100);
+        }
+        return updated;
+      }),
+    );
   }
 
   function addItem() {
     setItems((prev) => [
       ...prev,
-      { id: newId(), name: "", quantity: 1, unitPrice: 0, VATRate: 20 },
+      { id: newId(), name: "", quantity: 1, unitPrice: 0, VATRate: 20, ...defaultItemAdvanced },
     ]);
   }
 
-  function removeItem(id: string) {
-    setItems((prev) => (prev.length > 1 ? prev.filter((i) => i.id !== id) : prev));
+  function confirmRemoveItem() {
+    if (!deleteItemId) return;
+    setItems((prev) => (prev.length > 1 ? prev.filter((i) => i.id !== deleteItemId) : prev));
+    setDeleteItemId(null);
   }
 
   function loadItemTemplate(templateId: string, itemId: string) {
@@ -142,8 +163,11 @@ export function CreateInvoicePage() {
     setLoading(true);
     const now = new Date();
     const p = (n: number) => String(n).padStart(2, "0");
-    const date = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
-    const time = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+    const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
+    const autoTime = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+    const date = advancedFields.manualDate || autoDate;
+    const time = advancedFields.manualTime || autoTime;
+    const paymentTotal = advancedFields.paymentTotal ? Number(advancedFields.paymentTotal) : total;
 
     try {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
@@ -161,19 +185,28 @@ export function CreateInvoicePage() {
           surname: recipient.surname,
           fullAddress: recipient.fullAddress,
           country: recipient.country || undefined,
+          city: recipient.city || undefined,
+          district: recipient.district || undefined,
           items: items.map((i) => ({
             name: i.name,
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             price: i.quantity * i.unitPrice,
-            unitType: "HUR",
+            unitType: i.unitType || "C62",
             VATRate: i.VATRate,
-            VATAmount: i.quantity * i.unitPrice * (i.VATRate / 100),
+            VATAmount: (i.quantity * i.unitPrice - (i.discountAmount || 0)) * (i.VATRate / 100),
+            discountRate: i.discountRate || undefined,
+            discountAmount: i.discountAmount || undefined,
+            discountReason: i.discountReason || undefined,
+            gtip: i.gtip || undefined,
           })),
           grandTotal,
           totalVAT,
           grandTotalInclVAT: total,
-          paymentTotal: total,
+          paymentTotal,
+          totalDiscount: totalDiscount || undefined,
+          irsaliyeNumarasi: advancedFields.irsaliyeNumarasi || undefined,
+          irsaliyeTarihi: advancedFields.irsaliyeTarihi || undefined,
           note,
         });
 
@@ -198,48 +231,133 @@ export function CreateInvoicePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Fatura Oluştur</h2>
-        <p className="text-muted-foreground">e-Arşiv fatura taslağı oluşturun</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Fatura Oluştur</h2>
+          <p className="text-muted-foreground">e-Arşiv fatura taslağı oluşturun</p>
+        </div>
+        <div className="flex gap-1 rounded-lg border p-1">
+          <button
+            type="button"
+            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              !advanced ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-accent"
+            }`}
+            onClick={() => setViewMode("simple")}
+          >
+            Basit
+          </button>
+          <button
+            type="button"
+            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              advanced ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-accent"
+            }`}
+            onClick={() => setViewMode("advanced")}
+          >
+            Gelişmiş
+          </button>
+        </div>
       </div>
+
+      {/* Invoice Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Fatura Ayarları</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Fatura Tipi</Label>
+              <Select
+                value={invoiceSettings.invoiceType}
+                onValueChange={(v) => setInvoiceSettings((s) => ({ ...s, invoiceType: v }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ISTISNA">İstisna</SelectItem>
+                  <SelectItem value="SATIS">Satış</SelectItem>
+                  <SelectItem value="IADE">İade</SelectItem>
+                  <SelectItem value="TEVKIFAT">Tevkifat</SelectItem>
+                  <SelectItem value="OZELMATRAH">Özel Matrah</SelectItem>
+                  <SelectItem value="IHRACKAYITLI">İhraç Kayıtlı</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Para Birimi</Label>
+              <Select
+                value={invoiceSettings.currency}
+                onValueChange={(v) => setInvoiceSettings((s) => ({ ...s, currency: v }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TRY">TRY</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Döviz Kuru</Label>
+              <Input
+                value={invoiceSettings.currencyRate}
+                onChange={(e) =>
+                  setInvoiceSettings((s) => ({ ...s, currencyRate: e.target.value }))
+                }
+                placeholder={invoiceSettings.currency === "TRY" ? "-" : "ör: 38.50"}
+                disabled={invoiceSettings.currency === "TRY"}
+              />
+            </div>
+          </div>
+
+          {/* Advanced: Date/Time override */}
+          {advanced && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Düzenlenme Tarihi</Label>
+                <Input
+                  value={advancedFields.manualDate}
+                  onChange={(e) => setAdvancedFields((f) => ({ ...f, manualDate: e.target.value }))}
+                  placeholder="DD/MM/YYYY (boş = otomatik)"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Düzenlenme Saati</Label>
+                <Input
+                  value={advancedFields.manualTime}
+                  onChange={(e) => setAdvancedFields((f) => ({ ...f, manualTime: e.target.value }))}
+                  placeholder="HH:MM:SS (boş = otomatik)"
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recipient */}
       <Card>
         <CardHeader>
           <CardTitle>Alıcı Bilgileri</CardTitle>
-          <CardAction>
-            <div className="flex items-center gap-2">
-              {savedRecipients.length > 0 && (
-                <div className="flex items-center gap-1">
-                  <Select value={selectedRecipientId} onValueChange={selectRecipient}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Kayıtlı alıcı seç..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {savedRecipients.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedRecipientId && (
-                    <Button
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() => deleteRecipient(selectedRecipientId)}
-                    >
-                      <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
-                    </Button>
-                  )}
-                </div>
-              )}
-              <Button variant="outline" size="sm" onClick={saveRecipient}>
-                <HugeiconsIcon icon={SaveAllIcon} strokeWidth={1.5} data-icon="inline-start" />
-                Kaydet
-              </Button>
-            </div>
-          </CardAction>
+          {savedRecipients.length > 0 && (
+            <CardAction>
+              <Select onValueChange={selectRecipient}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Müşteri seç..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {savedRecipients.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardAction>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -300,66 +418,60 @@ export function CreateInvoicePage() {
               />
             </div>
           </div>
+
+          {/* Advanced: City/District */}
+          {advanced && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Şehir</Label>
+                <Input
+                  value={recipient.city}
+                  onChange={(e) => setRecipient((r) => ({ ...r, city: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>İlçe</Label>
+                <Input
+                  value={recipient.district}
+                  onChange={(e) => setRecipient((r) => ({ ...r, district: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Invoice Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Fatura Ayarları</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Fatura Tipi</Label>
-              <Select
-                value={invoiceSettings.invoiceType}
-                onValueChange={(v) => setInvoiceSettings((s) => ({ ...s, invoiceType: v }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ISTISNA">İstisna</SelectItem>
-                  <SelectItem value="SATIS">Satış</SelectItem>
-                  <SelectItem value="IADE">İade</SelectItem>
-                  <SelectItem value="TEVKIFAT">Tevkifat</SelectItem>
-                  <SelectItem value="OZELMATRAH">Özel Matrah</SelectItem>
-                  <SelectItem value="IHRACKAYITLI">İhraç Kayıtlı</SelectItem>
-                </SelectContent>
-              </Select>
+      {/* Advanced: İrsaliye Bilgisi */}
+      {advanced && (
+        <Card>
+          <CardHeader>
+            <CardTitle>İrsaliye Bilgisi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>İrsaliye Numarası</Label>
+                <Input
+                  value={advancedFields.irsaliyeNumarasi}
+                  onChange={(e) =>
+                    setAdvancedFields((f) => ({ ...f, irsaliyeNumarasi: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>İrsaliye Tarihi</Label>
+                <Input
+                  value={advancedFields.irsaliyeTarihi}
+                  onChange={(e) =>
+                    setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: e.target.value }))
+                  }
+                  placeholder="DD/MM/YYYY"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Para Birimi</Label>
-              <Select
-                value={invoiceSettings.currency}
-                onValueChange={(v) => setInvoiceSettings((s) => ({ ...s, currency: v }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TRY">TRY</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Döviz Kuru</Label>
-              <Input
-                value={invoiceSettings.currencyRate}
-                onChange={(e) =>
-                  setInvoiceSettings((s) => ({ ...s, currencyRate: e.target.value }))
-                }
-                placeholder={invoiceSettings.currency === "TRY" ? "-" : "ör: 38.50"}
-                disabled={invoiceSettings.currency === "TRY"}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Items */}
       <Card>
@@ -404,7 +516,7 @@ export function CreateInvoicePage() {
                     <Button
                       variant="destructive"
                       size="icon-sm"
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => setDeleteItemId(item.id)}
                     >
                       <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
                     </Button>
@@ -414,9 +526,9 @@ export function CreateInvoicePage() {
               <Input
                 value={item.name}
                 onChange={(e) => updateItem(item.id, "name", e.target.value)}
-                placeholder="Ürün / Hizmet adı"
+                placeholder="Mal / Hizmet adı"
               />
-              <div className="grid grid-cols-3 gap-3">
+              <div className={`grid gap-3 ${advanced ? "grid-cols-4" : "grid-cols-3"}`}>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Miktar</Label>
                   <Input
@@ -426,6 +538,26 @@ export function CreateInvoicePage() {
                     onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))}
                   />
                 </div>
+                {advanced && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Birim</Label>
+                    <Select
+                      value={item.unitType}
+                      onValueChange={(v) => updateItem(item.id, "unitType", v)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UNIT_TYPES.map((u) => (
+                          <SelectItem key={u.value} value={u.value}>
+                            {u.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Birim Fiyat</Label>
                   <Input
@@ -447,15 +579,64 @@ export function CreateInvoicePage() {
                   />
                 </div>
               </div>
+
+              {/* Advanced: Discount & GTIP */}
+              {advanced && (
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">İskonto %</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={item.discountRate || ""}
+                      onChange={(e) => updateItem(item.id, "discountRate", Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">İskonto Tutarı</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={item.discountAmount || ""}
+                      onChange={(e) =>
+                        updateItem(item.id, "discountAmount", Number(e.target.value))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">İskonto Nedeni</Label>
+                    <Input
+                      value={item.discountReason}
+                      onChange={(e) => updateItem(item.id, "discountReason", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">GTİP</Label>
+                    <Input
+                      value={item.gtip}
+                      onChange={(e) => updateItem(item.id, "gtip", e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>
                   Tutar: {formatMoney(invoiceSettings.currency, item.quantity * item.unitPrice)}
                 </span>
+                {advanced && item.discountAmount > 0 && (
+                  <span>
+                    İskonto: -{formatMoney(invoiceSettings.currency, item.discountAmount)}
+                  </span>
+                )}
                 <span>
                   KDV:{" "}
                   {formatMoney(
                     invoiceSettings.currency,
-                    item.quantity * item.unitPrice * (item.VATRate / 100),
+                    (item.quantity * item.unitPrice - (item.discountAmount || 0)) *
+                      (item.VATRate / 100),
                   )}
                 </span>
               </div>
@@ -482,19 +663,44 @@ export function CreateInvoicePage() {
       <Card>
         <CardContent className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Ara Toplam</span>
-            <span>{formatMoney(invoiceSettings.currency, grandTotal)}</span>
+            <span className="text-muted-foreground">Mal/Hizmet Toplam Tutarı</span>
+            <span>
+              {formatMoney(
+                invoiceSettings.currency,
+                items.reduce((s, i) => s + i.quantity * i.unitPrice, 0),
+              )}
+            </span>
           </div>
+          {advanced && totalDiscount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Toplam İskonto</span>
+              <span>-{formatMoney(invoiceSettings.currency, totalDiscount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">KDV Toplam</span>
+            <span className="text-muted-foreground">Hesaplanan KDV</span>
             <span>{formatMoney(invoiceSettings.currency, totalVAT)}</span>
           </div>
           <div className="border-t pt-2">
             <div className="flex justify-between text-lg font-bold">
-              <span>Genel Toplam</span>
+              <span>Vergiler Dahil Toplam</span>
               <span>{formatMoney(invoiceSettings.currency, total)}</span>
             </div>
           </div>
+          {advanced && (
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-sm text-muted-foreground">Ödenecek Tutar</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                className="w-40 text-right"
+                value={advancedFields.paymentTotal || ""}
+                onChange={(e) => setAdvancedFields((f) => ({ ...f, paymentTotal: e.target.value }))}
+                placeholder={total.toFixed(2)}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -565,6 +771,14 @@ export function CreateInvoicePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteItemId !== null}
+        onOpenChange={(open) => !open && setDeleteItemId(null)}
+        title="Kalemi Sil"
+        description="Bu kalemi silmek istediğinize emin misiniz?"
+        onConfirm={confirmRemoveItem}
+      />
     </div>
   );
 }

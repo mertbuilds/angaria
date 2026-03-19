@@ -8,12 +8,14 @@ import { StoreProvider } from "@/lib/store.tsx";
 import { CreateInvoicePage } from "@/pages/create-invoice.tsx";
 import { InvoicesPage } from "@/pages/invoices.tsx";
 import { TemplatesPage } from "@/pages/templates.tsx";
+import { CustomersPage } from "@/pages/customers.tsx";
 import { SettingsPage } from "@/pages/settings.tsx";
 
 const pageTitles: Record<Page, string> = {
   create: "Fatura Oluştur",
   invoices: "Faturalarım",
   templates: "Şablonlar",
+  customers: "Müşteriler",
   settings: "Ayarlar",
 };
 
@@ -34,6 +36,7 @@ function Dashboard() {
             {page === "create" && <CreateInvoicePage />}
             {page === "invoices" && <InvoicesPage />}
             {page === "templates" && <TemplatesPage onNavigate={setPage} />}
+            {page === "customers" && <CustomersPage />}
             {page === "settings" && <SettingsPage />}
           </div>
         </div>
