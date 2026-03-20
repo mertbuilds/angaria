@@ -211,6 +211,10 @@ export function CreateInvoicePage() {
       toast.error("Kalem bilgileri eksik veya hatalı");
       return;
     }
+    if (invoiceSettings.currency !== "TRY" && !invoiceSettings.currencyRate) {
+      toast.error("Döviz kuru zorunludur");
+      return;
+    }
 
     setLoading(true);
     const now = new Date();
@@ -327,7 +331,10 @@ export function CreateInvoicePage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Döviz Kuru</Label>
+              <Label>
+                Döviz Kuru
+                {invoiceSettings.currency !== "TRY" && <span className="text-destructive"> *</span>}
+              </Label>
               <Input
                 value={invoiceSettings.currencyRate}
                 onChange={(e) =>

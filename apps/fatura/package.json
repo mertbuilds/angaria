@@ -12,6 +12,7 @@
     "@fontsource-variable/geist": "catalog:",
     "@hugeicons/core-free-icons": "catalog:",
     "@hugeicons/react": "catalog:",
+    "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tauri-apps/api": "catalog:",
     "@tauri-apps/plugin-http": "catalog:",
