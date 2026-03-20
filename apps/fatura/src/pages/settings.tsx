@@ -1,11 +1,32 @@
+import { useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useStore } from "@/lib/store.tsx";
+import * as angaria from "@/lib/angaria.ts";
 
 export function SettingsPage() {
   const { creds, setCreds } = useStore();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleForceLogout() {
+    if (!creds.username || !creds.password) {
+      toast.error("Kullanıcı adı ve şifre gerekli");
+      return;
+    }
+    setLoggingOut(true);
+    try {
+      await angaria.forceLogout(creds.username, creds.password, creds.testMode);
+      toast.success("Oturum kapatıldı");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Çıkış yapılamadı");
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -50,6 +71,18 @@ export function SettingsPage() {
               onCheckedChange={(checked) => setCreds((c) => ({ ...c, testMode: checked }))}
             />
             <Label htmlFor="test-mode">Test modu (earsivportaltest.efatura.gov.tr)</Label>
+          </div>
+          <div className="border-t pt-4">
+            <Button
+              variant="outline"
+              disabled={loggingOut || !creds.username || !creds.password}
+              onClick={handleForceLogout}
+            >
+              {loggingOut ? "Çıkış yapılıyor..." : "Güvenli Çıkış (Oturumu Kapat)"}
+            </Button>
+            <p className="mt-1 text-xs text-muted-foreground">
+              GİB portalda açık kalmış oturumu kapatır
+            </p>
           </div>
         </CardContent>
       </Card>

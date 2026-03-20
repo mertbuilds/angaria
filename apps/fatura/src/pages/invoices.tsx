@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ReloadIcon, EyeIcon, Delete01Icon } from "@hugeicons/core-free-icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker.tsx";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
@@ -47,9 +56,16 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
   const setListStartDate = (d: string) => setInvoiceDateRange((prev) => ({ ...prev, start: d }));
   const setListEndDate = (d: string) => setInvoiceDateRange((prev) => ({ ...prev, end: d }));
 
-  const [loadingAction, setLoadingAction] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
+
+  // SMS signing state
+  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
+  const [smsCode, setSmsCode] = useState("");
+  const [smsPhone, setSmsPhone] = useState("");
+  const smsSessionRef = useRef<angaria.SessionInfo | null>(null);
+  const smsOidRef = useRef("");
+  const smsInvoiceIdsRef = useRef<string[]>([]);
 
   const hasCredentials = Boolean(creds.username && creds.password);
 
@@ -67,20 +83,8 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
     meta: { onError: true },
   });
 
-  const loading = isLoading || isFetching || loadingAction;
-
-  async function cancelInvoice(invoice: Invoice) {
-    if (invoice.onayDurumu === "Onaylandı") {
-      toast.error("Onaylanmış belgeler silinemez!");
-      return;
-    }
-    if (invoice.onayDurumu === "Silinmiş") {
-      toast.error("Bu belge zaten silinmiş!");
-      return;
-    }
-    if (!hasCredentials) return;
-    setLoadingAction(true);
-    try {
+  const cancelMutation = useMutation({
+    mutationFn: async (invoice: Invoice) => {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
         await angaria.cancelInvoice(
@@ -88,19 +92,60 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
           "Fatura iptal edildi",
           invoice as unknown as Record<string, unknown>,
         );
-        toast.success("Fatura silindi");
-        await queryClient.invalidateQueries({ queryKey: ["invoices"] });
       } finally {
         angaria.logout(session).catch(() => {});
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
-    } finally {
-      setLoadingAction(false);
-    }
-  }
+    },
+    onSuccess: () => {
+      toast.success("Fatura silindi");
+      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+  });
 
-  async function signInvoice(invoice: Invoice) {
+  // Step 1: Start SMS sign flow — login, get phone, request SMS
+  const startSignMutation = useMutation({
+    mutationFn: async (invoice: Invoice) => {
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { phone, oid } = await angaria.startSMSSign(session);
+      return { session, phone, oid, ettn: invoice.ettn! };
+    },
+    onSuccess: ({ session, phone, oid, ettn }) => {
+      smsSessionRef.current = session;
+      smsOidRef.current = oid;
+      smsInvoiceIdsRef.current = [ettn];
+      setSmsPhone(phone);
+      setSmsCode("");
+      setSmsDialogOpen(true);
+    },
+  });
+
+  // Step 2: Verify SMS code and sign
+  const verifySignMutation = useMutation({
+    mutationFn: async () => {
+      const session = smsSessionRef.current;
+      if (!session) throw new Error("Oturum bulunamadı");
+      return angaria.verifyAndSign(session, smsCode, smsOidRef.current, smsInvoiceIdsRef.current);
+    },
+    onSuccess: () => {
+      // Logout only on success
+      if (smsSessionRef.current) {
+        angaria.logout(smsSessionRef.current).catch(() => {});
+        smsSessionRef.current = null;
+      }
+      toast.success("Fatura onaylandı");
+      setSmsDialogOpen(false);
+      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+    onError: () => {
+      // Clear the code so user can retry
+      setSmsCode("");
+    },
+  });
+
+  const mutating = cancelMutation.isPending || startSignMutation.isPending;
+  const loading = isLoading || isFetching || mutating;
+
+  function handleSign(invoice: Invoice) {
     if (invoice.onayDurumu === "Onaylandı") {
       toast.error("Bu fatura zaten onaylanmış!");
       return;
@@ -109,22 +154,28 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
       toast.error("Silinmiş fatura onaylanamaz!");
       return;
     }
-    if (!hasCredentials) return;
-    setLoadingAction(true);
-    try {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
-      try {
-        await angaria.signInvoice(session, invoice as unknown as Record<string, unknown>);
-        toast.success("Fatura onaylandı");
-        await queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      } finally {
-        angaria.logout(session).catch(() => {});
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
-    } finally {
-      setLoadingAction(false);
+    startSignMutation.mutate(invoice);
+  }
+
+  function handleCancel(invoice: Invoice) {
+    if (invoice.onayDurumu === "Onaylandı") {
+      toast.error("Onaylanmış belgeler silinemez!");
+      return;
     }
+    if (invoice.onayDurumu === "Silinmiş") {
+      toast.error("Bu belge zaten silinmiş!");
+      return;
+    }
+    cancelMutation.mutate(invoice);
+  }
+
+  function handleSmsDialogClose() {
+    // Logout if dialog is closed without verifying
+    if (smsSessionRef.current) {
+      angaria.logout(smsSessionRef.current).catch(() => {});
+      smsSessionRef.current = null;
+    }
+    setSmsDialogOpen(false);
   }
 
   function statusBadge(status?: string) {
@@ -192,8 +243,8 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
                           {inv.onayDurumu !== "Onaylandı" && inv.onayDurumu !== "Silinmiş" && (
                             <Button
                               size="sm"
-                              disabled={loadingPreview || loadingAction}
-                              onClick={() => signInvoice(inv)}
+                              disabled={loadingPreview || mutating}
+                              onClick={() => handleSign(inv)}
                             >
                               Onayla
                             </Button>
@@ -212,7 +263,7 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
                           <Button
                             variant="destructive"
                             size="icon-sm"
-                            disabled={loadingPreview || loadingAction}
+                            disabled={loadingPreview || mutating}
                             onClick={() => setDeleteTarget(inv)}
                           >
                             <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
@@ -243,11 +294,43 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
         description="Bu faturayı GİB portaldan silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
         onConfirm={() => {
           if (deleteTarget) {
-            void cancelInvoice(deleteTarget);
+            handleCancel(deleteTarget);
             setDeleteTarget(null);
           }
         }}
       />
+
+      {/* SMS Verification Dialog */}
+      <Dialog open={smsDialogOpen} onOpenChange={(open) => !open && handleSmsDialogClose()}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>SMS Onay Kodu</DialogTitle>
+            <DialogDescription>
+              {smsPhone} numarasına gönderilen onay kodunu girin.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="SMS kodu"
+            value={smsCode}
+            onChange={(e) => setSmsCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && smsCode) verifySignMutation.mutate();
+            }}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={handleSmsDialogClose}>
+              İptal
+            </Button>
+            <Button
+              disabled={!smsCode || verifySignMutation.isPending}
+              onClick={() => verifySignMutation.mutate()}
+            >
+              {verifySignMutation.isPending ? "Onaylanıyor..." : "Onayla"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

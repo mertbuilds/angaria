@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PlusSignIcon, Delete01Icon, FileAddIcon } from "@hugeicons/core-free-icons";
@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -72,11 +71,10 @@ export function CreateInvoicePage() {
     invoiceTemplates,
     loadTemplate,
     startBlankInvoice,
+    sourceTemplateId,
     templateEditMode,
   } = useStore();
 
-  const [loading, setLoading] = useState(false);
-  const [signAfterCreate, setSignAfterCreate] = useState(false);
   const [invoiceHTML, setInvoiceHTML] = useState<string | null>(null);
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -220,34 +218,18 @@ export function CreateInvoicePage() {
     toast.success("Fatura şablonu kaydedildi");
   }
 
-  async function createInvoice() {
-    if (!creds.username || !creds.password) {
-      toast.error("GİB kullanıcı bilgileri gerekli — Ayarlar'dan girin");
-      return;
-    }
-    if (!recipient.taxIDOrTRID || !recipient.title || !recipient.fullAddress) {
-      toast.error("Alıcı bilgileri eksik");
-      return;
-    }
-    if (items.some((i) => !i.name || i.unitPrice <= 0)) {
-      toast.error("Kalem bilgileri eksik veya hatalı");
-      return;
-    }
-    if (invoiceSettings.currency !== "TRY" && !invoiceSettings.currencyRate) {
-      toast.error("Döviz kuru zorunludur");
-      return;
-    }
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const now = new Date();
+      const p = (n: number) => String(n).padStart(2, "0");
+      const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
+      const autoTime = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+      const date = advancedFields.manualDate || autoDate;
+      const time = advancedFields.manualTime || autoTime;
+      const paymentTotal = advancedFields.paymentTotal
+        ? Number(advancedFields.paymentTotal)
+        : total;
 
-    setLoading(true);
-    const now = new Date();
-    const p = (n: number) => String(n).padStart(2, "0");
-    const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
-    const autoTime = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
-    const date = advancedFields.manualDate || autoDate;
-    const time = advancedFields.manualTime || autoTime;
-    const paymentTotal = advancedFields.paymentTotal ? Number(advancedFields.paymentTotal) : total;
-
-    try {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
         const draft = await angaria.createDraftInvoice(session, {
@@ -288,41 +270,68 @@ export function CreateInvoicePage() {
           note,
         });
 
-        if (signAfterCreate) {
-          const drafts = (await angaria.getDrafts(session, date, date)) as Record<
-            string,
-            unknown
-          >[];
-          const found = drafts.find((d) => d.ettn === draft.uuid);
-          if (found) {
-            await angaria.signInvoice(session, found);
-            toast.success("Fatura oluşturuldu ve onaylandı!");
-          } else {
-            toast.success("Taslak oluşturuldu ama onay için bulunamadı");
-          }
-        } else {
-          toast.success("Taslak fatura oluşturuldu!");
-        }
+        let html: string | undefined;
         try {
-          const html = await angaria.getInvoiceHTML(
-            session,
-            draft.uuid,
-            signAfterCreate ? "Onaylandı" : "Onaylanmadı",
-          );
-          setInvoiceHTML(html);
+          html = await angaria.getInvoiceHTML(session, draft.uuid, "Onaylanmadı");
         } catch {
           // preview is optional
         }
-        setTemplateName(recipient.title);
-        setShowTemplateSaveDialog(true);
+
+        return { draft, html };
       } finally {
         angaria.logout(session).catch(() => {});
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
-    } finally {
-      setLoading(false);
+    },
+    onSuccess: ({ html }) => {
+      toast.success("Taslak fatura oluşturuldu!");
+      if (html) setInvoiceHTML(html);
+
+      // Only show save-as-template dialog if form differs from source template
+      const sourceTemplate = sourceTemplateId
+        ? invoiceTemplates.find((t) => t.id === sourceTemplateId)
+        : null;
+      const formMatchesTemplate =
+        sourceTemplate &&
+        sourceTemplate.recipient.taxIDOrTRID === recipient.taxIDOrTRID &&
+        sourceTemplate.recipient.title === recipient.title &&
+        sourceTemplate.recipient.fullAddress === recipient.fullAddress &&
+        sourceTemplate.settings.currency === invoiceSettings.currency &&
+        sourceTemplate.settings.invoiceType === invoiceSettings.invoiceType &&
+        sourceTemplate.note === note &&
+        sourceTemplate.items.length === items.length &&
+        sourceTemplate.items.every(
+          (ti, idx) =>
+            items[idx] &&
+            ti.name === items[idx].name &&
+            ti.quantity === items[idx].quantity &&
+            ti.unitPrice === items[idx].unitPrice &&
+            ti.VATRate === items[idx].VATRate,
+        );
+      if (!formMatchesTemplate) {
+        setTemplateName(recipient.title);
+        setShowTemplateSaveDialog(true);
+      }
+    },
+  });
+
+  function createInvoice() {
+    if (!creds.username || !creds.password) {
+      toast.error("GİB kullanıcı bilgileri gerekli — Ayarlar'dan girin");
+      return;
     }
+    if (!recipient.taxIDOrTRID || !recipient.title || !recipient.fullAddress) {
+      toast.error("Alıcı bilgileri eksik");
+      return;
+    }
+    if (items.some((i) => !i.name || i.unitPrice <= 0)) {
+      toast.error("Kalem bilgileri eksik veya hatalı");
+      return;
+    }
+    if (invoiceSettings.currency !== "TRY" && !invoiceSettings.currencyRate) {
+      toast.error("Döviz kuru zorunludur");
+      return;
+    }
+    createMutation.mutate();
   }
 
   if (!invoiceStarted) {
@@ -865,24 +874,14 @@ export function CreateInvoicePage() {
           Şablon Olarak Kaydet
         </Button>
       ) : (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-lg border px-4 py-3">
-            <div>
-              <p className="text-sm font-medium">Oluşturulunca onayla</p>
-              <p className="text-xs text-muted-foreground">
-                Fatura oluşturulduktan sonra otomatik olarak onaylanır
-              </p>
-            </div>
-            <Switch checked={signAfterCreate} onCheckedChange={setSignAfterCreate} />
-          </div>
-          <Button className="w-full" size="lg" disabled={loading} onClick={createInvoice}>
-            {loading
-              ? "Oluşturuluyor..."
-              : signAfterCreate
-                ? "Oluştur ve Onayla"
-                : "Taslak Oluştur"}
-          </Button>
-        </div>
+        <Button
+          className="w-full"
+          size="lg"
+          disabled={createMutation.isPending}
+          onClick={createInvoice}
+        >
+          {createMutation.isPending ? "Oluşturuluyor..." : "Taslak Oluştur"}
+        </Button>
       )}
 
       {/* Invoice Preview */}

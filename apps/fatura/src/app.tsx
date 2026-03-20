@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { Toaster } from "sonner";
@@ -191,7 +191,25 @@ function Dashboard() {
   );
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.meta?.onError) {
+        toast.error(error instanceof Error ? error.message : "Bilinmeyen hata");
+      }
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Bilinmeyen hata");
+    },
+  }),
+});
 
 export function App() {
   return (

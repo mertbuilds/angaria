@@ -122,7 +122,16 @@ async function dispatch(
   });
 
   session.cookies = mergeCookies(session.cookies, extractCookies(response));
-  return (await response.json()) as Record<string, unknown>;
+  const result = (await response.json()) as Record<string, unknown>;
+
+  // Check for GIB error responses
+  if (result.error === "1" || result.error === 1) {
+    const messages = result.messages as Array<{ text: string }> | undefined;
+    const msg = messages?.[0]?.text ?? "GİB portaldan bilinmeyen hata";
+    throw new Error(msg);
+  }
+
+  return result;
 }
 
 export async function login(
@@ -164,6 +173,41 @@ export async function logout(session: SessionInfo): Promise<void> {
       Referer: `${session.baseUrl}/intragiris.html`,
     },
     body: `assoscmd=${cmd}&rtype=json&token=${session.token}&`,
+  });
+}
+
+/** Force logout by attempting login to grab cookies/token, then immediately logging out */
+export async function forceLogout(
+  username: string,
+  password: string,
+  testMode: boolean,
+): Promise<void> {
+  const baseUrl = testMode ? TEST_URL : PROD_URL;
+  const cmd = testMode ? "login" : "anologin";
+
+  const response = await tauriFetch(`${baseUrl}/earsiv-services/assos-login`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+      Referer: `${baseUrl}/intragiris.html`,
+    },
+    body: `assoscmd=${cmd}&rtype=json&userid=${encodeURIComponent(username)}&sifre=${encodeURIComponent(password)}&sifre2=${encodeURIComponent(password)}&parola=1&`,
+  });
+
+  const cookies = extractCookies(response);
+  const json = (await response.json()) as Record<string, unknown>;
+  const token = (json.token as string) ?? "";
+
+  // Try logout even if login failed — cookies may still be valid
+  const logoutCmd = testMode ? "logout" : "anologin";
+  await tauriFetch(`${baseUrl}/earsiv-services/assos-login`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+      cookie: cookies.join("; "),
+      Referer: `${baseUrl}/intragiris.html`,
+    },
+    body: `assoscmd=${logoutCmd}&rtype=json&token=${token}&`,
   });
 }
 
@@ -260,7 +304,7 @@ export async function createDraftInvoice(
     typeof result.data === "string" &&
     result.data.length > 0 &&
     !result.data.toLowerCase().includes("başarı") &&
-    (result.error === "1" || result.data.includes("kesemez") || result.data.includes("hata"))
+    (result.data.includes("kesemez") || result.data.includes("hata"))
   ) {
     throw new Error(result.data);
   }
@@ -304,17 +348,67 @@ export async function getDrafts(
   return (result.data as unknown[]) ?? [];
 }
 
-export async function signInvoice(
+export async function signInvoiceHSM(
   session: SessionInfo,
   invoice: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  return dispatch(session, "EARSIV_PORTAL_FATURA_HSM_CIHAZI_ILE_IMZALA", "RG_BASITTASLAKLAR", {
+    imzalanacaklar: [invoice],
+  });
+}
+
+/** Get the registered phone number for SMS signing */
+export async function getSigningPhone(session: SessionInfo): Promise<string> {
   const result = await dispatch(
     session,
-    "EARSIV_PORTAL_FATURA_HSM_CIHAZI_ILE_IMZALA",
+    "EARSIV_PORTAL_TELEFONNO_SORGULA",
     "RG_BASITTASLAKLAR",
-    { imzalanacaklar: [invoice] },
+    {},
   );
+  const data = result.data as Record<string, string> | undefined;
+  return data?.telefon ?? "";
+}
+
+/** Request an SMS verification code for signing */
+export async function requestSigningSMS(session: SessionInfo, phone: string): Promise<string> {
+  const result = await dispatch(session, "EARSIV_PORTAL_SMSSIFRE_GONDER", "RG_SMSONAY", {
+    CEPTEL: phone,
+    KCEPTEL: false,
+    TIP: "",
+  });
+  const data = result.data as Record<string, string> | undefined;
+  return data?.oid ?? "";
+}
+
+/** Verify SMS code and sign invoices */
+export async function verifyAndSign(
+  session: SessionInfo,
+  smsCode: string,
+  oid: string,
+  invoiceIds: string[],
+): Promise<Record<string, unknown>> {
+  const result = await dispatch(session, "0lhozfib5410mp", "RG_SMSONAY", {
+    SIFRE: smsCode,
+    OID: oid,
+    OPR: 1,
+    DATA: invoiceIds.map((ettn) => ({ belgeTuru: "FATURA", ettn })),
+  });
+
+  const data = result.data as Record<string, string> | undefined;
+  if (data?.sonuc === "0") {
+    throw new Error(data.msg || "SMS kodu hatalı");
+  }
+
   return result;
+}
+
+/** Convenience: full SMS sign flow — returns phone & oid, caller must collect the code and call verifyAndSign */
+export async function startSMSSign(session: SessionInfo): Promise<{ phone: string; oid: string }> {
+  const phone = await getSigningPhone(session);
+  if (!phone) throw new Error("SMS onay için kayıtlı telefon numarası bulunamadı");
+  const oid = await requestSigningSMS(session, phone);
+  if (!oid) throw new Error("SMS gönderimi başarısız");
+  return { phone, oid };
 }
 
 export async function cancelInvoice(

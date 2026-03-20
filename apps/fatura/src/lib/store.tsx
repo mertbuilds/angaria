@@ -171,6 +171,8 @@ interface Store {
   loadTemplate: (id: string) => string | null;
   /** Start a blank invoice form */
   startBlankInvoice: () => void;
+  /** ID of the template the invoice was started from, null if from scratch */
+  sourceTemplateId: string | null;
   /** true when in template editing mode (save as template instead of creating invoice) */
   templateEditMode: boolean;
   /** Load a GIB invoice into the form in template editing mode */
@@ -208,6 +210,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ...DEFAULT_ADVANCED_FIELDS,
   });
   const [invoiceStarted, setInvoiceStarted] = useState(false);
+  const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
   const [templateEditMode, setTemplateEditMode] = useState(false);
 
   const [invoiceTemplates, setInvoiceTemplates] = useState<InvoiceTemplate[]>(() =>
@@ -228,6 +231,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNote("");
     setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
     setInvoiceStarted(false);
+    setSourceTemplateId(null);
     setTemplateEditMode(false);
   }, []);
 
@@ -241,6 +245,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setNote(t.note);
       setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
       setInvoiceStarted(true);
+      setSourceTemplateId(id);
       // Update lastUsedAt
       setInvoiceTemplates((prev) =>
         prev.map((x) => (x.id === id ? { ...x, lastUsedAt: Date.now() } : x)),
@@ -338,6 +343,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         resetInvoiceForm,
         loadTemplate,
         startBlankInvoice,
+        sourceTemplateId,
         templateEditMode,
         loadFromGIBInvoice,
         newId,
