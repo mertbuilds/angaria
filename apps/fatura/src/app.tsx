@@ -11,7 +11,8 @@ import { AppSidebar, type Page } from "@/components/app-sidebar.tsx";
 import { StoreProvider, useStore } from "@/lib/store.tsx";
 import { CreateInvoicePage } from "@/pages/create-invoice.tsx";
 import { InvoicesPage, type Invoice } from "@/pages/invoices.tsx";
-import { TemplatesPage } from "@/pages/templates.tsx";
+import { InvoiceTemplatesPage } from "@/pages/invoice-templates.tsx";
+import { ItemTemplatesPage } from "@/pages/item-templates.tsx";
 import { CustomersPage } from "@/pages/customers.tsx";
 import { SettingsPage } from "@/pages/settings.tsx";
 import * as angaria from "@/lib/angaria.ts";
@@ -19,7 +20,8 @@ import * as angaria from "@/lib/angaria.ts";
 const pageConfig: Record<Page, { title: string; description: string }> = {
   create: { title: "Fatura Oluştur", description: "e-Arşiv fatura taslağı" },
   invoices: { title: "Faturalarım", description: "GİB portal faturaları" },
-  templates: { title: "Şablonlar", description: "Fatura şablonları" },
+  "invoice-templates": { title: "Fatura Şablonları", description: "Kayıtlı fatura şablonları" },
+  "item-templates": { title: "Kalem Şablonları", description: "Kayıtlı kalem şablonları" },
   customers: { title: "Müşteriler", description: "Kayıtlı alıcılar" },
   settings: { title: "Ayarlar", description: "Uygulama yapılandırması" },
 };
@@ -207,7 +209,8 @@ function Dashboard() {
             <div className="mx-auto max-w-3xl px-6 py-8">
               {page === "create" && <CreateInvoicePage />}
               {page === "invoices" && <InvoicesPage onPreview={openPreview} />}
-              {page === "templates" && <TemplatesPage onNavigate={setPage} />}
+              {page === "invoice-templates" && <InvoiceTemplatesPage onNavigate={setPage} />}
+              {page === "item-templates" && <ItemTemplatesPage />}
               {page === "customers" && <CustomersPage />}
               {page === "settings" && <SettingsPage />}
             </div>

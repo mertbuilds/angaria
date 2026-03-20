@@ -7,6 +7,7 @@ import {
   ClipboardIcon,
   Settings01Icon,
   UserAccountIcon,
+  AddToListIcon,
 } from "@hugeicons/core-free-icons";
 import {
   Sidebar,
@@ -21,16 +22,23 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-export type Page = "create" | "invoices" | "templates" | "customers" | "settings";
+export type Page =
+  | "create"
+  | "invoices"
+  | "invoice-templates"
+  | "item-templates"
+  | "customers"
+  | "settings";
 
 const mainNav: { page: Page; label: string; icon: typeof Invoice01Icon }[] = [
   { page: "create", label: "Fatura Oluştur", icon: FileAddIcon },
   { page: "invoices", label: "Faturalarım", icon: Invoice01Icon },
 ];
 
-const manageNav: { page: Page; label: string; icon: typeof Invoice01Icon }[] = [
+const templateNav: { page: Page; label: string; icon: typeof Invoice01Icon }[] = [
+  { page: "invoice-templates", label: "Faturalar", icon: ClipboardIcon },
+  { page: "item-templates", label: "Kalemler", icon: AddToListIcon },
   { page: "customers", label: "Müşteriler", icon: UserAccountIcon },
-  { page: "templates", label: "Şablonlar", icon: ClipboardIcon },
 ];
 
 export function AppSidebar({
@@ -85,10 +93,10 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>Yönetim</SidebarGroupLabel>
+          <SidebarGroupLabel>Şablonlar</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {manageNav.map((item) => (
+              {templateNav.map((item) => (
                 <SidebarMenuItem key={item.page}>
                   <SidebarMenuButton
                     isActive={activePage === item.page}

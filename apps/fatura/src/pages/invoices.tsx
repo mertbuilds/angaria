@@ -49,7 +49,7 @@ async function fetchDrafts(
   }
 }
 
-export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => void }) {
+export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => Promise<void> }) {
   const { creds, invoiceDateRange, setInvoiceDateRange } = useStore();
   const queryClient = useQueryClient();
 
@@ -59,6 +59,7 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => v
   const setListEndDate = (d: string) => setInvoiceDateRange((prev) => ({ ...prev, end: d }));
 
   const [loadingAction, setLoadingAction] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
 
   const hasCredentials = Boolean(creds.username && creds.password);
@@ -172,12 +173,21 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => v
                       <td className="px-3 py-2">{statusBadge(inv.onayDurumu)}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => onPreview(inv)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={loadingPreview}
+                            onClick={() => {
+                              setLoadingPreview(true);
+                              void onPreview(inv).finally(() => setLoadingPreview(false));
+                            }}
+                          >
                             Görüntüle
                           </Button>
                           <Button
                             variant="destructive"
                             size="sm"
+                            disabled={loadingPreview}
                             onClick={() => setDeleteTarget(inv)}
                           >
                             Sil

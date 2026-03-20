@@ -1,4 +1,9 @@
 @import "tailwindcss";
+
+html,
+body {
+  overscroll-behavior: none;
+}
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
