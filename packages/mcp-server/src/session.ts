@@ -16,7 +16,7 @@ function getCredentials(): { username: string; password: string; testMode: boole
   return {
     username,
     password,
-    testMode: process.env.GIB_TEST_MODE !== "false",
+    testMode: process.env.GIB_TEST_MODE === "true",
   };
 }
 
