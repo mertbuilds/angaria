@@ -1,5 +1,5 @@
 {
-  "name": "vinena-os",
+  "name": "angaria",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,6 +9,7 @@
     "prepare": "vp config"
   },
   "devDependencies": {
+    "@typescript/native-preview": "catalog:",
     "vite-plus": "catalog:"
   },
   "engines": {

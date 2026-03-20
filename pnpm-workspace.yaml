@@ -12,6 +12,7 @@ catalog:
   "@tauri-apps/api": ^2.10.1
   "@tauri-apps/plugin-http": ^2.5.7
   "@types/node": ^24
+  "@typescript/native-preview": 7.0.0-dev.20260320.1
   class-variance-authority: ^0.7.1
   cmdk: ^1.1.1
   date-fns: ^4.1.0

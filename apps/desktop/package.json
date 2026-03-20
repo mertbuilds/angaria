@@ -1,0 +1,47 @@
+{
+  "name": "desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "tsc -b && vp build",
+    "preview": "vp preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "catalog:",
+    "@hugeicons/core-free-icons": "catalog:",
+    "@hugeicons/react": "catalog:",
+    "@tanstack/react-form": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "@tauri-apps/api": "catalog:",
+    "@tauri-apps/plugin-http": "catalog:",
+    "angaria-earsiv-sdk": "workspace:*",
+    "angaria-utils": "workspace:*",
+    "class-variance-authority": "catalog:",
+    "clsx": "^2.1.1",
+    "cmdk": "catalog:",
+    "date-fns": "catalog:",
+    "lucide-react": "^0.511.0",
+    "radix-ui": "catalog:",
+    "react": "^19.1.0",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "^19.1.0",
+    "shadcn": "catalog:",
+    "sonner": "^2.0.3",
+    "tailwind-merge": "^3.0.0",
+    "tw-animate-css": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/node": "catalog:",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "react-grab": "catalog:",
+    "tailwindcss": "^4.1.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
