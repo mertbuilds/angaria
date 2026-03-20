@@ -1,0 +1,36 @@
+{
+  "name": "@vinena/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server exposing GIB e-arsiv invoice tools via the Angaria SDK",
+  "license": "MIT",
+  "bin": {
+    "vinena-mcp": "./dist/index.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check",
+    "prepublishOnly": "vp run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3",
+    "vite-plus": "^0.1.11"
+  }
+}
