@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import type {
   AdvancedInvoiceFields,
+  CompanyInfo,
   Credentials,
   InvoiceItem,
   InvoiceSettings,
@@ -145,6 +146,8 @@ function makeBlankItem(): InvoiceItem {
 interface Store {
   creds: Credentials;
   setCreds: React.Dispatch<React.SetStateAction<Credentials>>;
+  companyInfo: CompanyInfo;
+  setCompanyInfo: React.Dispatch<React.SetStateAction<CompanyInfo>>;
   recipient: Recipient;
   setRecipient: React.Dispatch<React.SetStateAction<Recipient>>;
   invoiceSettings: InvoiceSettings;
@@ -194,6 +197,22 @@ export function useStore() {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [creds, setCreds] = useState<Credentials>(() =>
     loadLocal("fatura-creds", { username: "", password: "", testMode: true }),
+  );
+
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() =>
+    loadLocal("fatura-company-info", {
+      name: "",
+      address: "",
+      taxID: "",
+      taxOffice: "",
+      phone: "",
+      email: "",
+      bankName: "",
+      accountHolder: "",
+      iban: "",
+      swiftCode: "",
+      bankAddress: "",
+    }),
   );
 
   const [savedRecipients, setSavedRecipients] = useState<Recipient[]>(() =>
@@ -309,6 +328,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Persist only data that should survive restarts
   useEffect(() => localStorage.setItem("fatura-creds", JSON.stringify(creds)), [creds]);
   useEffect(
+    () => localStorage.setItem("fatura-company-info", JSON.stringify(companyInfo)),
+    [companyInfo],
+  );
+  useEffect(
     () => localStorage.setItem("fatura-saved-recipients", JSON.stringify(savedRecipients)),
     [savedRecipients],
   );
@@ -325,6 +348,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       value={{
         creds,
         setCreds,
+        companyInfo,
+        setCompanyInfo,
         recipient,
         setRecipient,
         invoiceSettings,

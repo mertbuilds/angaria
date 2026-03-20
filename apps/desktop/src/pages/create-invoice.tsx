@@ -33,9 +33,11 @@ import {
 } from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker.tsx";
 
+import { Download } from "lucide-react";
 import { AutocompleteInput } from "@/components/autocomplete-input.tsx";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { InvoicePickerDialog } from "@/components/invoice-picker-dialog.tsx";
+import { downloadInvoicePDF, type InvoicePDFData } from "@/components/invoice-pdf.tsx";
 import { useStore } from "@/lib/store.tsx";
 import {
   GIB_COUNTRIES,
@@ -63,6 +65,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
     savedRecipients,
     savedItems,
     setSavedItems,
+    companyInfo,
     setInvoiceTemplates,
     advancedFields,
     setAdvancedFields,
@@ -219,6 +222,36 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
       },
     ]);
     toast.success("Fatura şablonu kaydedildi");
+  }
+
+  function buildPDFData(invoiceNumber?: string): InvoicePDFData {
+    const now = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
+    const date = advancedFields.manualDate || autoDate;
+    const paymentTotal = advancedFields.paymentTotal ? Number(advancedFields.paymentTotal) : total;
+    return {
+      company: companyInfo,
+      recipient,
+      settings: invoiceSettings,
+      items,
+      date,
+      invoiceNumber,
+      note,
+      grandTotal,
+      totalVAT,
+      total,
+      totalDiscount: totalDiscount || undefined,
+      paymentTotal,
+    };
+  }
+
+  function handleDownloadPDF() {
+    const pdfData = buildPDFData();
+    const id = toast.loading("PDF hazırlanıyor...");
+    downloadInvoicePDF(pdfData)
+      .then(() => toast.success("PDF indirildi", { id }))
+      .catch(() => toast.error("PDF oluşturulamadı", { id }));
   }
 
   const createMutation = useMutation({
@@ -896,14 +929,20 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           Şablon Olarak Kaydet
         </Button>
       ) : (
-        <Button
-          className="w-full"
-          size="lg"
-          disabled={createMutation.isPending}
-          onClick={createInvoice}
-        >
-          {createMutation.isPending ? "Oluşturuluyor..." : "Taslak Fatura Oluştur"}
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            className="flex-1"
+            size="lg"
+            disabled={createMutation.isPending}
+            onClick={createInvoice}
+          >
+            {createMutation.isPending ? "Oluşturuluyor..." : "Taslak Fatura Oluştur"}
+          </Button>
+          <Button variant="outline" size="lg" onClick={handleDownloadPDF}>
+            <Download className="size-4" />
+            PDF
+          </Button>
+        </div>
       )}
 
       {/* Invoice Preview */}

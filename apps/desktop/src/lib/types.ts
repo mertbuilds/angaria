@@ -45,6 +45,20 @@ export interface Credentials {
   testMode: boolean;
 }
 
+export interface CompanyInfo {
+  name: string;
+  address: string;
+  taxID: string;
+  taxOffice: string;
+  phone: string;
+  email: string;
+  bankName: string;
+  accountHolder: string;
+  iban: string;
+  swiftCode: string;
+  bankAddress: string;
+}
+
 export interface InvoiceTemplate {
   id: string;
   name: string;

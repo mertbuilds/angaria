@@ -22,6 +22,7 @@ import {
   ArrowUp,
   ArrowDown,
   Copy,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,10 +61,17 @@ import {
 import { DatePicker } from "@/components/ui/date-picker.tsx";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
+import { downloadInvoicePDF } from "@/components/invoice-pdf.tsx";
 import { useStore } from "@/lib/store.tsx";
 import { parseGIB, toGIB, formatDateHuman } from "@/lib/utils.ts";
 import type { Page } from "@/components/app-sidebar.tsx";
 import * as angaria from "@/lib/angaria.ts";
+
+/** Safely convert unknown GIB field to string */
+function str(v: unknown, fallback = ""): string {
+  if (v == null) return fallback;
+  return typeof v === "string" ? v : fallback;
+}
 
 export interface Invoice {
   belgeNumarasi?: string;
@@ -138,6 +146,7 @@ export function InvoicesPage({
 }) {
   const {
     creds,
+    companyInfo,
     invoiceDateRange,
     setInvoiceDateRange,
     invoicePageSize,
@@ -252,8 +261,84 @@ export function InvoicesPage({
     },
   });
 
+  const pdfToastRef = useRef<string | number>("");
+
+  const downloadPDFMutation = useMutation({
+    mutationFn: async (invoice: Invoice) => {
+      if (!invoice.ettn) throw new Error("Fatura ETTN bulunamadı");
+      pdfToastRef.current = toast.loading("PDF hazırlanıyor...");
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      try {
+        const detail = await angaria.getInvoiceDetail(session, invoice.ettn);
+        const table = (detail.malHizmetTable as Record<string, unknown>[]) ?? [];
+        const items = table.map((row, i) => ({
+          id: String(i),
+          name: str(row.malHizmet),
+          quantity: Number(row.miktar) || 1,
+          unitPrice: Number(row.birimFiyat) || 0,
+          VATRate: Number(row.kdvOrani) || 0,
+          unitType: str(row.birim, "C62"),
+          discountRate: Number(row.iskontoOrani) || 0,
+          discountAmount: Number(row.iskontoTutari) || 0,
+          discountReason: str(row.iskontoNedeni),
+          gtip: str(row.gtip),
+        }));
+        const grandTotal = items.reduce(
+          (s, i) => s + i.quantity * i.unitPrice - (i.discountAmount || 0),
+          0,
+        );
+        const totalVAT = items.reduce(
+          (s, i) => s + (i.quantity * i.unitPrice - (i.discountAmount || 0)) * (i.VATRate / 100),
+          0,
+        );
+        const rate = str(detail.dovzTLkur);
+        await downloadInvoicePDF(
+          {
+            company: companyInfo,
+            recipient: {
+              id: "",
+              taxIDOrTRID: str(detail.vknTckn),
+              taxOffice: str(detail.vergiDairesi),
+              title: str(detail.aliciUnvan),
+              name: str(detail.aliciAdi),
+              surname: str(detail.aliciSoyadi),
+              fullAddress: str(detail.bulvarcaddesokak),
+              country: str(detail.ulke),
+              city: str(detail.sehir),
+              district: str(detail.mahalleSemtIlce),
+            },
+            settings: {
+              currency: str(detail.paraBirimi, "TRY"),
+              currencyRate: rate === "0" ? "" : rate,
+              invoiceType: str(detail.faturaTipi, "SATIS"),
+            },
+            items,
+            date: invoice.belgeTarihi ?? "",
+            invoiceNumber: invoice.belgeNumarasi,
+            note: str(detail.not),
+            grandTotal,
+            totalVAT,
+            total: grandTotal + totalVAT,
+          },
+          `fatura-${invoice.belgeNumarasi ?? invoice.ettn}.pdf`,
+        );
+      } finally {
+        angaria.logout(session).catch(() => {});
+      }
+    },
+    onSuccess: () => toast.success("PDF indirildi", { id: pdfToastRef.current }),
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "PDF oluşturulamadı", {
+        id: pdfToastRef.current,
+      });
+    },
+  });
+
   const mutating =
-    cancelMutation.isPending || startSignMutation.isPending || useAsTemplateMutation.isPending;
+    cancelMutation.isPending ||
+    startSignMutation.isPending ||
+    useAsTemplateMutation.isPending ||
+    downloadPDFMutation.isPending;
   const loading = isLoading || isFetching || mutating;
 
   function handleSign(invoice: Invoice) {
@@ -349,6 +434,17 @@ export function InvoicesPage({
                     <Copy className="size-4" />
                     Şablon olarak kullan
                   </DropdownMenuItem>
+                  {inv.onayDurumu === "Onaylandı" && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (!requireCredentials()) return;
+                        downloadPDFMutation.mutate(inv);
+                      }}
+                    >
+                      <Download className="size-4" />
+                      PDF indir
+                    </DropdownMenuItem>
+                  )}
                   {showDelete && (
                     <>
                       <DropdownMenuSeparator />
