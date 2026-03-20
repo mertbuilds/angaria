@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PlusSignIcon, Delete01Icon } from "@hugeicons/core-free-icons";
@@ -86,6 +87,31 @@ export function CreateInvoicePage() {
   const lastCheckedRef = useRef<string | null>(null);
 
   const advanced = viewMode === "advanced";
+
+  const isForeignCurrency = invoiceSettings.currency !== "TRY";
+  const invoiceDate = advancedFields.manualDate || "";
+  const tcmbQuery = useQuery({
+    queryKey: ["tcmb-rates", invoiceDate],
+    queryFn: () => angaria.fetchTCMBRates(parseGIB(invoiceDate)),
+    enabled: isForeignCurrency,
+    staleTime: 5 * 60 * 1000,
+  });
+  const ratesLoading = tcmbQuery.isLoading && isForeignCurrency;
+
+  // Auto-fill currency rate when rates arrive or currency changes
+  useEffect(() => {
+    if (!isForeignCurrency || !tcmbQuery.data) return;
+    const rate = tcmbQuery.data.get(invoiceSettings.currency);
+    if (rate) {
+      setInvoiceSettings((s) => ({ ...s, currencyRate: rate.toFixed(4) }));
+    }
+  }, [tcmbQuery.data, invoiceSettings.currency]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (tcmbQuery.error && isForeignCurrency) {
+      toast.error("TCMB döviz kurları alınamadı");
+    }
+  }, [tcmbQuery.error, isForeignCurrency]);
 
   const totalDiscount = items.reduce((s, i) => s + (i.discountAmount || 0), 0);
   const grandTotal = items.reduce(
@@ -316,7 +342,13 @@ export function CreateInvoicePage() {
               <Label>Para Birimi</Label>
               <Select
                 value={invoiceSettings.currency}
-                onValueChange={(v) => setInvoiceSettings((s) => ({ ...s, currency: v }))}
+                onValueChange={(v) =>
+                  setInvoiceSettings((s) => ({
+                    ...s,
+                    currency: v,
+                    currencyRate: v === "TRY" ? "" : s.currencyRate,
+                  }))
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -340,9 +372,20 @@ export function CreateInvoicePage() {
                 onChange={(e) =>
                   setInvoiceSettings((s) => ({ ...s, currencyRate: e.target.value }))
                 }
-                placeholder={invoiceSettings.currency === "TRY" ? "-" : "ör: 38.50"}
-                disabled={invoiceSettings.currency === "TRY"}
+                placeholder={
+                  invoiceSettings.currency === "TRY"
+                    ? "-"
+                    : ratesLoading
+                      ? "TCMB'den alınıyor..."
+                      : "ör: 38.50"
+                }
+                disabled={invoiceSettings.currency === "TRY" || ratesLoading}
               />
+              {invoiceSettings.currency !== "TRY" && invoiceSettings.currencyRate && (
+                <p className="text-xs text-muted-foreground">
+                  TCMB satış kuru otomatik alındı, değiştirebilirsiniz
+                </p>
+              )}
             </div>
           </div>
 

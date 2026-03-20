@@ -13,6 +13,9 @@
         },
         {
           "url": "https://earsivportaltest.efatura.gov.tr/*"
+        },
+        {
+          "url": "https://www.tcmb.gov.tr/kurlar/*"
         }
       ]
     }

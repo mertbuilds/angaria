@@ -55,6 +55,19 @@ export function DatePicker({
           }}
           locale={tr}
         />
+        <div className="border-t p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              onChange(new Date());
+              setOpen(false);
+            }}
+          >
+            Bugün
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );
