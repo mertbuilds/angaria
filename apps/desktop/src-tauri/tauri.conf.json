@@ -5,6 +5,7 @@
   "identifier": "com.vinena.angaria",
   "build": {
     "beforeDevCommand": "vp dev",
+    "beforeBuildCommand": "vp build",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
   },
