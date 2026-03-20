@@ -4,7 +4,7 @@ import { format, parse } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ReloadIcon } from "@hugeicons/core-free-icons";
-import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ const parseGIB = (s: string): Date | undefined => {
 };
 const toGIB = (d: Date | undefined): string => (d ? format(d, GIB_FORMAT) : "");
 
-interface Invoice {
+export interface Invoice {
   belgeNumarasi?: string;
   aliciVknTckn?: string;
   aliciUnvanAdSoyad?: string;
@@ -49,7 +49,7 @@ async function fetchDrafts(
   }
 }
 
-export function InvoicesPage() {
+export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => void }) {
   const { creds, invoiceDateRange, setInvoiceDateRange } = useStore();
   const queryClient = useQueryClient();
 
@@ -58,7 +58,6 @@ export function InvoicesPage() {
   const setListStartDate = (d: string) => setInvoiceDateRange((prev) => ({ ...prev, start: d }));
   const setListEndDate = (d: string) => setInvoiceDateRange((prev) => ({ ...prev, end: d }));
 
-  const [viewHTML, setViewHTML] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
 
@@ -79,24 +78,6 @@ export function InvoicesPage() {
   });
 
   const loading = isLoading || isFetching || loadingAction;
-
-  async function viewInvoice(uuid: string, onayDurumu: string) {
-    if (!hasCredentials) return;
-    setLoadingAction(true);
-    try {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
-      try {
-        const html = await angaria.getInvoiceHTML(session, uuid, onayDurumu);
-        setViewHTML(html);
-      } finally {
-        angaria.logout(session).catch(() => {});
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
-    } finally {
-      setLoadingAction(false);
-    }
-  }
 
   async function cancelInvoice(invoice: Invoice) {
     if (invoice.onayDurumu === "Onaylandı") {
@@ -191,11 +172,7 @@ export function InvoicesPage() {
                       <td className="px-3 py-2">{statusBadge(inv.onayDurumu)}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => viewInvoice(inv.ettn ?? "", inv.onayDurumu ?? "")}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => onPreview(inv)}>
                             Görüntüle
                           </Button>
                           <Button
@@ -220,26 +197,6 @@ export function InvoicesPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Bu tarih aralığında fatura bulunamadı</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {viewHTML && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Fatura Önizleme</CardTitle>
-            <CardAction>
-              <Button variant="ghost" size="sm" onClick={() => setViewHTML(null)}>
-                Kapat
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <iframe
-              srcDoc={viewHTML}
-              className="h-[600px] w-full rounded-md border"
-              title="Fatura önizleme"
-            />
           </CardContent>
         </Card>
       )}

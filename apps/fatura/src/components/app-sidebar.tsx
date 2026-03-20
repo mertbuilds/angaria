@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Invoice01Icon,
@@ -38,9 +40,20 @@ export function AppSidebar({
   activePage: Page;
   onNavigate: (page: Page) => void;
 }) {
+  const handleDrag = useCallback((e: React.MouseEvent) => {
+    if (e.buttons !== 1) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, [role=button]")) return;
+    if (e.detail === 2) {
+      void getCurrentWindow().toggleMaximize();
+    } else {
+      void getCurrentWindow().startDragging();
+    }
+  }, []);
+
   return (
     <Sidebar>
-      <SidebarHeader className="px-4 py-5">
+      <SidebarHeader className="px-4 pt-9 pb-5" onMouseDown={handleDrag}>
         <div className="flex items-center gap-2.5">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <span className="text-sm font-bold">A</span>

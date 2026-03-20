@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -398,6 +399,7 @@ export function CreateInvoicePage() {
                   value={parseGIB(advancedFields.manualDate)}
                   onChange={(d) => setAdvancedFields((f) => ({ ...f, manualDate: toGIB(d) }))}
                   placeholder="Otomatik"
+                  maxDate={new Date()}
                 />
               </div>
               <div className="space-y-2">
@@ -562,6 +564,7 @@ export function CreateInvoicePage() {
                 <DatePicker
                   value={parseGIB(advancedFields.irsaliyeTarihi)}
                   onChange={(d) => setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: toGIB(d) }))}
+                  maxDate={new Date()}
                 />
               </div>
             </div>
@@ -763,7 +766,7 @@ export function CreateInvoicePage() {
         <CardContent>
           <div className="space-y-2">
             <Label>Not (opsiyonel)</Label>
-            <Input
+            <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Fatura notu"

@@ -13,6 +13,7 @@ interface DatePickerProps {
   onChange: (date: Date | undefined) => void;
   placeholder?: string;
   className?: string;
+  maxDate?: Date;
 }
 
 export function DatePicker({
@@ -20,6 +21,7 @@ export function DatePicker({
   onChange,
   placeholder = "Tarih seçin",
   className,
+  maxDate,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
 
@@ -49,6 +51,7 @@ export function DatePicker({
           selected={value}
           captionLayout="dropdown"
           defaultMonth={value}
+          disabled={maxDate ? { after: maxDate } : undefined}
           onSelect={(date) => {
             onChange(date);
             setOpen(false);
