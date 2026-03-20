@@ -2,6 +2,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { format, parse } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ReloadIcon } from "@hugeicons/core-free-icons";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -154,11 +156,15 @@ export function InvoicesPage() {
         </div>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           disabled={loading}
           onClick={() => queryClient.invalidateQueries({ queryKey: ["invoices"] })}
         >
-          {loading ? "Yükleniyor..." : "Yenile"}
+          <HugeiconsIcon
+            icon={ReloadIcon}
+            strokeWidth={1.5}
+            className={loading ? "animate-spin" : ""}
+          />
         </Button>
       </div>
 
