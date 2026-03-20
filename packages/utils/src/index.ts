@@ -26,9 +26,9 @@ export async function fetchTCMBRates(
     for (const node of doc.querySelectorAll("Currency")) {
       const code = node.getAttribute("CurrencyCode");
       const unit = Number(node.querySelector("Unit")?.textContent) || 1;
-      const selling = Number(node.querySelector("ForexBuying")?.textContent);
-      if (code && selling) {
-        rates.set(code, selling / unit);
+      const buying = Number(node.querySelector("ForexBuying")?.textContent);
+      if (code && buying) {
+        rates.set(code, buying / unit);
       }
     }
     if (rates.size > 0) return rates;

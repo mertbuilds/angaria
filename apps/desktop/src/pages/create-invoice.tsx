@@ -466,7 +466,7 @@ export function CreateInvoicePage() {
               />
               {invoiceSettings.currency !== "TRY" && invoiceSettings.currencyRate && (
                 <p className="text-xs text-muted-foreground">
-                  TCMB satış kuru otomatik alındı, değiştirebilirsiniz
+                  TCMB alış kuru otomatik alındı, değiştirebilirsiniz
                 </p>
               )}
             </div>
