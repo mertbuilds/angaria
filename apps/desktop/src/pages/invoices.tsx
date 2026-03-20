@@ -6,12 +6,23 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   flexRender,
   type ColumnDef,
+  type SortingState,
 } from "@tanstack/react-table";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ReloadIcon, ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { MoreVertical, Eye, Trash2, ShieldCheck } from "lucide-react";
+import {
+  MoreVertical,
+  Eye,
+  Trash2,
+  ShieldCheck,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Copy,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +62,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import { parseGIB, toGIB, formatDateHuman } from "@/lib/utils.ts";
+import type { Page } from "@/components/app-sidebar.tsx";
 import * as angaria from "@/lib/angaria.ts";
 
 export interface Invoice {
@@ -89,15 +101,49 @@ function StatusBadge({ status }: { status?: string }) {
   return <Badge variant="outline">Taslak</Badge>;
 }
 
+function SortableHeader({
+  column,
+  label,
+}: {
+  column: { getIsSorted: () => false | "asc" | "desc"; toggleSorting: (desc?: boolean) => void };
+  label: string;
+}) {
+  const sorted = column.getIsSorted();
+  return (
+    <button
+      type="button"
+      className="-ml-2 flex items-center gap-1 rounded px-2 py-1 hover:bg-muted/50"
+      onClick={() => column.toggleSorting()}
+    >
+      {label}
+      {sorted === "asc" ? (
+        <ArrowUp className="size-3.5" />
+      ) : sorted === "desc" ? (
+        <ArrowDown className="size-3.5" />
+      ) : (
+        <ArrowUpDown className="size-3.5 text-muted-foreground/50" />
+      )}
+    </button>
+  );
+}
+
 export function InvoicesPage({
   onPreview,
+  onNavigate,
   requireCredentials,
 }: {
   onPreview: (invoice: Invoice) => Promise<void>;
+  onNavigate: (page: Page) => void;
   requireCredentials: () => boolean;
 }) {
-  const { creds, invoiceDateRange, setInvoiceDateRange, invoicePageSize, setInvoicePageSize } =
-    useStore();
+  const {
+    creds,
+    invoiceDateRange,
+    setInvoiceDateRange,
+    invoicePageSize,
+    setInvoicePageSize,
+    loadFromGIBInvoice,
+  } = useStore();
   const queryClient = useQueryClient();
 
   const listStartDate = invoiceDateRange.start;
@@ -109,6 +155,7 @@ export function InvoicesPage({
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   // SMS signing state
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
@@ -189,7 +236,24 @@ export function InvoicesPage({
     },
   });
 
-  const mutating = cancelMutation.isPending || startSignMutation.isPending;
+  const useAsTemplateMutation = useMutation({
+    mutationFn: async (invoice: Invoice) => {
+      if (!invoice.ettn) throw new Error("Fatura ETTN bulunamadı");
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      try {
+        return await angaria.getInvoiceDetail(session, invoice.ettn);
+      } finally {
+        angaria.logout(session).catch(() => {});
+      }
+    },
+    onSuccess: (detail) => {
+      loadFromGIBInvoice(detail);
+      onNavigate("create");
+    },
+  });
+
+  const mutating =
+    cancelMutation.isPending || startSignMutation.isPending || useAsTemplateMutation.isPending;
   const loading = isLoading || isFetching || mutating;
 
   function handleSign(invoice: Invoice) {
@@ -228,26 +292,26 @@ export function InvoicesPage({
     () => [
       {
         accessorKey: "belgeNumarasi",
-        header: "Belge No",
+        header: ({ column }) => <SortableHeader column={column} label="Belge No" />,
         cell: ({ getValue }) => (
           <span className="font-mono text-xs">{(getValue() as string) ?? ""}</span>
         ),
       },
       {
         accessorKey: "aliciUnvanAdSoyad",
-        header: "Alıcı",
+        header: ({ column }) => <SortableHeader column={column} label="Alıcı" />,
         cell: ({ getValue }) => (
           <span className="block max-w-48 truncate">{(getValue() as string) ?? ""}</span>
         ),
       },
       {
         accessorKey: "belgeTarihi",
-        header: "Tarih",
+        header: ({ column }) => <SortableHeader column={column} label="Tarih" />,
         cell: ({ getValue }) => formatDateHuman((getValue() as string) ?? ""),
       },
       {
         accessorKey: "onayDurumu",
-        header: "Durum",
+        header: ({ column }) => <SortableHeader column={column} label="Durum" />,
         cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,
       },
       {
@@ -265,7 +329,7 @@ export function InvoicesPage({
                     <MoreVertical className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-52">
                   <DropdownMenuItem
                     onClick={() => {
                       setLoadingPreview(true);
@@ -281,6 +345,10 @@ export function InvoicesPage({
                       Onayla
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem onClick={() => useAsTemplateMutation.mutate(inv)}>
+                    <Copy className="size-4" />
+                    Şablon olarak kullan
+                  </DropdownMenuItem>
                   {showDelete && (
                     <>
                       <DropdownMenuSeparator />
@@ -303,8 +371,9 @@ export function InvoicesPage({
   const table = useReactTable({
     data: invoiceList,
     columns,
-    state: { globalFilter, pagination: { pageIndex, pageSize: invoicePageSize } },
+    state: { globalFilter, sorting, pagination: { pageIndex, pageSize: invoicePageSize } },
     onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
     onPaginationChange: (updater) => {
       const prev = { pageIndex, pageSize: invoicePageSize };
       const next = typeof updater === "function" ? updater(prev) : updater;
@@ -312,6 +381,7 @@ export function InvoicesPage({
       setInvoicePageSize(next.pageSize);
     },
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });

@@ -4,7 +4,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
+import { Copy } from "lucide-react";
 import { Toaster } from "sonner";
+import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import {
@@ -43,11 +45,12 @@ interface PreviewTab {
 }
 
 function Dashboard() {
-  const { creds, resetInvoiceForm, templateEditMode } = useStore();
+  const { creds, resetInvoiceForm, templateEditMode, loadFromGIBInvoice } = useStore();
   const [page, setPage] = useState<Page>("create");
   const [previewTabs, setPreviewTabs] = useState<PreviewTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showCredsAlert, setShowCredsAlert] = useState(false);
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
 
   const requireCredentials = useCallback((): boolean => {
     if (creds.username && creds.password) return true;
@@ -114,6 +117,26 @@ function Dashboard() {
       }
       return next;
     });
+  }
+
+  async function usePreviewAsTemplate(ettn: string) {
+    if (!requireCredentials()) return;
+    setLoadingTemplate(true);
+    try {
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      try {
+        const detail = await angaria.getInvoiceDetail(session, ettn);
+        loadFromGIBInvoice(detail);
+        setActiveTabId(null);
+        setPage("create");
+      } finally {
+        angaria.logout(session).catch(() => {});
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fatura detayı alınamadı");
+    } finally {
+      setLoadingTemplate(false);
+    }
   }
 
   const activePreview = previewTabs.find((t) => t.id === activeTabId);
@@ -194,7 +217,20 @@ function Dashboard() {
         {/* Content */}
         {isOnPreview && activePreview ? (
           activePreview.html ? (
-            <iframe srcDoc={activePreview.html} className="flex-1" title="Fatura önizleme" />
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 items-center justify-end border-b px-3 py-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={loadingTemplate}
+                  onClick={() => usePreviewAsTemplate(activePreview.id)}
+                >
+                  <Copy className="size-4" />
+                  {loadingTemplate ? "Yükleniyor..." : "Şablon olarak kullan"}
+                </Button>
+              </div>
+              <iframe srcDoc={activePreview.html} className="flex-1" title="Fatura önizleme" />
+            </div>
           ) : (
             <div className="flex flex-1 items-center justify-center">
               <HugeiconsIcon
@@ -209,15 +245,13 @@ function Dashboard() {
             <div className="mx-auto max-w-3xl px-6 py-8">
               {page === "create" && <CreateInvoicePage requireCredentials={requireCredentials} />}
               {page === "invoices" && (
-                <InvoicesPage onPreview={openPreview} requireCredentials={requireCredentials} />
-              )}
-              {page === "invoice-templates" && (
-                <InvoiceTemplatesPage
-                  onNavigate={setPage}
+                <InvoicesPage
                   onPreview={openPreview}
+                  onNavigate={setPage}
                   requireCredentials={requireCredentials}
                 />
               )}
+              {page === "invoice-templates" && <InvoiceTemplatesPage onNavigate={setPage} />}
               {page === "item-templates" && <ItemTemplatesPage />}
               {page === "customers" && <CustomersPage />}
               {page === "settings" && <SettingsPage />}

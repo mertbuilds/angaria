@@ -303,7 +303,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNote(str(data.not));
     setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
     setInvoiceStarted(true);
-    setTemplateEditMode(true);
+    setTemplateEditMode(false);
   }, []);
 
   // Persist only data that should survive restarts

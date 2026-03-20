@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { PlusSignIcon, Delete01Icon, FileAddIcon } from "@hugeicons/core-free-icons";
+import { PlusSignIcon, Delete01Icon, FileAddIcon, Invoice01Icon } from "@hugeicons/core-free-icons";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
@@ -35,6 +35,7 @@ import { DatePicker } from "@/components/ui/date-picker.tsx";
 
 import { AutocompleteInput } from "@/components/autocomplete-input.tsx";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
+import { InvoicePickerDialog } from "@/components/invoice-picker-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import {
   GIB_COUNTRIES,
@@ -73,9 +74,11 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
     startBlankInvoice,
     sourceTemplateId,
     templateEditMode,
+    loadFromGIBInvoice,
   } = useStore();
 
   const [invoiceHTML, setInvoiceHTML] = useState<string | null>(null);
+  const [showInvoicePicker, setShowInvoicePicker] = useState(false);
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
@@ -379,14 +382,36 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={startBlankInvoice}
-          className="flex w-full min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-        >
-          <HugeiconsIcon icon={FileAddIcon} strokeWidth={1.5} className="size-6" />
-          <span className="text-sm font-medium">Sıfırdan oluştur</span>
-        </button>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={startBlankInvoice}
+            className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+          >
+            <HugeiconsIcon icon={FileAddIcon} strokeWidth={1.5} className="size-6" />
+            <span className="text-sm font-medium">Sıfırdan Oluştur</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!requireCredentials()) return;
+              setShowInvoicePicker(true);
+            }}
+            className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+          >
+            <HugeiconsIcon icon={Invoice01Icon} strokeWidth={1.5} className="size-6" />
+            <span className="text-sm font-medium">Eski Faturadan Oluştur</span>
+          </button>
+        </div>
+
+        <InvoicePickerDialog
+          open={showInvoicePicker}
+          onOpenChange={setShowInvoicePicker}
+          onSelect={(detail) => {
+            loadFromGIBInvoice(detail as unknown as Record<string, unknown>);
+            setShowInvoicePicker(false);
+          }}
+        />
       </div>
     );
   }
@@ -877,7 +902,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           disabled={createMutation.isPending}
           onClick={createInvoice}
         >
-          {createMutation.isPending ? "Oluşturuluyor..." : "Taslak Oluştur"}
+          {createMutation.isPending ? "Oluşturuluyor..." : "Taslak Fatura Oluştur"}
         </Button>
       )}
 
