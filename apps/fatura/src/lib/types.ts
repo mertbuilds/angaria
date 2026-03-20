@@ -52,4 +52,5 @@ export interface InvoiceTemplate {
   settings: InvoiceSettings;
   items: InvoiceItem[];
   note: string;
+  lastUsedAt?: number;
 }

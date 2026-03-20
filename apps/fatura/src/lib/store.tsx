@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import type {
   AdvancedInvoiceFields,
   Credentials,
@@ -98,6 +98,25 @@ function currentTime() {
   return `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
 }
 
+const BLANK_RECIPIENT: Recipient = {
+  id: "",
+  taxIDOrTRID: "",
+  taxOffice: "",
+  title: "",
+  name: "",
+  surname: "",
+  fullAddress: "",
+  country: "",
+  city: "",
+  district: "",
+};
+
+const DEFAULT_SETTINGS: InvoiceSettings = {
+  currency: "TRY",
+  currencyRate: "",
+  invoiceType: "SATIS",
+};
+
 export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
   manualDate: "",
   manualTime: currentTime(),
@@ -105,6 +124,17 @@ export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
   irsaliyeTarihi: "",
   paymentTotal: "",
 };
+
+function makeBlankItem(): InvoiceItem {
+  return {
+    id: newId(),
+    name: "",
+    quantity: 1,
+    unitPrice: 0,
+    VATRate: 20,
+    ...DEFAULT_ITEM_ADVANCED,
+  };
+}
 
 interface Store {
   creds: Credentials;
@@ -129,6 +159,14 @@ interface Store {
   setViewMode: React.Dispatch<React.SetStateAction<"simple" | "advanced">>;
   invoiceDateRange: { start: string; end: string };
   setInvoiceDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>;
+  /** true when the invoice form has been initialized (via template or scratch) */
+  invoiceStarted: boolean;
+  /** Reset invoice form to blank state */
+  resetInvoiceForm: () => void;
+  /** Load a template into the invoice form and mark it as started */
+  loadTemplate: (id: string) => string | null;
+  /** Start a blank invoice form */
+  startBlankInvoice: () => void;
   newId: () => string;
   defaultItemAdvanced: typeof DEFAULT_ITEM_ADVANCED;
 }
@@ -153,43 +191,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     loadLocal("fatura-saved-items", SEED_ITEMS),
   );
 
-  const [recipient, setRecipient] = useState<Recipient>(() =>
-    loadLocal("fatura-v2-recipient", {
-      id: newId(),
-      taxIDOrTRID: "",
-      taxOffice: "",
-      title: "",
-      name: "",
-      surname: "",
-      fullAddress: "",
-      country: "",
-      city: "",
-      district: "",
-    }),
-  );
-
-  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>(() =>
-    loadLocal("fatura-v2-settings", {
-      currency: "TRY",
-      currencyRate: "",
-      invoiceType: "SATIS",
-    }),
-  );
-
-  const [items, setItems] = useState<InvoiceItem[]>(() =>
-    loadLocal("fatura-v2-items", [
-      { id: newId(), name: "", quantity: 1, unitPrice: 0, VATRate: 20, ...DEFAULT_ITEM_ADVANCED },
-    ]),
-  );
-
-  const [note, setNote] = useState(() => loadLocal("fatura-v2-note", ""));
+  // Invoice form state — not persisted, starts blank
+  const [recipient, setRecipient] = useState<Recipient>({ ...BLANK_RECIPIENT, id: newId() });
+  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>({ ...DEFAULT_SETTINGS });
+  const [items, setItems] = useState<InvoiceItem[]>(() => [makeBlankItem()]);
+  const [note, setNote] = useState("");
+  const [advancedFields, setAdvancedFields] = useState<AdvancedInvoiceFields>({
+    ...DEFAULT_ADVANCED_FIELDS,
+  });
+  const [invoiceStarted, setInvoiceStarted] = useState(false);
 
   const [invoiceTemplates, setInvoiceTemplates] = useState<InvoiceTemplate[]>(() =>
     loadLocal("fatura-templates", []),
-  );
-
-  const [advancedFields, setAdvancedFields] = useState<AdvancedInvoiceFields>(() =>
-    loadLocal("fatura-advanced-fields", DEFAULT_ADVANCED_FIELDS),
   );
 
   const [viewMode, setViewMode] = useState<"simple" | "advanced">(() =>
@@ -203,7 +216,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { start: today, end: today };
   });
 
-  // Persist to localStorage
+  const resetInvoiceForm = useCallback(() => {
+    setRecipient({ ...BLANK_RECIPIENT, id: newId() });
+    setInvoiceSettings({ ...DEFAULT_SETTINGS });
+    setItems([makeBlankItem()]);
+    setNote("");
+    setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
+    setInvoiceStarted(false);
+  }, []);
+
+  const loadTemplate = useCallback(
+    (id: string): string | null => {
+      const t = invoiceTemplates.find((x) => x.id === id);
+      if (!t) return null;
+      setRecipient({ ...t.recipient, id: newId() });
+      setInvoiceSettings({ ...t.settings });
+      setItems(t.items.map((i) => ({ ...i, id: newId() })));
+      setNote(t.note);
+      setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
+      setInvoiceStarted(true);
+      // Update lastUsedAt
+      setInvoiceTemplates((prev) =>
+        prev.map((x) => (x.id === id ? { ...x, lastUsedAt: Date.now() } : x)),
+      );
+      return t.name;
+    },
+    [invoiceTemplates],
+  );
+
+  const startBlankInvoice = useCallback(() => {
+    resetInvoiceForm();
+    setInvoiceStarted(true);
+  }, [resetInvoiceForm]);
+
+  // Persist only data that should survive restarts
   useEffect(() => localStorage.setItem("fatura-creds", JSON.stringify(creds)), [creds]);
   useEffect(
     () => localStorage.setItem("fatura-saved-recipients", JSON.stringify(savedRecipients)),
@@ -214,22 +260,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [savedItems],
   );
   useEffect(
-    () => localStorage.setItem("fatura-v2-settings", JSON.stringify(invoiceSettings)),
-    [invoiceSettings],
-  );
-  useEffect(
-    () => localStorage.setItem("fatura-v2-recipient", JSON.stringify(recipient)),
-    [recipient],
-  );
-  useEffect(() => localStorage.setItem("fatura-v2-items", JSON.stringify(items)), [items]);
-  useEffect(() => localStorage.setItem("fatura-v2-note", JSON.stringify(note)), [note]);
-  useEffect(
     () => localStorage.setItem("fatura-templates", JSON.stringify(invoiceTemplates)),
     [invoiceTemplates],
-  );
-  useEffect(
-    () => localStorage.setItem("fatura-advanced-fields", JSON.stringify(advancedFields)),
-    [advancedFields],
   );
   useEffect(() => localStorage.setItem("fatura-view-mode", JSON.stringify(viewMode)), [viewMode]);
 
@@ -258,6 +290,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setViewMode,
         invoiceDateRange,
         setInvoiceDateRange,
+        invoiceStarted,
+        resetInvoiceForm,
+        loadTemplate,
+        startBlankInvoice,
         newId,
         defaultItemAdvanced: DEFAULT_ITEM_ADVANCED,
       }}

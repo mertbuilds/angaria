@@ -10,27 +10,16 @@ import { useStore } from "@/lib/store.tsx";
 import type { Page } from "@/components/app-sidebar.tsx";
 
 export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
-  const {
-    invoiceTemplates,
-    setInvoiceTemplates,
-    setRecipient,
-    setInvoiceSettings,
-    setItems,
-    setNote,
-    newId,
-  } = useStore();
+  const { invoiceTemplates, setInvoiceTemplates, loadTemplate } = useStore();
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  function loadTemplate(id: string) {
-    const t = invoiceTemplates.find((x) => x.id === id);
-    if (!t) return;
-    setRecipient({ ...t.recipient, id: newId() });
-    setInvoiceSettings({ ...t.settings });
-    setItems(t.items.map((i) => ({ ...i, id: newId() })));
-    setNote(t.note);
-    toast.success(`"${t.name}" şablonu yüklendi`);
-    onNavigate("create");
+  function useTemplate(id: string) {
+    const name = loadTemplate(id);
+    if (name) {
+      toast.success(`"${name}" şablonu yüklendi`);
+      onNavigate("create");
+    }
   }
 
   return (
@@ -49,7 +38,7 @@ export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) 
                 <Badge variant="outline">{t.settings.invoiceType}</Badge>
               </div>
               <div className="mt-4 flex gap-2">
-                <Button size="sm" onClick={() => loadTemplate(t.id)}>
+                <Button size="sm" onClick={() => useTemplate(t.id)}>
                   Kullan
                 </Button>
                 <Button variant="destructive" size="icon-sm" onClick={() => setDeleteId(t.id)}>

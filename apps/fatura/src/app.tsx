@@ -64,7 +64,7 @@ function ViewModeToggle() {
 }
 
 function Dashboard() {
-  const { creds } = useStore();
+  const { creds, resetInvoiceForm } = useStore();
   const [page, setPage] = useState<Page>("create");
   const [previewTabs, setPreviewTabs] = useState<PreviewTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -128,6 +128,7 @@ function Dashboard() {
       <AppSidebar
         activePage={page}
         onNavigate={(p) => {
+          if (p === "create") resetInvoiceForm();
           setPage(p);
           setActiveTabId(null);
         }}

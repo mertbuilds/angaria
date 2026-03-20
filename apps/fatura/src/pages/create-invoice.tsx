@@ -2,9 +2,16 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { PlusSignIcon, Delete01Icon } from "@hugeicons/core-free-icons";
+import { PlusSignIcon, Delete01Icon, FileAddIcon } from "@hugeicons/core-free-icons";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardAction,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -77,6 +84,10 @@ export function CreateInvoicePage() {
     viewMode,
     newId,
     defaultItemAdvanced,
+    invoiceStarted,
+    invoiceTemplates,
+    loadTemplate,
+    startBlankInvoice,
   } = useStore();
 
   const [loading, setLoading] = useState(false);
@@ -310,6 +321,66 @@ export function CreateInvoicePage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!invoiceStarted) {
+    const recentTemplates = [...invoiceTemplates]
+      .sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0))
+      .slice(0, 3);
+
+    return (
+      <div className="space-y-6">
+        {recentTemplates.length > 0 && (
+          <>
+            <h2 className="text-sm font-medium text-muted-foreground">Şablondan oluştur</h2>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {recentTemplates.map((t) => (
+                <Card
+                  key={t.id}
+                  className="cursor-pointer transition-colors hover:bg-accent/50"
+                  onClick={() => {
+                    loadTemplate(t.id);
+                    toast.success(`"${t.name}" şablonu yüklendi`);
+                  }}
+                >
+                  <CardHeader>
+                    <CardTitle className="text-sm">{t.name}</CardTitle>
+                    <CardDescription className="text-xs">{t.recipient.title}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      {t.items.length} kalem · {t.settings.currency}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="relative">
+          {recentTemplates.length > 0 && (
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+          )}
+          {recentTemplates.length > 0 && (
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">veya</span>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={startBlankInvoice}
+          className="flex w-full min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+        >
+          <HugeiconsIcon icon={FileAddIcon} strokeWidth={1.5} className="size-6" />
+          <span className="text-sm font-medium">Sıfırdan oluştur</span>
+        </button>
+      </div>
+    );
   }
 
   return (
