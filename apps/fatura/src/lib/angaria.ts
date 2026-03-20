@@ -304,6 +304,19 @@ export async function getDrafts(
   return (result.data as unknown[]) ?? [];
 }
 
+export async function signInvoice(
+  session: SessionInfo,
+  invoice: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const result = await dispatch(
+    session,
+    "EARSIV_PORTAL_FATURA_HSM_CIHAZI_ILE_IMZALA",
+    "RG_BASITTASLAKLAR",
+    { imzalanacaklar: [invoice] },
+  );
+  return result;
+}
+
 export async function cancelInvoice(
   session: SessionInfo,
   reason: string,

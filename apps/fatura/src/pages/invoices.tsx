@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { format, parse } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ReloadIcon } from "@hugeicons/core-free-icons";
+import { ReloadIcon, EyeIcon, Delete01Icon } from "@hugeicons/core-free-icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,18 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker.tsx";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
+import { parseGIB, toGIB, formatDateHuman } from "@/lib/utils.ts";
 import * as angaria from "@/lib/angaria.ts";
-
-const GIB_FORMAT = "dd/MM/yyyy";
-const parseGIB = (s: string): Date | undefined => {
-  if (!s) return undefined;
-  try {
-    return parse(s, GIB_FORMAT, new Date());
-  } catch {
-    return undefined;
-  }
-};
-const toGIB = (d: Date | undefined): string => (d ? format(d, GIB_FORMAT) : "");
 
 export interface Invoice {
   belgeNumarasi?: string;
@@ -111,6 +100,33 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
     }
   }
 
+  async function signInvoice(invoice: Invoice) {
+    if (invoice.onayDurumu === "Onaylandı") {
+      toast.error("Bu fatura zaten onaylanmış!");
+      return;
+    }
+    if (invoice.onayDurumu === "Silinmiş") {
+      toast.error("Silinmiş fatura onaylanamaz!");
+      return;
+    }
+    if (!hasCredentials) return;
+    setLoadingAction(true);
+    try {
+      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      try {
+        await angaria.signInvoice(session, invoice as unknown as Record<string, unknown>);
+        toast.success("Fatura onaylandı");
+        await queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      } finally {
+        angaria.logout(session).catch(() => {});
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
+    } finally {
+      setLoadingAction(false);
+    }
+  }
+
   function statusBadge(status?: string) {
     if (status === "Onaylandı")
       return (
@@ -169,28 +185,37 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
                     <tr key={idx} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="px-3 py-2 font-mono text-xs">{inv.belgeNumarasi ?? ""}</td>
                       <td className="px-3 py-2">{inv.aliciUnvanAdSoyad ?? ""}</td>
-                      <td className="px-3 py-2">{inv.belgeTarihi ?? ""}</td>
+                      <td className="px-3 py-2">{formatDateHuman(inv.belgeTarihi ?? "")}</td>
                       <td className="px-3 py-2">{statusBadge(inv.onayDurumu)}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {inv.onayDurumu !== "Onaylandı" && inv.onayDurumu !== "Silinmiş" && (
+                            <Button
+                              size="sm"
+                              disabled={loadingPreview || loadingAction}
+                              onClick={() => signInvoice(inv)}
+                            >
+                              Onayla
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon-sm"
                             disabled={loadingPreview}
                             onClick={() => {
                               setLoadingPreview(true);
                               void onPreview(inv).finally(() => setLoadingPreview(false));
                             }}
                           >
-                            Görüntüle
+                            <HugeiconsIcon icon={EyeIcon} strokeWidth={1.5} />
                           </Button>
                           <Button
                             variant="destructive"
-                            size="sm"
-                            disabled={loadingPreview}
+                            size="icon-sm"
+                            disabled={loadingPreview || loadingAction}
                             onClick={() => setDeleteTarget(inv)}
                           >
-                            Sil
+                            <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
                           </Button>
                         </div>
                       </td>

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { format, parse } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Delete01Icon, PlusSignIcon, Invoice01Icon } from "@hugeicons/core-free-icons";
@@ -12,20 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { DatePicker } from "@/components/ui/date-picker.tsx";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
+import { parseGIB, toGIB, formatDateHuman } from "@/lib/utils.ts";
 import type { Invoice } from "@/pages/invoices.tsx";
 import type { Page } from "@/components/app-sidebar.tsx";
 import * as angaria from "@/lib/angaria.ts";
-
-const GIB_FORMAT = "dd/MM/yyyy";
-const parseGIB = (s: string): Date | undefined => {
-  if (!s) return undefined;
-  try {
-    return parse(s, GIB_FORMAT, new Date());
-  } catch {
-    return undefined;
-  }
-};
-const toGIB = (d: Date | undefined): string => (d ? format(d, GIB_FORMAT) : "");
 
 export function InvoiceTemplatesPage({
   onNavigate,
@@ -195,7 +184,7 @@ export function InvoiceTemplatesPage({
                       <tr key={idx} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="px-3 py-2 font-mono text-xs">{inv.belgeNumarasi ?? ""}</td>
                         <td className="px-3 py-2">{inv.aliciUnvanAdSoyad ?? ""}</td>
-                        <td className="px-3 py-2">{inv.belgeTarihi ?? ""}</td>
+                        <td className="px-3 py-2">{formatDateHuman(inv.belgeTarihi ?? "")}</td>
                         <td className="px-3 py-2 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <Button

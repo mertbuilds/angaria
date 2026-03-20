@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -41,28 +42,12 @@ import {
   GIB_CURRENCIES,
   GIB_UNIT_TYPES,
   GIB_INVOICE_TYPES,
-  GIB_CITIES,
 } from "@/lib/gib-constants.ts";
 import * as angaria from "@/lib/angaria.ts";
-import { format, parse } from "date-fns";
+import { parseGIB, toGIB } from "@/lib/utils.ts";
 
 const formatMoney = (currency: string, n: number) =>
   new Intl.NumberFormat("tr-TR", { style: "currency", currency }).format(n);
-
-const GIB_FORMAT = "dd/MM/yyyy";
-
-/** DD/MM/YYYY string → Date */
-const parseGIB = (s: string): Date | undefined => {
-  if (!s) return undefined;
-  try {
-    return parse(s, GIB_FORMAT, new Date());
-  } catch {
-    return undefined;
-  }
-};
-
-/** Date → DD/MM/YYYY string */
-const toGIB = (d: Date | undefined): string => (d ? format(d, GIB_FORMAT) : "");
 
 export function CreateInvoicePage() {
   const {
@@ -81,7 +66,6 @@ export function CreateInvoicePage() {
     setInvoiceTemplates,
     advancedFields,
     setAdvancedFields,
-    viewMode,
     newId,
     defaultItemAdvanced,
     invoiceStarted,
@@ -92,14 +76,13 @@ export function CreateInvoicePage() {
   } = useStore();
 
   const [loading, setLoading] = useState(false);
+  const [signAfterCreate, setSignAfterCreate] = useState(false);
   const [invoiceHTML, setInvoiceHTML] = useState<string | null>(null);
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const lastCheckedRef = useRef<string | null>(null);
-
-  const advanced = viewMode === "advanced";
 
   const isForeignCurrency = invoiceSettings.currency !== "TRY";
   const invoiceDate = advancedFields.manualDate || "";
@@ -305,9 +288,27 @@ export function CreateInvoicePage() {
           note,
         });
 
-        toast.success("Taslak fatura oluşturuldu!");
+        if (signAfterCreate) {
+          const drafts = (await angaria.getDrafts(session, date, date)) as Record<
+            string,
+            unknown
+          >[];
+          const found = drafts.find((d) => d.ettn === draft.uuid);
+          if (found) {
+            await angaria.signInvoice(session, found);
+            toast.success("Fatura oluşturuldu ve onaylandı!");
+          } else {
+            toast.success("Taslak oluşturuldu ama onay için bulunamadı");
+          }
+        } else {
+          toast.success("Taslak fatura oluşturuldu!");
+        }
         try {
-          const html = await angaria.getInvoiceHTML(session, draft.uuid, "Onaylanmadı");
+          const html = await angaria.getInvoiceHTML(
+            session,
+            draft.uuid,
+            signAfterCreate ? "Onaylandı" : "Onaylanmadı",
+          );
           setInvoiceHTML(html);
         } catch {
           // preview is optional
@@ -462,29 +463,26 @@ export function CreateInvoicePage() {
             </div>
           </div>
 
-          {/* Advanced: Date/Time override */}
-          {advanced && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Düzenlenme Tarihi</Label>
-                <DatePicker
-                  value={parseGIB(advancedFields.manualDate) ?? new Date()}
-                  onChange={(d) => setAdvancedFields((f) => ({ ...f, manualDate: toGIB(d) }))}
-                  maxDate={new Date()}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Düzenlenme Saati</Label>
-                <Input
-                  type="time"
-                  step="1"
-                  value={advancedFields.manualTime}
-                  onChange={(e) => setAdvancedFields((f) => ({ ...f, manualTime: e.target.value }))}
-                  className="appearance-none tabular-nums [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Düzenlenme Tarihi</Label>
+              <DatePicker
+                value={parseGIB(advancedFields.manualDate) ?? new Date()}
+                onChange={(d) => setAdvancedFields((f) => ({ ...f, manualDate: toGIB(d) }))}
+                maxDate={new Date()}
+              />
             </div>
-          )}
+            <div className="space-y-2">
+              <Label>Düzenlenme Saati</Label>
+              <Input
+                type="time"
+                step="1"
+                value={advancedFields.manualTime}
+                onChange={(e) => setAdvancedFields((f) => ({ ...f, manualTime: e.target.value }))}
+                className="appearance-none tabular-nums [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -520,31 +518,24 @@ export function CreateInvoicePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Vergi Dairesi</Label>
+              <Label>Ünvan</Label>
               <Input
-                value={recipient.taxOffice}
-                onChange={(e) => setRecipient((r) => ({ ...r, taxOffice: e.target.value }))}
+                value={recipient.title}
+                onChange={(e) => setRecipient((r) => ({ ...r, title: e.target.value }))}
+                placeholder="Firma Adı"
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Ünvan</Label>
-            <Input
-              value={recipient.title}
-              onChange={(e) => setRecipient((r) => ({ ...r, title: e.target.value }))}
-              placeholder="Firma Adı"
-            />
-          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Ad</Label>
+              <Label>Adı</Label>
               <Input
                 value={recipient.name}
                 onChange={(e) => setRecipient((r) => ({ ...r, name: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>Soyad</Label>
+              <Label>Soyadı</Label>
               <Input
                 value={recipient.surname}
                 onChange={(e) => setRecipient((r) => ({ ...r, surname: e.target.value }))}
@@ -553,11 +544,10 @@ export function CreateInvoicePage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Adres</Label>
+              <Label>Vergi Dairesi</Label>
               <Input
-                value={recipient.fullAddress}
-                onChange={(e) => setRecipient((r) => ({ ...r, fullAddress: e.target.value }))}
-                placeholder="Tam adres"
+                value={recipient.taxOffice}
+                onChange={(e) => setRecipient((r) => ({ ...r, taxOffice: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
@@ -579,69 +569,45 @@ export function CreateInvoicePage() {
               </Select>
             </div>
           </div>
-
-          {/* Advanced: City/District */}
-          {advanced && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Şehir</Label>
-                <Select
-                  value={recipient.city}
-                  onValueChange={(v) => setRecipient((r) => ({ ...r, city: v }))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Şehir seçin..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GIB_CITIES.map((city) => (
-                      <SelectItem key={city} value={city}>
-                        {city}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>İlçe</Label>
-                <Input
-                  value={recipient.district}
-                  onChange={(e) => setRecipient((r) => ({ ...r, district: e.target.value }))}
-                />
-              </div>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label>Adres</Label>
+            <Textarea
+              value={recipient.fullAddress}
+              onChange={(e) => setRecipient((r) => ({ ...r, fullAddress: e.target.value }))}
+              placeholder="Tam adres"
+              rows={3}
+            />
+          </div>
         </CardContent>
       </Card>
 
-      {/* Advanced: İrsaliye Bilgisi */}
-      {advanced && (
-        <Card>
-          <CardHeader>
-            <CardTitle>İrsaliye Bilgisi</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>İrsaliye Numarası</Label>
-                <Input
-                  value={advancedFields.irsaliyeNumarasi}
-                  onChange={(e) =>
-                    setAdvancedFields((f) => ({ ...f, irsaliyeNumarasi: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>İrsaliye Tarihi</Label>
-                <DatePicker
-                  value={parseGIB(advancedFields.irsaliyeTarihi)}
-                  onChange={(d) => setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: toGIB(d) }))}
-                  maxDate={new Date()}
-                />
-              </div>
+      {/* İrsaliye Bilgisi */}
+      <Card>
+        <CardHeader>
+          <CardTitle>İrsaliye Bilgisi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>İrsaliye Numarası</Label>
+              <Input
+                value={advancedFields.irsaliyeNumarasi}
+                onChange={(e) =>
+                  setAdvancedFields((f) => ({ ...f, irsaliyeNumarasi: e.target.value }))
+                }
+              />
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="space-y-2">
+              <Label>İrsaliye Tarihi</Label>
+              <DatePicker
+                value={parseGIB(advancedFields.irsaliyeTarihi)}
+                onChange={(d) => setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: toGIB(d) }))}
+                maxDate={new Date()}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Items */}
       <Card>
@@ -671,7 +637,7 @@ export function CreateInvoicePage() {
                 </th>
                 <th className="px-2 py-2 text-left font-medium">Mal / Hizmet</th>
                 <th className="w-20 px-2 py-2 text-left font-medium">Miktar</th>
-                {advanced && <th className="w-24 px-2 py-2 text-left font-medium">Birim</th>}
+                <th className="w-24 px-2 py-2 text-left font-medium">Birim</th>
                 <th className="w-28 px-2 py-2 text-left font-medium">Birim Fiyat</th>
                 <th className="w-20 px-2 py-2 text-left font-medium">KDV %</th>
                 <th className="w-28 px-2 py-2 text-right font-medium">Tutar</th>
@@ -707,25 +673,23 @@ export function CreateInvoicePage() {
                       className="h-8"
                     />
                   </td>
-                  {advanced && (
-                    <td className="px-2 py-2">
-                      <Select
-                        value={item.unitType}
-                        onValueChange={(v) => updateItem(item.id, "unitType", v)}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GIB_UNIT_TYPES.map((u) => (
-                            <SelectItem key={u.value} value={u.value}>
-                              {u.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                  )}
+                  <td className="px-2 py-2">
+                    <Select
+                      value={item.unitType}
+                      onValueChange={(v) => updateItem(item.id, "unitType", v)}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GIB_UNIT_TYPES.map((u) => (
+                          <SelectItem key={u.value} value={u.value}>
+                            {u.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
                   <td className="px-2 py-2">
                     <Input
                       inputMode="decimal"
@@ -764,63 +728,60 @@ export function CreateInvoicePage() {
             </tbody>
           </table>
 
-          {/* Advanced: expanded discount/GTIP fields below table */}
-          {advanced &&
-            items.some((i) => i.discountRate || i.discountAmount || i.discountReason || i.gtip) && (
-              <div className="space-y-3 border-t px-4 py-3">
-                {items.map(
-                  (item) =>
-                    (item.discountRate ||
-                      item.discountAmount ||
-                      item.discountReason ||
-                      item.gtip) && (
-                      <div key={item.id} className="space-y-2">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {item.name || "Adsız kalem"} — İskonto & GTİP
-                        </span>
-                        <div className="grid grid-cols-4 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">İskonto %</Label>
-                            <Input
-                              inputMode="numeric"
-                              value={item.discountRate || ""}
-                              onChange={(e) =>
-                                updateItem(item.id, "discountRate", Number(e.target.value) || 0)
-                              }
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">İskonto Tutarı</Label>
-                            <Input
-                              inputMode="decimal"
-                              value={item.discountAmount || ""}
-                              onChange={(e) =>
-                                updateItem(item.id, "discountAmount", Number(e.target.value) || 0)
-                              }
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">İskonto Nedeni</Label>
-                            <Input
-                              value={item.discountReason}
-                              onChange={(e) =>
-                                updateItem(item.id, "discountReason", e.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">GTİP</Label>
-                            <Input
-                              value={item.gtip}
-                              onChange={(e) => updateItem(item.id, "gtip", e.target.value)}
-                            />
-                          </div>
+          {/* Expanded discount/GTIP fields below table */}
+          {items.some((i) => i.discountRate || i.discountAmount || i.discountReason || i.gtip) && (
+            <div className="space-y-3 border-t px-4 py-3">
+              {items.map(
+                (item) =>
+                  (item.discountRate ||
+                    item.discountAmount ||
+                    item.discountReason ||
+                    item.gtip) && (
+                    <div key={item.id} className="space-y-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {item.name || "Adsız kalem"} — İskonto & GTİP
+                      </span>
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">İskonto %</Label>
+                          <Input
+                            inputMode="numeric"
+                            value={item.discountRate || ""}
+                            onChange={(e) =>
+                              updateItem(item.id, "discountRate", Number(e.target.value) || 0)
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">İskonto Tutarı</Label>
+                          <Input
+                            inputMode="decimal"
+                            value={item.discountAmount || ""}
+                            onChange={(e) =>
+                              updateItem(item.id, "discountAmount", Number(e.target.value) || 0)
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">İskonto Nedeni</Label>
+                          <Input
+                            value={item.discountReason}
+                            onChange={(e) => updateItem(item.id, "discountReason", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">GTİP</Label>
+                          <Input
+                            value={item.gtip}
+                            onChange={(e) => updateItem(item.id, "gtip", e.target.value)}
+                          />
                         </div>
                       </div>
-                    ),
-                )}
-              </div>
-            )}
+                    </div>
+                  ),
+              )}
+            </div>
+          )}
         </CardContent>
         <button
           type="button"
@@ -858,7 +819,7 @@ export function CreateInvoicePage() {
               )}
             </span>
           </div>
-          {advanced && totalDiscount > 0 && (
+          {totalDiscount > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Toplam İskonto</span>
               <span className="tabular-nums text-destructive">
@@ -878,18 +839,16 @@ export function CreateInvoicePage() {
               {formatMoney(invoiceSettings.currency, total)}
             </span>
           </div>
-          {advanced && (
-            <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
-              <span className="text-sm text-muted-foreground">Ödenecek Tutar</span>
-              <Input
-                inputMode="decimal"
-                className="w-40 text-right"
-                value={advancedFields.paymentTotal || ""}
-                onChange={(e) => setAdvancedFields((f) => ({ ...f, paymentTotal: e.target.value }))}
-                placeholder={total.toFixed(2)}
-              />
-            </div>
-          )}
+          <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
+            <span className="text-sm text-muted-foreground">Ödenecek Tutar</span>
+            <Input
+              inputMode="decimal"
+              className="w-40 text-right"
+              value={advancedFields.paymentTotal || ""}
+              onChange={(e) => setAdvancedFields((f) => ({ ...f, paymentTotal: e.target.value }))}
+              placeholder={total.toFixed(2)}
+            />
+          </div>
         </div>
       </Card>
 
@@ -906,9 +865,24 @@ export function CreateInvoicePage() {
           Şablon Olarak Kaydet
         </Button>
       ) : (
-        <Button className="w-full" size="lg" disabled={loading} onClick={createInvoice}>
-          {loading ? "Oluşturuluyor..." : "Fatura Oluştur"}
-        </Button>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Oluşturulunca onayla</p>
+              <p className="text-xs text-muted-foreground">
+                Fatura oluşturulduktan sonra otomatik olarak onaylanır
+              </p>
+            </div>
+            <Switch checked={signAfterCreate} onCheckedChange={setSignAfterCreate} />
+          </div>
+          <Button className="w-full" size="lg" disabled={loading} onClick={createInvoice}>
+            {loading
+              ? "Oluşturuluyor..."
+              : signAfterCreate
+                ? "Oluştur ve Onayla"
+                : "Taslak Oluştur"}
+          </Button>
+        </div>
       )}
 
       {/* Invoice Preview */}

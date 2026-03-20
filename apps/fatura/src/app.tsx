@@ -32,37 +32,6 @@ interface PreviewTab {
   html: string;
 }
 
-function ViewModeToggle() {
-  const { viewMode, setViewMode } = useStore();
-  const advanced = viewMode === "advanced";
-  return (
-    <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
-      <button
-        type="button"
-        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
-          !advanced
-            ? "bg-background text-foreground shadow-sm ring-1 ring-border"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-        onClick={() => setViewMode("simple")}
-      >
-        Basit
-      </button>
-      <button
-        type="button"
-        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
-          advanced
-            ? "bg-background text-foreground shadow-sm ring-1 ring-border"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-        onClick={() => setViewMode("advanced")}
-      >
-        Gelişmiş
-      </button>
-    </div>
-  );
-}
-
 function Dashboard() {
   const { creds, resetInvoiceForm, templateEditMode } = useStore();
   const [page, setPage] = useState<Page>("create");
@@ -196,12 +165,6 @@ function Dashboard() {
               <span className="pointer-events-none hidden text-xs text-muted-foreground sm:inline">
                 {config.description}
               </span>
-            </div>
-          )}
-
-          {!isOnPreview && page === "create" && !templateEditMode && (
-            <div className="pr-3">
-              <ViewModeToggle />
             </div>
           )}
         </header>

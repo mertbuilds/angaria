@@ -161,8 +161,6 @@ interface Store {
   setInvoiceTemplates: React.Dispatch<React.SetStateAction<InvoiceTemplate[]>>;
   advancedFields: AdvancedInvoiceFields;
   setAdvancedFields: React.Dispatch<React.SetStateAction<AdvancedInvoiceFields>>;
-  viewMode: "simple" | "advanced";
-  setViewMode: React.Dispatch<React.SetStateAction<"simple" | "advanced">>;
   invoiceDateRange: { start: string; end: string };
   setInvoiceDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>;
   /** true when the invoice form has been initialized (via template or scratch) */
@@ -214,10 +212,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [invoiceTemplates, setInvoiceTemplates] = useState<InvoiceTemplate[]>(() =>
     loadLocal("fatura-templates", []),
-  );
-
-  const [viewMode, setViewMode] = useState<"simple" | "advanced">(() =>
-    loadLocal("fatura-view-mode", "simple"),
   );
 
   const [invoiceDateRange, setInvoiceDateRange] = useState(() => {
@@ -299,7 +293,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     );
     setNote(str(data.not));
     setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
-    setViewMode("advanced");
     setInvoiceStarted(true);
     setTemplateEditMode(true);
   }, []);
@@ -318,8 +311,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => localStorage.setItem("fatura-templates", JSON.stringify(invoiceTemplates)),
     [invoiceTemplates],
   );
-  useEffect(() => localStorage.setItem("fatura-view-mode", JSON.stringify(viewMode)), [viewMode]);
-
   return (
     <StoreContext.Provider
       value={{
@@ -341,8 +332,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setInvoiceTemplates,
         advancedFields,
         setAdvancedFields,
-        viewMode,
-        setViewMode,
         invoiceDateRange,
         setInvoiceDateRange,
         invoiceStarted,
