@@ -64,13 +64,17 @@ function ViewModeToggle() {
 }
 
 function Dashboard() {
-  const { creds, resetInvoiceForm } = useStore();
+  const { creds, resetInvoiceForm, templateEditMode } = useStore();
   const [page, setPage] = useState<Page>("create");
   const [previewTabs, setPreviewTabs] = useState<PreviewTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
   const isOnPreview = activeTabId !== null;
-  const config = pageConfig[page];
+  const rawConfig = pageConfig[page];
+  const config =
+    page === "create" && templateEditMode
+      ? { title: "Şablon Düzenle", description: "Faturadan şablon oluştur" }
+      : rawConfig;
 
   const handleDrag = useCallback((e: React.MouseEvent) => {
     if (e.buttons !== 1) return;
@@ -195,7 +199,7 @@ function Dashboard() {
             </div>
           )}
 
-          {!isOnPreview && page === "create" && (
+          {!isOnPreview && page === "create" && !templateEditMode && (
             <div className="pr-3">
               <ViewModeToggle />
             </div>
@@ -210,7 +214,9 @@ function Dashboard() {
             <div className="mx-auto max-w-3xl px-6 py-8">
               {page === "create" && <CreateInvoicePage />}
               {page === "invoices" && <InvoicesPage onPreview={openPreview} />}
-              {page === "invoice-templates" && <InvoiceTemplatesPage onNavigate={setPage} />}
+              {page === "invoice-templates" && (
+                <InvoiceTemplatesPage onNavigate={setPage} onPreview={openPreview} />
+              )}
               {page === "item-templates" && <ItemTemplatesPage />}
               {page === "customers" && <CustomersPage />}
               {page === "settings" && <SettingsPage />}

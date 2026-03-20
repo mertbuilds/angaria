@@ -125,6 +125,12 @@ export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
   paymentTotal: "",
 };
 
+/** Safely convert unknown GIB field to string */
+function str(v: unknown, fallback = ""): string {
+  if (v == null) return fallback;
+  return typeof v === "string" ? v : fallback;
+}
+
 function makeBlankItem(): InvoiceItem {
   return {
     id: newId(),
@@ -167,6 +173,10 @@ interface Store {
   loadTemplate: (id: string) => string | null;
   /** Start a blank invoice form */
   startBlankInvoice: () => void;
+  /** true when in template editing mode (save as template instead of creating invoice) */
+  templateEditMode: boolean;
+  /** Load a GIB invoice into the form in template editing mode */
+  loadFromGIBInvoice: (data: Record<string, unknown>) => void;
   newId: () => string;
   defaultItemAdvanced: typeof DEFAULT_ITEM_ADVANCED;
 }
@@ -200,6 +210,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ...DEFAULT_ADVANCED_FIELDS,
   });
   const [invoiceStarted, setInvoiceStarted] = useState(false);
+  const [templateEditMode, setTemplateEditMode] = useState(false);
 
   const [invoiceTemplates, setInvoiceTemplates] = useState<InvoiceTemplate[]>(() =>
     loadLocal("fatura-templates", []),
@@ -223,6 +234,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNote("");
     setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
     setInvoiceStarted(false);
+    setTemplateEditMode(false);
   }, []);
 
   const loadTemplate = useCallback(
@@ -248,6 +260,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     resetInvoiceForm();
     setInvoiceStarted(true);
   }, [resetInvoiceForm]);
+
+  const loadFromGIBInvoice = useCallback((data: Record<string, unknown>) => {
+    const table = (data.malHizmetTable as Record<string, unknown>[]) ?? [];
+    setRecipient({
+      id: newId(),
+      taxIDOrTRID: str(data.vknTckn),
+      taxOffice: str(data.vergiDairesi),
+      title: str(data.aliciUnvan),
+      name: str(data.aliciAdi),
+      surname: str(data.aliciSoyadi),
+      fullAddress: str(data.bulvarcaddesokak),
+      country: str(data.ulke),
+      city: str(data.sehir).trim(),
+      district: str(data.mahalleSemtIlce),
+    });
+    const rate = str(data.dovzTLkur);
+    setInvoiceSettings({
+      currency: str(data.paraBirimi, "TRY"),
+      currencyRate: rate === "0" ? "" : rate,
+      invoiceType: str(data.faturaTipi, "SATIS"),
+    });
+    setItems(
+      table.length > 0
+        ? table.map((row) => ({
+            id: newId(),
+            name: str(row.malHizmet),
+            quantity: Number(row.miktar) || 1,
+            unitPrice: Number(row.birimFiyat) || 0,
+            VATRate: Number(row.kdvOrani) || 0,
+            unitType: str(row.birim, "C62"),
+            discountRate: Number(row.iskontoOrani) || 0,
+            discountAmount: Number(row.iskontoTutari) || 0,
+            discountReason: str(row.iskontoNedeni),
+            gtip: str(row.gtip),
+          }))
+        : [makeBlankItem()],
+    );
+    setNote(str(data.not));
+    setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
+    setViewMode("advanced");
+    setInvoiceStarted(true);
+    setTemplateEditMode(true);
+  }, []);
 
   // Persist only data that should survive restarts
   useEffect(() => localStorage.setItem("fatura-creds", JSON.stringify(creds)), [creds]);
@@ -294,6 +349,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         resetInvoiceForm,
         loadTemplate,
         startBlankInvoice,
+        templateEditMode,
+        loadFromGIBInvoice,
         newId,
         defaultItemAdvanced: DEFAULT_ITEM_ADVANCED,
       }}

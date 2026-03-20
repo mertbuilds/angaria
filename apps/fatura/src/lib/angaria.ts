@@ -268,6 +268,16 @@ export async function createDraftInvoice(
   return { uuid, date: details.date, response: result };
 }
 
+export async function getInvoiceDetail(
+  session: SessionInfo,
+  ettn: string,
+): Promise<Record<string, unknown>> {
+  const result = await dispatch(session, "EARSIV_PORTAL_FATURA_GETIR", "RG_BASITFATURA", {
+    ettn,
+  });
+  return result.data as Record<string, unknown>;
+}
+
 export async function getInvoiceHTML(
   session: SessionInfo,
   uuid: string,

@@ -88,6 +88,7 @@ export function CreateInvoicePage() {
     invoiceTemplates,
     loadTemplate,
     startBlankInvoice,
+    templateEditMode,
   } = useStore();
 
   const [loading, setLoading] = useState(false);
@@ -311,7 +312,7 @@ export function CreateInvoicePage() {
         } catch {
           // preview is optional
         }
-        setTemplateName("");
+        setTemplateName(recipient.title);
         setShowTemplateSaveDialog(true);
       } finally {
         angaria.logout(session).catch(() => {});
@@ -467,9 +468,8 @@ export function CreateInvoicePage() {
               <div className="space-y-2">
                 <Label>Düzenlenme Tarihi</Label>
                 <DatePicker
-                  value={parseGIB(advancedFields.manualDate)}
+                  value={parseGIB(advancedFields.manualDate) ?? new Date()}
                   onChange={(d) => setAdvancedFields((f) => ({ ...f, manualDate: toGIB(d) }))}
-                  placeholder="Otomatik"
                   maxDate={new Date()}
                 />
               </div>
@@ -894,9 +894,22 @@ export function CreateInvoicePage() {
       </Card>
 
       {/* Action */}
-      <Button className="w-full" size="lg" disabled={loading} onClick={createInvoice}>
-        {loading ? "Oluşturuluyor..." : "Fatura Oluştur"}
-      </Button>
+      {templateEditMode ? (
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={() => {
+            setTemplateName(recipient.title);
+            setShowTemplateSaveDialog(true);
+          }}
+        >
+          Şablon Olarak Kaydet
+        </Button>
+      ) : (
+        <Button className="w-full" size="lg" disabled={loading} onClick={createInvoice}>
+          {loading ? "Oluşturuluyor..." : "Fatura Oluştur"}
+        </Button>
+      )}
 
       {/* Invoice Preview */}
       {invoiceHTML && (
