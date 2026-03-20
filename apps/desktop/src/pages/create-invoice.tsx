@@ -48,7 +48,7 @@ import { parseGIB, toGIB } from "@/lib/utils.ts";
 const formatMoney = (currency: string, n: number) =>
   new Intl.NumberFormat("tr-TR", { style: "currency", currency }).format(n);
 
-export function CreateInvoicePage() {
+export function CreateInvoicePage({ requireCredentials }: { requireCredentials: () => boolean }) {
   const {
     creds,
     recipient,
@@ -315,10 +315,7 @@ export function CreateInvoicePage() {
   });
 
   function createInvoice() {
-    if (!creds.username || !creds.password) {
-      toast.error("GİB kullanıcı bilgileri gerekli — Ayarlar'dan girin");
-      return;
-    }
+    if (!requireCredentials()) return;
     if (!recipient.taxIDOrTRID || !recipient.title || !recipient.fullAddress) {
       toast.error("Alıcı bilgileri eksik");
       return;

@@ -14,6 +14,7 @@
     "@hugeicons/react": "catalog:",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
+    "@tanstack/react-table": "catalog:",
     "@tauri-apps/api": "catalog:",
     "@tauri-apps/plugin-http": "catalog:",
     "angaria-earsiv-sdk": "workspace:*",

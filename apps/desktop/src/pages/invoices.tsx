@@ -1,13 +1,43 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  flexRender,
+  type ColumnDef,
+} from "@tanstack/react-table";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ReloadIcon, EyeIcon, Delete01Icon } from "@hugeicons/core-free-icons";
-import { Card, CardContent } from "@/components/ui/card";
+import { ReloadIcon, ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { MoreVertical, Eye, Trash2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +47,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker.tsx";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
 import { useStore } from "@/lib/store.tsx";
 import { parseGIB, toGIB, formatDateHuman } from "@/lib/utils.ts";
@@ -47,8 +78,26 @@ async function fetchDrafts(
   }
 }
 
-export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => Promise<void> }) {
-  const { creds, invoiceDateRange, setInvoiceDateRange } = useStore();
+function StatusBadge({ status }: { status?: string }) {
+  if (status === "Onaylandı")
+    return (
+      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+        Onaylı
+      </Badge>
+    );
+  if (status === "Silinmiş") return <Badge variant="destructive">Silinmiş</Badge>;
+  return <Badge variant="outline">Taslak</Badge>;
+}
+
+export function InvoicesPage({
+  onPreview,
+  requireCredentials,
+}: {
+  onPreview: (invoice: Invoice) => Promise<void>;
+  requireCredentials: () => boolean;
+}) {
+  const { creds, invoiceDateRange, setInvoiceDateRange, invoicePageSize, setInvoicePageSize } =
+    useStore();
   const queryClient = useQueryClient();
 
   const listStartDate = invoiceDateRange.start;
@@ -58,6 +107,8 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
 
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [pageIndex, setPageIndex] = useState(0);
 
   // SMS signing state
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
@@ -102,7 +153,6 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
     },
   });
 
-  // Step 1: Start SMS sign flow — login, get phone, request SMS
   const startSignMutation = useMutation({
     mutationFn: async (invoice: Invoice) => {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
@@ -119,7 +169,6 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
     },
   });
 
-  // Step 2: Verify SMS code and sign
   const verifySignMutation = useMutation({
     mutationFn: async () => {
       const session = smsSessionRef.current;
@@ -127,7 +176,6 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
       return angaria.verifyAndSign(session, smsCode, smsOidRef.current, smsInvoiceIdsRef.current);
     },
     onSuccess: () => {
-      // Logout only on success
       if (smsSessionRef.current) {
         angaria.logout(smsSessionRef.current).catch(() => {});
         smsSessionRef.current = null;
@@ -137,7 +185,6 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
       void queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
     onError: () => {
-      // Clear the code so user can retry
       setSmsCode("");
     },
   });
@@ -170,7 +217,6 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
   }
 
   function handleSmsDialogClose() {
-    // Logout if dialog is closed without verifying
     if (smsSessionRef.current) {
       angaria.logout(smsSessionRef.current).catch(() => {});
       smsSessionRef.current = null;
@@ -178,16 +224,97 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
     setSmsDialogOpen(false);
   }
 
-  function statusBadge(status?: string) {
-    if (status === "Onaylandı")
-      return (
-        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-          Onaylı
-        </Badge>
-      );
-    if (status === "Silinmiş") return <Badge variant="destructive">Silinmiş</Badge>;
-    return <Badge variant="outline">Taslak</Badge>;
-  }
+  const columns = useMemo<ColumnDef<Invoice>[]>(
+    () => [
+      {
+        accessorKey: "belgeNumarasi",
+        header: "Belge No",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-xs">{(getValue() as string) ?? ""}</span>
+        ),
+      },
+      {
+        accessorKey: "aliciUnvanAdSoyad",
+        header: "Alıcı",
+        cell: ({ getValue }) => (
+          <span className="block max-w-48 truncate">{(getValue() as string) ?? ""}</span>
+        ),
+      },
+      {
+        accessorKey: "belgeTarihi",
+        header: "Tarih",
+        cell: ({ getValue }) => formatDateHuman((getValue() as string) ?? ""),
+      },
+      {
+        accessorKey: "onayDurumu",
+        header: "Durum",
+        cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,
+      },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => {
+          const inv = row.original;
+          const showSign = inv.onayDurumu !== "Onaylandı" && inv.onayDurumu !== "Silinmiş";
+          const showDelete = inv.onayDurumu !== "Onaylandı" && inv.onayDurumu !== "Silinmiş";
+          return (
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon-sm">
+                    <MoreVertical className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setLoadingPreview(true);
+                      void onPreview(inv).finally(() => setLoadingPreview(false));
+                    }}
+                  >
+                    <Eye className="size-4" />
+                    Önizle
+                  </DropdownMenuItem>
+                  {showSign && (
+                    <DropdownMenuItem onClick={() => handleSign(inv)}>
+                      <ShieldCheck className="size-4" />
+                      Onayla
+                    </DropdownMenuItem>
+                  )}
+                  {showDelete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(inv)}>
+                        <Trash2 className="size-4" />
+                        Sil
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        },
+      },
+    ],
+    [loadingPreview, mutating],
+  );
+
+  const table = useReactTable({
+    data: invoiceList,
+    columns,
+    state: { globalFilter, pagination: { pageIndex, pageSize: invoicePageSize } },
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: (updater) => {
+      const prev = { pageIndex, pageSize: invoicePageSize };
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setPageIndex(next.pageIndex);
+      setInvoicePageSize(next.pageSize);
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
 
   return (
     <div className="space-y-6">
@@ -207,7 +334,10 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
           variant="outline"
           size="icon"
           disabled={loading}
-          onClick={() => queryClient.invalidateQueries({ queryKey: ["invoices"] })}
+          onClick={() => {
+            if (!requireCredentials()) return;
+            void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+          }}
         >
           <HugeiconsIcon
             icon={ReloadIcon}
@@ -217,74 +347,150 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
         </Button>
       </div>
 
-      {invoiceList.length > 0 && (
-        <Card>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-left font-medium">Belge No</th>
-                    <th className="px-3 py-2 text-left font-medium">Alıcı</th>
-                    <th className="px-3 py-2 text-left font-medium">Tarih</th>
-                    <th className="px-3 py-2 text-left font-medium">Durum</th>
-                    <th className="px-3 py-2 text-right font-medium" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoiceList.map((inv, idx) => (
-                    <tr key={idx} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-3 py-2 font-mono text-xs">{inv.belgeNumarasi ?? ""}</td>
-                      <td className="px-3 py-2">{inv.aliciUnvanAdSoyad ?? ""}</td>
-                      <td className="px-3 py-2">{formatDateHuman(inv.belgeTarihi ?? "")}</td>
-                      <td className="px-3 py-2">{statusBadge(inv.onayDurumu)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {inv.onayDurumu !== "Onaylandı" && inv.onayDurumu !== "Silinmiş" && (
-                            <Button
-                              size="sm"
-                              disabled={loadingPreview || mutating}
-                              onClick={() => handleSign(inv)}
-                            >
-                              Onayla
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={loadingPreview}
-                            onClick={() => {
-                              setLoadingPreview(true);
-                              void onPreview(inv).finally(() => setLoadingPreview(false));
-                            }}
-                          >
-                            <HugeiconsIcon icon={EyeIcon} strokeWidth={1.5} />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="icon-sm"
-                            disabled={loadingPreview || mutating}
-                            onClick={() => setDeleteTarget(inv)}
-                          >
-                            <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+      {(isLoading || isFetching) && invoiceList.length === 0 && (
+        <div className="space-y-4">
+          <Skeleton className="h-9 w-full" />
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Belge No</TableHead>
+                  <TableHead>Alıcı</TableHead>
+                  <TableHead>Tarih</TableHead>
+                  <TableHead>Durum</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Skeleton className="h-4 w-28" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-36" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Skeleton className="h-7 w-7" />
+                        <Skeleton className="h-7 w-7" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       )}
 
-      {invoiceList.length === 0 && !loading && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Bu tarih aralığında fatura bulunamadı</p>
-          </CardContent>
-        </Card>
+      {invoiceList.length > 0 && (
+        <div className="space-y-4">
+          <Input
+            placeholder="Belge no, alıcı veya tarih ile ara..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+          />
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.length > 0 ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      Sonuç bulunamadı
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>
+                {table.getFilteredRowModel().rows.length} sonuçtan{" "}
+                {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}–
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) *
+                    table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length,
+                )}
+              </span>
+              <Select
+                value={String(table.getState().pagination.pageSize)}
+                onValueChange={(val) => table.setPageSize(Number(val))}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Sayfa {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
+              </span>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                disabled={!table.getCanPreviousPage()}
+                onClick={() => table.previousPage()}
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.5} />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                disabled={!table.getCanNextPage()}
+                onClick={() => table.nextPage()}
+              >
+                <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.5} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {invoiceList.length === 0 && !loading && !isLoading && !isFetching && (
+        <div className="rounded-md border py-12 text-center">
+          <p className="text-muted-foreground">Bu tarih aralığında fatura bulunamadı</p>
+        </div>
       )}
 
       <ConfirmDialog
@@ -300,7 +506,6 @@ export function InvoicesPage({ onPreview }: { onPreview: (invoice: Invoice) => P
         }}
       />
 
-      {/* SMS Verification Dialog */}
       <Dialog open={smsDialogOpen} onOpenChange={(open) => !open && handleSmsDialogClose()}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>

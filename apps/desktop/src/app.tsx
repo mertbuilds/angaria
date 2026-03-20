@@ -3,10 +3,20 @@ import { toast } from "sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AppSidebar, type Page } from "@/components/app-sidebar.tsx";
 import { StoreProvider, useStore } from "@/lib/store.tsx";
 import { CreateInvoicePage } from "@/pages/create-invoice.tsx";
@@ -29,7 +39,7 @@ const pageConfig: Record<Page, { title: string; description: string }> = {
 interface PreviewTab {
   id: string;
   label: string;
-  html: string;
+  html: string | null;
 }
 
 function Dashboard() {
@@ -37,6 +47,13 @@ function Dashboard() {
   const [page, setPage] = useState<Page>("create");
   const [previewTabs, setPreviewTabs] = useState<PreviewTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [showCredsAlert, setShowCredsAlert] = useState(false);
+
+  const requireCredentials = useCallback((): boolean => {
+    if (creds.username && creds.password) return true;
+    setShowCredsAlert(true);
+    return false;
+  }, [creds.username, creds.password]);
 
   const isOnPreview = activeTabId !== null;
   const rawConfig = pageConfig[page];
@@ -63,22 +80,27 @@ function Dashboard() {
       setActiveTabId(uuid);
       return;
     }
-    if (!creds.username || !creds.password) return;
+    if (!requireCredentials()) return;
+
+    const label = invoice.belgeNumarasi || invoice.aliciUnvanAdSoyad || "Fatura";
+    setPreviewTabs((prev) => {
+      const next = [...prev, { id: uuid, label, html: null }];
+      return next.length > 5 ? next.slice(-5) : next;
+    });
+    setActiveTabId(uuid);
+
     try {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
         const html = await angaria.getInvoiceHTML(session, uuid, invoice.onayDurumu ?? "");
-        const label = invoice.belgeNumarasi || invoice.aliciUnvanAdSoyad || "Fatura";
-        setPreviewTabs((prev) => {
-          const next = [...prev, { id: uuid, label, html }];
-          return next.length > 5 ? next.slice(-5) : next;
-        });
-        setActiveTabId(uuid);
+        setPreviewTabs((prev) => prev.map((t) => (t.id === uuid ? { ...t, html } : t)));
       } finally {
         angaria.logout(session).catch(() => {});
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
+      setPreviewTabs((prev) => prev.filter((t) => t.id !== uuid));
+      setActiveTabId(null);
     }
   }
 
@@ -171,14 +193,30 @@ function Dashboard() {
 
         {/* Content */}
         {isOnPreview && activePreview ? (
-          <iframe srcDoc={activePreview.html} className="flex-1" title="Fatura önizleme" />
+          activePreview.html ? (
+            <iframe srcDoc={activePreview.html} className="flex-1" title="Fatura önizleme" />
+          ) : (
+            <div className="flex flex-1 items-center justify-center">
+              <HugeiconsIcon
+                icon={ReloadIcon}
+                strokeWidth={1.5}
+                className="size-6 animate-spin text-muted-foreground"
+              />
+            </div>
+          )
         ) : (
           <div className="flex-1 overflow-auto">
             <div className="mx-auto max-w-3xl px-6 py-8">
-              {page === "create" && <CreateInvoicePage />}
-              {page === "invoices" && <InvoicesPage onPreview={openPreview} />}
+              {page === "create" && <CreateInvoicePage requireCredentials={requireCredentials} />}
+              {page === "invoices" && (
+                <InvoicesPage onPreview={openPreview} requireCredentials={requireCredentials} />
+              )}
               {page === "invoice-templates" && (
-                <InvoiceTemplatesPage onNavigate={setPage} onPreview={openPreview} />
+                <InvoiceTemplatesPage
+                  onNavigate={setPage}
+                  onPreview={openPreview}
+                  requireCredentials={requireCredentials}
+                />
               )}
               {page === "item-templates" && <ItemTemplatesPage />}
               {page === "customers" && <CustomersPage />}
@@ -187,6 +225,28 @@ function Dashboard() {
           </div>
         )}
       </SidebarInset>
+
+      <AlertDialog open={showCredsAlert} onOpenChange={setShowCredsAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>GİB Kimlik Bilgileri Gerekli</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu işlemi gerçekleştirmek için GİB kullanıcı adı ve şifrenizi girmeniz gerekiyor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setPage("settings");
+                setActiveTabId(null);
+              }}
+            >
+              Ayarlara Git
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }

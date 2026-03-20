@@ -163,6 +163,8 @@ interface Store {
   setAdvancedFields: React.Dispatch<React.SetStateAction<AdvancedInvoiceFields>>;
   invoiceDateRange: { start: string; end: string };
   setInvoiceDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>;
+  invoicePageSize: number;
+  setInvoicePageSize: React.Dispatch<React.SetStateAction<number>>;
   /** true when the invoice form has been initialized (via template or scratch) */
   invoiceStarted: boolean;
   /** Reset invoice form to blank state */
@@ -216,6 +218,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [invoiceTemplates, setInvoiceTemplates] = useState<InvoiceTemplate[]>(() =>
     loadLocal("fatura-templates", []),
   );
+
+  const [invoicePageSize, setInvoicePageSize] = useState(10);
 
   const [invoiceDateRange, setInvoiceDateRange] = useState(() => {
     const now = new Date();
@@ -339,6 +343,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setAdvancedFields,
         invoiceDateRange,
         setInvoiceDateRange,
+        invoicePageSize,
+        setInvoicePageSize,
         invoiceStarted,
         resetInvoiceForm,
         loadTemplate,

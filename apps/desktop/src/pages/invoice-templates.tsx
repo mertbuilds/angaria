@@ -19,9 +19,11 @@ import * as angaria from "@/lib/angaria.ts";
 export function InvoiceTemplatesPage({
   onNavigate,
   onPreview,
+  requireCredentials,
 }: {
   onNavigate: (page: Page) => void;
   onPreview: (invoice: Invoice) => Promise<void>;
+  requireCredentials: () => boolean;
 }) {
   const { creds, invoiceTemplates, setInvoiceTemplates, loadTemplate, loadFromGIBInvoice } =
     useStore();
@@ -126,7 +128,10 @@ export function InvoiceTemplatesPage({
         </button>
         <button
           type="button"
-          onClick={() => setShowInvoicePicker(true)}
+          onClick={() => {
+            if (!requireCredentials()) return;
+            setShowInvoicePicker(true);
+          }}
           className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
         >
           <HugeiconsIcon icon={Invoice01Icon} strokeWidth={1.5} className="size-6" />
