@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Building2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,18 @@ import { useStore } from "@/lib/store.tsx";
 import * as angaria from "@/lib/angaria.ts";
 
 export function SettingsPage() {
-  const { creds, setCreds, companyInfo, setCompanyInfo } = useStore();
+  const {
+    entities,
+    activeEntity,
+    activeEntityId,
+    createEntity,
+    renameEntity,
+    deleteEntity,
+    creds,
+    setCreds,
+    companyInfo,
+    setCompanyInfo,
+  } = useStore();
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleForceLogout() {
@@ -31,6 +43,50 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Varlık Yönetimi</CardTitle>
+          <CardDescription>
+            Her varlık kendi GİB hesabını, firma bilgisini ve şablonlarını tutar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-background">
+              <Building2 className="size-4" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <div>
+                <p className="text-sm font-medium">Aktif varlık</p>
+                <p className="text-xs text-muted-foreground">
+                  Sol alttaki menuden hızlıca varlık değiştirebilirsiniz.
+                </p>
+              </div>
+              <Input
+                value={activeEntity.name}
+                onChange={(e) => renameEntity(activeEntityId, e.target.value)}
+                placeholder="Varlık adı"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={createEntity}>
+              <Plus className="size-4" />
+              Yeni Varlık
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={entities.length === 1}
+              onClick={() => deleteEntity(activeEntityId)}
+            >
+              <Trash2 className="size-4" />
+              Varlığı Sil
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>GİB Kimlik Bilgileri</CardTitle>

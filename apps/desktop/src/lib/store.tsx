@@ -3,6 +3,7 @@ import type {
   AdvancedInvoiceFields,
   CompanyInfo,
   Credentials,
+  Entity,
   InvoiceItem,
   InvoiceSettings,
   InvoiceTemplate,
@@ -10,6 +11,8 @@ import type {
 } from "./types.ts";
 
 const newId = () => crypto.randomUUID();
+const ENTITIES_STORAGE_KEY = "fatura-entities";
+const ACTIVE_ENTITY_STORAGE_KEY = "fatura-active-entity-id";
 
 const SEED_RECIPIENTS: Recipient[] = [
   {
@@ -56,6 +59,22 @@ const DEFAULT_ITEM_ADVANCED = {
   discountAmount: 0,
   discountReason: "",
   gtip: "",
+};
+
+const DEFAULT_CREDS: Credentials = { username: "", password: "", testMode: true };
+
+const DEFAULT_COMPANY_INFO: CompanyInfo = {
+  name: "",
+  address: "",
+  taxID: "",
+  taxOffice: "",
+  phone: "",
+  email: "",
+  bankName: "",
+  accountHolder: "",
+  iban: "",
+  swiftCode: "",
+  bankAddress: "",
 };
 
 const SEED_ITEMS: InvoiceItem[] = [
@@ -143,7 +162,56 @@ function makeBlankItem(): InvoiceItem {
   };
 }
 
+function makeEntityName(index: number) {
+  return index === 0 ? "Ana Varlık" : `Varlık ${index + 1}`;
+}
+
+function makeDefaultEntity(index: number, seedData = true): Entity {
+  return {
+    id: newId(),
+    name: makeEntityName(index),
+    creds: { ...DEFAULT_CREDS },
+    companyInfo: { ...DEFAULT_COMPANY_INFO },
+    savedRecipients: seedData ? SEED_RECIPIENTS : [],
+    savedItems: seedData ? SEED_ITEMS : [],
+    invoiceTemplates: [],
+  };
+}
+
+function loadEntities(): Entity[] {
+  const stored = loadLocal<Entity[] | null>(ENTITIES_STORAGE_KEY, null);
+  if (Array.isArray(stored) && stored.length > 0) {
+    return stored.map((entity, index) => ({
+      id: entity.id || newId(),
+      name: entity.name || makeEntityName(index),
+      creds: entity.creds ?? { ...DEFAULT_CREDS },
+      companyInfo: entity.companyInfo ?? { ...DEFAULT_COMPANY_INFO },
+      savedRecipients: entity.savedRecipients ?? [],
+      savedItems: entity.savedItems ?? [],
+      invoiceTemplates: entity.invoiceTemplates ?? [],
+    }));
+  }
+
+  return [
+    {
+      ...makeDefaultEntity(0, false),
+      creds: loadLocal("fatura-creds", { ...DEFAULT_CREDS }),
+      companyInfo: loadLocal("fatura-company-info", { ...DEFAULT_COMPANY_INFO }),
+      savedRecipients: loadLocal("fatura-saved-recipients", SEED_RECIPIENTS),
+      savedItems: loadLocal("fatura-saved-items", SEED_ITEMS),
+      invoiceTemplates: loadLocal("fatura-templates", []),
+    },
+  ];
+}
+
 interface Store {
+  entities: Entity[];
+  activeEntityId: string;
+  activeEntity: Entity;
+  setActiveEntityId: React.Dispatch<React.SetStateAction<string>>;
+  createEntity: () => void;
+  renameEntity: (id: string, name: string) => void;
+  deleteEntity: (id: string) => void;
   creds: Credentials;
   setCreds: React.Dispatch<React.SetStateAction<Credentials>>;
   companyInfo: CompanyInfo;
@@ -195,31 +263,9 @@ export function useStore() {
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [creds, setCreds] = useState<Credentials>(() =>
-    loadLocal("fatura-creds", { username: "", password: "", testMode: true }),
-  );
-
-  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() =>
-    loadLocal("fatura-company-info", {
-      name: "",
-      address: "",
-      taxID: "",
-      taxOffice: "",
-      phone: "",
-      email: "",
-      bankName: "",
-      accountHolder: "",
-      iban: "",
-      swiftCode: "",
-      bankAddress: "",
-    }),
-  );
-
-  const [savedRecipients, setSavedRecipients] = useState<Recipient[]>(() =>
-    loadLocal("fatura-saved-recipients", SEED_RECIPIENTS),
-  );
-  const [savedItems, setSavedItems] = useState<InvoiceItem[]>(() =>
-    loadLocal("fatura-saved-items", SEED_ITEMS),
+  const [entities, setEntities] = useState<Entity[]>(() => loadEntities());
+  const [activeEntityId, setActiveEntityId] = useState(
+    () => loadLocal<string | null>(ACTIVE_ENTITY_STORAGE_KEY, null) ?? loadEntities()[0]?.id ?? "",
   );
 
   // Invoice form state — not persisted, starts blank
@@ -234,10 +280,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
   const [templateEditMode, setTemplateEditMode] = useState(false);
 
-  const [invoiceTemplates, setInvoiceTemplates] = useState<InvoiceTemplate[]>(() =>
-    loadLocal("fatura-templates", []),
-  );
-
   const [invoicePageSize, setInvoicePageSize] = useState(10);
 
   const [invoiceDateRange, setInvoiceDateRange] = useState(() => {
@@ -246,6 +288,107 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const today = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
     return { start: today, end: today };
   });
+
+  useEffect(() => {
+    if (entities.some((entity) => entity.id === activeEntityId)) return;
+    setActiveEntityId(entities[0]?.id ?? "");
+  }, [activeEntityId, entities]);
+
+  const activeEntity = entities.find((entity) => entity.id === activeEntityId) ?? entities[0];
+
+  const updateActiveEntity = useCallback(
+    (updater: (entity: Entity) => Entity) => {
+      setEntities((prev) =>
+        prev.map((entity) => (entity.id === activeEntity.id ? updater(entity) : entity)),
+      );
+    },
+    [activeEntity.id],
+  );
+
+  const createEntity = useCallback(() => {
+    const next = makeDefaultEntity(entities.length, false);
+    setEntities((prev) => [...prev, next]);
+    setActiveEntityId(next.id);
+  }, [entities.length]);
+
+  const renameEntity = useCallback((id: string, name: string) => {
+    setEntities((prev) =>
+      prev.map((entity, index) =>
+        entity.id === id ? { ...entity, name: name.trim() || makeEntityName(index) } : entity,
+      ),
+    );
+  }, []);
+
+  const deleteEntity = useCallback(
+    (id: string) => {
+      setEntities((prev) => {
+        if (prev.length <= 1) return prev;
+        return prev.filter((entity) => entity.id !== id);
+      });
+      setActiveEntityId((current) => {
+        if (current !== id) return current;
+        const remaining = entities.filter((entity) => entity.id !== id);
+        return remaining[0]?.id ?? current;
+      });
+    },
+    [entities],
+  );
+
+  const setCreds: React.Dispatch<React.SetStateAction<Credentials>> = useCallback(
+    (value) => {
+      updateActiveEntity((entity) => ({
+        ...entity,
+        creds: typeof value === "function" ? value(entity.creds) : value,
+      }));
+    },
+    [updateActiveEntity],
+  );
+
+  const setCompanyInfo: React.Dispatch<React.SetStateAction<CompanyInfo>> = useCallback(
+    (value) => {
+      updateActiveEntity((entity) => ({
+        ...entity,
+        companyInfo: typeof value === "function" ? value(entity.companyInfo) : value,
+      }));
+    },
+    [updateActiveEntity],
+  );
+
+  const setSavedRecipients: React.Dispatch<React.SetStateAction<Recipient[]>> = useCallback(
+    (value) => {
+      updateActiveEntity((entity) => ({
+        ...entity,
+        savedRecipients: typeof value === "function" ? value(entity.savedRecipients) : value,
+      }));
+    },
+    [updateActiveEntity],
+  );
+
+  const setSavedItems: React.Dispatch<React.SetStateAction<InvoiceItem[]>> = useCallback(
+    (value) => {
+      updateActiveEntity((entity) => ({
+        ...entity,
+        savedItems: typeof value === "function" ? value(entity.savedItems) : value,
+      }));
+    },
+    [updateActiveEntity],
+  );
+
+  const setInvoiceTemplates: React.Dispatch<React.SetStateAction<InvoiceTemplate[]>> = useCallback(
+    (value) => {
+      updateActiveEntity((entity) => ({
+        ...entity,
+        invoiceTemplates: typeof value === "function" ? value(entity.invoiceTemplates) : value,
+      }));
+    },
+    [updateActiveEntity],
+  );
+
+  const creds = activeEntity?.creds ?? DEFAULT_CREDS;
+  const companyInfo = activeEntity?.companyInfo ?? DEFAULT_COMPANY_INFO;
+  const savedRecipients = activeEntity?.savedRecipients ?? [];
+  const savedItems = activeEntity?.savedItems ?? [];
+  const invoiceTemplates = activeEntity?.invoiceTemplates ?? [];
 
   const resetInvoiceForm = useCallback(() => {
     setRecipient({ ...BLANK_RECIPIENT, id: newId() });
@@ -326,26 +469,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Persist only data that should survive restarts
-  useEffect(() => localStorage.setItem("fatura-creds", JSON.stringify(creds)), [creds]);
+  useEffect(() => localStorage.setItem(ENTITIES_STORAGE_KEY, JSON.stringify(entities)), [entities]);
   useEffect(
-    () => localStorage.setItem("fatura-company-info", JSON.stringify(companyInfo)),
-    [companyInfo],
-  );
-  useEffect(
-    () => localStorage.setItem("fatura-saved-recipients", JSON.stringify(savedRecipients)),
-    [savedRecipients],
-  );
-  useEffect(
-    () => localStorage.setItem("fatura-saved-items", JSON.stringify(savedItems)),
-    [savedItems],
-  );
-  useEffect(
-    () => localStorage.setItem("fatura-templates", JSON.stringify(invoiceTemplates)),
-    [invoiceTemplates],
+    () => localStorage.setItem(ACTIVE_ENTITY_STORAGE_KEY, JSON.stringify(activeEntityId)),
+    [activeEntityId],
   );
   return (
     <StoreContext.Provider
       value={{
+        entities,
+        activeEntityId,
+        activeEntity,
+        setActiveEntityId,
+        createEntity,
+        renameEntity,
+        deleteEntity,
         creds,
         setCreds,
         companyInfo,

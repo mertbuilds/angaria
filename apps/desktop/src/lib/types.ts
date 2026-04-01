@@ -59,6 +59,19 @@ export interface CompanyInfo {
   bankAddress: string;
 }
 
+export interface EntityData {
+  creds: Credentials;
+  companyInfo: CompanyInfo;
+  savedRecipients: Recipient[];
+  savedItems: InvoiceItem[];
+  invoiceTemplates: InvoiceTemplate[];
+}
+
+export interface Entity extends EntityData {
+  id: string;
+  name: string;
+}
+
 export interface InvoiceTemplate {
   id: string;
   name: string;

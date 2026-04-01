@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
@@ -45,7 +45,8 @@ interface PreviewTab {
 }
 
 function Dashboard() {
-  const { creds, resetInvoiceForm, templateEditMode, loadFromGIBInvoice } = useStore();
+  const { creds, activeEntityId, resetInvoiceForm, templateEditMode, loadFromGIBInvoice } =
+    useStore();
   const [page, setPage] = useState<Page>("create");
   const [previewTabs, setPreviewTabs] = useState<PreviewTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -140,6 +141,12 @@ function Dashboard() {
   }
 
   const activePreview = previewTabs.find((t) => t.id === activeTabId);
+
+  useEffect(() => {
+    resetInvoiceForm();
+    setPreviewTabs([]);
+    setActiveTabId(null);
+  }, [activeEntityId, resetInvoiceForm]);
 
   return (
     <SidebarProvider>

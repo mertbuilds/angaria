@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { Building2, ChevronsUpDown, Plus } from "lucide-react";
 import {
   Invoice01Icon,
   FileAddIcon,
@@ -21,6 +22,17 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useStore } from "@/lib/store.tsx";
 
 export type Page =
   | "create"
@@ -48,6 +60,7 @@ export function AppSidebar({
   activePage: Page;
   onNavigate: (page: Page) => void;
 }) {
+  const { entities, activeEntity, activeEntityId, setActiveEntityId, createEntity } = useStore();
   const handleDrag = useCallback((e: React.MouseEvent) => {
     if (e.buttons !== 1) return;
     const target = e.target as HTMLElement;
@@ -114,6 +127,47 @@ export function AppSidebar({
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton size="lg" tooltip="Varlık Değiştir">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
+                    <Building2 className="size-4" />
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">{activeEntity.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {activeEntity.companyInfo.name || "Firma bilgisi eklenmedi"}
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="min-w-56">
+                <DropdownMenuLabel>Varlıklar</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={activeEntityId}
+                  onValueChange={(value) => setActiveEntityId(value)}
+                >
+                  {entities.map((entity) => (
+                    <DropdownMenuRadioItem key={entity.id} value={entity.id}>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate">{entity.name}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {entity.companyInfo.name || "Boş varlık"}
+                        </span>
+                      </div>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={createEntity}>
+                  <Plus className="size-4" />
+                  <span>Yeni Varlık</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={activePage === "settings"}
