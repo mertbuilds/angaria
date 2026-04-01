@@ -53,6 +53,7 @@ const formatMoney = (currency: string, n: number) =>
 
 export function CreateInvoicePage({ requireCredentials }: { requireCredentials: () => boolean }) {
   const {
+    activeEntity,
     creds,
     recipient,
     setRecipient,
@@ -231,6 +232,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
     const date = advancedFields.manualDate || autoDate;
     const paymentTotal = advancedFields.paymentTotal ? Number(advancedFields.paymentTotal) : total;
     return {
+      entityName: activeEntity.name,
       company: companyInfo,
       recipient,
       settings: invoiceSettings,

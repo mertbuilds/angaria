@@ -145,6 +145,7 @@ export function InvoicesPage({
   requireCredentials: () => boolean;
 }) {
   const {
+    activeEntity,
     creds,
     companyInfo,
     invoiceDateRange,
@@ -292,36 +293,34 @@ export function InvoicesPage({
           0,
         );
         const rate = str(detail.dovzTLkur);
-        await downloadInvoicePDF(
-          {
-            company: companyInfo,
-            recipient: {
-              id: "",
-              taxIDOrTRID: str(detail.vknTckn),
-              taxOffice: str(detail.vergiDairesi),
-              title: str(detail.aliciUnvan),
-              name: str(detail.aliciAdi),
-              surname: str(detail.aliciSoyadi),
-              fullAddress: str(detail.bulvarcaddesokak),
-              country: str(detail.ulke),
-              city: str(detail.sehir),
-              district: str(detail.mahalleSemtIlce),
-            },
-            settings: {
-              currency: str(detail.paraBirimi, "TRY"),
-              currencyRate: rate === "0" ? "" : rate,
-              invoiceType: str(detail.faturaTipi, "SATIS"),
-            },
-            items,
-            date: invoice.belgeTarihi ?? "",
-            invoiceNumber: invoice.belgeNumarasi,
-            note: str(detail.not),
-            grandTotal,
-            totalVAT,
-            total: grandTotal + totalVAT,
+        await downloadInvoicePDF({
+          entityName: activeEntity.name,
+          company: companyInfo,
+          recipient: {
+            id: "",
+            taxIDOrTRID: str(detail.vknTckn),
+            taxOffice: str(detail.vergiDairesi),
+            title: str(detail.aliciUnvan),
+            name: str(detail.aliciAdi),
+            surname: str(detail.aliciSoyadi),
+            fullAddress: str(detail.bulvarcaddesokak),
+            country: str(detail.ulke),
+            city: str(detail.sehir),
+            district: str(detail.mahalleSemtIlce),
           },
-          `fatura-${invoice.belgeNumarasi ?? invoice.ettn}.pdf`,
-        );
+          settings: {
+            currency: str(detail.paraBirimi, "TRY"),
+            currencyRate: rate === "0" ? "" : rate,
+            invoiceType: str(detail.faturaTipi, "SATIS"),
+          },
+          items,
+          date: invoice.belgeTarihi ?? "",
+          invoiceNumber: invoice.belgeNumarasi,
+          note: str(detail.not),
+          grandTotal,
+          totalVAT,
+          total: grandTotal + totalVAT,
+        });
       } finally {
         angaria.logout(session).catch(() => {});
       }

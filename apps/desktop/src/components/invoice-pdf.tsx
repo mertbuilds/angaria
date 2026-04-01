@@ -14,6 +14,8 @@ Font.register({
   ],
 });
 
+Font.registerHyphenationCallback((word) => [word]);
+
 // ── Design tokens ──
 
 const PRIMARY = "#009962";
@@ -372,6 +374,7 @@ const s = StyleSheet.create({
 // ── Data interface ──
 
 export interface InvoicePDFData {
+  entityName?: string;
   company: CompanyInfo;
   recipient: Recipient;
   settings: InvoiceSettings;
@@ -385,6 +388,34 @@ export interface InvoicePDFData {
   total: number;
   totalDiscount?: number;
   paymentTotal?: number;
+}
+
+function sanitizeFilenamePart(value: string | undefined, fallback: string) {
+  const withoutControlChars = Array.from(value ?? "")
+    .filter((char) => char >= " ")
+    .join("");
+  const cleaned = withoutControlChars
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .trim();
+  return cleaned || fallback;
+}
+
+function formatFilenameDate(date: string) {
+  if (!date) return "tarihsiz";
+  const sep = date.includes("/") ? "/" : date.includes("-") ? "-" : null;
+  if (!sep) return sanitizeFilenamePart(date, "tarihsiz");
+  const [dd, mm, yyyy] = date.split(sep);
+  if (!dd || !mm || !yyyy) return sanitizeFilenamePart(date, "tarihsiz");
+  return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+}
+
+function buildInvoicePDFFilename(data: InvoicePDFData) {
+  const recipientName = sanitizeFilenamePart(data.recipient.title, "alici");
+  const entityName = sanitizeFilenamePart(data.entityName || data.company.name, "varlik");
+  const date = formatFilenameDate(data.date);
+  return `${date}-${entityName}-${recipientName}.pdf`;
 }
 
 // ── Document ──
@@ -577,7 +608,7 @@ export async function downloadInvoicePDF(data: InvoicePDFData, filename?: string
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename ?? `fatura-${data.invoiceNumber ?? data.date}.pdf`;
+  a.download = filename ?? buildInvoicePDFFilename(data);
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
