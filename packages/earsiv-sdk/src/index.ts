@@ -218,10 +218,10 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
     session: SessionInfo,
     details: InvoiceDetails,
   ): Promise<{ uuid: string; date: string; response: Record<string, unknown> }> {
-    const uuid = await getUUID(session);
-
     const invoiceData: Record<string, unknown> = {
-      faturaUuid: uuid,
+      // Must be empty: GİB now assigns the ETTN server-side and rejects
+      // client-generated UUIDs with "Ettn ya eksik ya boş..." errors.
+      faturaUuid: "",
       belgeNumarasi: "",
       faturaTarihi: details.date,
       saat: details.time,
@@ -298,16 +298,51 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
       invoiceData,
     );
 
-    if (
-      typeof result.data === "string" &&
-      result.data.length > 0 &&
-      !result.data.toLowerCase().includes("başarı") &&
-      (result.data.includes("kesemez") || result.data.includes("hata"))
-    ) {
-      throw new Error(result.data);
+    // GİB may report failure with HTTP 200 and no error flag; only the
+    // known success message in `data` confirms the draft was created.
+    const data = result.data;
+    if (typeof data !== "string" || !data.includes("başarıyla oluşturul")) {
+      throw new Error(typeof data === "string" && data ? data : "Fatura oluşturulamadı");
     }
 
+    const uuid = await findCreatedDraftUUID(session, details);
     return { uuid, date: details.date, response: result };
+  }
+
+  /** The create response doesn't include the server-assigned ETTN, so look
+   * it up in the drafts list: same date, unsigned, preferring a recipient
+   * match, newest document number wins. Returns "" if not found. */
+  async function findCreatedDraftUUID(
+    session: SessionInfo,
+    details: InvoiceDetails,
+  ): Promise<string> {
+    try {
+      const drafts = (await getDrafts(session, details.date, details.date)) as Array<
+        Record<string, unknown>
+      >;
+      const dashDate = details.date.replaceAll("/", "-");
+      let rows = drafts.filter(
+        (d) =>
+          (d.belgeTarihi === details.date || d.belgeTarihi === dashDate) &&
+          d.onayDurumu === "Onaylanmadı",
+      );
+
+      const str = (v: unknown) => (typeof v === "string" ? v : "");
+      const norm = (s: string) => s.trim().toLocaleUpperCase("tr");
+      const candidates = [details.title, `${details.name ?? ""} ${details.surname ?? ""}`]
+        .map(norm)
+        .filter(Boolean);
+      const recipientRows = rows.filter((d) => candidates.includes(norm(str(d.aliciUnvanAdSoyad))));
+      if (recipientRows.length > 0) rows = recipientRows;
+
+      const newest = rows.reduce<Record<string, unknown> | undefined>(
+        (best, d) => (!best || str(d.belgeNumarasi) > str(best.belgeNumarasi) ? d : best),
+        undefined,
+      );
+      return typeof newest?.ettn === "string" ? newest.ettn : "";
+    } catch {
+      return "";
+    }
   }
 
   async function getInvoiceDetail(

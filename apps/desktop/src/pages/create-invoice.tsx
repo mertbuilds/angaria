@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PlusSignIcon, Delete01Icon, FileAddIcon, Invoice01Icon } from "@hugeicons/core-free-icons";
@@ -78,7 +78,10 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
     sourceTemplateId,
     templateEditMode,
     loadFromGIBInvoice,
+    setInvoiceDateRange,
   } = useStore();
+
+  const queryClient = useQueryClient();
 
   const [invoiceHTML, setInvoiceHTML] = useState<string | null>(null);
   const [showInvoicePicker, setShowInvoicePicker] = useState(false);
@@ -307,10 +310,12 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
         });
 
         let html: string | undefined;
-        try {
-          html = await angaria.getInvoiceHTML(session, draft.uuid, "Onaylanmadı");
-        } catch {
-          // preview is optional
+        if (draft.uuid) {
+          try {
+            html = await angaria.getInvoiceHTML(session, draft.uuid, "Onaylanmadı");
+          } catch {
+            // preview is optional
+          }
         }
 
         return { draft, html };
@@ -318,9 +323,30 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
         angaria.logout(session).catch(() => {});
       }
     },
-    onSuccess: ({ html }) => {
-      toast.success("Taslak fatura oluşturuldu!");
-      if (html) setInvoiceHTML(html);
+    onSuccess: ({ draft, html }) => {
+      if (html) {
+        toast.success("Taslak fatura oluşturuldu!");
+        setInvoiceHTML(html);
+      } else {
+        toast.warning(
+          "Taslak fatura oluşturuldu ancak GİB'den doğrulanamadı. Faturalarım sayfasından kontrol edin.",
+        );
+      }
+
+      // Make the new draft visible in the invoices list: refetch it and
+      // widen the date range to cover the invoice date if needed.
+      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      const createdDate = parseGIB(draft.date);
+      if (createdDate) {
+        setInvoiceDateRange((prev) => {
+          const start = parseGIB(prev.start);
+          const end = parseGIB(prev.end);
+          return {
+            start: start && start <= createdDate ? prev.start : draft.date,
+            end: end && end >= createdDate ? prev.end : draft.date,
+          };
+        });
+      }
 
       // Only show save-as-template dialog if form differs from source template
       const sourceTemplate = sourceTemplateId

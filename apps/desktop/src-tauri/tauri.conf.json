@@ -5,7 +5,7 @@
   "identifier": "com.vinena.angaria",
   "build": {
     "beforeDevCommand": "vp dev",
-    "beforeBuildCommand": "vp build",
+    "beforeBuildCommand": "vp run angaria-earsiv-sdk#build && vp run angaria-utils#build && vp build",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
   },
