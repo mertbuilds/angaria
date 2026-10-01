@@ -216,7 +216,8 @@ export function toDraftDetails(values: InvoiceFormValues, now = new Date()): Inv
     date: advancedFields.manualDate || toGIB(now),
     time: normalizeTime(advancedFields.manualTime) || formatTime(now),
     currency: invoiceSettings.currency,
-    currencyRate: rate ? String(rate) : undefined,
+    // GİB prints dovzTLkur as sent: four decimals, like TCMB's rate.
+    currencyRate: rate ? rate.toFixed(4) : undefined,
     invoiceType: invoiceSettings.invoiceType,
     taxIDOrTRID: recipient.taxIDOrTRID.trim(),
     taxOffice: recipient.taxOffice,

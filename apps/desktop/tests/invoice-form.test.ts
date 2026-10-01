@@ -203,7 +203,7 @@ describe('toDraftDetails', () => {
     );
     expect(details).toMatchObject({
       currency: 'USD',
-      currencyRate: '41.5',
+      currencyRate: '41.5000',
       date: '01/10/2026',
       grandTotal: 900,
       grandTotalInclVAT: 1080,
@@ -215,6 +215,22 @@ describe('toDraftDetails', () => {
       totalVAT: 180,
     });
     expect(details.items[0]).toMatchObject({ discountAmount: 100, price: 1000, VATAmount: 180 });
+  });
+
+  test('sends the TCMB rate as the main-branch app did', () => {
+    // TCMB publishes 38.1230; String() would drop the trailing zero.
+    const tcmbRate = 38.123;
+    const values = form({
+      invoiceSettings: {
+        currency: 'EUR',
+        currencyRate: formatRate(tcmbRate),
+        invoiceType: 'SATIS',
+      },
+    });
+    // main's create-invoice.tsx filled the field with rate.toFixed(4) and sent it as is.
+    const main = { currency: 'EUR', currencyRate: tcmbRate.toFixed(4) };
+    expect(toDraftDetails(values, now)).toMatchObject(main);
+    expect(main.currencyRate).toBe('38.1230');
   });
 
   test('sends no rate for lira and fills in date and time', () => {
