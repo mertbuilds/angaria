@@ -1,6 +1,7 @@
 import type { EmulatorUser } from './config.ts';
 import { isoDate, parseGIBDate } from './dates.ts';
 import type { StoredInvoice } from './state.ts';
+import { unitName } from './units.ts';
 
 // EARSIV_PORTAL_FATURA_GOSTER's page, modeled on the portal's XSLT output:
 // the same table ids (despatchTable, lineTable, budgetContainerTable,
@@ -120,7 +121,7 @@ export function invoiceHTML(invoice: StoredInvoice, seller: EmulatorUser): strin
       (item, index) => `<tr class="lineTableTr">
 <td class="lineTableTd" align="right">&nbsp;${index + 1}</td>
 <td class="lineTableTd">&nbsp;${escapeHTML(text(item, 'malHizmet'))}</td>
-<td class="lineTableTd" align="right">&nbsp;${escapeHTML(text(item, 'miktar'))} ${escapeHTML(text(item, 'birim') === 'C62' ? 'Adet' : text(item, 'birim'))}</td>
+<td class="lineTableTd" align="right">&nbsp;${escapeHTML(text(item, 'miktar'))} ${escapeHTML(unitName(text(item, 'birim')))}</td>
 <td class="lineTableTd" align="right">&nbsp;${money(item.birimFiyat, currency)}</td>
 <td class="lineTableTd" align="right">&nbsp;%${formatter.format(amount(item.iskontoOrani))}</td>
 <td class="lineTableTd" align="right">&nbsp;${money(item.iskontoTutari, currency)}</td>

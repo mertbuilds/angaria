@@ -3,7 +3,7 @@ import { expect, test, vi } from 'vitest';
 import { renderInvoicePDF } from '../src/components/invoice-pdf.tsx';
 import { PDF_LANGUAGES, PDF_STYLES } from '../src/lib/invoice-pdf-i18n.ts';
 import type { PDFLanguage, PDFStyle } from '../src/lib/types.ts';
-import { data, pdfRuns } from './invoice-pdf-helpers.ts';
+import { data, pdfRuns, pdfTextBoxes } from './invoice-pdf-helpers.ts';
 
 // Vite resolves font imports to dev-server URLs; react-pdf in Node reads files.
 // Inter, so the test does not depend on the licensed Suisse Intl files.
@@ -77,6 +77,28 @@ test.each(PDF_STYLES.flatMap((style) => PDF_LANGUAGES.map((language) => [style, 
     expect(pdf.toString('latin1')).toContain('/Subtype /Image');
     expect(pageCount(pdf)).toBe(1);
     expect(textLayer(pdf).filter(({ text }) => text === '')).toEqual([]);
+  },
+);
+
+// The page's side margin in invoice-pdf.tsx
+const MARGIN = 48;
+
+test.each(PDF_STYLES.flatMap((style) => PDF_LANGUAGES.map((language) => [style, language])))(
+  '%s %s prints the ETTN and every other run inside the margins',
+  async (style, language) => {
+    // September is the longest English month name.
+    const pdf = await render(language as PDFLanguage, style as PDFStyle, {
+      date: '29/09/2026',
+      dueDate: '30/09/2026',
+    });
+    const width = Number(pdf.toString('latin1').match(/\/MediaBox \[0 0 ([\d.]+)/)?.[1]);
+    const boxes = pdfTextBoxes(pdf);
+    // The header and the e-Archive mark beside the totals
+    expect(boxes.filter(({ text }) => text === data.ettn)).toHaveLength(2);
+    // Negated, so a box that could not be measured (NaN) fails too
+    expect(
+      boxes.filter(({ left, right }) => !(left >= MARGIN - 0.01 && right <= width - MARGIN + 0.01)),
+    ).toEqual([]);
   },
 );
 

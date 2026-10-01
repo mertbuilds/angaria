@@ -382,7 +382,9 @@ const m = StyleSheet.create({
   header: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between' },
   headerWithLogo: { alignItems: 'center' },
   label: { color: MUTED, fontSize: 7.5, marginBottom: 4 },
-  meta: { flexDirection: 'row', gap: 20, marginTop: 32 },
+  // A field that does not fit (the ETTN beside long labels or dates) wraps to
+  // its own line instead of running past the margin.
+  meta: { columnGap: 20, flexDirection: 'row', flexWrap: 'wrap', marginTop: 32, rowGap: 14 },
   metaValue: { fontFamily: FIGURES },
   note: { fontSize: 8.5 },
   noteColumn: { flex: 1 },
