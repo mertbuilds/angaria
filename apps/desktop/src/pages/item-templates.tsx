@@ -23,6 +23,7 @@ import { create, props } from '@stylexjs/stylex';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
+import { parseDecimal } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceItem } from '@/lib/types.ts';
 import { ListDetail } from '@/shell/list-detail.tsx';
@@ -94,21 +95,6 @@ const styles = create({
     minWidth: 0,
   },
 });
-
-/**
- * "1.250,5" (Turkish) or "1250.5": with a comma, dots group thousands; without
- * one, a dot is the decimal point. Empty is 0, anything else unparsable null.
- */
-function parseDecimal(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return 0;
-  }
-  const value = Number(
-    trimmed.includes(',') ? trimmed.replaceAll('.', '').replace(',', '.') : trimmed,
-  );
-  return Number.isFinite(value) && value >= 0 ? value : null;
-}
 
 /**
  * A number field that keeps what is typed ("12," on the way to "12,5") and

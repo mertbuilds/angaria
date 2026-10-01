@@ -150,5 +150,7 @@ describe('parseGIBInvoice', () => {
     expect(parseGIBInvoice(withoutTotal).total).toBe(3480);
     expect(parseGIBInvoice({}).items).toEqual([]);
     expect(parseGIBInvoice({ dovzTLkur: '32,5' }).settings.currencyRate).toBe('32,5');
+    // Tekrar kes loads the form through it too, so a numeric rate survives.
+    expect(parseGIBInvoice({ dovzTLkur: 38.123 }).settings.currencyRate).toBe('38.123');
   });
 });

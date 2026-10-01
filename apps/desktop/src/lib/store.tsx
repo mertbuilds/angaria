@@ -14,7 +14,7 @@ import {
   LEGACY_CREDS_STORAGE_KEY,
   migrateCredentials,
 } from './credentials.ts';
-import { presetRange, type DateRange } from './invoices.ts';
+import { parseGIBInvoice, presetRange, type DateRange } from './invoices.ts';
 import { secretDelete, secretGet, secretSet } from './native.ts';
 import type {
   AdvancedInvoiceFields,
@@ -606,42 +606,13 @@ function LoadedStoreProvider({
   }, [resetInvoiceForm]);
 
   const loadFromGIBInvoice = useCallback((data: Record<string, unknown>) => {
-    const table = (data.malHizmetTable as Array<Record<string, unknown>>) ?? [];
-    setRecipient({
-      id: newId(),
-      taxIDOrTRID: str(data.vknTckn),
-      taxOffice: str(data.vergiDairesi),
-      title: str(data.aliciUnvan),
-      name: str(data.aliciAdi),
-      surname: str(data.aliciSoyadi),
-      fullAddress: str(data.bulvarcaddesokak),
-      country: str(data.ulke),
-      city: str(data.sehir).trim(),
-      district: str(data.mahalleSemtIlce),
-    });
-    const rate = str(data.dovzTLkur);
-    setInvoiceSettings({
-      currency: str(data.paraBirimi, 'TRY'),
-      currencyRate: rate === '0' ? '' : rate,
-      invoiceType: str(data.faturaTipi, 'SATIS'),
-    });
+    const { items, note, recipient, settings } = parseGIBInvoice(data);
+    setRecipient({ ...recipient, id: newId() });
+    setInvoiceSettings(settings);
     setItems(
-      table.length > 0
-        ? table.map((row) => ({
-            id: newId(),
-            name: str(row.malHizmet),
-            quantity: Number(row.miktar) || 1,
-            unitPrice: Number(row.birimFiyat) || 0,
-            VATRate: Number(row.kdvOrani) || 0,
-            unitType: str(row.birim, 'C62'),
-            discountRate: Number(row.iskontoOrani) || 0,
-            discountAmount: Number(row.iskontoTutari) || 0,
-            discountReason: str(row.iskontoNedeni),
-            gtip: str(row.gtip),
-          }))
-        : [makeBlankItem()],
+      items.length > 0 ? items.map((item) => ({ ...item, id: newId() })) : [makeBlankItem()],
     );
-    setNote(str(data.not));
+    setNote(note);
     setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
     setInvoiceStarted(true);
     setInvoiceSource({
