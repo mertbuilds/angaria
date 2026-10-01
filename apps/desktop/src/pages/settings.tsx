@@ -31,7 +31,7 @@ import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { LicenseCard } from '@/components/license-card.tsx';
 import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
-import * as angaria from '@/lib/angaria.ts';
+import { forceLogout } from '@/lib/angaria.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import type { CompanyInfo, Entity } from '@/lib/types.ts';
@@ -59,21 +59,22 @@ function GibAccountSection() {
   const { activeEntity, activeEntityId, creds, getCredentials, hasCredentials, setCredentials } =
     useStore();
   const [loggingOut, setLoggingOut] = useState(false);
-  // null while the keychain read is pending
-  const [password, setPassword] = useState<string | null>(null);
+  // The password read from the keychain, tagged with its company
+  const [loaded, setLoaded] = useState<{ entityId: string; password: string } | null>(null);
+  // null while the keychain read for the active company is pending
+  const password = loaded?.entityId === activeEntityId ? loaded.password : null;
 
   useEffect(() => {
     let active = true;
-    setPassword(null);
     getCredentials(activeEntityId)
       .then((login) => {
         if (active) {
-          setPassword(login.password);
+          setLoaded({ entityId: activeEntityId, password: login.password });
         }
       })
       .catch((error) => {
         if (active) {
-          setPassword('');
+          setLoaded({ entityId: activeEntityId, password: '' });
           toast.error(error instanceof Error ? error.message : 'Şifre okunamadı');
         }
       });
@@ -83,7 +84,7 @@ function GibAccountSection() {
   }, [activeEntityId, getCredentials]);
 
   function handlePasswordChange(value: string) {
-    setPassword(value);
+    setLoaded({ entityId: activeEntityId, password: value });
     setCredentials(activeEntityId, { password: value }).catch((error) => {
       toast.error(error instanceof Error ? error.message : 'Şifre kaydedilemedi', {
         id: 'password-save',
@@ -99,7 +100,7 @@ function GibAccountSection() {
     setLoggingOut(true);
     try {
       const login = await getCredentials(activeEntityId);
-      await angaria.forceLogout(login.username, login.password, login.testMode);
+      await forceLogout(login.username, login.password, login.testMode);
       toast.success('Oturum kapatıldı');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Çıkış yapılamadı');

@@ -32,6 +32,7 @@ import type {
 } from './types.ts';
 
 const newId = () => crypto.randomUUID();
+const NO_TEMPLATES: Array<InvoiceTemplate> = [];
 const ACTIVE_ENTITY_STORAGE_KEY = 'fatura-active-entity-id';
 
 const secrets = { delete: secretDelete, get: secretGet, set: secretSet };
@@ -388,12 +389,13 @@ function LoadedStoreProvider({
 
   const [invoiceDateRange, setInvoiceDateRange] = useState(() => presetRange('bu-ay', new Date()));
 
-  useEffect(() => {
-    if (entities.some((entity) => entity.id === activeEntityId)) {
-      return;
+  // An active id that names no company (stale or deleted) moves to the first one.
+  if (!entities.some((entity) => entity.id === activeEntityId)) {
+    const firstId = entities[0]?.id ?? '';
+    if (firstId !== activeEntityId) {
+      setActiveEntityId(firstId);
     }
-    setActiveEntityId(entities[0]?.id ?? '');
-  }, [activeEntityId, entities]);
+  }
 
   useEffect(() => {
     entitiesRef.current = entities;
@@ -562,7 +564,7 @@ function LoadedStoreProvider({
   const companyInfo = activeEntity?.companyInfo ?? DEFAULT_COMPANY_INFO;
   const savedRecipients = activeEntity?.savedRecipients ?? [];
   const savedItems = activeEntity?.savedItems ?? [];
-  const invoiceTemplates = activeEntity?.invoiceTemplates ?? [];
+  const invoiceTemplates = activeEntity?.invoiceTemplates ?? NO_TEMPLATES;
 
   const resetInvoiceForm = useCallback(() => {
     setRecipient({ ...BLANK_RECIPIENT, id: newId() });
@@ -595,7 +597,7 @@ function LoadedStoreProvider({
       );
       return t.name;
     },
-    [invoiceTemplates],
+    [invoiceTemplates, setInvoiceTemplates],
   );
 
   const startBlankInvoice = useCallback(() => {

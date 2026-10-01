@@ -50,26 +50,6 @@ export default defineConfig({
       },
     },
     {
-      // Pre-relaunch desktop files (shadcn copies in components/ui included).
-      // Fixing these changes behavior, not just code shape: hook deps and
-      // effects change when code runs, the use* calls flagged in callbacks are
-      // store actions, not hooks, and namespace imports would need call-site
-      // rewrites. Drop a file from this list when the relaunch rewrites it.
-      files: [
-        'apps/desktop/src/components/ui/**',
-        'apps/desktop/src/lib/store.tsx',
-        'apps/desktop/src/pages/settings.tsx',
-      ],
-      rules: {
-        'import/no-namespace': 'off',
-        'react/exhaustive-deps': 'off',
-        'react/incompatible-library': 'off',
-        'react/purity': 'off',
-        'react/rules-of-hooks': 'off',
-        'react/set-state-in-effect': 'off',
-      },
-    },
-    {
       // Web src runs in the browser and a Cloudflare Worker, not Node.
       files: ['apps/web/src/**'],
       rules: {
