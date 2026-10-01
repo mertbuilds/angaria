@@ -1,6 +1,5 @@
 import { resolve } from 'node:path';
 import { unplugin as stylex } from '@stylexjs/unplugin';
-import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
@@ -32,7 +31,6 @@ export default defineConfig(({ command, mode }) => {
       // typecheck and lint work without a build). Must come before react().
       tanstackRouter({ addExtensions: true, target: 'react' }),
       react(),
-      tailwindcss(),
       // Compiles StyleX in src/ and in @angaria/ui (source-consumed). The build
       // appends its CSS to the main CSS asset; in dev the plugin injects
       // /virtual:stylex.css and its HMR runtime into every HTML page itself.
