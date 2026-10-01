@@ -2,8 +2,8 @@ import { toast } from '@angaria/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
-import { cachedInvoices, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
-import { lastMonthInvoice, previousMonthRange } from '@/lib/reissue.ts';
+import { invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
+import { fetchLastMonthInvoice } from '@/lib/reissue.ts';
 import { useStore } from '@/lib/store.tsx';
 import { useRequireCredentials } from './credentials-guard.tsx';
 import type { SectionPath } from './nav.ts';
@@ -34,29 +34,23 @@ export function useAppActions() {
   );
 
   /**
-   * Loads last month's newest invoice into the form (/yeni?kaynak=). The
-   * invoice lists already fetched this session are searched first, then last
-   * month is fetched from GİB. Without one, the list opens to pick another.
+   * Loads last month's newest invoice into the form (/yeni?kaynak=), from
+   * GİB's list for that whole month (the cached one while fresh). Without
+   * one, the list opens to pick another.
    */
   const reissueLastMonth = useCallback(() => {
-    const now = new Date();
-    const reissue = (ettn: string) => void navigate({ search: { kaynak: ettn }, to: '/yeni' });
-    const cached = lastMonthInvoice(cachedInvoices(queryClient, account), now);
-    if (cached?.ettn) {
-      reissue(cached.ettn);
-      return;
-    }
     if (!requireCredentials()) {
       return;
     }
-    const range = previousMonthRange(now);
     const toastId = toast.loading('Geçen ayın faturaları GİB’den alınıyor...');
-    void queryClient.fetchQuery(invoiceListQuery(account, range)).then(
-      (invoices) => {
-        const source = lastMonthInvoice(invoices, now);
+    void fetchLastMonthInvoice(
+      (range) => queryClient.fetchQuery(invoiceListQuery(account, range)),
+      new Date(),
+    ).then(
+      (source) => {
         if (source?.ettn) {
           toast.dismiss(toastId);
-          reissue(source.ettn);
+          void navigate({ search: { kaynak: source.ettn }, to: '/yeni' });
           return;
         }
         void navigate({ to: '/faturalar' });

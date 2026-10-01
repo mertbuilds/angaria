@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { lastMonthInvoice, previousMonthRange } from '../src/lib/reissue.ts';
+import { fetchLastMonthInvoice, lastMonthInvoice, previousMonthRange } from '../src/lib/reissue.ts';
 
 const now = new Date(2026, 9, 1, 12);
 
@@ -47,4 +47,17 @@ describe('lastMonthInvoice', () => {
   test('returns null when nothing falls in the previous month', () => {
     expect(lastMonthInvoice([{ belgeTarihi: '02/10/2026', ettn: 'a' }], now)).toBeNull();
   });
+});
+
+test('fetchLastMonthInvoice reads the whole previous month, not a cached part of it', async () => {
+  const ranges: Array<string> = [];
+  const source = await fetchLastMonthInvoice(async (range) => {
+    ranges.push(`${range.start}-${range.end}`);
+    return [
+      { belgeNumarasi: 'GIB2026000000004', belgeTarihi: '12/09/2026', ettn: 'mid-month' },
+      { belgeNumarasi: 'GIB2026000000008', belgeTarihi: '29/09/2026', ettn: 'newest' },
+    ];
+  }, now);
+  expect(ranges).toEqual(['01/09/2026-30/09/2026']);
+  expect(source?.ettn).toBe('newest');
 });
