@@ -12,6 +12,30 @@
     "allow-secret-delete",
     "updater:default",
     "process:allow-restart",
+    "os:allow-hostname",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://polar.sh/*"
+        },
+        {
+          "url": "https://buy.polar.sh/*"
+        },
+        {
+          "url": "https://api.polar.sh/*"
+        },
+        {
+          "url": "https://sandbox.polar.sh/*"
+        },
+        {
+          "url": "https://sandbox-api.polar.sh/*"
+        },
+        {
+          "url": "https://angaria.app/*"
+        }
+      ]
+    },
     {
       "identifier": "http:default",
       "allow": [

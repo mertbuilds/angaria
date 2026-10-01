@@ -18,6 +18,9 @@ coverage/
 # env, only the example is committed
 .env*
 !.env.example
+# desktop build-time config: public VITE_ values that ship in the app bundle
+!apps/desktop/.env.development
+!apps/desktop/.env.production
 *.local
 
 # generated code (rebuilt by dev / build)

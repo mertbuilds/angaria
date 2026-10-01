@@ -1,6 +1,7 @@
 import { Building2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { LicenseCard } from '@/components/license-card.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -295,6 +296,8 @@ export function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <LicenseCard />
     </div>
   );
 }

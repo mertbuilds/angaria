@@ -21,6 +21,8 @@
     "@tanstack/react-table": "catalog:",
     "@tauri-apps/api": "catalog:",
     "@tauri-apps/plugin-http": "catalog:",
+    "@tauri-apps/plugin-opener": "catalog:",
+    "@tauri-apps/plugin-os": "catalog:",
     "angaria-earsiv-sdk": "workspace:*",
     "angaria-utils": "workspace:*",
     "class-variance-authority": "catalog:",

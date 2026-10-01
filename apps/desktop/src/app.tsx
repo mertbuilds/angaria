@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
 import { AppSidebar, type Page } from '@/components/app-sidebar.tsx';
+import { LicenseGate } from '@/components/license-gate.tsx';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import * as angaria from '@/lib/angaria.ts';
+import { LicenseProvider } from '@/lib/license-context.tsx';
 import { StoreProvider, useStore } from '@/lib/store.tsx';
 import { CreateInvoicePage } from '@/pages/create-invoice.tsx';
 import { CustomersPage } from '@/pages/customers.tsx';
@@ -336,10 +338,14 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <StoreProvider>
-          <Toaster position="top-right" richColors />
-          <Dashboard />
-        </StoreProvider>
+        <LicenseProvider>
+          <StoreProvider>
+            <Toaster position="top-right" richColors />
+            <LicenseGate>
+              <Dashboard />
+            </LicenseGate>
+          </StoreProvider>
+        </LicenseProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
