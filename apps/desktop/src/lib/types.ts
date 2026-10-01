@@ -45,6 +45,23 @@ export interface Credentials {
   username: string;
 }
 
+/**
+ * Credentials as persisted with an entity in localStorage. The password lives in
+ * the OS keychain; `password` is only present while moving it there failed.
+ */
+export interface StoredCredentials {
+  password?: string;
+  testMode: boolean;
+  username: string;
+}
+
+/** Non-secret view of an entity's credentials for rendering. */
+export interface CredentialsInfo {
+  hasPassword: boolean;
+  testMode: boolean;
+  username: string;
+}
+
 export interface CompanyInfo {
   accountHolder: string;
   address: string;
@@ -61,7 +78,7 @@ export interface CompanyInfo {
 
 export interface EntityData {
   companyInfo: CompanyInfo;
-  creds: Credentials;
+  creds: StoredCredentials;
   invoiceTemplates: Array<InvoiceTemplate>;
   savedItems: Array<InvoiceItem>;
   savedRecipients: Array<Recipient>;

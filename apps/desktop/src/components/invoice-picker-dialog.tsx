@@ -70,7 +70,7 @@ export function InvoicePickerDialog({
   onSelect: (invoice: Invoice) => void;
   open: boolean;
 }) {
-  const { creds } = useStore();
+  const { activeEntityId, creds, getCredentials, hasCredentials } = useStore();
 
   const [loadingInvoice, setLoadingInvoice] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -84,8 +84,6 @@ export function InvoicePickerDialog({
     return { start: today, end: today };
   });
 
-  const hasCredentials = Boolean(creds.username && creds.password);
-
   const {
     data: invoiceList = [],
     isLoading,
@@ -93,7 +91,8 @@ export function InvoicePickerDialog({
   } = useQuery({
     queryKey: ['picker-invoices', creds.username, creds.testMode, dateRange.start, dateRange.end],
     queryFn: async () => {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntityId);
+      const session = await angaria.login(username, password, testMode);
       try {
         return (await angaria.getDrafts(session, dateRange.start, dateRange.end)) as Array<Invoice>;
       } finally {
@@ -113,7 +112,8 @@ export function InvoicePickerDialog({
     }
     setLoadingInvoice(true);
     try {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntityId);
+      const session = await angaria.login(username, password, testMode);
       try {
         const detail = await angaria.getInvoiceDetail(session, invoice.ettn);
         onSelect(detail as unknown as Invoice);

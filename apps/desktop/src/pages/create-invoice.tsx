@@ -55,7 +55,7 @@ const p = (n: number) => String(n).padStart(2, '0');
 export function CreateInvoicePage({ requireCredentials }: { requireCredentials: () => boolean }) {
   const {
     activeEntity,
-    creds,
+    getCredentials,
     recipient,
     setRecipient,
     invoiceSettings,
@@ -287,7 +287,8 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
         ? Number(advancedFields.paymentTotal)
         : total;
 
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntity.id);
+      const session = await angaria.login(username, password, testMode);
       try {
         const draft = await angaria.createDraftInvoice(session, {
           date,

@@ -152,6 +152,8 @@ export function InvoicesPage({
   const {
     activeEntity,
     creds,
+    getCredentials,
+    hasCredentials,
     companyInfo,
     invoiceDateRange,
     setInvoiceDateRange,
@@ -180,16 +182,16 @@ export function InvoicesPage({
   const smsOidRef = useRef('');
   const smsInvoiceIdsRef = useRef<Array<string>>([]);
 
-  const hasCredentials = Boolean(creds.username && creds.password);
-
   const {
     data: invoiceList = [],
     isLoading,
     isFetching,
   } = useQuery({
     queryKey: ['invoices', creds.username, creds.testMode, listStartDate, listEndDate],
-    queryFn: () =>
-      fetchDrafts(creds.username, creds.password, creds.testMode, listStartDate, listEndDate),
+    queryFn: async () => {
+      const { username, password, testMode } = await getCredentials(activeEntity.id);
+      return fetchDrafts(username, password, testMode, listStartDate, listEndDate);
+    },
     enabled: hasCredentials && Boolean(listStartDate) && Boolean(listEndDate),
     staleTime: 60_000,
     retry: false,
@@ -198,7 +200,8 @@ export function InvoicesPage({
 
   const cancelMutation = useMutation({
     mutationFn: async (invoice: Invoice) => {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntity.id);
+      const session = await angaria.login(username, password, testMode);
       try {
         await angaria.cancelInvoice(
           session,
@@ -217,7 +220,8 @@ export function InvoicesPage({
 
   const startSignMutation = useMutation({
     mutationFn: async (invoice: Invoice) => {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntity.id);
+      const session = await angaria.login(username, password, testMode);
       const { phone, oid } = await angaria.startSMSSign(session);
       return { session, phone, oid, ettn: invoice.ettn! };
     },
@@ -258,7 +262,8 @@ export function InvoicesPage({
       if (!invoice.ettn) {
         throw new Error('Fatura ETTN bulunamadı');
       }
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntity.id);
+      const session = await angaria.login(username, password, testMode);
       try {
         return await angaria.getInvoiceDetail(session, invoice.ettn);
       } finally {
@@ -279,7 +284,8 @@ export function InvoicesPage({
         throw new Error('Fatura ETTN bulunamadı');
       }
       pdfToastRef.current = toast.loading('PDF hazırlanıyor...');
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntity.id);
+      const session = await angaria.login(username, password, testMode);
       try {
         const detail = await angaria.getInvoiceDetail(session, invoice.ettn);
         const table = (detail.malHizmetTable as Array<Record<string, unknown>>) ?? [];

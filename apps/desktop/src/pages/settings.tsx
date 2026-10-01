@@ -1,5 +1,5 @@
 import { Building2, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,20 +19,54 @@ export function SettingsPage() {
     renameEntity,
     deleteEntity,
     creds,
-    setCreds,
+    hasCredentials,
+    getCredentials,
+    setCredentials,
     companyInfo,
     setCompanyInfo,
   } = useStore();
   const [loggingOut, setLoggingOut] = useState(false);
+  // null while the keychain read is pending
+  const [password, setPassword] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setPassword(null);
+    getCredentials(activeEntityId)
+      .then((login) => {
+        if (active) {
+          setPassword(login.password);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setPassword('');
+          toast.error(error instanceof Error ? error.message : 'Şifre okunamadı');
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeEntityId, getCredentials]);
+
+  function handlePasswordChange(value: string) {
+    setPassword(value);
+    setCredentials(activeEntityId, { password: value }).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'Şifre kaydedilemedi', {
+        id: 'password-save',
+      });
+    });
+  }
 
   async function handleForceLogout() {
-    if (!creds.username || !creds.password) {
+    if (!hasCredentials) {
       toast.error('Kullanıcı adı ve şifre gerekli');
       return;
     }
     setLoggingOut(true);
     try {
-      await angaria.forceLogout(creds.username, creds.password, creds.testMode);
+      const login = await getCredentials(activeEntityId);
+      await angaria.forceLogout(login.username, login.password, login.testMode);
       toast.success('Oturum kapatıldı');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Çıkış yapılamadı');
@@ -100,7 +134,7 @@ export function SettingsPage() {
               <Label htmlFor="cred-user">Kullanıcı Adı</Label>
               <Input
                 id="cred-user"
-                onChange={(e) => setCreds((c) => ({ ...c, username: e.target.value }))}
+                onChange={(e) => void setCredentials(activeEntityId, { username: e.target.value })}
                 placeholder="GİB kullanıcı adı"
                 value={creds.username}
               />
@@ -108,11 +142,12 @@ export function SettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="cred-pass">Şifre</Label>
               <Input
+                disabled={password === null}
                 id="cred-pass"
-                onChange={(e) => setCreds((c) => ({ ...c, password: e.target.value }))}
+                onChange={(e) => handlePasswordChange(e.target.value)}
                 placeholder="GİB şifre"
                 type="password"
-                value={creds.password}
+                value={password ?? ''}
               />
             </div>
           </div>
@@ -120,7 +155,9 @@ export function SettingsPage() {
             <Switch
               checked={creds.testMode}
               id="test-mode"
-              onCheckedChange={(checked) => setCreds((c) => ({ ...c, testMode: checked }))}
+              onCheckedChange={(checked) =>
+                void setCredentials(activeEntityId, { testMode: checked })
+              }
             />
             <Label htmlFor="test-mode">Test modu (earsivportaltest.efatura.gov.tr)</Label>
           </div>
@@ -250,7 +287,7 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <Button
-            disabled={loggingOut || !creds.username || !creds.password}
+            disabled={loggingOut || !hasCredentials}
             onClick={handleForceLogout}
             variant="outline"
           >

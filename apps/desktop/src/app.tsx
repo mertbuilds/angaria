@@ -45,8 +45,14 @@ interface PreviewTab {
 }
 
 function Dashboard() {
-  const { creds, activeEntityId, resetInvoiceForm, templateEditMode, loadFromGIBInvoice } =
-    useStore();
+  const {
+    activeEntityId,
+    getCredentials,
+    hasCredentials,
+    resetInvoiceForm,
+    templateEditMode,
+    loadFromGIBInvoice,
+  } = useStore();
   const [page, setPage] = useState<Page>('create');
   const [previewTabs, setPreviewTabs] = useState<Array<PreviewTab>>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -54,12 +60,12 @@ function Dashboard() {
   const [loadingTemplate, setLoadingTemplate] = useState(false);
 
   const requireCredentials = useCallback((): boolean => {
-    if (creds.username && creds.password) {
+    if (hasCredentials) {
       return true;
     }
     setShowCredsAlert(true);
     return false;
-  }, [creds.username, creds.password]);
+  }, [hasCredentials]);
 
   const isOnPreview = activeTabId !== null;
   const rawConfig = pageConfig[page];
@@ -102,7 +108,8 @@ function Dashboard() {
     setActiveTabId(uuid);
 
     try {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntityId);
+      const session = await angaria.login(username, password, testMode);
       try {
         const html = await angaria.getInvoiceHTML(session, uuid, invoice.onayDurumu ?? '');
         setPreviewTabs((prev) => prev.map((t) => (t.id === uuid ? { ...t, html } : t)));
@@ -134,7 +141,8 @@ function Dashboard() {
     }
     setLoadingTemplate(true);
     try {
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
+      const { username, password, testMode } = await getCredentials(activeEntityId);
+      const session = await angaria.login(username, password, testMode);
       try {
         const detail = await angaria.getInvoiceDetail(session, ettn);
         loadFromGIBInvoice(detail);
