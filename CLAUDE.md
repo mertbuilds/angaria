@@ -7,6 +7,7 @@ Tauri desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelanc
 ```
 apps/
   desktop/      Tauri 2 + React 19 + Vite. Frontend in src/, Rust in src-tauri/.
+  web/          angaria.app landing page. TanStack Start on Cloudflare Workers, Paraglide (tr only).
 packages/
   earsiv-sdk/   GİB e-Arşiv portal client. tsdown build to dist/.
   ui/           @angaria/ui design system: StyleX + Base UI components, theme, fonts. Source-consumed, no build.
@@ -17,16 +18,18 @@ packages/
 
 | Command          | What                                                                      |
 | ---------------- | ------------------------------------------------------------------------- |
-| `pnpm dev`       | mprocs: desktop (`tauri dev`)                                             |
-| `pnpm build`     | turbo build (workspace packages first, then the desktop frontend)         |
+| `pnpm dev`       | mprocs: desktop (`tauri dev`) and web (`https://angaria.localhost`)       |
+| `pnpm build`     | turbo build (workspace packages first, then the desktop and web apps)     |
 | `pnpm typecheck` | `tsc --noEmit` per package via turbo                                      |
-| `pnpm lint`      | builds packages, then oxlint type-aware + TS compiler errors (tsgolint)   |
+| `pnpm lint`      | builds packages and web, then oxlint type-aware + TS errors (tsgolint)    |
 | `pnpm format`    | oxfmt (write mode); `pnpm format:check` to verify                         |
 | `pnpm test`      | vitest per package via turbo                                              |
 | `pnpm fonts`     | fetch licensed Suisse Intl woff2 into packages/ui/fonts (FONT_BUCKET_URL) |
 | `cargo check`    | Rust check, run in `apps/desktop/src-tauri`                               |
 
 Desktop: `pnpm --filter desktop tauri dev` (same as `pnpm dev`), `pnpm --filter desktop tauri build` for a bundle.
+
+Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and OG image from Suisse Intl), `run deploy` (build + `wrangler deploy`; not before go-live, and `pnpm deploy` without `run` is pnpm's own command).
 
 ## Tooling
 
@@ -43,3 +46,11 @@ Desktop: `pnpm --filter desktop tauri dev` (same as `pnpm dev`), `pnpm --filter 
 - The package ships TypeScript source; every consumer compiles it with `@stylexjs/unplugin` (`stylex.vite({ useCSSLayers: { before: ['base'] } })`, see `apps/desktop/vite.config.ts`). Components take StyleX styles in `style`, never inline CSS.
 - Theme: `data-theme` on `<html>` absent = follow the system, `light` or `dark` forces one; the attribute also themes any subtree.
 - Gallery (dev only): `http://localhost:5173/ui-gallery.html` (or `/?ui-gallery`) while the desktop dev server runs. Every component, light and dark side by side.
+
+## Web (`apps/web`)
+
+- Config: public `VITE_` values in `apps/web/.env.development` (Polar sandbox checkout) and `.env.production` (go-live TODOs); local overrides in `.env.*.local`. The `deploy` script refuses to build without `VITE_CHECKOUT_URL`.
+- Every user-facing string is a Paraglide message in `messages/tr.json`. Generated `src/paraglide/` and `src/routeTree.gen.ts` come from the web build, which `pnpm lint` and `pnpm typecheck` run first.
+- Analytics: PostHog EU through the `/ingest` proxy, cookieless (`persistence: 'memory'`), page views plus named CTA events only. Without `VITE_POSTHOG_KEY` nothing loads.
+- The privacy section lists exactly the hosts the desktop app reaches (`src/components/app-hosts.tsx`); a test fails when the desktop http allowlist or updater endpoint changes without it.
+- `/gizlilik` and `/kosullar` are drafts marked `TODO(lawyer)` until reviewed.
