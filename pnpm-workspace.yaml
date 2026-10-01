@@ -23,11 +23,15 @@ catalog:
   '@tauri-apps/plugin-process': ~2.3.1
   '@tauri-apps/plugin-updater': ~2.12.0
   '@types/node': ^24.10.1
+  '@types/react': ^19.3.0
+  '@types/react-dom': ^19.3.0
   '@vitejs/plugin-react': ^6.1.1
   cmdk: ^1.1.1
   date-fns: ^4.1.0
   jsdom: 30.0.1
   lucide-react: ^1.39.0
+  react: ^19.3.0
+  react-dom: ^19.3.0
   react-grab: ^0.1.28
   sonner: ^2.0.7
   tsdown: ^0.23.0

@@ -71,6 +71,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 
 - Components from `@angaria/ui`; CSS from `@angaria/ui/fonts.css`, `@angaria/ui/theme.css`, `@angaria/ui/base.css` (page shell), imported in that order; app tokens from `@angaria/ui/tokens.stylex` (`colors`, `spacing`, `font`, `radius`, `motion`); theme control from `@angaria/ui/theme` (`applyTheme`). Import `toast` from `@angaria/ui`, never from `sonner`.
 - The package ships TypeScript source; every consumer compiles it with `@stylexjs/unplugin` (`stylex.vite({ useCSSLayers: { before: ['base'] } })`, see `apps/desktop/vite.config.ts`). Components take StyleX styles in `style`, never inline CSS.
+- A new package or `@base-ui/react` subpath imported here also goes into `uiDependencies` in `apps/web/vite.config.ts`, or the web dev server finds it on the first request and serves SSR 500s while it re-bundles.
 - Theme: `data-theme` on `<html>` absent = follow the system, `light` or `dark` forces one; the attribute also themes any subtree.
 - Gallery (dev only): `http://localhost:5173/ui-gallery.html` (or `/?ui-gallery`) while the desktop dev server runs. Every component, light and dark side by side.
 

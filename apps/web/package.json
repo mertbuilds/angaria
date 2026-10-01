@@ -20,8 +20,8 @@
     "@tanstack/react-start": "^1.168.49",
     "lucide-react": "catalog:",
     "posthog-js": "^1.424.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.54.3",
@@ -31,8 +31,8 @@
     "@testing-library/react": "16.3.3",
     "@types/fontkit": "^2.0.9",
     "@types/node": "catalog:",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "devknobs": "^0.0.2",
     "fontkit": "^2.0.4",

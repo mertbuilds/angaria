@@ -10,6 +10,34 @@ import { defineConfig, loadEnv } from 'vite';
 // the checkout buttons fall back to the pricing section.
 const requiredDeployEnv = ['VITE_CHECKOUT_URL'];
 
+// Dependencies of @angaria/ui (source-consumed). Routes reach it through Start's
+// virtual modules, which the dep scanner cannot follow, so dev found each one on
+// the first request and re-bundled mid-render: a cold start served 500s
+// ("Cannot read properties of null (reading 'useEffect')"). Listing them here
+// bundles them at startup. Add an entry when @angaria/ui imports a new package
+// or @base-ui/react subpath.
+const uiDependencies = [
+  'alert-dialog',
+  'button',
+  'checkbox',
+  'combobox',
+  'dialog',
+  'input',
+  'menu',
+  'merge-props',
+  'popover',
+  'scroll-area',
+  'select',
+  'separator',
+  'switch',
+  'tabs',
+  'tooltip',
+  'use-render',
+]
+  .map((subpath) => `@base-ui/react/${subpath}`)
+  .concat(['cmdk', 'sonner'])
+  .map((dependency) => `@angaria/ui > ${dependency}`);
+
 export default defineConfig(({ command, mode }) => {
   if (command === 'build' && process.env['ANGARIA_DEPLOY'] === '1') {
     const env = loadEnv(mode, import.meta.dirname, 'VITE_');
@@ -23,6 +51,7 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
+    optimizeDeps: { include: uiDependencies },
     plugins: [
       cloudflare({ viteEnvironment: { name: 'ssr' } }),
       tanstackStart(),
@@ -41,9 +70,11 @@ export default defineConfig(({ command, mode }) => {
         strategy: ['baseLocale'],
       }),
     ],
+    resolve: { dedupe: ['react', 'react-dom'] },
     server: {
       // Vite ignores PORT by default; portless assigns one when proxying https://angaria.localhost.
       port: process.env['PORT'] ? Number(process.env['PORT']) : 3000,
     },
+    ssr: { optimizeDeps: { include: uiDependencies } },
   };
 });
