@@ -1,10 +1,11 @@
 [package]
 name = "angaria"
 version = "0.1.0"
-description = "Angaria E-Arşiv Fatura Uygulaması"
-authors = ["you"]
-license = ""
-repository = ""
+description = "GİB e-Arşiv faturaları için masaüstü uygulaması"
+authors = ["Vinena Studio"]
+license = "Proprietary"
+repository = "https://github.com/vinenastudio/angaria"
+publish = false
 edition = "2021"
 rust-version = "1.77.2"
 
@@ -24,3 +25,8 @@ log = "0.4"
 tauri = { version = "2.10.3", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-http = "2"
+tauri-plugin-process = "2"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2"
