@@ -21,6 +21,9 @@ coverage/
 # desktop build-time config: public VITE_ values that ship in the app bundle
 !apps/desktop/.env.development
 !apps/desktop/.env.production
+# web build-time config: public VITE_ values that ship in the page
+!apps/web/.env.development
+!apps/web/.env.production
 *.local
 
 # generated code (rebuilt by dev / build)

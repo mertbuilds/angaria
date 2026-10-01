@@ -15,6 +15,14 @@
     },
     "typecheck": {
       "dependsOn": ["^build"]
+    },
+    "web#build": {
+      "dependsOn": ["^build"],
+      "env": ["VITE_*"],
+      "outputs": ["dist/**", "src/routeTree.gen.ts", "src/paraglide/**"]
+    },
+    "web#typecheck": {
+      "dependsOn": ["web#build"]
     }
   }
 }

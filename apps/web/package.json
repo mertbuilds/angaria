@@ -1,0 +1,48 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "brand": "node scripts/render-brand.ts",
+    "build": "vite build",
+    "cf-typegen": "wrangler types",
+    "deploy": "ANGARIA_DEPLOY=1 vite build && wrangler deploy",
+    "dev": "vite dev",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "@angaria/ui": "workspace:*",
+    "@stylexjs/stylex": "catalog:",
+    "@tanstack/react-router": "^1.170.32",
+    "@tanstack/react-start": "^1.168.49",
+    "lucide-react": "catalog:",
+    "posthog-js": "^1.424.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.3",
+    "@inlang/paraglide-js": "^2.25.0",
+    "@stylexjs/unplugin": "catalog:",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@types/fontkit": "^2.0.9",
+    "@types/node": "catalog:",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "catalog:",
+    "devknobs": "^0.0.2",
+    "fontkit": "^2.0.4",
+    "jsdom": "30.0.1",
+    "oxc-transform-react": "^0.148.0",
+    "playwright": "^1.63.0",
+    "react-grab": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "^4.128.0"
+  }
+}
