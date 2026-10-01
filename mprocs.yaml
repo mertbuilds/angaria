@@ -1,0 +1,7 @@
+procs:
+  desktop:
+    # Tauri dev: beforeDevCommand builds the workspace packages, then serves vite on
+    # the fixed port 5173 (Tauri's devUrl, so no portless here) and opens the app window.
+    shell: pnpm --filter desktop tauri dev
+  # web: added with apps/web, served behind portless at https://angaria.localhost, e.g.
+  #   shell: pnpm exec portless angaria pnpm --filter <web package> dev

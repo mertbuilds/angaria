@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.vinena.angaria",
   "build": {
-    "beforeDevCommand": "vp dev",
-    "beforeBuildCommand": "vp run angaria-earsiv-sdk#build && vp run angaria-utils#build && vp build",
+    "beforeDevCommand": "pnpm exec turbo run build --filter=desktop^... --ui=stream --output-logs=errors-only && pnpm dev",
+    "beforeBuildCommand": "pnpm exec turbo run build --filter=desktop --ui=stream",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
   },

@@ -1,25 +1,38 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+# dependencies
+node_modules/
 
-node_modules
-dist
-dist-ssr
-*.local
+# build output
+dist/
+dist-ssr/
+.output/
+.vite/
+storybook-static/
+
+# caches
+.turbo/
+.cloudflare/
+.wrangler/
+coverage/
 *.tsbuildinfo
 
-# Editor directories and files
+# env, only the example is committed
+.env*
+!.env.example
+*.local
+
+# generated code (rebuilt by dev / build)
+apps/web/src/paraglide/
+apps/web/src/routeTree.gen.ts
+
+# licensed fonts, fetched by scripts/fetch-fonts.sh, never committed
+packages/ui/fonts/*.woff2
+
+# logs
+logs
+*.log
+
+# editor and os
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?

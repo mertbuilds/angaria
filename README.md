@@ -1,29 +1,10 @@
-# Vite+ Monorepo Starter
+# angaria
 
-A starter for creating a Vite+ monorepo.
-
-## Development
-
-- Check everything is ready:
+Desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers.
 
 ```bash
-vp run ready
+pnpm install
+pnpm dev
 ```
 
-- Run the tests:
-
-```bash
-vp run test -r
-```
-
-- Build the monorepo:
-
-```bash
-vp run build -r
-```
-
-- Run the development server:
-
-```bash
-vp run dev
-```
+Tooling and commands: `CLAUDE.md`. Relaunch spec: `docs/relaunch.md`.

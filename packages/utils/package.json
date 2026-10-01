@@ -11,11 +11,15 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "vp pack",
-    "dev": "vp pack --watch"
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
     "typescript": "catalog:",
-    "vite-plus": "catalog:"
+    "vitest": "catalog:"
   }
 }
