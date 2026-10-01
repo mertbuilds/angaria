@@ -61,7 +61,6 @@ export default defineConfig({
         'apps/desktop/src/lib/store.tsx',
         'apps/desktop/src/pages/create-invoice.tsx',
         'apps/desktop/src/pages/customers.tsx',
-        'apps/desktop/src/pages/invoice-templates.tsx',
         'apps/desktop/src/pages/invoices.tsx',
         'apps/desktop/src/pages/settings.tsx',
       ],
