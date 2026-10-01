@@ -45,6 +45,9 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 - Routing: TanStack Router file routes in `src/routes` (`/faturalar`, `/faturalar/$ettn`, `/yeni?sablon=&kaynak=`, `/musteriler`, `/sablonlar?sekme=kalemler`, `/ayarlar`). The Vite plugin regenerates `src/routeTree.gen.ts` on dev and build; it is committed so typecheck and lint run without a build. Never edit it.
 - The frame lives in `src/shell`: `Screen` (a route's toolbar and content), `ListDetail` (list column and detail pane), `useRequireCredentials`, `usePreviewTabs`, `useAppActions`, the ⌘K palette and the shortcuts (⌘N, ⌘1-5, ⌘,).
 - Screens not yet ported stay in `src/pages`, wrapped in `LegacyPage` with their Tailwind styles (`src/app.css`). Their colors are light-only, so `index.html` pins `data-theme="light"`; remove the pin with the last of them.
+- Theme: Ayarlar › Görünüm saves the choice in localStorage `angaria-theme` (`src/lib/theme.ts`); `main.tsx` re-applies it before render, so a saved choice overrides the pin.
+- Updates: `useUpdateCheck` (`src/shell`) checks once per launch outside dev and offers the update in a toast; Ayarlar › Hakkında checks on demand. Both go through `src/lib/updater.ts` (`@tauri-apps/plugin-updater`, then `relaunch` from `@tauri-apps/plugin-process`).
+- Import `.stylex.ts` files (e.g. `shell.stylex.ts`) by relative path: the StyleX compiler does not resolve the `@/` alias and the build fails.
 
 ## UI (`packages/ui`)
 
