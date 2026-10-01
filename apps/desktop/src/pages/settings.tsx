@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { Building2, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { useStore } from "@/lib/store.tsx";
-import * as angaria from "@/lib/angaria.ts";
+import { Building2, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import * as angaria from '@/lib/angaria.ts';
+import { useStore } from '@/lib/store.tsx';
 
 export function SettingsPage() {
   const {
@@ -27,15 +27,15 @@ export function SettingsPage() {
 
   async function handleForceLogout() {
     if (!creds.username || !creds.password) {
-      toast.error("Kullanıcı adı ve şifre gerekli");
+      toast.error('Kullanıcı adı ve şifre gerekli');
       return;
     }
     setLoggingOut(true);
     try {
       await angaria.forceLogout(creds.username, creds.password, creds.testMode);
-      toast.success("Oturum kapatıldı");
+      toast.success('Oturum kapatıldı');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Çıkış yapılamadı");
+      toast.error(err instanceof Error ? err.message : 'Çıkış yapılamadı');
     } finally {
       setLoggingOut(false);
     }
@@ -254,7 +254,7 @@ export function SettingsPage() {
             disabled={loggingOut || !creds.username || !creds.password}
             onClick={handleForceLogout}
           >
-            {loggingOut ? "Çıkış yapılıyor..." : "Güvenli Çıkış (Oturumu Kapat)"}
+            {loggingOut ? 'Çıkış yapılıyor...' : 'Güvenli Çıkış (Oturumu Kapat)'}
           </Button>
         </CardContent>
       </Card>

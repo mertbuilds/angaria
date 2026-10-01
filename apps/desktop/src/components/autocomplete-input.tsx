@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandEmpty,
@@ -10,8 +9,9 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface AutocompleteInputProps {
   value: string;
@@ -33,7 +33,7 @@ export function AutocompleteInput({
   className,
 }: AutocompleteInputProps) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -44,8 +44,8 @@ export function AutocompleteInput({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-[240px] justify-between font-normal",
-            !value && "text-muted-foreground",
+            'w-[240px] justify-between font-normal',
+            !value && 'text-muted-foreground',
             className,
           )}
         >
@@ -70,14 +70,14 @@ export function AutocompleteInput({
                     const val = search.trim();
                     onChange(val);
                     onCreate?.(val);
-                    setSearch("");
+                    setSearch('');
                     setOpen(false);
                   }}
                 >
                   &ldquo;{search.trim()}&rdquo; olarak kullan
                 </button>
               ) : (
-                "Sonuç yok"
+                'Sonuç yok'
               )}
             </CommandEmpty>
             <CommandGroup>
@@ -90,7 +90,7 @@ export function AutocompleteInput({
                     data-checked={s.label === value}
                     onSelect={() => {
                       onSelect(s.id);
-                      setSearch("");
+                      setSearch('');
                       setOpen(false);
                     }}
                   >

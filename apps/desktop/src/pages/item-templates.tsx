@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { toast } from "sonner";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Delete01Icon, PlusSignIcon, Edit01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
-import { useStore } from "@/lib/store.tsx";
-import type { InvoiceItem } from "@/lib/types.ts";
+import { Delete01Icon, PlusSignIcon, Edit01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { useStore } from '@/lib/store.tsx';
+import type { InvoiceItem } from '@/lib/types.ts';
 
 export function ItemTemplatesPage() {
   const { savedItems, setSavedItems, newId, defaultItemAdvanced } = useStore();
@@ -23,13 +23,13 @@ export function ItemTemplatesPage() {
     const id = newId();
     setSavedItems((prev) => [
       ...prev,
-      { id, name: "", quantity: 1, unitPrice: 0, VATRate: 20, ...defaultItemAdvanced },
+      { id, name: '', quantity: 1, unitPrice: 0, VATRate: 20, ...defaultItemAdvanced },
     ]);
     setEditingItemId(id);
   }
 
   const formatMoney = (n: number) =>
-    new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(n);
+    new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
 
   return (
     <div className="space-y-4">
@@ -64,14 +64,14 @@ export function ItemTemplatesPage() {
                         {isEditing ? (
                           <Input
                             value={item.name}
-                            onChange={(e) => updateSavedItem(item.id, "name", e.target.value)}
+                            onChange={(e) => updateSavedItem(item.id, 'name', e.target.value)}
                             placeholder="Kalem adı"
                             className="h-8"
                             autoFocus
                           />
                         ) : (
                           <span className="inline-flex h-8 items-center font-medium">
-                            {item.name || "—"}
+                            {item.name || '—'}
                           </span>
                         )}
                       </td>
@@ -81,7 +81,7 @@ export function ItemTemplatesPage() {
                             inputMode="numeric"
                             value={item.quantity}
                             onChange={(e) =>
-                              updateSavedItem(item.id, "quantity", Number(e.target.value) || 0)
+                              updateSavedItem(item.id, 'quantity', Number(e.target.value) || 0)
                             }
                             className="h-8 text-right"
                           />
@@ -95,9 +95,9 @@ export function ItemTemplatesPage() {
                         {isEditing ? (
                           <Input
                             inputMode="decimal"
-                            value={item.unitPrice || ""}
+                            value={item.unitPrice || ''}
                             onChange={(e) =>
-                              updateSavedItem(item.id, "unitPrice", Number(e.target.value) || 0)
+                              updateSavedItem(item.id, 'unitPrice', Number(e.target.value) || 0)
                             }
                             className="h-8 text-right"
                           />
@@ -113,7 +113,7 @@ export function ItemTemplatesPage() {
                             inputMode="numeric"
                             value={item.VATRate}
                             onChange={(e) =>
-                              updateSavedItem(item.id, "VATRate", Number(e.target.value) || 0)
+                              updateSavedItem(item.id, 'VATRate', Number(e.target.value) || 0)
                             }
                             className="h-8 text-right"
                           />
@@ -126,12 +126,12 @@ export function ItemTemplatesPage() {
                       <td className="px-2 py-2">
                         <div className="flex items-center justify-end gap-1">
                           <Button
-                            variant={isEditing ? "outline" : "ghost"}
+                            variant={isEditing ? 'outline' : 'ghost'}
                             size="icon-xs"
                             onClick={() => {
                               if (isEditing) {
                                 setEditingItemId(null);
-                                toast.success("Kaydedildi");
+                                toast.success('Kaydedildi');
                               } else {
                                 setEditingItemId(item.id);
                               }
@@ -176,7 +176,7 @@ export function ItemTemplatesPage() {
         onConfirm={() => {
           if (deleteId) {
             setSavedItems((prev) => prev.filter((t) => t.id !== deleteId));
-            toast.success("Kalem şablonu silindi");
+            toast.success('Kalem şablonu silindi');
             setDeleteId(null);
           }
         }}

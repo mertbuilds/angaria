@@ -1,14 +1,12 @@
-import { useState, useCallback, useEffect } from "react";
-import { toast } from "sonner";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Cancel01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
-import { Copy } from "lucide-react";
-import { Toaster } from "sonner";
-import { Button } from "@/components/ui/button";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { Cancel01Icon, ReloadIcon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { Copy } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
+import { Toaster } from 'sonner';
+import { AppSidebar, type Page } from '@/components/app-sidebar.tsx';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,24 +16,26 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { AppSidebar, type Page } from "@/components/app-sidebar.tsx";
-import { StoreProvider, useStore } from "@/lib/store.tsx";
-import { CreateInvoicePage } from "@/pages/create-invoice.tsx";
-import { InvoicesPage, type Invoice } from "@/pages/invoices.tsx";
-import { InvoiceTemplatesPage } from "@/pages/invoice-templates.tsx";
-import { ItemTemplatesPage } from "@/pages/item-templates.tsx";
-import { CustomersPage } from "@/pages/customers.tsx";
-import { SettingsPage } from "@/pages/settings.tsx";
-import * as angaria from "@/lib/angaria.ts";
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import * as angaria from '@/lib/angaria.ts';
+import { StoreProvider, useStore } from '@/lib/store.tsx';
+import { CreateInvoicePage } from '@/pages/create-invoice.tsx';
+import { CustomersPage } from '@/pages/customers.tsx';
+import { InvoiceTemplatesPage } from '@/pages/invoice-templates.tsx';
+import { InvoicesPage, type Invoice } from '@/pages/invoices.tsx';
+import { ItemTemplatesPage } from '@/pages/item-templates.tsx';
+import { SettingsPage } from '@/pages/settings.tsx';
 
 const pageConfig: Record<Page, { title: string; description: string }> = {
-  create: { title: "Fatura Oluştur", description: "e-Arşiv fatura taslağı" },
-  invoices: { title: "Faturalarım", description: "GİB portal faturaları" },
-  "invoice-templates": { title: "Fatura Şablonları", description: "Kayıtlı fatura şablonları" },
-  "item-templates": { title: "Kalem Şablonları", description: "Kayıtlı kalem şablonları" },
-  customers: { title: "Müşteriler", description: "Kayıtlı alıcılar" },
-  settings: { title: "Ayarlar", description: "Uygulama yapılandırması" },
+  create: { title: 'Fatura Oluştur', description: 'e-Arşiv fatura taslağı' },
+  invoices: { title: 'Faturalarım', description: 'GİB portal faturaları' },
+  'invoice-templates': { title: 'Fatura Şablonları', description: 'Kayıtlı fatura şablonları' },
+  'item-templates': { title: 'Kalem Şablonları', description: 'Kayıtlı kalem şablonları' },
+  customers: { title: 'Müşteriler', description: 'Kayıtlı alıcılar' },
+  settings: { title: 'Ayarlar', description: 'Uygulama yapılandırması' },
 };
 
 interface PreviewTab {
@@ -47,7 +47,7 @@ interface PreviewTab {
 function Dashboard() {
   const { creds, activeEntityId, resetInvoiceForm, templateEditMode, loadFromGIBInvoice } =
     useStore();
-  const [page, setPage] = useState<Page>("create");
+  const [page, setPage] = useState<Page>('create');
   const [previewTabs, setPreviewTabs] = useState<PreviewTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showCredsAlert, setShowCredsAlert] = useState(false);
@@ -62,14 +62,14 @@ function Dashboard() {
   const isOnPreview = activeTabId !== null;
   const rawConfig = pageConfig[page];
   const config =
-    page === "create" && templateEditMode
-      ? { title: "Şablon Düzenle", description: "Faturadan şablon oluştur" }
+    page === 'create' && templateEditMode
+      ? { title: 'Şablon Düzenle', description: 'Faturadan şablon oluştur' }
       : rawConfig;
 
   const handleDrag = useCallback((e: React.MouseEvent) => {
     if (e.buttons !== 1) return;
     const target = e.target as HTMLElement;
-    if (target.closest("button, a, input, [role=button]")) return;
+    if (target.closest('button, a, input, [role=button]')) return;
     if (e.detail === 2) {
       void getCurrentWindow().toggleMaximize();
     } else {
@@ -78,7 +78,7 @@ function Dashboard() {
   }, []);
 
   async function openPreview(invoice: Invoice) {
-    const uuid = invoice.ettn ?? "";
+    const uuid = invoice.ettn ?? '';
     const existing = previewTabs.find((t) => t.id === uuid);
     if (existing) {
       setActiveTabId(uuid);
@@ -86,7 +86,7 @@ function Dashboard() {
     }
     if (!requireCredentials()) return;
 
-    const label = invoice.belgeNumarasi || invoice.aliciUnvanAdSoyad || "Fatura";
+    const label = invoice.belgeNumarasi || invoice.aliciUnvanAdSoyad || 'Fatura';
     setPreviewTabs((prev) => {
       const next = [...prev, { id: uuid, label, html: null }];
       return next.length > 5 ? next.slice(-5) : next;
@@ -96,13 +96,13 @@ function Dashboard() {
     try {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
-        const html = await angaria.getInvoiceHTML(session, uuid, invoice.onayDurumu ?? "");
+        const html = await angaria.getInvoiceHTML(session, uuid, invoice.onayDurumu ?? '');
         setPreviewTabs((prev) => prev.map((t) => (t.id === uuid ? { ...t, html } : t)));
       } finally {
         angaria.logout(session).catch(() => {});
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bilinmeyen hata");
+      toast.error(err instanceof Error ? err.message : 'Bilinmeyen hata');
       setPreviewTabs((prev) => prev.filter((t) => t.id !== uuid));
       setActiveTabId(null);
     }
@@ -129,12 +129,12 @@ function Dashboard() {
         const detail = await angaria.getInvoiceDetail(session, ettn);
         loadFromGIBInvoice(detail);
         setActiveTabId(null);
-        setPage("create");
+        setPage('create');
       } finally {
         angaria.logout(session).catch(() => {});
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fatura detayı alınamadı");
+      toast.error(err instanceof Error ? err.message : 'Fatura detayı alınamadı');
     } finally {
       setLoadingTemplate(false);
     }
@@ -153,7 +153,7 @@ function Dashboard() {
       <AppSidebar
         activePage={page}
         onNavigate={(p) => {
-          if (p === "create") resetInvoiceForm();
+          if (p === 'create') resetInvoiceForm();
           setPage(p);
           setActiveTabId(null);
         }}
@@ -172,8 +172,8 @@ function Dashboard() {
                   onClick={() => setActiveTabId(null)}
                   className={`flex items-center border-r px-4 text-xs font-medium transition-colors ${
                     !isOnPreview
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {config.title}
@@ -183,8 +183,8 @@ function Dashboard() {
                     key={tab.id}
                     className={`group flex items-center gap-1.5 border-r px-3 text-xs transition-colors ${
                       activeTabId === tab.id
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? 'bg-muted text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <button
@@ -233,7 +233,7 @@ function Dashboard() {
                   onClick={() => usePreviewAsTemplate(activePreview.id)}
                 >
                   <Copy className="size-4" />
-                  {loadingTemplate ? "Yükleniyor..." : "Şablon olarak kullan"}
+                  {loadingTemplate ? 'Yükleniyor...' : 'Şablon olarak kullan'}
                 </Button>
               </div>
               <iframe srcDoc={activePreview.html} className="flex-1" title="Fatura önizleme" />
@@ -250,18 +250,18 @@ function Dashboard() {
         ) : (
           <div className="flex-1 overflow-auto">
             <div className="mx-auto max-w-3xl px-6 py-8">
-              {page === "create" && <CreateInvoicePage requireCredentials={requireCredentials} />}
-              {page === "invoices" && (
+              {page === 'create' && <CreateInvoicePage requireCredentials={requireCredentials} />}
+              {page === 'invoices' && (
                 <InvoicesPage
                   onPreview={openPreview}
                   onNavigate={setPage}
                   requireCredentials={requireCredentials}
                 />
               )}
-              {page === "invoice-templates" && <InvoiceTemplatesPage onNavigate={setPage} />}
-              {page === "item-templates" && <ItemTemplatesPage />}
-              {page === "customers" && <CustomersPage />}
-              {page === "settings" && <SettingsPage />}
+              {page === 'invoice-templates' && <InvoiceTemplatesPage onNavigate={setPage} />}
+              {page === 'item-templates' && <ItemTemplatesPage />}
+              {page === 'customers' && <CustomersPage />}
+              {page === 'settings' && <SettingsPage />}
             </div>
           </div>
         )}
@@ -279,7 +279,7 @@ function Dashboard() {
             <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setPage("settings");
+                setPage('settings');
                 setActiveTabId(null);
               }}
             >
@@ -301,13 +301,13 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       if (query.meta?.onError) {
-        toast.error(error instanceof Error ? error.message : "Bilinmeyen hata");
+        toast.error(error instanceof Error ? error.message : 'Bilinmeyen hata');
       }
     },
   }),
   mutationCache: new MutationCache({
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Bilinmeyen hata");
+      toast.error(error instanceof Error ? error.message : 'Bilinmeyen hata');
     },
   }),
 });

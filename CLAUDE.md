@@ -14,16 +14,16 @@ packages/
 
 ## Commands
 
-| Command             | What                                                                      |
-| ------------------- | ------------------------------------------------------------------------- |
-| `pnpm dev`          | mprocs: desktop (`tauri dev`)                                             |
-| `pnpm build`        | turbo build (workspace packages first, then the desktop frontend)         |
-| `pnpm typecheck`    | `tsc --noEmit` per package via turbo                                      |
-| `pnpm lint`         | builds packages, then oxlint type-aware + TS compiler errors (tsgolint)   |
-| `pnpm format`       | oxfmt (write mode); `pnpm format:check` to verify                         |
-| `pnpm test`         | vitest per package via turbo                                              |
-| `pnpm fonts`        | fetch licensed Suisse Intl woff2 into packages/ui/fonts (FONT_BUCKET_URL) |
-| `cargo check`       | Rust check, run in `apps/desktop/src-tauri`                               |
+| Command          | What                                                                      |
+| ---------------- | ------------------------------------------------------------------------- |
+| `pnpm dev`       | mprocs: desktop (`tauri dev`)                                             |
+| `pnpm build`     | turbo build (workspace packages first, then the desktop frontend)         |
+| `pnpm typecheck` | `tsc --noEmit` per package via turbo                                      |
+| `pnpm lint`      | builds packages, then oxlint type-aware + TS compiler errors (tsgolint)   |
+| `pnpm format`    | oxfmt (write mode); `pnpm format:check` to verify                         |
+| `pnpm test`      | vitest per package via turbo                                              |
+| `pnpm fonts`     | fetch licensed Suisse Intl woff2 into packages/ui/fonts (FONT_BUCKET_URL) |
+| `cargo check`    | Rust check, run in `apps/desktop/src-tauri`                               |
 
 Desktop: `pnpm --filter desktop tauri dev` (same as `pnpm dev`), `pnpm --filter desktop tauri build` for a bundle.
 

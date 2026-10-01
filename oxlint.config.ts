@@ -20,13 +20,7 @@ export default defineConfig({
   ],
   overrides: [
     {
-      files: [
-        '**/*.test.*',
-        '**/*.stories.*',
-        '**/test/**',
-        '**/tests/**',
-        '**/scripts/**',
-      ],
+      files: ['**/*.test.*', '**/*.stories.*', '**/test/**', '**/tests/**', '**/scripts/**'],
       rules: {
         'react/jsx-no-literals': 'off',
       },

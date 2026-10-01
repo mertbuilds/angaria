@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
-import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { useQuery } from '@tanstack/react-query';
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,13 +10,16 @@ import {
   flexRender,
   type ColumnDef,
   type SortingState,
-} from "@tanstack/react-table";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { ArrowUpDown, ArrowUp, ArrowDown, Eye, FileInput } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@tanstack/react-table';
+import { ArrowUpDown, ArrowUp, ArrowDown, Eye, FileInput } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker.tsx';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -24,20 +27,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DatePicker } from "@/components/ui/date-picker.tsx";
-import { useStore } from "@/lib/store.tsx";
-import { parseGIB, toGIB, formatDateHuman } from "@/lib/utils.ts";
-import type { Invoice } from "@/pages/invoices.tsx";
-import * as angaria from "@/lib/angaria.ts";
+} from '@/components/ui/table';
+import * as angaria from '@/lib/angaria.ts';
+import { useStore } from '@/lib/store.tsx';
+import { parseGIB, toGIB, formatDateHuman } from '@/lib/utils.ts';
+import type { Invoice } from '@/pages/invoices.tsx';
 
 function SortableHeader({
   column,
   label,
 }: {
-  column: { getIsSorted: () => false | "asc" | "desc"; toggleSorting: (desc?: boolean) => void };
+  column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (desc?: boolean) => void };
   label: string;
 }) {
   const sorted = column.getIsSorted();
@@ -48,9 +48,9 @@ function SortableHeader({
       onClick={() => column.toggleSorting()}
     >
       {label}
-      {sorted === "asc" ? (
+      {sorted === 'asc' ? (
         <ArrowUp className="size-3.5" />
-      ) : sorted === "desc" ? (
+      ) : sorted === 'desc' ? (
         <ArrowDown className="size-3.5" />
       ) : (
         <ArrowUpDown className="size-3.5 text-muted-foreground/50" />
@@ -74,12 +74,12 @@ export function InvoicePickerDialog({
 
   const [loadingInvoice, setLoadingInvoice] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [globalFilter, setGlobalFilter] = useState('');
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const [dateRange, setDateRange] = useState(() => {
     const now = new Date();
-    const p = (n: number) => String(n).padStart(2, "0");
+    const p = (n: number) => String(n).padStart(2, '0');
     const today = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
     return { start: today, end: today };
   });
@@ -91,7 +91,7 @@ export function InvoicePickerDialog({
     isLoading,
     isFetching,
   } = useQuery({
-    queryKey: ["picker-invoices", creds.username, creds.testMode, dateRange.start, dateRange.end],
+    queryKey: ['picker-invoices', creds.username, creds.testMode, dateRange.start, dateRange.end],
     queryFn: async () => {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
@@ -119,7 +119,7 @@ export function InvoicePickerDialog({
         angaria.logout(session).catch(() => {});
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fatura detayı alınamadı");
+      toast.error(err instanceof Error ? err.message : 'Fatura detayı alınamadı');
     } finally {
       setLoadingInvoice(false);
     }
@@ -128,27 +128,27 @@ export function InvoicePickerDialog({
   const columns = useMemo<ColumnDef<Invoice>[]>(
     () => [
       {
-        accessorKey: "belgeNumarasi",
+        accessorKey: 'belgeNumarasi',
         header: ({ column }) => <SortableHeader column={column} label="Belge No" />,
         cell: ({ getValue }) => (
-          <span className="font-mono text-xs">{(getValue() as string) ?? ""}</span>
+          <span className="font-mono text-xs">{(getValue() as string) ?? ''}</span>
         ),
       },
       {
-        accessorKey: "aliciUnvanAdSoyad",
+        accessorKey: 'aliciUnvanAdSoyad',
         header: ({ column }) => <SortableHeader column={column} label="Alıcı" />,
         cell: ({ getValue }) => (
-          <span className="block max-w-48 truncate">{(getValue() as string) ?? ""}</span>
+          <span className="block max-w-48 truncate">{(getValue() as string) ?? ''}</span>
         ),
       },
       {
-        accessorKey: "belgeTarihi",
+        accessorKey: 'belgeTarihi',
         header: ({ column }) => <SortableHeader column={column} label="Tarih" />,
-        cell: ({ getValue }) => formatDateHuman((getValue() as string) ?? ""),
+        cell: ({ getValue }) => formatDateHuman((getValue() as string) ?? ''),
       },
       {
-        id: "actions",
-        header: "",
+        id: 'actions',
+        header: '',
         cell: ({ row }) => {
           const inv = row.original;
           return (

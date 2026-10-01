@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type {
   AdvancedInvoiceFields,
   CompanyInfo,
@@ -8,79 +8,79 @@ import type {
   InvoiceSettings,
   InvoiceTemplate,
   Recipient,
-} from "./types.ts";
+} from './types.ts';
 
 const newId = () => crypto.randomUUID();
-const ENTITIES_STORAGE_KEY = "fatura-entities";
-const ACTIVE_ENTITY_STORAGE_KEY = "fatura-active-entity-id";
+const ENTITIES_STORAGE_KEY = 'fatura-entities';
+const ACTIVE_ENTITY_STORAGE_KEY = 'fatura-active-entity-id';
 
 const SEED_RECIPIENTS: Recipient[] = [
   {
     id: newId(),
-    taxIDOrTRID: "2222222222",
-    taxOffice: "",
-    title: "PLASTIC SOFTWARE LLC",
-    name: "",
-    surname: "",
-    fullAddress: "500 Westover Dr #10034\nSanford, NC 27330",
-    country: "Amerika Birleşik Dev",
-    city: "",
-    district: "",
+    taxIDOrTRID: '2222222222',
+    taxOffice: '',
+    title: 'PLASTIC SOFTWARE LLC',
+    name: '',
+    surname: '',
+    fullAddress: '500 Westover Dr #10034\nSanford, NC 27330',
+    country: 'Amerika Birleşik Dev',
+    city: '',
+    district: '',
   },
   {
     id: newId(),
-    taxIDOrTRID: "1234567890",
-    taxOffice: "Kadıköy",
-    title: "ÖRNEK TEKNOLOJİ A.Ş.",
-    name: "Ahmet",
-    surname: "Yılmaz",
-    fullAddress: "Bağdat Cad. No:123 Kadıköy",
-    country: "Türkiye",
-    city: "İstanbul",
-    district: "Kadıköy",
+    taxIDOrTRID: '1234567890',
+    taxOffice: 'Kadıköy',
+    title: 'ÖRNEK TEKNOLOJİ A.Ş.',
+    name: 'Ahmet',
+    surname: 'Yılmaz',
+    fullAddress: 'Bağdat Cad. No:123 Kadıköy',
+    country: 'Türkiye',
+    city: 'İstanbul',
+    district: 'Kadıköy',
   },
   {
     id: newId(),
-    taxIDOrTRID: "9876543210",
-    taxOffice: "",
-    title: "ACME GMBH",
-    name: "Hans",
-    surname: "Müller",
-    fullAddress: "Hauptstraße 42, 10115 Berlin",
-    country: "Almanya",
-    city: "Berlin",
-    district: "",
+    taxIDOrTRID: '9876543210',
+    taxOffice: '',
+    title: 'ACME GMBH',
+    name: 'Hans',
+    surname: 'Müller',
+    fullAddress: 'Hauptstraße 42, 10115 Berlin',
+    country: 'Almanya',
+    city: 'Berlin',
+    district: '',
   },
 ];
 
 const DEFAULT_ITEM_ADVANCED = {
-  unitType: "C62",
+  unitType: 'C62',
   discountRate: 0,
   discountAmount: 0,
-  discountReason: "",
-  gtip: "",
+  discountReason: '',
+  gtip: '',
 };
 
-const DEFAULT_CREDS: Credentials = { username: "", password: "", testMode: true };
+const DEFAULT_CREDS: Credentials = { username: '', password: '', testMode: true };
 
 const DEFAULT_COMPANY_INFO: CompanyInfo = {
-  name: "",
-  address: "",
-  taxID: "",
-  taxOffice: "",
-  phone: "",
-  email: "",
-  bankName: "",
-  accountHolder: "",
-  iban: "",
-  swiftCode: "",
-  bankAddress: "",
+  name: '',
+  address: '',
+  taxID: '',
+  taxOffice: '',
+  phone: '',
+  email: '',
+  bankName: '',
+  accountHolder: '',
+  iban: '',
+  swiftCode: '',
+  bankAddress: '',
 };
 
 const SEED_ITEMS: InvoiceItem[] = [
   {
     id: newId(),
-    name: "Engineering Services - Mühendislik Hizmetleri",
+    name: 'Engineering Services - Mühendislik Hizmetleri',
     quantity: 1,
     unitPrice: 100,
     VATRate: 0,
@@ -88,7 +88,7 @@ const SEED_ITEMS: InvoiceItem[] = [
   },
   {
     id: newId(),
-    name: "Yazılım Geliştirme Hizmeti",
+    name: 'Yazılım Geliştirme Hizmeti',
     quantity: 1,
     unitPrice: 5000,
     VATRate: 20,
@@ -96,7 +96,7 @@ const SEED_ITEMS: InvoiceItem[] = [
   },
   {
     id: newId(),
-    name: "Danışmanlık Hizmeti",
+    name: 'Danışmanlık Hizmeti',
     quantity: 1,
     unitPrice: 2500,
     VATRate: 20,
@@ -106,7 +106,7 @@ const SEED_ITEMS: InvoiceItem[] = [
 
 function loadLocal<T>(key: string, fallback: T): T {
   try {
-    return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback;
+    return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback;
   } catch {
     return fallback;
   }
@@ -114,47 +114,47 @@ function loadLocal<T>(key: string, fallback: T): T {
 
 function currentTime() {
   const now = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
+  const p = (n: number) => String(n).padStart(2, '0');
   return `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
 }
 
 const BLANK_RECIPIENT: Recipient = {
-  id: "",
-  taxIDOrTRID: "",
-  taxOffice: "",
-  title: "",
-  name: "",
-  surname: "",
-  fullAddress: "",
-  country: "",
-  city: "",
-  district: "",
+  id: '',
+  taxIDOrTRID: '',
+  taxOffice: '',
+  title: '',
+  name: '',
+  surname: '',
+  fullAddress: '',
+  country: '',
+  city: '',
+  district: '',
 };
 
 const DEFAULT_SETTINGS: InvoiceSettings = {
-  currency: "TRY",
-  currencyRate: "",
-  invoiceType: "SATIS",
+  currency: 'TRY',
+  currencyRate: '',
+  invoiceType: 'SATIS',
 };
 
 export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
-  manualDate: "",
+  manualDate: '',
   manualTime: currentTime(),
-  irsaliyeNumarasi: "",
-  irsaliyeTarihi: "",
-  paymentTotal: "",
+  irsaliyeNumarasi: '',
+  irsaliyeTarihi: '',
+  paymentTotal: '',
 };
 
 /** Safely convert unknown GIB field to string */
-function str(v: unknown, fallback = ""): string {
+function str(v: unknown, fallback = ''): string {
   if (v == null) return fallback;
-  return typeof v === "string" ? v : fallback;
+  return typeof v === 'string' ? v : fallback;
 }
 
 function makeBlankItem(): InvoiceItem {
   return {
     id: newId(),
-    name: "",
+    name: '',
     quantity: 1,
     unitPrice: 0,
     VATRate: 20,
@@ -163,7 +163,7 @@ function makeBlankItem(): InvoiceItem {
 }
 
 function makeEntityName(index: number) {
-  return index === 0 ? "Ana Varlık" : `Varlık ${index + 1}`;
+  return index === 0 ? 'Ana Varlık' : `Varlık ${index + 1}`;
 }
 
 function makeDefaultEntity(index: number, seedData = true): Entity {
@@ -195,11 +195,11 @@ function loadEntities(): Entity[] {
   return [
     {
       ...makeDefaultEntity(0, false),
-      creds: loadLocal("fatura-creds", { ...DEFAULT_CREDS }),
-      companyInfo: loadLocal("fatura-company-info", { ...DEFAULT_COMPANY_INFO }),
-      savedRecipients: loadLocal("fatura-saved-recipients", SEED_RECIPIENTS),
-      savedItems: loadLocal("fatura-saved-items", SEED_ITEMS),
-      invoiceTemplates: loadLocal("fatura-templates", []),
+      creds: loadLocal('fatura-creds', { ...DEFAULT_CREDS }),
+      companyInfo: loadLocal('fatura-company-info', { ...DEFAULT_COMPANY_INFO }),
+      savedRecipients: loadLocal('fatura-saved-recipients', SEED_RECIPIENTS),
+      savedItems: loadLocal('fatura-saved-items', SEED_ITEMS),
+      invoiceTemplates: loadLocal('fatura-templates', []),
     },
   ];
 }
@@ -258,21 +258,21 @@ const StoreContext = createContext<Store | null>(null);
 
 export function useStore() {
   const ctx = useContext(StoreContext);
-  if (!ctx) throw new Error("useStore must be used within StoreProvider");
+  if (!ctx) throw new Error('useStore must be used within StoreProvider');
   return ctx;
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [entities, setEntities] = useState<Entity[]>(() => loadEntities());
   const [activeEntityId, setActiveEntityId] = useState(
-    () => loadLocal<string | null>(ACTIVE_ENTITY_STORAGE_KEY, null) ?? loadEntities()[0]?.id ?? "",
+    () => loadLocal<string | null>(ACTIVE_ENTITY_STORAGE_KEY, null) ?? loadEntities()[0]?.id ?? '',
   );
 
   // Invoice form state — not persisted, starts blank
   const [recipient, setRecipient] = useState<Recipient>({ ...BLANK_RECIPIENT, id: newId() });
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>({ ...DEFAULT_SETTINGS });
   const [items, setItems] = useState<InvoiceItem[]>(() => [makeBlankItem()]);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState('');
   const [advancedFields, setAdvancedFields] = useState<AdvancedInvoiceFields>({
     ...DEFAULT_ADVANCED_FIELDS,
   });
@@ -284,14 +284,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [invoiceDateRange, setInvoiceDateRange] = useState(() => {
     const now = new Date();
-    const p = (n: number) => String(n).padStart(2, "0");
+    const p = (n: number) => String(n).padStart(2, '0');
     const today = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
     return { start: today, end: today };
   });
 
   useEffect(() => {
     if (entities.some((entity) => entity.id === activeEntityId)) return;
-    setActiveEntityId(entities[0]?.id ?? "");
+    setActiveEntityId(entities[0]?.id ?? '');
   }, [activeEntityId, entities]);
 
   const activeEntity = entities.find((entity) => entity.id === activeEntityId) ?? entities[0];
@@ -338,7 +338,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (value) => {
       updateActiveEntity((entity) => ({
         ...entity,
-        creds: typeof value === "function" ? value(entity.creds) : value,
+        creds: typeof value === 'function' ? value(entity.creds) : value,
       }));
     },
     [updateActiveEntity],
@@ -348,7 +348,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (value) => {
       updateActiveEntity((entity) => ({
         ...entity,
-        companyInfo: typeof value === "function" ? value(entity.companyInfo) : value,
+        companyInfo: typeof value === 'function' ? value(entity.companyInfo) : value,
       }));
     },
     [updateActiveEntity],
@@ -358,7 +358,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (value) => {
       updateActiveEntity((entity) => ({
         ...entity,
-        savedRecipients: typeof value === "function" ? value(entity.savedRecipients) : value,
+        savedRecipients: typeof value === 'function' ? value(entity.savedRecipients) : value,
       }));
     },
     [updateActiveEntity],
@@ -368,7 +368,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (value) => {
       updateActiveEntity((entity) => ({
         ...entity,
-        savedItems: typeof value === "function" ? value(entity.savedItems) : value,
+        savedItems: typeof value === 'function' ? value(entity.savedItems) : value,
       }));
     },
     [updateActiveEntity],
@@ -378,7 +378,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (value) => {
       updateActiveEntity((entity) => ({
         ...entity,
-        invoiceTemplates: typeof value === "function" ? value(entity.invoiceTemplates) : value,
+        invoiceTemplates: typeof value === 'function' ? value(entity.invoiceTemplates) : value,
       }));
     },
     [updateActiveEntity],
@@ -394,7 +394,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setRecipient({ ...BLANK_RECIPIENT, id: newId() });
     setInvoiceSettings({ ...DEFAULT_SETTINGS });
     setItems([makeBlankItem()]);
-    setNote("");
+    setNote('');
     setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
     setInvoiceStarted(false);
     setSourceTemplateId(null);
@@ -442,9 +442,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
     const rate = str(data.dovzTLkur);
     setInvoiceSettings({
-      currency: str(data.paraBirimi, "TRY"),
-      currencyRate: rate === "0" ? "" : rate,
-      invoiceType: str(data.faturaTipi, "SATIS"),
+      currency: str(data.paraBirimi, 'TRY'),
+      currencyRate: rate === '0' ? '' : rate,
+      invoiceType: str(data.faturaTipi, 'SATIS'),
     });
     setItems(
       table.length > 0
@@ -454,7 +454,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             quantity: Number(row.miktar) || 1,
             unitPrice: Number(row.birimFiyat) || 0,
             VATRate: Number(row.kdvOrani) || 0,
-            unitType: str(row.birim, "C62"),
+            unitType: str(row.birim, 'C62'),
             discountRate: Number(row.iskontoOrani) || 0,
             discountAmount: Number(row.iskontoTutari) || 0,
             discountReason: str(row.iskontoNedeni),

@@ -1,4 +1,4 @@
-const TCMB_BASE = "https://www.tcmb.gov.tr/kurlar";
+const TCMB_BASE = 'https://www.tcmb.gov.tr/kurlar';
 
 /**
  * Fetch TCMB daily exchange rates for a given date (or today).
@@ -9,7 +9,7 @@ export async function fetchTCMBRates(
   options?: { fetch?: typeof globalThis.fetch },
 ): Promise<Map<string, number>> {
   const fetchFn = options?.fetch ?? globalThis.fetch;
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const pad = (n: number) => String(n).padStart(2, '0');
   const start = baseDate ?? new Date();
   for (let i = 0; i < 7; i++) {
     const date = new Date(start);
@@ -21,17 +21,17 @@ export async function fetchTCMBRates(
     const response = await fetchFn(url);
     if (!response.ok) continue;
     const xml = await response.text();
-    const doc = new DOMParser().parseFromString(xml, "text/xml");
+    const doc = new DOMParser().parseFromString(xml, 'text/xml');
     const rates = new Map<string, number>();
-    for (const node of doc.querySelectorAll("Currency")) {
-      const code = node.getAttribute("CurrencyCode");
-      const unit = Number(node.querySelector("Unit")?.textContent) || 1;
-      const buying = Number(node.querySelector("ForexBuying")?.textContent);
+    for (const node of doc.querySelectorAll('Currency')) {
+      const code = node.getAttribute('CurrencyCode');
+      const unit = Number(node.querySelector('Unit')?.textContent) || 1;
+      const buying = Number(node.querySelector('ForexBuying')?.textContent);
       if (code && buying) {
         rates.set(code, buying / unit);
       }
     }
     if (rates.size > 0) return rates;
   }
-  throw new Error("TCMB kur verisi bulunamadı");
+  throw new Error('TCMB kur verisi bulunamadı');
 }

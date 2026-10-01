@@ -7,7 +7,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 
 export function ConfirmDialog({
   open,
@@ -15,8 +15,8 @@ export function ConfirmDialog({
   title,
   description,
   onConfirm,
-  confirmLabel = "Sil",
-  cancelLabel = "İptal",
+  confirmLabel = 'Sil',
+  cancelLabel = 'İptal',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;

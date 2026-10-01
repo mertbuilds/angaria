@@ -1,6 +1,6 @@
-import { useState, useRef, useMemo } from "react";
-import { toast } from "sonner";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { ReloadIcon, ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,9 +10,7 @@ import {
   flexRender,
   type ColumnDef,
   type SortingState,
-} from "@tanstack/react-table";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ReloadIcon, ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+} from '@tanstack/react-table';
 import {
   MoreVertical,
   Eye,
@@ -23,33 +21,15 @@ import {
   ArrowDown,
   Copy,
   Download,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+} from 'lucide-react';
+import { useState, useRef, useMemo } from 'react';
+import { toast } from 'sonner';
+import type { Page } from '@/components/app-sidebar.tsx';
+import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
+import { downloadInvoicePDF } from '@/components/invoice-pdf.tsx';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker.tsx';
 import {
   Dialog,
   DialogContent,
@@ -57,20 +37,40 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { DatePicker } from "@/components/ui/date-picker.tsx";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
-import { downloadInvoicePDF } from "@/components/invoice-pdf.tsx";
-import { useStore } from "@/lib/store.tsx";
-import { parseGIB, toGIB, formatDateHuman } from "@/lib/utils.ts";
-import type { Page } from "@/components/app-sidebar.tsx";
-import * as angaria from "@/lib/angaria.ts";
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import * as angaria from '@/lib/angaria.ts';
+import { useStore } from '@/lib/store.tsx';
+import { parseGIB, toGIB, formatDateHuman } from '@/lib/utils.ts';
 
 /** Safely convert unknown GIB field to string */
-function str(v: unknown, fallback = ""): string {
+function str(v: unknown, fallback = ''): string {
   if (v == null) return fallback;
-  return typeof v === "string" ? v : fallback;
+  return typeof v === 'string' ? v : fallback;
 }
 
 export interface Invoice {
@@ -99,13 +99,13 @@ async function fetchDrafts(
 }
 
 function StatusBadge({ status }: { status?: string }) {
-  if (status === "Onaylandı")
+  if (status === 'Onaylandı')
     return (
       <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
         Onaylı
       </Badge>
     );
-  if (status === "Silinmiş") return <Badge variant="destructive">Silinmiş</Badge>;
+  if (status === 'Silinmiş') return <Badge variant="destructive">Silinmiş</Badge>;
   return <Badge variant="outline">Taslak</Badge>;
 }
 
@@ -113,7 +113,7 @@ function SortableHeader({
   column,
   label,
 }: {
-  column: { getIsSorted: () => false | "asc" | "desc"; toggleSorting: (desc?: boolean) => void };
+  column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (desc?: boolean) => void };
   label: string;
 }) {
   const sorted = column.getIsSorted();
@@ -124,9 +124,9 @@ function SortableHeader({
       onClick={() => column.toggleSorting()}
     >
       {label}
-      {sorted === "asc" ? (
+      {sorted === 'asc' ? (
         <ArrowUp className="size-3.5" />
-      ) : sorted === "desc" ? (
+      ) : sorted === 'desc' ? (
         <ArrowDown className="size-3.5" />
       ) : (
         <ArrowUpDown className="size-3.5 text-muted-foreground/50" />
@@ -163,16 +163,16 @@ export function InvoicesPage({
 
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Invoice | null>(null);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [globalFilter, setGlobalFilter] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [sorting, setSorting] = useState<SortingState>([]);
 
   // SMS signing state
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
-  const [smsCode, setSmsCode] = useState("");
-  const [smsPhone, setSmsPhone] = useState("");
+  const [smsCode, setSmsCode] = useState('');
+  const [smsPhone, setSmsPhone] = useState('');
   const smsSessionRef = useRef<angaria.SessionInfo | null>(null);
-  const smsOidRef = useRef("");
+  const smsOidRef = useRef('');
   const smsInvoiceIdsRef = useRef<string[]>([]);
 
   const hasCredentials = Boolean(creds.username && creds.password);
@@ -182,7 +182,7 @@ export function InvoicesPage({
     isLoading,
     isFetching,
   } = useQuery({
-    queryKey: ["invoices", creds.username, creds.testMode, listStartDate, listEndDate],
+    queryKey: ['invoices', creds.username, creds.testMode, listStartDate, listEndDate],
     queryFn: () =>
       fetchDrafts(creds.username, creds.password, creds.testMode, listStartDate, listEndDate),
     enabled: hasCredentials && Boolean(listStartDate) && Boolean(listEndDate),
@@ -197,7 +197,7 @@ export function InvoicesPage({
       try {
         await angaria.cancelInvoice(
           session,
-          "Fatura iptal edildi",
+          'Fatura iptal edildi',
           invoice as unknown as Record<string, unknown>,
         );
       } finally {
@@ -205,8 +205,8 @@ export function InvoicesPage({
       }
     },
     onSuccess: () => {
-      toast.success("Fatura silindi");
-      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success('Fatura silindi');
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
     },
   });
 
@@ -221,7 +221,7 @@ export function InvoicesPage({
       smsOidRef.current = oid;
       smsInvoiceIdsRef.current = [ettn];
       setSmsPhone(phone);
-      setSmsCode("");
+      setSmsCode('');
       setSmsDialogOpen(true);
     },
   });
@@ -229,7 +229,7 @@ export function InvoicesPage({
   const verifySignMutation = useMutation({
     mutationFn: async () => {
       const session = smsSessionRef.current;
-      if (!session) throw new Error("Oturum bulunamadı");
+      if (!session) throw new Error('Oturum bulunamadı');
       return angaria.verifyAndSign(session, smsCode, smsOidRef.current, smsInvoiceIdsRef.current);
     },
     onSuccess: () => {
@@ -237,18 +237,18 @@ export function InvoicesPage({
         angaria.logout(smsSessionRef.current).catch(() => {});
         smsSessionRef.current = null;
       }
-      toast.success("Fatura onaylandı");
+      toast.success('Fatura onaylandı');
       setSmsDialogOpen(false);
-      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
     },
     onError: () => {
-      setSmsCode("");
+      setSmsCode('');
     },
   });
 
   const useAsTemplateMutation = useMutation({
     mutationFn: async (invoice: Invoice) => {
-      if (!invoice.ettn) throw new Error("Fatura ETTN bulunamadı");
+      if (!invoice.ettn) throw new Error('Fatura ETTN bulunamadı');
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
         return await angaria.getInvoiceDetail(session, invoice.ettn);
@@ -258,16 +258,16 @@ export function InvoicesPage({
     },
     onSuccess: (detail) => {
       loadFromGIBInvoice(detail);
-      onNavigate("create");
+      onNavigate('create');
     },
   });
 
-  const pdfToastRef = useRef<string | number>("");
+  const pdfToastRef = useRef<string | number>('');
 
   const downloadPDFMutation = useMutation({
     mutationFn: async (invoice: Invoice) => {
-      if (!invoice.ettn) throw new Error("Fatura ETTN bulunamadı");
-      pdfToastRef.current = toast.loading("PDF hazırlanıyor...");
+      if (!invoice.ettn) throw new Error('Fatura ETTN bulunamadı');
+      pdfToastRef.current = toast.loading('PDF hazırlanıyor...');
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
         const detail = await angaria.getInvoiceDetail(session, invoice.ettn);
@@ -278,7 +278,7 @@ export function InvoicesPage({
           quantity: Number(row.miktar) || 1,
           unitPrice: Number(row.birimFiyat) || 0,
           VATRate: Number(row.kdvOrani) || 0,
-          unitType: str(row.birim, "C62"),
+          unitType: str(row.birim, 'C62'),
           discountRate: Number(row.iskontoOrani) || 0,
           discountAmount: Number(row.iskontoTutari) || 0,
           discountReason: str(row.iskontoNedeni),
@@ -297,7 +297,7 @@ export function InvoicesPage({
           entityName: activeEntity.name,
           company: companyInfo,
           recipient: {
-            id: "",
+            id: '',
             taxIDOrTRID: str(detail.vknTckn),
             taxOffice: str(detail.vergiDairesi),
             title: str(detail.aliciUnvan),
@@ -309,12 +309,12 @@ export function InvoicesPage({
             district: str(detail.mahalleSemtIlce),
           },
           settings: {
-            currency: str(detail.paraBirimi, "TRY"),
-            currencyRate: rate === "0" ? "" : rate,
-            invoiceType: str(detail.faturaTipi, "SATIS"),
+            currency: str(detail.paraBirimi, 'TRY'),
+            currencyRate: rate === '0' ? '' : rate,
+            invoiceType: str(detail.faturaTipi, 'SATIS'),
           },
           items,
-          date: invoice.belgeTarihi ?? "",
+          date: invoice.belgeTarihi ?? '',
           invoiceNumber: invoice.belgeNumarasi,
           note: str(detail.not),
           grandTotal,
@@ -325,9 +325,9 @@ export function InvoicesPage({
         angaria.logout(session).catch(() => {});
       }
     },
-    onSuccess: () => toast.success("PDF indirildi", { id: pdfToastRef.current }),
+    onSuccess: () => toast.success('PDF indirildi', { id: pdfToastRef.current }),
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "PDF oluşturulamadı", {
+      toast.error(error instanceof Error ? error.message : 'PDF oluşturulamadı', {
         id: pdfToastRef.current,
       });
     },
@@ -341,24 +341,24 @@ export function InvoicesPage({
   const loading = isLoading || isFetching || mutating;
 
   function handleSign(invoice: Invoice) {
-    if (invoice.onayDurumu === "Onaylandı") {
-      toast.error("Bu fatura zaten onaylanmış!");
+    if (invoice.onayDurumu === 'Onaylandı') {
+      toast.error('Bu fatura zaten onaylanmış!');
       return;
     }
-    if (invoice.onayDurumu === "Silinmiş") {
-      toast.error("Silinmiş fatura onaylanamaz!");
+    if (invoice.onayDurumu === 'Silinmiş') {
+      toast.error('Silinmiş fatura onaylanamaz!');
       return;
     }
     startSignMutation.mutate(invoice);
   }
 
   function handleCancel(invoice: Invoice) {
-    if (invoice.onayDurumu === "Onaylandı") {
-      toast.error("Onaylanmış belgeler silinemez!");
+    if (invoice.onayDurumu === 'Onaylandı') {
+      toast.error('Onaylanmış belgeler silinemez!');
       return;
     }
-    if (invoice.onayDurumu === "Silinmiş") {
-      toast.error("Bu belge zaten silinmiş!");
+    if (invoice.onayDurumu === 'Silinmiş') {
+      toast.error('Bu belge zaten silinmiş!');
       return;
     }
     cancelMutation.mutate(invoice);
@@ -375,36 +375,36 @@ export function InvoicesPage({
   const columns = useMemo<ColumnDef<Invoice>[]>(
     () => [
       {
-        accessorKey: "belgeNumarasi",
+        accessorKey: 'belgeNumarasi',
         header: ({ column }) => <SortableHeader column={column} label="Belge No" />,
         cell: ({ getValue }) => (
-          <span className="font-mono text-xs">{(getValue() as string) ?? ""}</span>
+          <span className="font-mono text-xs">{(getValue() as string) ?? ''}</span>
         ),
       },
       {
-        accessorKey: "aliciUnvanAdSoyad",
+        accessorKey: 'aliciUnvanAdSoyad',
         header: ({ column }) => <SortableHeader column={column} label="Alıcı" />,
         cell: ({ getValue }) => (
-          <span className="block max-w-48 truncate">{(getValue() as string) ?? ""}</span>
+          <span className="block max-w-48 truncate">{(getValue() as string) ?? ''}</span>
         ),
       },
       {
-        accessorKey: "belgeTarihi",
+        accessorKey: 'belgeTarihi',
         header: ({ column }) => <SortableHeader column={column} label="Tarih" />,
-        cell: ({ getValue }) => formatDateHuman((getValue() as string) ?? ""),
+        cell: ({ getValue }) => formatDateHuman((getValue() as string) ?? ''),
       },
       {
-        accessorKey: "onayDurumu",
+        accessorKey: 'onayDurumu',
         header: ({ column }) => <SortableHeader column={column} label="Durum" />,
         cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,
       },
       {
-        id: "actions",
-        header: "",
+        id: 'actions',
+        header: '',
         cell: ({ row }) => {
           const inv = row.original;
-          const showSign = inv.onayDurumu !== "Onaylandı" && inv.onayDurumu !== "Silinmiş";
-          const showDelete = inv.onayDurumu !== "Onaylandı" && inv.onayDurumu !== "Silinmiş";
+          const showSign = inv.onayDurumu !== 'Onaylandı' && inv.onayDurumu !== 'Silinmiş';
+          const showDelete = inv.onayDurumu !== 'Onaylandı' && inv.onayDurumu !== 'Silinmiş';
           return (
             <div className="flex justify-end">
               <DropdownMenu>
@@ -433,7 +433,7 @@ export function InvoicesPage({
                     <Copy className="size-4" />
                     Şablon olarak kullan
                   </DropdownMenuItem>
-                  {inv.onayDurumu === "Onaylandı" && (
+                  {inv.onayDurumu === 'Onaylandı' && (
                     <DropdownMenuItem
                       onClick={() => {
                         if (!requireCredentials()) return;
@@ -471,7 +471,7 @@ export function InvoicesPage({
     onSortingChange: setSorting,
     onPaginationChange: (updater) => {
       const prev = { pageIndex, pageSize: invoicePageSize };
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const next = typeof updater === 'function' ? updater(prev) : updater;
       setPageIndex(next.pageIndex);
       setInvoicePageSize(next.pageSize);
     },
@@ -501,13 +501,13 @@ export function InvoicesPage({
           disabled={loading}
           onClick={() => {
             if (!requireCredentials()) return;
-            void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            void queryClient.invalidateQueries({ queryKey: ['invoices'] });
           }}
         >
           <HugeiconsIcon
             icon={ReloadIcon}
             strokeWidth={1.5}
-            className={loading ? "animate-spin" : ""}
+            className={loading ? 'animate-spin' : ''}
           />
         </Button>
       </div>
@@ -603,7 +603,7 @@ export function InvoicesPage({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>
-                {table.getFilteredRowModel().rows.length} sonuçtan{" "}
+                {table.getFilteredRowModel().rows.length} sonuçtan{' '}
                 {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}–
                 {Math.min(
                   (table.getState().pagination.pageIndex + 1) *
@@ -684,7 +684,7 @@ export function InvoicesPage({
             value={smsCode}
             onChange={(e) => setSmsCode(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && smsCode) verifySignMutation.mutate();
+              if (e.key === 'Enter' && smsCode) verifySignMutation.mutate();
             }}
             autoFocus
           />
@@ -696,7 +696,7 @@ export function InvoicesPage({
               disabled={!smsCode || verifySignMutation.isPending}
               onClick={() => verifySignMutation.mutate()}
             >
-              {verifySignMutation.isPending ? "Onaylanıyor..." : "Onayla"}
+              {verifySignMutation.isPending ? 'Onaylanıyor...' : 'Onayla'}
             </Button>
           </DialogFooter>
         </DialogContent>

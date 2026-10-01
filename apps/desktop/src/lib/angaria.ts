@@ -1,8 +1,8 @@
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { createClient } from "angaria-earsiv-sdk";
-import { fetchTCMBRates as _fetchTCMBRates } from "angaria-utils";
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { createClient } from 'angaria-earsiv-sdk';
+import { fetchTCMBRates as _fetchTCMBRates } from 'angaria-utils';
 
-export type { SessionInfo, InvoiceItem, InvoiceDetails } from "angaria-earsiv-sdk";
+export type { SessionInfo, InvoiceItem, InvoiceDetails } from 'angaria-earsiv-sdk';
 
 const client = createClient({ fetch: tauriFetch });
 

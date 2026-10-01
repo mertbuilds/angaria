@@ -1,7 +1,7 @@
-import { resolve } from "node:path";
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
+import { resolve } from 'node:path';
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
 // Tauri loads devUrl (http://localhost:5173 in src-tauri/tauri.conf.json), so the
 // dev server stays on a fixed port instead of a portless-assigned one.
@@ -9,15 +9,15 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@": resolve(import.meta.dirname, "./src"),
+      '@': resolve(import.meta.dirname, './src'),
     },
   },
   server: {
     port: 5173,
     strictPort: true,
     hmr: {
-      protocol: "ws",
-      host: "localhost",
+      protocol: 'ws',
+      host: 'localhost',
       port: 5173,
     },
   },

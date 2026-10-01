@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface DatePickerProps {
   value: Date | undefined;
@@ -19,7 +19,7 @@ interface DatePickerProps {
 export function DatePicker({
   value,
   onChange,
-  placeholder = "Tarih seçin",
+  placeholder = 'Tarih seçin',
   className,
   maxDate,
 }: DatePickerProps) {
@@ -31,12 +31,12 @@ export function DatePicker({
         <Button
           variant="outline"
           className={cn(
-            "w-full justify-between font-normal",
-            !value && "text-muted-foreground",
+            'w-full justify-between font-normal',
+            !value && 'text-muted-foreground',
             className,
           )}
         >
-          {value ? format(value, "PPP", { locale: tr }) : placeholder}
+          {value ? format(value, 'PPP', { locale: tr }) : placeholder}
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             strokeWidth={1.5}

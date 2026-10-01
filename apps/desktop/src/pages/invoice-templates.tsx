@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { toast } from "sonner";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Delete01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
-import { useStore } from "@/lib/store.tsx";
-import type { Page } from "@/components/app-sidebar.tsx";
+import { Delete01Icon, PlusSignIcon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import type { Page } from '@/components/app-sidebar.tsx';
+import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useStore } from '@/lib/store.tsx';
 
 export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const { invoiceTemplates, setInvoiceTemplates, loadTemplate } = useStore();
@@ -18,7 +18,7 @@ export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) 
     const name = loadTemplate(id);
     if (name) {
       toast.success(`"${name}" şablonu yüklendi`);
-      onNavigate("create");
+      onNavigate('create');
     }
   }
 
@@ -50,7 +50,7 @@ export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) 
         ))}
         <button
           type="button"
-          onClick={() => onNavigate("create")}
+          onClick={() => onNavigate('create')}
           className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
         >
           <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} className="size-6" />
@@ -66,7 +66,7 @@ export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) 
         onConfirm={() => {
           if (deleteId) {
             setInvoiceTemplates((prev) => prev.filter((t) => t.id !== deleteId));
-            toast.success("Fatura şablonu silindi");
+            toast.success('Fatura şablonu silindi');
             setDeleteId(null);
           }
         }}

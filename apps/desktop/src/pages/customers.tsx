@@ -1,23 +1,23 @@
-import { useState } from "react";
-import { toast } from "sonner";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Delete01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
-import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Delete01Icon, PlusSignIcon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { GIB_COUNTRIES } from "@/lib/gib-constants.ts";
-import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
-import { useStore } from "@/lib/store.tsx";
-import type { Recipient } from "@/lib/types.ts";
+} from '@/components/ui/select';
+import { GIB_COUNTRIES } from '@/lib/gib-constants.ts';
+import { useStore } from '@/lib/store.tsx';
+import type { Recipient } from '@/lib/types.ts';
 
 export function CustomersPage() {
   const { savedRecipients, setSavedRecipients, setRecipient, newId } = useStore();
@@ -27,22 +27,22 @@ export function CustomersPage() {
   function startNew() {
     setEditing({
       id: newId(),
-      taxIDOrTRID: "",
-      taxOffice: "",
-      title: "",
-      name: "",
-      surname: "",
-      fullAddress: "",
-      country: "",
-      city: "",
-      district: "",
+      taxIDOrTRID: '',
+      taxOffice: '',
+      title: '',
+      name: '',
+      surname: '',
+      fullAddress: '',
+      country: '',
+      city: '',
+      district: '',
     });
   }
 
   function saveCustomer() {
     if (!editing) return;
     if (!editing.taxIDOrTRID || !editing.title) {
-      toast.error("VKN/TCKN ve ünvan gerekli");
+      toast.error('VKN/TCKN ve ünvan gerekli');
       return;
     }
     setSavedRecipients((prev) => {
@@ -50,14 +50,14 @@ export function CustomersPage() {
       if (idx >= 0) return prev.map((r, i) => (i === idx ? { ...editing } : r));
       return [...prev, { ...editing }];
     });
-    toast.success("Müşteri kaydedildi");
+    toast.success('Müşteri kaydedildi');
     setEditing(null);
   }
 
   function confirmDelete() {
     if (!deleteTarget) return;
     setSavedRecipients((prev) => prev.filter((r) => r.id !== deleteTarget));
-    toast.success("Müşteri silindi");
+    toast.success('Müşteri silindi');
     setDeleteTarget(null);
   }
 
@@ -74,8 +74,8 @@ export function CustomersPage() {
           <CardHeader>
             <CardTitle>
               {savedRecipients.some((r) => r.id === editing.id)
-                ? "Müşteri Düzenle"
-                : "Yeni Müşteri"}
+                ? 'Müşteri Düzenle'
+                : 'Yeni Müşteri'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">

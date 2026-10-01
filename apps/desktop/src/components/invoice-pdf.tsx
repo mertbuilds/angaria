@@ -1,12 +1,12 @@
-import { Document, Page, Text, View, StyleSheet, Font, pdf } from "@react-pdf/renderer";
-import type { CompanyInfo, InvoiceItem, Recipient, InvoiceSettings } from "@/lib/types.ts";
-import { GIB_UNIT_TYPES } from "@/lib/gib-constants.ts";
-import interRegular from "@/assets/fonts/Inter-Regular.ttf";
-import interSemiBold from "@/assets/fonts/Inter-SemiBold.ttf";
-import interBold from "@/assets/fonts/Inter-Bold.ttf";
+import { Document, Page, Text, View, StyleSheet, Font, pdf } from '@react-pdf/renderer';
+import interBold from '@/assets/fonts/Inter-Bold.ttf';
+import interRegular from '@/assets/fonts/Inter-Regular.ttf';
+import interSemiBold from '@/assets/fonts/Inter-SemiBold.ttf';
+import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
+import type { CompanyInfo, InvoiceItem, Recipient, InvoiceSettings } from '@/lib/types.ts';
 
 Font.register({
-  family: "Inter",
+  family: 'Inter',
   fonts: [
     { src: interRegular, fontWeight: 400 },
     { src: interSemiBold, fontWeight: 600 },
@@ -18,33 +18,33 @@ Font.registerHyphenationCallback((word) => [word]);
 
 // ── Design tokens ──
 
-const PRIMARY = "#009962";
-const INK = "#1C1C1E";
-const SECONDARY = "#555555";
-const TERTIARY = "#8E8E93";
-const RULE = "#D1D5DB";
+const PRIMARY = '#009962';
+const INK = '#1C1C1E';
+const SECONDARY = '#555555';
+const TERTIARY = '#8E8E93';
+const RULE = '#D1D5DB';
 
 // ── Helpers ──
 
 const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 /** Parse "dd/MM/yyyy" or "dd-MM-yyyy" into "dd Month yyyy" */
 function formatDateHuman(raw: string): string {
-  if (!raw) return "";
-  const sep = raw.includes("/") ? "/" : "-";
+  if (!raw) return '';
+  const sep = raw.includes('/') ? '/' : '-';
   const [dd, mm, yyyy] = raw.split(sep);
   const monthIdx = Number(mm) - 1;
   if (monthIdx < 0 || monthIdx > 11) return raw;
@@ -54,59 +54,59 @@ function formatDateHuman(raw: string): string {
 const unitLabel = (code: string) => GIB_UNIT_TYPES.find((u) => u.value === code)?.label ?? code;
 
 const fmtAmount = (currency: string, n: number) =>
-  `${currency} ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `${currency} ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const COUNTRY_TR_TO_EN: Record<string, string> = {
-  Türkiye: "Turkey",
-  "Amerika Birleşik Dev": "United States",
-  Almanya: "Germany",
-  "Birleşik Krallik": "United Kingdom",
-  Fransa: "France",
-  Hollanda: "Netherlands",
-  İtalya: "Italy",
-  İspanya: "Spain",
-  İsviçre: "Switzerland",
-  Avusturya: "Austria",
-  Belçika: "Belgium",
-  Kanada: "Canada",
-  Japonya: "Japan",
-  Avustralya: "Australia",
-  Brezilya: "Brazil",
-  "Çin Halk Cumhuriyeti": "China",
-  Hindistan: "India",
-  "Rusya Federasyonu": "Russia",
-  "Güney Kore Cumhuriye": "South Korea",
-  Meksika: "Mexico",
-  İrlanda: "Ireland",
-  Danimarka: "Denmark",
-  İsveç: "Sweden",
-  Norveç: "Norway",
-  Finlandiya: "Finland",
-  Polonya: "Poland",
-  Portekiz: "Portugal",
-  Yunanistan: "Greece",
-  "Çek Cumhuriyeti": "Czech Republic",
-  Macaristan: "Hungary",
-  Romanya: "Romania",
-  Bulgaristan: "Bulgaria",
-  Hirvatistan: "Croatia",
-  Sirbistan: "Serbia",
-  "Birleşik Arap Emirli": "United Arab Emirates",
-  "Suudi Arabistan": "Saudi Arabia",
-  İsrail: "Israel",
-  Singapur: "Singapore",
-  "Hong Kong": "Hong Kong",
-  "Yeni Zelanda": "New Zealand",
-  "Güney Afrika Cumhuri": "South Africa",
-  Arjantin: "Argentina",
-  Şili: "Chile",
-  Kolombiya: "Colombia",
-  Misir: "Egypt",
-  Azerbaycan: "Azerbaijan",
-  Gürcistan: "Georgia",
-  Ukrayna: "Ukraine",
-  Kazakistan: "Kazakhstan",
-  "Kuzey Kibris Türk Cu": "Northern Cyprus",
+  Türkiye: 'Turkey',
+  'Amerika Birleşik Dev': 'United States',
+  Almanya: 'Germany',
+  'Birleşik Krallik': 'United Kingdom',
+  Fransa: 'France',
+  Hollanda: 'Netherlands',
+  İtalya: 'Italy',
+  İspanya: 'Spain',
+  İsviçre: 'Switzerland',
+  Avusturya: 'Austria',
+  Belçika: 'Belgium',
+  Kanada: 'Canada',
+  Japonya: 'Japan',
+  Avustralya: 'Australia',
+  Brezilya: 'Brazil',
+  'Çin Halk Cumhuriyeti': 'China',
+  Hindistan: 'India',
+  'Rusya Federasyonu': 'Russia',
+  'Güney Kore Cumhuriye': 'South Korea',
+  Meksika: 'Mexico',
+  İrlanda: 'Ireland',
+  Danimarka: 'Denmark',
+  İsveç: 'Sweden',
+  Norveç: 'Norway',
+  Finlandiya: 'Finland',
+  Polonya: 'Poland',
+  Portekiz: 'Portugal',
+  Yunanistan: 'Greece',
+  'Çek Cumhuriyeti': 'Czech Republic',
+  Macaristan: 'Hungary',
+  Romanya: 'Romania',
+  Bulgaristan: 'Bulgaria',
+  Hirvatistan: 'Croatia',
+  Sirbistan: 'Serbia',
+  'Birleşik Arap Emirli': 'United Arab Emirates',
+  'Suudi Arabistan': 'Saudi Arabia',
+  İsrail: 'Israel',
+  Singapur: 'Singapore',
+  'Hong Kong': 'Hong Kong',
+  'Yeni Zelanda': 'New Zealand',
+  'Güney Afrika Cumhuri': 'South Africa',
+  Arjantin: 'Argentina',
+  Şili: 'Chile',
+  Kolombiya: 'Colombia',
+  Misir: 'Egypt',
+  Azerbaycan: 'Azerbaijan',
+  Gürcistan: 'Georgia',
+  Ukrayna: 'Ukraine',
+  Kazakistan: 'Kazakhstan',
+  'Kuzey Kibris Türk Cu': 'Northern Cyprus',
 };
 
 function countryEN(tr: string): string {
@@ -125,7 +125,7 @@ function addressLines(addr: string): string[] {
 
 const s = StyleSheet.create({
   page: {
-    fontFamily: "Inter",
+    fontFamily: 'Inter',
     fontSize: 9,
     color: INK,
     paddingTop: 52,
@@ -135,9 +135,9 @@ const s = StyleSheet.create({
 
   // ── Header ──
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 6,
   },
   headerLeft: {
@@ -151,7 +151,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   senderInfo: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 32,
   },
   senderAddressCol: {
@@ -166,7 +166,7 @@ const s = StyleSheet.create({
     lineHeight: 1.6,
   },
   headerRight: {
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
     paddingTop: 4,
   },
   dateLabel: {
@@ -193,7 +193,7 @@ const s = StyleSheet.create({
     fontSize: 7.5,
     fontWeight: 700,
     color: TERTIARY,
-    textTransform: "uppercase" as const,
+    textTransform: 'uppercase' as const,
     letterSpacing: 1.2,
     marginBottom: 8,
   },
@@ -211,7 +211,7 @@ const s = StyleSheet.create({
 
   // ── Invoice body ──
   invoiceBody: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 24,
     marginTop: 8,
   },
@@ -223,7 +223,7 @@ const s = StyleSheet.create({
     fontSize: 7,
     fontWeight: 700,
     color: TERTIARY,
-    textTransform: "uppercase" as const,
+    textTransform: 'uppercase' as const,
     letterSpacing: 1,
     marginBottom: 3,
   },
@@ -238,7 +238,7 @@ const s = StyleSheet.create({
 
   // ── Table ──
   tableHeader: {
-    flexDirection: "row",
+    flexDirection: 'row',
     backgroundColor: PRIMARY,
     paddingVertical: 7,
     paddingHorizontal: 10,
@@ -247,67 +247,67 @@ const s = StyleSheet.create({
   thText: {
     fontSize: 7,
     fontWeight: 700,
-    color: "#ffffff",
-    textTransform: "uppercase" as const,
+    color: '#ffffff',
+    textTransform: 'uppercase' as const,
     letterSpacing: 0.6,
   },
   tableRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     borderBottomWidth: 0.5,
     borderBottomColor: RULE,
     paddingVertical: 10,
     paddingHorizontal: 10,
-    alignItems: "center",
+    alignItems: 'center',
   },
   colDesc: { flex: 1, paddingRight: 8 },
-  colUnitCost: { width: 78, textAlign: "right" },
-  colQty: { width: 36, textAlign: "center" },
-  colAmount: { width: 88, textAlign: "right" },
+  colUnitCost: { width: 78, textAlign: 'right' },
+  colQty: { width: 36, textAlign: 'center' },
+  colAmount: { width: 88, textAlign: 'right' },
   cellText: { fontSize: 9 },
   cellSub: { fontSize: 7.5, color: TERTIARY, marginTop: 2 },
 
   // ── Subtotals ──
   subtotalArea: {
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
     marginTop: 12,
     paddingRight: 10,
   },
   subtotalRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
   subtotalLabel: {
     width: 80,
-    textAlign: "right",
+    textAlign: 'right',
     paddingRight: 14,
     fontSize: 7.5,
     fontWeight: 700,
     color: TERTIARY,
-    textTransform: "uppercase" as const,
+    textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
   },
   subtotalValue: {
     width: 88,
-    textAlign: "right",
+    textAlign: 'right',
     fontSize: 9.5,
     color: INK,
   },
 
   // ── Invoice Total ──
   totalLabel: {
-    textAlign: "right",
+    textAlign: 'right',
     fontSize: 7.5,
     fontWeight: 700,
     color: PRIMARY,
-    textTransform: "uppercase" as const,
+    textTransform: 'uppercase' as const,
     letterSpacing: 0.8,
     marginTop: 14,
     marginBottom: 4,
     paddingRight: 10,
   },
   totalValue: {
-    textAlign: "right",
+    textAlign: 'right',
     fontSize: 26,
     fontWeight: 700,
     color: INK,
@@ -328,7 +328,7 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   bankColumns: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 40,
   },
   bankCol: {
@@ -360,7 +360,7 @@ const s = StyleSheet.create({
     fontSize: 7,
     fontWeight: 700,
     color: TERTIARY,
-    textTransform: "uppercase" as const,
+    textTransform: 'uppercase' as const,
     letterSpacing: 1,
     marginBottom: 4,
   },
@@ -391,29 +391,29 @@ export interface InvoicePDFData {
 }
 
 function sanitizeFilenamePart(value: string | undefined, fallback: string) {
-  const withoutControlChars = Array.from(value ?? "")
-    .filter((char) => char >= " ")
-    .join("");
+  const withoutControlChars = Array.from(value ?? '')
+    .filter((char) => char >= ' ')
+    .join('');
   const cleaned = withoutControlChars
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
     .trim();
   return cleaned || fallback;
 }
 
 function formatFilenameDate(date: string) {
-  if (!date) return "tarihsiz";
-  const sep = date.includes("/") ? "/" : date.includes("-") ? "-" : null;
-  if (!sep) return sanitizeFilenamePart(date, "tarihsiz");
+  if (!date) return 'tarihsiz';
+  const sep = date.includes('/') ? '/' : date.includes('-') ? '-' : null;
+  if (!sep) return sanitizeFilenamePart(date, 'tarihsiz');
   const [dd, mm, yyyy] = date.split(sep);
-  if (!dd || !mm || !yyyy) return sanitizeFilenamePart(date, "tarihsiz");
-  return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+  if (!dd || !mm || !yyyy) return sanitizeFilenamePart(date, 'tarihsiz');
+  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
 
 function buildInvoicePDFFilename(data: InvoicePDFData) {
-  const recipientName = sanitizeFilenamePart(data.recipient.title, "alici");
-  const entityName = sanitizeFilenamePart(data.entityName || data.company.name, "varlik");
+  const recipientName = sanitizeFilenamePart(data.recipient.title, 'alici');
+  const entityName = sanitizeFilenamePart(data.entityName || data.company.name, 'varlik');
   const date = formatFilenameDate(data.date);
   return `${date}-${entityName}-${recipientName}.pdf`;
 }
@@ -434,7 +434,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
         {/* ── Header ── */}
         <View style={s.header}>
           <View style={s.headerLeft}>
-            <Text style={s.senderName}>{company.name || "Company Name"}</Text>
+            <Text style={s.senderName}>{company.name || 'Company Name'}</Text>
             <View style={s.senderInfo}>
               <View style={s.senderAddressCol}>
                 {addrLines.map((line, i) => (
@@ -466,7 +466,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
           <Text style={s.billedToName}>{recipient.title}</Text>
           {(recipient.name || recipient.surname) && (
             <Text style={s.billedToLine}>
-              {[recipient.name, recipient.surname].filter(Boolean).join(" ")}
+              {[recipient.name, recipient.surname].filter(Boolean).join(' ')}
             </Text>
           )}
           {recipientAddrLines.map((line, i) => (
@@ -509,7 +509,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
                 <View key={item.id} style={s.tableRow}>
                   <View style={s.colDesc}>
                     <Text style={s.cellText}>{item.name}</Text>
-                    {item.unitType !== "C62" && (
+                    {item.unitType !== 'C62' && (
                       <Text style={s.cellSub}>{unitLabel(item.unitType)}</Text>
                     )}
                   </View>
@@ -606,7 +606,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
 export async function downloadInvoicePDF(data: InvoicePDFData, filename?: string) {
   const blob = await pdf(<InvoicePDFDocument data={data} />).toBlob();
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+  const a = document.createElement('a');
   a.href = url;
   a.download = filename ?? buildInvoicePDFFilename(data);
   document.body.appendChild(a);

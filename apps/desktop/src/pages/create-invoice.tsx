@@ -1,9 +1,14 @@
-import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { PlusSignIcon, Delete01Icon, FileAddIcon, Invoice01Icon } from "@hugeicons/core-free-icons";
-import { Checkbox } from "@/components/ui/checkbox";
+import { PlusSignIcon, Delete01Icon, FileAddIcon, Invoice01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Download } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
+import { AutocompleteInput } from '@/components/autocomplete-input.tsx';
+import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
+import { downloadInvoicePDF, type InvoicePDFData } from '@/components/invoice-pdf.tsx';
+import { InvoicePickerDialog } from '@/components/invoice-picker-dialog.tsx';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -11,18 +16,9 @@ import {
   CardTitle,
   CardAction,
   CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker.tsx';
 import {
   Dialog,
   DialogContent,
@@ -30,26 +26,29 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { DatePicker } from "@/components/ui/date-picker.tsx";
-
-import { Download } from "lucide-react";
-import { AutocompleteInput } from "@/components/autocomplete-input.tsx";
-import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
-import { InvoicePickerDialog } from "@/components/invoice-picker-dialog.tsx";
-import { downloadInvoicePDF, type InvoicePDFData } from "@/components/invoice-pdf.tsx";
-import { useStore } from "@/lib/store.tsx";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import * as angaria from '@/lib/angaria.ts';
 import {
   GIB_COUNTRIES,
   GIB_CURRENCIES,
   GIB_UNIT_TYPES,
   GIB_INVOICE_TYPES,
-} from "@/lib/gib-constants.ts";
-import * as angaria from "@/lib/angaria.ts";
-import { parseGIB, toGIB } from "@/lib/utils.ts";
+} from '@/lib/gib-constants.ts';
+import { useStore } from '@/lib/store.tsx';
+import { parseGIB, toGIB } from '@/lib/utils.ts';
 
 const formatMoney = (currency: string, n: number) =>
-  new Intl.NumberFormat("tr-TR", { style: "currency", currency }).format(n);
+  new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(n);
 
 export function CreateInvoicePage({ requireCredentials }: { requireCredentials: () => boolean }) {
   const {
@@ -87,15 +86,15 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
   const [invoiceHTML, setInvoiceHTML] = useState<string | null>(null);
   const [showInvoicePicker, setShowInvoicePicker] = useState(false);
   const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
-  const [templateName, setTemplateName] = useState("");
+  const [templateName, setTemplateName] = useState('');
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const lastCheckedRef = useRef<string | null>(null);
 
-  const isForeignCurrency = invoiceSettings.currency !== "TRY";
-  const invoiceDate = advancedFields.manualDate || "";
+  const isForeignCurrency = invoiceSettings.currency !== 'TRY';
+  const invoiceDate = advancedFields.manualDate || '';
   const tcmbQuery = useQuery({
-    queryKey: ["tcmb-rates", invoiceDate],
+    queryKey: ['tcmb-rates', invoiceDate],
     queryFn: () => angaria.fetchTCMBRates(parseGIB(invoiceDate)),
     enabled: isForeignCurrency,
     staleTime: 5 * 60 * 1000,
@@ -113,7 +112,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
 
   useEffect(() => {
     if (tcmbQuery.error && isForeignCurrency) {
-      toast.error("TCMB döviz kurları alınamadı");
+      toast.error('TCMB döviz kurları alınamadı');
     }
   }, [tcmbQuery.error, isForeignCurrency]);
 
@@ -139,7 +138,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
         if (i.id !== id) return i;
         const updated = { ...i, [field]: value };
         // Auto-calculate discount amount from rate
-        if (field === "discountRate") {
+        if (field === 'discountRate') {
           updated.discountAmount = updated.quantity * updated.unitPrice * (Number(value) / 100);
         }
         return updated;
@@ -168,7 +167,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
   function addItem() {
     setItems((prev) => [
       ...prev,
-      { id: newId(), name: "", quantity: 1, unitPrice: 0, VATRate: 20, ...defaultItemAdvanced },
+      { id: newId(), name: '', quantity: 1, unitPrice: 0, VATRate: 20, ...defaultItemAdvanced },
     ]);
   }
 
@@ -225,12 +224,12 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
         note,
       },
     ]);
-    toast.success("Fatura şablonu kaydedildi");
+    toast.success('Fatura şablonu kaydedildi');
   }
 
   function buildPDFData(invoiceNumber?: string): InvoicePDFData {
     const now = new Date();
-    const p = (n: number) => String(n).padStart(2, "0");
+    const p = (n: number) => String(n).padStart(2, '0');
     const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
     const date = advancedFields.manualDate || autoDate;
     const paymentTotal = advancedFields.paymentTotal ? Number(advancedFields.paymentTotal) : total;
@@ -253,16 +252,16 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
 
   function handleDownloadPDF() {
     const pdfData = buildPDFData();
-    const id = toast.loading("PDF hazırlanıyor...");
+    const id = toast.loading('PDF hazırlanıyor...');
     downloadInvoicePDF(pdfData)
-      .then(() => toast.success("PDF indirildi", { id }))
-      .catch(() => toast.error("PDF oluşturulamadı", { id }));
+      .then(() => toast.success('PDF indirildi', { id }))
+      .catch(() => toast.error('PDF oluşturulamadı', { id }));
   }
 
   const createMutation = useMutation({
     mutationFn: async () => {
       const now = new Date();
-      const p = (n: number) => String(n).padStart(2, "0");
+      const p = (n: number) => String(n).padStart(2, '0');
       const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
       const autoTime = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
       const date = advancedFields.manualDate || autoDate;
@@ -293,7 +292,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             price: i.quantity * i.unitPrice,
-            unitType: i.unitType || "C62",
+            unitType: i.unitType || 'C62',
             VATRate: i.VATRate,
             VATAmount: (i.quantity * i.unitPrice - (i.discountAmount || 0)) * (i.VATRate / 100),
             discountRate: i.discountRate || undefined,
@@ -314,7 +313,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
         let html: string | undefined;
         if (draft.uuid) {
           try {
-            html = await angaria.getInvoiceHTML(session, draft.uuid, "Onaylanmadı");
+            html = await angaria.getInvoiceHTML(session, draft.uuid, 'Onaylanmadı');
           } catch {
             // preview is optional
           }
@@ -327,7 +326,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
     },
     onSuccess: ({ draft, html }) => {
       if (html) {
-        toast.success("Taslak fatura oluşturuldu!");
+        toast.success('Taslak fatura oluşturuldu!');
         setInvoiceHTML(html);
       } else {
         toast.warning(
@@ -337,7 +336,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
 
       // Make the new draft visible in the invoices list: refetch it and
       // widen the date range to cover the invoice date if needed.
-      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
       const createdDate = parseGIB(draft.date);
       if (createdDate) {
         setInvoiceDateRange((prev) => {
@@ -381,15 +380,15 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
   function createInvoice() {
     if (!requireCredentials()) return;
     if (!recipient.taxIDOrTRID || !recipient.title || !recipient.fullAddress) {
-      toast.error("Alıcı bilgileri eksik");
+      toast.error('Alıcı bilgileri eksik');
       return;
     }
     if (items.some((i) => !i.name || i.unitPrice <= 0)) {
-      toast.error("Kalem bilgileri eksik veya hatalı");
+      toast.error('Kalem bilgileri eksik veya hatalı');
       return;
     }
-    if (invoiceSettings.currency !== "TRY" && !invoiceSettings.currencyRate) {
-      toast.error("Döviz kuru zorunludur");
+    if (invoiceSettings.currency !== 'TRY' && !invoiceSettings.currencyRate) {
+      toast.error('Döviz kuru zorunludur');
       return;
     }
     createMutation.mutate();
@@ -512,7 +511,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                   setInvoiceSettings((s) => ({
                     ...s,
                     currency: v,
-                    currencyRate: v === "TRY" ? "" : s.currencyRate,
+                    currencyRate: v === 'TRY' ? '' : s.currencyRate,
                   }))
                 }
               >
@@ -531,7 +530,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="space-y-2">
               <Label>
                 Döviz Kuru
-                {invoiceSettings.currency !== "TRY" && <span className="text-destructive"> *</span>}
+                {invoiceSettings.currency !== 'TRY' && <span className="text-destructive"> *</span>}
               </Label>
               <Input
                 value={invoiceSettings.currencyRate}
@@ -539,15 +538,15 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                   setInvoiceSettings((s) => ({ ...s, currencyRate: e.target.value }))
                 }
                 placeholder={
-                  invoiceSettings.currency === "TRY"
-                    ? "-"
+                  invoiceSettings.currency === 'TRY'
+                    ? '-'
                     : ratesLoading
                       ? "TCMB'den alınıyor..."
-                      : "ör: 38.50"
+                      : 'ör: 38.50'
                 }
-                disabled={invoiceSettings.currency === "TRY" || ratesLoading}
+                disabled={invoiceSettings.currency === 'TRY' || ratesLoading}
               />
-              {invoiceSettings.currency !== "TRY" && invoiceSettings.currencyRate && (
+              {invoiceSettings.currency !== 'TRY' && invoiceSettings.currencyRate && (
                 <p className="text-xs text-muted-foreground">
                   TCMB alış kuru otomatik alındı, değiştirebilirsiniz
                 </p>
@@ -709,7 +708,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <Button
               variant="destructive"
               size="sm"
-              className={selectedItemIds.size > 0 ? "" : "invisible"}
+              className={selectedItemIds.size > 0 ? '' : 'invisible'}
               onClick={() => setShowDeleteConfirm(true)}
             >
               <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} data-icon="inline-start" />
@@ -747,7 +746,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                   <td className="px-2 py-2">
                     <AutocompleteInput
                       value={item.name}
-                      onChange={(v) => updateItem(item.id, "name", v)}
+                      onChange={(v) => updateItem(item.id, 'name', v)}
                       onSelect={(id) => loadItemTemplate(id, item.id)}
                       onCreate={(name) =>
                         setSavedItems((prev) => [...prev, { ...item, id: newId(), name }])
@@ -761,14 +760,14 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                     <Input
                       inputMode="numeric"
                       value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value) || 0)}
+                      onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value) || 0)}
                       className="h-8"
                     />
                   </td>
                   <td className="px-2 py-2">
                     <Select
                       value={item.unitType}
-                      onValueChange={(v) => updateItem(item.id, "unitType", v)}
+                      onValueChange={(v) => updateItem(item.id, 'unitType', v)}
                     >
                       <SelectTrigger className="h-8">
                         <SelectValue />
@@ -785,9 +784,9 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                   <td className="px-2 py-2">
                     <Input
                       inputMode="decimal"
-                      value={item.unitPrice || ""}
+                      value={item.unitPrice || ''}
                       onChange={(e) =>
-                        updateItem(item.id, "unitPrice", Number(e.target.value) || 0)
+                        updateItem(item.id, 'unitPrice', Number(e.target.value) || 0)
                       }
                       className="h-8"
                     />
@@ -796,7 +795,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                     <Input
                       inputMode="numeric"
                       value={item.VATRate}
-                      onChange={(e) => updateItem(item.id, "VATRate", Number(e.target.value) || 0)}
+                      onChange={(e) => updateItem(item.id, 'VATRate', Number(e.target.value) || 0)}
                       className="h-8"
                     />
                   </td>
@@ -811,7 +810,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                         invoiceSettings.currency,
                         (item.quantity * item.unitPrice - (item.discountAmount || 0)) *
                           (item.VATRate / 100),
-                      )}{" "}
+                      )}{' '}
                       KDV
                     </div>
                   </td>
@@ -831,16 +830,16 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                     item.gtip) && (
                     <div key={item.id} className="space-y-2">
                       <span className="text-xs font-medium text-muted-foreground">
-                        {item.name || "Adsız kalem"} — İskonto & GTİP
+                        {item.name || 'Adsız kalem'} — İskonto & GTİP
                       </span>
                       <div className="grid grid-cols-4 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">İskonto %</Label>
                           <Input
                             inputMode="numeric"
-                            value={item.discountRate || ""}
+                            value={item.discountRate || ''}
                             onChange={(e) =>
-                              updateItem(item.id, "discountRate", Number(e.target.value) || 0)
+                              updateItem(item.id, 'discountRate', Number(e.target.value) || 0)
                             }
                           />
                         </div>
@@ -848,9 +847,9 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                           <Label className="text-xs text-muted-foreground">İskonto Tutarı</Label>
                           <Input
                             inputMode="decimal"
-                            value={item.discountAmount || ""}
+                            value={item.discountAmount || ''}
                             onChange={(e) =>
-                              updateItem(item.id, "discountAmount", Number(e.target.value) || 0)
+                              updateItem(item.id, 'discountAmount', Number(e.target.value) || 0)
                             }
                           />
                         </div>
@@ -858,14 +857,14 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                           <Label className="text-xs text-muted-foreground">İskonto Nedeni</Label>
                           <Input
                             value={item.discountReason}
-                            onChange={(e) => updateItem(item.id, "discountReason", e.target.value)}
+                            onChange={(e) => updateItem(item.id, 'discountReason', e.target.value)}
                           />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">GTİP</Label>
                           <Input
                             value={item.gtip}
-                            onChange={(e) => updateItem(item.id, "gtip", e.target.value)}
+                            onChange={(e) => updateItem(item.id, 'gtip', e.target.value)}
                           />
                         </div>
                       </div>
@@ -936,7 +935,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <Input
               inputMode="decimal"
               className="w-40 text-right"
-              value={advancedFields.paymentTotal || ""}
+              value={advancedFields.paymentTotal || ''}
               onChange={(e) => setAdvancedFields((f) => ({ ...f, paymentTotal: e.target.value }))}
               placeholder={total.toFixed(2)}
             />
@@ -964,7 +963,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             disabled={createMutation.isPending}
             onClick={createInvoice}
           >
-            {createMutation.isPending ? "Oluşturuluyor..." : "Taslak Fatura Oluştur"}
+            {createMutation.isPending ? 'Oluşturuluyor...' : 'Taslak Fatura Oluştur'}
           </Button>
           <Button variant="outline" size="lg" onClick={handleDownloadPDF}>
             <Download className="size-4" />
@@ -1012,7 +1011,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
               placeholder="ör: Aylık danışmanlık faturası"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter" && templateName.trim()) {
+                if (e.key === 'Enter' && templateName.trim()) {
                   saveInvoiceTemplate(templateName.trim());
                   setShowTemplateSaveDialog(false);
                 }

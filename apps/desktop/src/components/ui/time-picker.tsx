@@ -1,11 +1,11 @@
-import { useRef } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export function TimePicker({
   value,
   onChange,
-  placeholder = "HH:MM:SS",
+  placeholder = 'HH:MM:SS',
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -15,12 +15,12 @@ export function TimePicker({
 
   function handleChange(raw: string) {
     // Strip non-digits
-    const digits = raw.replace(/\D/g, "").slice(0, 6);
+    const digits = raw.replace(/\D/g, '').slice(0, 6);
 
     // Auto-insert colons
-    let formatted = "";
+    let formatted = '';
     for (let i = 0; i < digits.length; i++) {
-      if (i === 2 || i === 4) formatted += ":";
+      if (i === 2 || i === 4) formatted += ':';
       formatted += digits[i];
     }
     onChange(formatted);
@@ -28,7 +28,7 @@ export function TimePicker({
 
   function setNow() {
     const now = new Date();
-    const p = (n: number) => String(n).padStart(2, "0");
+    const p = (n: number) => String(n).padStart(2, '0');
     onChange(`${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`);
     inputRef.current?.focus();
   }

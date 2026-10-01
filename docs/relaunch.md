@@ -46,6 +46,7 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 ## Landing page (angaria.app)
 
 Turkish. Sections:
+
 1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" / "14 gün ücretsiz dene" CTA.
 2. GİB vs Angaria side-by-side (placeholders until Mert sends GİB screenshots).
 3. Features: şablonlar, geçen ayın faturasını tekrar kes, müşteri kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers).
