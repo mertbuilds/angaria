@@ -25,6 +25,15 @@ const account = (username: string): GIBAccount => ({
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+/** A promise that settles when the test calls `resolve`. */
+function deferred<T>() {
+  const handle: { resolve?: (value: T) => void } = {};
+  const promise = new Promise<T>((resolve) => {
+    handle.resolve = resolve;
+  });
+  return { promise, resolve: (value: T) => handle.resolve?.(value) };
+}
+
 describe('createSessionQueue', () => {
   test('runs queued tasks one at a time on one login, then logs out', async () => {
     const { client, log } = fakeClient();
@@ -146,5 +155,93 @@ describe('createSessionQueue', () => {
     await expect(queue.lease(account('33333301'))).rejects.toThrow(
       'Kullanıcı adı veya şifre hatalı',
     );
+  });
+});
+
+describe('leaseWith', () => {
+  test('a screen that closes mid-start hands the session back once start settles', async () => {
+    const { client, log } = fakeClient();
+    const queue = createSessionQueue(client);
+    const user = account('33333301');
+    const screen = new AbortController();
+    const sms = deferred<string>();
+    const start = vi.fn(() => sms.promise);
+
+    const starting = queue.leaseWith(user, start, screen.signal);
+    const next = queue.run(user, async (session) => {
+      log.push(`task ${session.token}`);
+    });
+    await tick();
+    expect(start).toHaveBeenCalledOnce();
+
+    screen.abort();
+    await tick();
+    // The SMS request is still running on the session: nothing else may.
+    expect(log).toEqual(['login 33333301']);
+
+    sms.resolve('5xx xxx xx 01');
+    expect(await starting).toBeNull();
+    await next;
+    await tick();
+    expect(log).toEqual(['login 33333301', 'task t1', 'logout t1']);
+  });
+
+  test('a screen that closes while its lease waits never logs in for it', async () => {
+    const { client } = fakeClient();
+    const queue = createSessionQueue(client);
+    const user = account('33333301');
+    const screen = new AbortController();
+    const start = vi.fn(async () => 'phone');
+    const list = deferred<void>();
+
+    const busy = queue.run(user, () => list.promise);
+    const starting = queue.leaseWith(user, start, screen.signal);
+    await tick();
+    screen.abort();
+    list.resolve();
+
+    await busy;
+    expect(await starting).toBeNull();
+    expect(start).not.toHaveBeenCalled();
+    expect(await queue.run(user, async (session) => session.token)).toBe('t2');
+  });
+
+  test('closing the screen releases a lease that waits on the user', async () => {
+    const { client, log } = fakeClient();
+    const queue = createSessionQueue(client);
+    const user = account('33333301');
+    const screen = new AbortController();
+
+    const started = await queue.leaseWith(user, async () => 'phone', screen.signal);
+    expect(started?.value).toBe('phone');
+    const next = queue.run(user, async (session) => {
+      log.push(`task ${session.token}`);
+    });
+    await tick();
+    expect(log).toEqual(['login 33333301']);
+
+    screen.abort();
+    await next;
+    await tick();
+    expect(log).toEqual(['login 33333301', 'task t1', 'logout t1']);
+  });
+
+  test('a failed start hands the session back and rejects', async () => {
+    const { client, log } = fakeClient();
+    const queue = createSessionQueue(client);
+    const user = account('33333301');
+
+    await expect(
+      queue.leaseWith(
+        user,
+        async () => {
+          throw new Error('SMS gönderimi başarısız');
+        },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow('SMS gönderimi başarısız');
+    expect(await queue.run(user, async (session) => session.token)).toBe('t2');
+    await tick();
+    expect(log).toEqual(['login 33333301', 'logout t1', 'login 33333301', 'logout t2']);
   });
 });

@@ -389,6 +389,9 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [smsPhone, setSmsPhone] = useState<string | null>(null);
   const sms = useRef<{ lease: SessionLease; oid: string } | null>(null);
+  // Aborts when the pane closes: a signing flow still starting or waiting on
+  // the code hands the GİB session back (gib.leaseWith).
+  const open = useRef(new AbortController());
 
   const defaultLanguage = resolvePDFLanguage(
     savedRecipients.find((customer) => customer.taxIDOrTRID === invoice.aliciVknTckn)?.pdfLanguage,
@@ -451,17 +454,19 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
 
   const startSign = useMutation({
     mutationFn: async () => {
-      const lease = await gib.lease(account);
-      try {
-        const { oid, phone } = await startSMSSign(lease.session);
-        sms.current = { lease, oid };
-        return phone;
-      } catch (error) {
-        lease.release(error);
-        throw error;
+      const started = await gib.leaseWith(account, startSMSSign, open.current.signal);
+      if (!started) {
+        return null;
+      }
+      sms.current = { lease: started.lease, oid: started.value.oid };
+      return started.value.phone;
+    },
+    // Null: the pane closed before the code was sent.
+    onSuccess: (phone) => {
+      if (phone !== null) {
+        setSmsPhone(phone);
       }
     },
-    onSuccess: setSmsPhone,
   });
 
   const verify = useMutation({
@@ -480,8 +485,11 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     },
   });
 
-  // Leaving the invoice mid-signing hands the GİB session back.
-  useEffect(() => () => sms.current?.lease.release(), []);
+  useEffect(() => {
+    const controller = new AbortController();
+    open.current = controller;
+    return () => controller.abort();
+  }, []);
 
   const guarded = (action: () => void) => () => {
     if (requireCredentials()) {
@@ -542,6 +550,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
             />
           )}
           <Button
+            disabled={busy}
             onClick={guarded(() => void navigate({ search: { kaynak: ettn }, to: '/yeni' }))}
             variant="outline"
           >
