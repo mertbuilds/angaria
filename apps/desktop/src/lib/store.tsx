@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useLayoutEffect,
   useRef,
   type ReactNode,
 } from 'react';
@@ -18,6 +19,7 @@ import {
 import { customerName, findCustomer } from './customer.ts';
 import { applyCustomer } from './invoice-form.ts';
 import { parseGIBInvoice, presetRange, type DateRange } from './invoices.ts';
+import { reportKeychainError } from './keychain-error.ts';
 import { secretDelete, secretGet, secretSet } from './native.ts';
 import type {
   AdvancedInvoiceFields,
@@ -247,8 +249,12 @@ function loadEntities(): Array<Entity> {
   ];
 }
 
+const MIGRATION_WARNING =
+  "GİB şifresi Anahtar Zinciri'ne taşınamadı. Şifreniz silinmedi, uygulama bir sonraki açılışta yeniden deneyecek.";
+
 interface CredentialStartup {
-  migrationFailed: boolean;
+  /** The warning to show when a password could not move to the keychain */
+  migrationWarning: string | null;
   /** Entity ids with a password in the keychain */
   passwordSaved: Record<string, boolean>;
 }
@@ -257,14 +263,17 @@ async function prepareCredentials(): Promise<CredentialStartup> {
   // Persist the normalized entities first so legacy single-entity creds get an
   // entity id to migrate under.
   localStorage.setItem(ENTITIES_STORAGE_KEY, JSON.stringify(loadEntities()));
-  const { failed } = await migrateCredentials(localStorage, secrets);
+  const { error, failed } = await migrateCredentials(localStorage, secrets);
   const saved = await Promise.all(
     loadEntities().map(async (entity) => {
       const password = await passwords.get(entity.id).catch(() => null);
       return [entity.id, Boolean(password)] as const;
     }),
   );
-  return { migrationFailed: failed > 0, passwordSaved: Object.fromEntries(saved) };
+  return {
+    migrationWarning: failed > 0 ? reportKeychainError(MIGRATION_WARNING, error) : null,
+    passwordSaved: Object.fromEntries(saved),
+  };
 }
 
 let credentialStartup: Promise<CredentialStartup> | null = null;
@@ -358,8 +367,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    credentialStartup ??= prepareCredentials().catch(() => ({
-      migrationFailed: true,
+    credentialStartup ??= prepareCredentials().catch((error: unknown) => ({
+      migrationWarning: reportKeychainError(MIGRATION_WARNING, error),
       passwordSaved: {},
     }));
     void credentialStartup.then((result) => {
@@ -414,18 +423,17 @@ function LoadedStoreProvider({
     }
   }
 
-  useEffect(() => {
+  // A layout effect, so the ref is current before any child's effect runs: Ayarlar
+  // reads a new company's password as soon as it is active.
+  useLayoutEffect(() => {
     entitiesRef.current = entities;
   }, [entities]);
 
   useEffect(() => {
-    if (startup.migrationFailed) {
-      toast.warning(
-        "GİB şifresi Anahtar Zinciri'ne taşınamadı. Şifreniz silinmedi, uygulama bir sonraki açılışta yeniden deneyecek.",
-        { id: 'credentials-migration' },
-      );
+    if (startup.migrationWarning) {
+      toast.warning(startup.migrationWarning, { id: 'credentials-migration' });
     }
-  }, [startup.migrationFailed]);
+  }, [startup.migrationWarning]);
 
   const activeEntity = entities.find((entity) => entity.id === activeEntityId) ?? entities[0];
 
@@ -457,8 +465,13 @@ function LoadedStoreProvider({
       if (entities.length > 1 && entities.some((entity) => entity.id === id)) {
         void passwords
           .delete(id)
-          .catch(() =>
-            toast.warning("Silinen şirketin GİB şifresi Anahtar Zinciri'nden kaldırılamadı."),
+          .catch((error: unknown) =>
+            toast.warning(
+              reportKeychainError(
+                "Silinen şirketin GİB şifresi Anahtar Zinciri'nden kaldırılamadı.",
+                error,
+              ),
+            ),
           );
       }
       setEntities((prev) => {
@@ -500,7 +513,9 @@ function LoadedStoreProvider({
       password = await passwords.get(entityId);
     } catch (error) {
       if (!plaintext) {
-        throw new Error("GİB şifresi Anahtar Zinciri'nden okunamadı", { cause: error });
+        throw new Error(reportKeychainError("GİB şifresi Anahtar Zinciri'nden okunamadı", error), {
+          cause: error,
+        });
       }
     }
     return { ...creds, password: password ?? plaintext ?? '' };
@@ -517,7 +532,10 @@ function LoadedStoreProvider({
       try {
         await passwords.set(entityId, password);
       } catch (error) {
-        throw new Error("GİB şifresi Anahtar Zinciri'ne kaydedilemedi", { cause: error });
+        throw new Error(
+          reportKeychainError("GİB şifresi Anahtar Zinciri'ne kaydedilemedi", error),
+          { cause: error },
+        );
       }
       updateCreds(entityId, withoutPassword);
       setPasswordSaved((prev) => ({ ...prev, [entityId]: password !== '' }));
