@@ -1,8 +1,9 @@
 import { inflateSync } from 'node:zlib';
 import { expect, test, vi } from 'vitest';
-import { type InvoicePDFData, renderInvoicePDF } from '../src/components/invoice-pdf.tsx';
+import { renderInvoicePDF } from '../src/components/invoice-pdf.tsx';
 import { PDF_LANGUAGES, PDF_STYLES } from '../src/lib/invoice-pdf-i18n.ts';
 import type { PDFLanguage, PDFStyle } from '../src/lib/types.ts';
+import { data } from './invoice-pdf-helpers.ts';
 
 // Vite resolves font imports to dev-server URLs; react-pdf in Node reads files.
 // Inter, so the test does not depend on the licensed Suisse Intl files.
@@ -16,59 +17,6 @@ vi.mock('@/components/invoice-pdf-fonts.ts', () => ({
 // A 1 by 1 pixel PNG
 const logo =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-
-const data: Omit<InvoicePDFData, 'language'> = {
-  company: {
-    accountHolder: 'Gülşen Çağlayan',
-    address: 'Işıklar Cad. No:1, Muratpaşa, Antalya',
-    bankAddress: 'İstiklal Cad. No:2, Beyoğlu, İstanbul',
-    bankName: 'Türkiye İş Bankası',
-    email: 'merhaba@ornek.com.tr',
-    iban: 'TR00 0000 0000 0000 0000 0000 00',
-    name: 'Örnek Yazılım Şirketi',
-    phone: '+90 555 000 00 00',
-    swiftCode: 'ISBKTRIS',
-    taxID: '1234567890',
-    taxOffice: 'Antalya Kurumlar',
-  },
-  date: '05/03/2026',
-  dueDate: '04/04/2026',
-  ettn: '13cc1102-6e3e-45de-bcd8-4ffc9e7075f3',
-  gibNumber: 'GIB2026000000001',
-  grandTotal: 1500,
-  items: [
-    {
-      discountAmount: 100,
-      discountRate: 0,
-      discountReason: '',
-      gtip: '',
-      id: '1',
-      name: 'Yazılım Geliştirme Hizmeti (ğüşıöç İĞÜŞÖÇ)',
-      quantity: 1.5,
-      unitPrice: 1066.67,
-      unitType: 'HUR',
-      VATRate: 20,
-    },
-  ],
-  note: 'Ödeme 30 gün içinde yapılmalıdır.',
-  qrValue: '{"no":"GIB2026000000001","ettn":"13cc1102-6e3e-45de-bcd8-4ffc9e7075f3"}',
-  recipient: {
-    city: 'İzmir',
-    country: 'Türkiye',
-    district: 'Karşıyaka',
-    fullAddress: 'Şehitler Bulvarı No:3',
-    id: 'r1',
-    name: 'Ayşe',
-    surname: 'Yıldırım',
-    taxIDOrTRID: '9876543210',
-    taxOffice: 'Karşıyaka',
-    title: 'ÇAĞDAŞ TEKNOLOJİ A.Ş.',
-  },
-  settings: { currency: 'USD', currencyRate: '38.5000', invoiceType: 'SATIS' },
-  total: 1800,
-  totalDiscount: 100,
-  totalVAT: 300,
-};
 
 async function render(language: PDFLanguage, style: PDFStyle = 'minimal', extra = {}) {
   const blob = await renderInvoicePDF({ ...data, language, style, ...extra });

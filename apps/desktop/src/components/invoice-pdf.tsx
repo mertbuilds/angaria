@@ -834,21 +834,32 @@ const TABULAR = ['tnum'];
  * its text layer (copy, search). So every PDF loads the fonts fresh, and
  * renders run one at a time so a reload never lands mid-render.
  *
- * react-pdf lays text out without OpenType features, so FIGURES is loaded
- * here and its layout turns on tabular figures.
+ * react-pdf lays text out without OpenType features, so FIGURES's layout
+ * turns on tabular figures.
+ *
+ * react-pdf embeds one font per PostScript name, and Suisse Intl names both
+ * weights "Font": every weight would print with the glyphs of the first one
+ * used, laid out with its own widths. So each weight gets a name of its own.
  */
 async function loadFonts() {
   const families = Font.getRegisteredFonts();
   const figures = families[FIGURES]?.sources ?? [];
-  for (const source of [...(families[TEXT]?.sources ?? []), ...figures]) {
+  const sources = [...(families[TEXT]?.sources ?? []), ...figures];
+  for (const source of sources) {
     source.data = null;
     source.loadResultPromise = null;
   }
   await Promise.all(
-    figures.map(async (source) => {
+    sources.map(async (source) => {
       await source.load();
       const font = source.data;
-      if (font) {
+      if (!font) {
+        return;
+      }
+      Object.defineProperty(font, 'postscriptName', {
+        value: `${font.postscriptName}-${source.fontWeight}`,
+      });
+      if (figures.includes(source)) {
         const layout = font.layout.bind(font);
         font.layout = (text, features, ...rest) => layout(text, features ?? TABULAR, ...rest);
       }
