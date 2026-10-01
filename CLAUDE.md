@@ -9,6 +9,7 @@ apps/
   desktop/      Tauri 2 + React 19 + Vite. Frontend in src/, Rust in src-tauri/.
 packages/
   earsiv-sdk/   GİB e-Arşiv portal client. tsdown build to dist/.
+  ui/           @angaria/ui design system: StyleX + Base UI components, theme, fonts. Source-consumed, no build.
   utils/        Shared helpers (TCMB rates). tsdown build, vitest tests.
 ```
 
@@ -35,3 +36,10 @@ Desktop: `pnpm --filter desktop tauri dev` (same as `pnpm dev`), `pnpm --filter 
 - Workspace packages are consumed from their built `dist/`. Turbo's `^build` builds them before any dependent build, typecheck, or test, and Tauri's `beforeDevCommand` and `beforeBuildCommand` (`apps/desktop/src-tauri/tauri.conf.json`) go through turbo, so the app never bundles a stale SDK.
 - The desktop dev server stays on the fixed port 5173 because Tauri loads `devUrl`. Web apps run behind portless (`https://<name>.localhost`) from `mprocs.yaml`.
 - Never edit generated output: `dist/`, `apps/desktop/src-tauri/gen/`, `apps/desktop/src-tauri/target/`.
+
+## UI (`packages/ui`)
+
+- Components from `@angaria/ui`; CSS from `@angaria/ui/fonts.css`, `@angaria/ui/theme.css`, `@angaria/ui/base.css` (page shell), imported in that order; app tokens from `@angaria/ui/tokens.stylex` (`colors`, `spacing`, `font`, `radius`, `motion`); theme control from `@angaria/ui/theme` (`applyTheme`). Import `toast` from `@angaria/ui`, never from `sonner`.
+- The package ships TypeScript source; every consumer compiles it with `@stylexjs/unplugin` (`stylex.vite({ useCSSLayers: { before: ['base'] } })`, see `apps/desktop/vite.config.ts`). Components take StyleX styles in `style`, never inline CSS.
+- Theme: `data-theme` on `<html>` absent = follow the system, `light` or `dark` forces one; the attribute also themes any subtree.
+- Gallery (dev only): `http://localhost:5173/ui-gallery.html` (or `/?ui-gallery`) while the desktop dev server runs. Every component, light and dark side by side.
