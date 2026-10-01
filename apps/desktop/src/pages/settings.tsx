@@ -24,10 +24,10 @@ import {
   toast,
 } from '@angaria/ui';
 import { readTheme, themeChoices, type ThemeChoice } from '@angaria/ui/theme';
-import { colors, radius, spacing } from '@angaria/ui/tokens.stylex';
+import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { getVersion } from '@tauri-apps/api/app';
-import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { ChevronRightIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LicenseCard } from '@/components/license-card.tsx';
 import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
@@ -67,6 +67,48 @@ const styles = create({
   page: {
     paddingBlock: spacing.s8,
     paddingInline: spacing.s6,
+  },
+  summary: {
+    '::-webkit-details-marker': {
+      display: 'none',
+    },
+    alignItems: 'center',
+    borderRadius: radius.base,
+    color: colors.fg,
+    cursor: 'pointer',
+    display: 'flex',
+    fontSize: font.sizeSm,
+    fontWeight: font.weightMedium,
+    gap: spacing.s2,
+    listStyle: 'none',
+    outline: {
+      ':focus-visible': `1px solid ${colors.muted}`,
+      default: 'none',
+    },
+    outlineOffset: '4px',
+    paddingInline: spacing.s1,
+    userSelect: 'none',
+  },
+  summaryHint: {
+    color: colors.muted,
+    fontSize: font.sizeXs,
+    fontWeight: font.weightRegular,
+  },
+  summaryIcon: {
+    color: colors.muted,
+    height: '1rem',
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0s',
+      default: '150ms',
+    },
+    transitionProperty: 'transform',
+    width: '1rem',
+  },
+  summaryIconOpen: {
+    transform: 'rotate(90deg)',
+  },
+  advancedBody: {
+    paddingTop: spacing.s3,
   },
 });
 
@@ -154,25 +196,6 @@ function GibAccountSection() {
           value={password ?? ''}
         />
       </SettingsRow>
-      <SettingsRow hint="earsivportaltest.efatura.gov.tr adresine bağlanır" label="Test modu">
-        <Switch
-          aria-label="Test modu"
-          checked={creds.testMode}
-          onCheckedChange={(checked) => void setCredentials(activeEntityId, { testMode: checked })}
-        />
-      </SettingsRow>
-      {import.meta.env.DEV && gibEmulatorURL && (
-        <SettingsRow
-          hint={`Geliştirme: GİB ve TCMB yerine ${gibEmulatorURL} (pnpm emulate)`}
-          label="Emülatör"
-        >
-          <Switch
-            aria-label="Emülatör"
-            checked={Boolean(activeGibEmulatorURL)}
-            onCheckedChange={setGibEmulator}
-          />
-        </SettingsRow>
-      )}
       <SettingsRow hint="GİB portalında açık kalan oturumu kapatır" label="Oturum">
         <Button
           disabled={loggingOut || !hasCredentials}
@@ -183,6 +206,56 @@ function GibAccountSection() {
         </Button>
       </SettingsRow>
     </SettingsSection>
+  );
+}
+
+/**
+ * Settings few people need, folded away: GİB's test portal, and in
+ * development the local emulator. Open while either is on, so it shows.
+ */
+function AdvancedSection() {
+  const { activeEntityId, creds, setCredentials } = useStore();
+  const [open, setOpen] = useState(() => creds.testMode || Boolean(activeGibEmulatorURL));
+
+  return (
+    <details onToggle={(event) => setOpen(event.currentTarget.open)} open={open}>
+      <summary {...props(styles.summary)}>
+        <ChevronRightIcon
+          aria-hidden
+          {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
+        />
+        Gelişmiş
+        <span {...props(styles.summaryHint)}>Test modu</span>
+      </summary>
+      <div {...props(styles.advancedBody)}>
+        <SettingsSection
+          description="Test modu açıkken faturalar GİB’in test portalında kesilir, gerçek fatura oluşmaz."
+          title="GİB bağlantısı"
+        >
+          <SettingsRow hint="earsivportaltest.efatura.gov.tr adresine bağlanır" label="Test modu">
+            <Switch
+              aria-label="Test modu"
+              checked={creds.testMode}
+              onCheckedChange={(checked) =>
+                void setCredentials(activeEntityId, { testMode: checked })
+              }
+            />
+          </SettingsRow>
+          {import.meta.env.DEV && gibEmulatorURL && (
+            <SettingsRow
+              hint={`Geliştirme: GİB ve TCMB yerine ${gibEmulatorURL} (pnpm emulate)`}
+              label="Emülatör"
+            >
+              <Switch
+                aria-label="Emülatör"
+                checked={Boolean(activeGibEmulatorURL)}
+                onCheckedChange={setGibEmulator}
+              />
+            </SettingsRow>
+          )}
+        </SettingsSection>
+      </div>
+    </details>
   );
 }
 
@@ -215,7 +288,7 @@ function CompaniesSection() {
 
   return (
     <SettingsSection
-      description="Her şirket kendi GİB hesabını, firma bilgilerini, müşterilerini ve şablonlarını tutar. Bu sayfadaki diğer ayarlar etkin şirkete aittir."
+      description="Her şirket kendi GİB hesabını, firma bilgilerini, müşterilerini ve hizmetlerini tutar. Bu sayfadaki diğer ayarlar etkin şirkete aittir."
       title="Şirketler"
     >
       {entities.map((entity) => (
@@ -283,7 +356,7 @@ function CompaniesSection() {
           <AlertDialogHeader>
             <AlertDialogTitle>Şirketi sil</AlertDialogTitle>
             <AlertDialogDescription>
-              {target?.name} ile birlikte GİB hesabı, firma bilgileri, müşterileri ve şablonları bu
+              {target?.name} ile birlikte GİB hesabı, firma bilgileri, müşterileri ve hizmetleri bu
               cihazdan silinir. Bu işlem geri alınamaz.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -588,6 +661,7 @@ export function SettingsPage() {
         <LicenseCard />
         <AppearanceSection />
         <AboutSection />
+        <AdvancedSection />
       </div>
     </div>
   );

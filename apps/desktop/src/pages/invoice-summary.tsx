@@ -7,6 +7,7 @@ import {
   DownloadIcon,
   FilePlusIcon,
   LoaderCircleIcon,
+  MessageSquareIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
@@ -75,14 +76,6 @@ const styles = create({
     fontSize: font.sizeXs,
     lineHeight: 1.5,
     margin: 0,
-  },
-  offer: {
-    backgroundColor: colors.subtle,
-    borderRadius: radius.base,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s3,
-    padding: spacing.s3,
   },
   pair: {
     display: 'grid',
@@ -228,24 +221,34 @@ function vatLabel(values: InvoiceFormValues) {
   return rates.size === 1 && Number.isFinite(rate) ? `KDV (%${formatNumber(rate)})` : 'KDV';
 }
 
+function Pending() {
+  return (
+    <>
+      <LoaderCircleIcon {...props(styles.spinner)} />
+      GİB’e gönderiliyor
+    </>
+  );
+}
+
 export function SummaryPanel({
   form,
   onClear,
   onDownloadPDF,
   onPDFLanguageChange,
-  onSaveTemplate,
   pdfLanguage,
   rate,
+  signing,
   values,
 }: {
   form: InvoiceForm;
   onClear: () => void;
   onDownloadPDF: () => void;
   onPDFLanguageChange: (language: PDFLanguage) => void;
-  onSaveTemplate: () => void;
   pdfLanguage: PDFLanguage;
   /** The parsed currency rate for a foreign currency, else null. */
   rate: number | null;
+  /** true while a submit creates and signs (Oluştur ve onayla). */
+  signing: boolean;
   values: InvoiceFormValues;
 }) {
   const currency = values.invoiceSettings.currency;
@@ -282,35 +285,48 @@ export function SummaryPanel({
       <div {...props(styles.actions)}>
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
-            <Button
-              disabled={isSubmitting}
-              onClick={() => void form.handleSubmit()}
-              style={styles.full}
-            >
-              {isSubmitting ? (
-                <>
-                  <LoaderCircleIcon {...props(styles.spinner)} />
-                  GİB’e gönderiliyor
-                </>
-              ) : (
-                <>
-                  Taslak oluştur
-                  <span aria-hidden {...props(styles.shortcut)}>
-                    {isMac ? '⌘↵' : 'Ctrl ↵'}
-                  </span>
-                </>
-              )}
-            </Button>
+            <>
+              <Button
+                disabled={isSubmitting}
+                onClick={() => void form.handleSubmit({ sign: false })}
+                style={styles.full}
+              >
+                {isSubmitting && !signing ? (
+                  <Pending />
+                ) : (
+                  <>
+                    Taslak oluştur
+                    <span aria-hidden {...props(styles.shortcut)}>
+                      {isMac ? '⌘↵' : 'Ctrl ↵'}
+                    </span>
+                  </>
+                )}
+              </Button>
+              <div {...props(styles.pair)}>
+                <Button
+                  disabled={isSubmitting}
+                  onClick={() => void form.handleSubmit({ sign: true })}
+                  variant="outline"
+                >
+                  {isSubmitting && signing ? (
+                    <Pending />
+                  ) : (
+                    <>
+                      <MessageSquareIcon />
+                      Oluştur ve onayla
+                      <span aria-hidden {...props(styles.shortcut)}>
+                        {isMac ? '⌘⇧↵' : 'Ctrl ⇧ ↵'}
+                      </span>
+                    </>
+                  )}
+                </Button>
+                <Button disabled={isSubmitting} onClick={onClear} variant="ghost">
+                  Temizle
+                </Button>
+              </div>
+            </>
           )}
         </form.Subscribe>
-        <div {...props(styles.pair)}>
-          <Button onClick={onSaveTemplate} variant="outline">
-            Şablon olarak kaydet
-          </Button>
-          <Button onClick={onClear} variant="ghost">
-            Temizle
-          </Button>
-        </div>
       </div>
     </section>
   );
@@ -337,27 +353,25 @@ export interface CreatedDraft {
   html?: string;
   /** Belge numarası, once GİB's draft list returned it. */
   number?: string;
+  /** true once signed by SMS (Oluştur ve onayla). */
+  signed?: boolean;
   /** ETTN; empty when GİB's draft list did not show the new draft. */
   uuid: string;
 }
 
 export function SuccessPanel({
   created,
-  offerTemplate,
   onDownloadPDF,
   onNewInvoice,
   onOpenInvoice,
   onPDFLanguageChange,
-  onSaveTemplate,
   pdfLanguage,
 }: {
   created: CreatedDraft;
-  offerTemplate: boolean;
   onDownloadPDF: () => void;
   onNewInvoice: () => void;
   onOpenInvoice: () => void;
   onPDFLanguageChange: (language: PDFLanguage) => void;
-  onSaveTemplate: () => void;
   pdfLanguage: PDFLanguage;
 }) {
   const verified = Boolean(created.html);
@@ -370,7 +384,7 @@ export function SuccessPanel({
           ) : (
             <CircleAlertIcon aria-hidden {...props(styles.headingIcon, styles.warning)} />
           )}
-          Taslak oluşturuldu
+          {created.signed ? 'Fatura onaylandı' : 'Taslak oluşturuldu'}
         </h2>
         <p {...props(styles.muted)}>
           {[created.number, formatDateHuman(created.date)].filter(Boolean).join(' · ')}
@@ -397,17 +411,11 @@ export function SuccessPanel({
         onDownload={onDownloadPDF}
         onLanguageChange={onPDFLanguageChange}
       />
-      {offerTemplate && (
-        <div {...props(styles.offer)}>
-          <p {...props(styles.muted)}>
-            Bu faturayı her ay kesiyorsanız şablon olarak kaydedin. Bir dahaki sefere hazır gelir.
-          </p>
-          <Button onClick={onSaveTemplate} variant="outline">
-            Şablon olarak kaydet
-          </Button>
-        </div>
+      {!created.signed && (
+        <p {...props(styles.note)}>
+          Taslak GİB’de onay bekliyor. Faturalar’dan imzalayabilirsiniz.
+        </p>
       )}
-      <p {...props(styles.note)}>Taslak GİB’de onay bekliyor. Faturalar’dan imzalayabilirsiniz.</p>
     </section>
   );
 }

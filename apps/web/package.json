@@ -34,7 +34,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
-    "devknobs": "^0.0.2",
+    "devknobs": "catalog:",
     "fontkit": "^2.0.4",
     "jsdom": "30.0.1",
     "oxc-transform-react": "^0.148.0",

@@ -1,12 +1,18 @@
+import { addDays, differenceInCalendarDays } from 'date-fns';
 import type { InvoicePDFData } from '@/components/invoice-pdf.tsx';
 import type { InvoiceDetails } from './angaria.ts';
-import { nameError, taxIDError } from './customer.ts';
+import {
+  customerDefaults,
+  nameError,
+  recipientDetails,
+  taxIDError,
+  type CustomerDefaults,
+} from './customer.ts';
 import { GIB_CURRENCIES } from './gib-constants.ts';
 import type {
   CompanyInfo,
   InvoiceFormValues,
   InvoiceItem,
-  InvoiceTemplate,
   PDFLanguage,
   Recipient,
 } from './types.ts';
@@ -177,6 +183,13 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
   if (isAfterToday(advancedFields.irsaliyeTarihi, today)) {
     fields['advancedFields.irsaliyeTarihi'] = 'İrsaliye tarihi bugünden sonra olamaz';
   }
+  const dueDate = parseGIB(advancedFields.dueDate);
+  if (
+    dueDate &&
+    differenceInCalendarDays(dueDate, parseGIB(advancedFields.manualDate) ?? today) < 0
+  ) {
+    fields['advancedFields.dueDate'] = 'Son ödeme tarihi fatura tarihinden önce olamaz';
+  }
   if (parseDecimal(advancedFields.paymentTotal) === null) {
     fields['advancedFields.paymentTotal'] = 'Geçerli bir tutar girin';
   }
@@ -311,6 +324,7 @@ export function toPDFData(
   return {
     company,
     date: date || values.advancedFields.manualDate || toGIB(now),
+    dueDate: values.advancedFields.dueDate || undefined,
     entityName,
     ettn,
     gibNumber,
@@ -327,31 +341,71 @@ export function toPDFData(
   };
 }
 
-/** true when the form still holds what the template filled in. */
-export function matchesTemplate(values: InvoiceFormValues, template: InvoiceTemplate) {
-  const { invoiceSettings, items, note, recipient } = values;
-  return (
-    template.recipient.taxIDOrTRID === recipient.taxIDOrTRID &&
-    template.recipient.title === recipient.title &&
-    template.recipient.fullAddress === recipient.fullAddress &&
-    template.settings.currency === invoiceSettings.currency &&
-    template.settings.invoiceType === invoiceSettings.invoiceType &&
-    template.note === note &&
-    template.items.length === items.length &&
-    template.items.every((saved, index) => {
-      const item = items[index];
-      return (
-        saved.name === item.name &&
-        saved.quantity === item.quantity &&
-        saved.unitPrice === item.unitPrice &&
-        saved.VATRate === item.VATRate
-      );
-    })
-  );
+/**
+ * The form for an invoice to `customer`: its details as the recipient, and its
+ * defaults (lib/customer.ts customerDefaults) for the currency, invoice type,
+ * every row's VAT rate, the PDF language and the due date, counted from the
+ * invoice date (empty: `today`). A new currency starts from its TCMB rate.
+ */
+export function applyCustomer(
+  values: InvoiceFormValues,
+  customer: Recipient,
+  today = new Date(),
+): InvoiceFormValues {
+  const defaults = customerDefaults(customer);
+  const { advancedFields, invoiceSettings, items } = values;
+  const currency = defaults.currency ?? invoiceSettings.currency;
+  const newCurrency = currency !== invoiceSettings.currency;
+  const { dueDays, VATRate } = defaults;
+  const invoiceDate = parseGIB(advancedFields.manualDate) ?? today;
+
+  return {
+    ...values,
+    advancedFields: {
+      ...advancedFields,
+      currencyRateManual: newCurrency ? false : advancedFields.currencyRateManual,
+      dueDate:
+        dueDays === undefined ? advancedFields.dueDate : toGIB(addDays(invoiceDate, dueDays)),
+    },
+    invoiceSettings: {
+      currency,
+      currencyRate: newCurrency ? '' : invoiceSettings.currencyRate,
+      invoiceType: defaults.invoiceType,
+    },
+    items: VATRate === undefined ? items : items.map((item) => ({ ...item, VATRate })),
+    recipient: {
+      ...recipientDetails(customer),
+      id: customer.id,
+      pdfLanguage: defaults.pdfLanguage,
+    },
+  };
 }
 
 /**
- * Item templates after an invoice: each named row replaces the template of the
+ * What an invoice dated `date` teaches its customer: currency, invoice type,
+ * PDF language, the VAT rate when every row has the same one, and the days to
+ * its due date when it has one.
+ */
+export function invoiceDefaults(
+  values: InvoiceFormValues,
+  { date, pdfLanguage }: { date: string; pdfLanguage: PDFLanguage },
+): CustomerDefaults {
+  const rates = new Set(values.items.map((item) => item.VATRate));
+  const [rate] = rates;
+  const invoiceDate = parseGIB(date);
+  const dueDate = parseGIB(values.advancedFields.dueDate);
+  const dueDays = invoiceDate && dueDate ? differenceInCalendarDays(dueDate, invoiceDate) : -1;
+  return {
+    currency: values.invoiceSettings.currency,
+    dueDays: dueDays >= 0 ? dueDays : undefined,
+    invoiceType: values.invoiceSettings.invoiceType,
+    pdfLanguage,
+    VATRate: rates.size === 1 && Number.isFinite(rate) ? rate : undefined,
+  };
+}
+
+/**
+ * Saved services after an invoice: each named row replaces the service of the
  * same name (keeping its id) or is added as a new one.
  */
 export function upsertSavedItems(
@@ -365,7 +419,7 @@ export function upsertSavedItems(
     if (!name) {
       continue;
     }
-    const index = next.findIndex((template) => template.name === name);
+    const index = next.findIndex((service) => service.name === name);
     if (index === -1) {
       next.push({ ...item, id: newId(), name });
     } else {
@@ -393,7 +447,7 @@ export function isBlankForm(values: InvoiceFormValues) {
   );
 }
 
-/** Rows with every unparsable number as 0, for saving as templates. */
+/** Rows with every unparsable number as 0, for saving as services. */
 export const cleanItems = (items: ReadonlyArray<InvoiceItem>): Array<InvoiceItem> =>
   items.map((item) => ({
     ...item,

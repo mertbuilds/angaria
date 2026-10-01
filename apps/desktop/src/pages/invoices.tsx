@@ -127,7 +127,7 @@ const selectTotal = (detail: Record<string, unknown>) => {
  * invoice detail in the background (one shared session, after anything the
  * user asked for). Deleted drafts show none.
  */
-function InvoiceTotal({ invoice }: { invoice: Invoice }) {
+export function InvoiceTotal({ invoice }: { invoice: Invoice }) {
   const ref = useRef<HTMLSpanElement>(null);
   const seen = useSeen(ref);
   const account = useGIBAccount();

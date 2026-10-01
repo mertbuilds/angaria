@@ -133,8 +133,8 @@ const styles = create({
   },
 });
 
-// Compared without Turkish diacritics and case, like the ⌘K palette: "sablon"
-// finds "Şablon", "ISIK" finds "Işık".
+// Compared without Turkish diacritics and case, like the ⌘K palette: "musteri"
+// finds "Müşteri", "ISIK" finds "Işık".
 const fold = (text: string) =>
   text.toLocaleLowerCase('tr').replaceAll('ı', 'i').normalize('NFD').replaceAll(/\p{M}/gu, '');
 

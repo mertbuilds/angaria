@@ -1,8 +1,9 @@
 import { colors, font, radius } from '@angaria/ui/tokens.stylex';
 import { create, props, type StyleXStyles } from '@stylexjs/stylex';
 import { useRef, type KeyboardEvent } from 'react';
-import { PDF_LANGUAGES } from '@/lib/invoice-pdf-i18n.ts';
 import type { PDFLanguage } from '@/lib/types.ts';
+
+const LANGUAGES: ReadonlyArray<PDFLanguage> = ['tr', 'en', 'both'];
 
 const LABELS: Record<PDFLanguage, string> = {
   both: 'Türkçe ve İngilizce',
@@ -10,7 +11,7 @@ const LABELS: Record<PDFLanguage, string> = {
   tr: 'Türkçe',
 };
 
-const SHORT: Record<PDFLanguage, string> = { both: 'TR+EN', en: 'EN', tr: 'TR' };
+const SHORT_LABELS: Record<PDFLanguage, string> = { both: 'TR+EN', en: 'EN', tr: 'TR' };
 
 const styles = create({
   option: {
@@ -86,8 +87,8 @@ export function PDFLanguageToggle({
       return;
     }
     event.preventDefault();
-    const index = PDF_LANGUAGES.indexOf(value);
-    const next = PDF_LANGUAGES[(index + step + PDF_LANGUAGES.length) % PDF_LANGUAGES.length];
+    const index = LANGUAGES.indexOf(value);
+    const next = LANGUAGES[(index + step + LANGUAGES.length) % LANGUAGES.length];
     onChange(next);
     refs.current.get(next)?.focus();
   };
@@ -99,7 +100,7 @@ export function PDFLanguageToggle({
       role="radiogroup"
       {...props(styles.track, style)}
     >
-      {PDF_LANGUAGES.map((language) => (
+      {LANGUAGES.map((language) => (
         <button
           aria-checked={value === language}
           aria-label={LABELS[language]}
@@ -117,7 +118,7 @@ export function PDFLanguageToggle({
           type="button"
           {...props(styles.option, value === language && styles.selected)}
         >
-          {SHORT[language]}
+          {SHORT_LABELS[language]}
         </button>
       ))}
     </div>

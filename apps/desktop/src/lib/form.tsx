@@ -200,7 +200,7 @@ function NumberField({
   const [text, setText] = useState(() => show(value));
   const [shown, setShown] = useState(value);
 
-  // A value set elsewhere (an item template filled the row) replaces the text.
+  // A value set elsewhere (a saved service filled the row) replaces the text.
   if (!Object.is(shown, value)) {
     setShown(value);
     if (!Object.is(parseDecimal(text) ?? Number.NaN, value)) {
@@ -241,9 +241,14 @@ function NumberField({
 
 /**
  * A GİB date ("30/09/2026") in the system date picker. Empty means today when
- * `emptyIsToday`, otherwise no date. Days after today cannot be picked.
+ * `emptyIsToday`, otherwise no date. Days after today cannot be picked unless
+ * `allowFuture` (a due date).
  */
-function DateField({ emptyIsToday = false, ...frame }: FieldProps & { emptyIsToday?: boolean }) {
+function DateField({
+  allowFuture = false,
+  emptyIsToday = false,
+  ...frame
+}: FieldProps & { allowFuture?: boolean; emptyIsToday?: boolean }) {
   const field = useFieldContext<string>();
   const error = useFieldError();
   const [today] = useState(() => gibToInputDate(toGIB(new Date())));
@@ -255,7 +260,7 @@ function DateField({ emptyIsToday = false, ...frame }: FieldProps & { emptyIsTod
           aria-describedby={describedBy}
           aria-invalid={error ? true : undefined}
           id={field.name}
-          max={today}
+          max={allowFuture ? undefined : today}
           name={field.name}
           onBlur={field.handleBlur}
           onChange={(event) => field.handleChange(inputDateToGIB(event.target.value))}

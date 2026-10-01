@@ -1,22 +1,32 @@
-/** 'both': Turkish and English labels side by side, Turkish first. */
+/** A PDF's language: Turkish, English, or both side by side. */
 export type PDFLanguage = 'en' | 'tr' | 'both';
 
 /** The PDF's look: 'minimal' (hairlines, no boxes) or 'classic' (bordered boxes). */
 export type PDFStyle = 'minimal' | 'classic';
 
+/**
+ * An invoice's recipient, and a saved customer. The optional fields are a
+ * saved customer's invoice defaults, learned from each invoice; missing ones
+ * follow from where the customer is (lib/customer.ts). On the invoice form only
+ * `pdfLanguage` is used, as that invoice's PDF language.
+ */
 export interface Recipient {
   city: string;
   country: string;
+  currency?: string;
   district: string;
+  /** Payment is due this many days after the invoice date (Son ödeme tarihi). */
+  dueDays?: number;
   fullAddress: string;
   id: string;
+  invoiceType?: string;
   name: string;
-  /** Default PDF language for this customer; missing means the app default */
   pdfLanguage?: PDFLanguage;
   surname: string;
   taxIDOrTRID: string;
   taxOffice: string;
   title: string;
+  VATRate?: number;
 }
 
 export interface InvoiceSettings {
@@ -42,6 +52,8 @@ export interface InvoiceItem {
 export interface AdvancedInvoiceFields {
   /** true once the rate was typed in: the TCMB rate no longer fills it */
   currencyRateManual?: boolean;
+  /** Son ödeme tarihi, dd/MM/yyyy or empty. PDF only: GİB has no such field. */
+  dueDate: string;
   irsaliyeNumarasi: string;
   irsaliyeTarihi: string;
   manualDate: string;
@@ -59,9 +71,7 @@ export interface InvoiceFormValues {
 }
 
 /** What filled the invoice form; null for a blank form. */
-export type InvoiceSource =
-  | { kind: 'invoice'; label: string }
-  | { kind: 'template'; name: string; templateId: string };
+export type InvoiceSource = { kind: 'invoice'; label: string };
 
 export interface Credentials {
   password: string;
@@ -107,7 +117,6 @@ export interface CompanyInfo {
 export interface EntityData {
   companyInfo: CompanyInfo;
   creds: StoredCredentials;
-  invoiceTemplates: Array<InvoiceTemplate>;
   savedItems: Array<InvoiceItem>;
   savedRecipients: Array<Recipient>;
 }
@@ -115,16 +124,6 @@ export interface EntityData {
 export interface Entity extends EntityData {
   id: string;
   name: string;
-}
-
-export interface InvoiceTemplate {
-  id: string;
-  items: Array<InvoiceItem>;
-  lastUsedAt?: number;
-  name: string;
-  note: string;
-  recipient: Recipient;
-  settings: InvoiceSettings;
 }
 
 /** A row of GİB's document list (EARSIV_PORTAL_TASLAKLARI_GETIR). */

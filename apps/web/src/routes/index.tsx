@@ -172,7 +172,7 @@ function Landing() {
           </figure>
         </div>
         <ul {...props(layout.list)}>
-          <PainPoint body={m.compare_templates_body()} title={m.compare_templates_title()} />
+          <PainPoint body={m.compare_saved_body()} title={m.compare_saved_title()} />
           <PainPoint body={m.compare_repeat_body()} title={m.compare_repeat_title()} />
           <PainPoint body={m.compare_time_body()} title={m.compare_time_title()} />
         </ul>
@@ -183,7 +183,7 @@ function Landing() {
           {m.features_title()}
         </h2>
         <dl {...props(styles.grid)}>
-          <Feature body={m.feature_templates_body()} title={m.feature_templates_title()} />
+          <Feature body={m.feature_start_body()} title={m.feature_start_title()} />
           <Feature body={m.feature_repeat_body()} title={m.feature_repeat_title()} />
           <Feature body={m.feature_customers_body()} title={m.feature_customers_title()} />
           <Feature body={m.feature_companies_body()} title={m.feature_companies_title()} />

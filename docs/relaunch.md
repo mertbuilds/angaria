@@ -33,8 +33,9 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 
 ## Desktop app
 
-- Layout: macOS sidebar under overlay titlebar (Faturalar, Yeni fatura, Müşteriler, Şablonlar, Ayarlar) + list/detail panes (invoice list → detail with preview). TanStack Router. ⌘K command palette (incl. "geçen ayın faturasını tekrar kes").
-- Keep all existing flows working (GİB login/SMS, create draft, list, preview, templates, item templates, customers, multi-entity, PDF).
+- Layout: macOS sidebar under overlay titlebar (Faturalar, Yeni fatura, Müşteriler, Ayarlar; ⌘1-4) + list/detail panes (invoice list → detail with preview). TanStack Router. ⌘K command palette (incl. "geçen ayın faturasını tekrar kes").
+- Keep all existing flows working (GİB login/SMS, create draft, list, preview, customers, services, multi-entity, PDF).
+- Simplified (2026-10-01): no invoice templates. Yeni fatura starts from one of the last five invoices ("Tekrar kes") or a blank form. Customers and their service lines save themselves from every created draft. A customer carries invoice defaults (currency, invoice type, VAT rate, PDF language TR/EN/both, payment due in N days), learned from each invoice; without them: abroad (country not Türkiye, or VKN 2222222222) İstisna and an English PDF, at home Satış, lira and a Turkish PDF. Son ödeme tarihi prints on the PDF only. "Oluştur ve onayla" creates the draft and signs it by SMS in one go. Müşteriler has a Hizmetler tab. The company switcher shows only with two or more companies; Test modu (and the dev-only Emülatör) sit in Ayarlar › Gelişmiş.
 - PDF: add TR/EN language toggle per invoice; keep the current visual template. Turkish labels + Turkish date/number formatting when TR.
 - GİB credentials move to the OS keychain (Rust `keyring` crate via Tauri commands). One-time migration from localStorage (`fatura-entities` creds, legacy `fatura-creds`), then delete plaintext.
 - Network: strict CSP + http allowlist. Allowed hosts only: `earsivportal.efatura.gov.tr`, `earsivportaltest.efatura.gov.tr`, `www.tcmb.gov.tr`, Polar API (`api.polar.sh`, `sandbox-api.polar.sh` in dev), `dl.angaria.app` (updater). Nothing else; no analytics/telemetry in the app.
@@ -49,7 +50,7 @@ Turkish. Sections:
 
 1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" / "14 gün ücretsiz dene" CTA.
 2. GİB vs Angaria side-by-side (placeholders until Mert sends GİB screenshots).
-3. Features: şablonlar, geçen ayın faturasını tekrar kes, müşteri kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers).
+3. Features: geçen faturadan başla, geçen ayın faturasını tekrar kes, müşteri ve hizmet kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers).
 4. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, Polar license check, update check); credentials in system keychain; data stays on device.
 5. Pricing: 1.499 ₺/yıl, 14 gün ücretsiz → Polar hosted checkout.
 6. SSS (FAQ), footer.

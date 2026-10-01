@@ -1,20 +1,12 @@
 import {
-  Button,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   Field,
   FieldLabel,
-  Input,
   toast,
 } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
@@ -22,19 +14,22 @@ import { create, props } from '@stylexjs/stylex';
 import { useStore as useFormState } from '@tanstack/react-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { ChevronRightIcon, UserPlusIcon } from 'lucide-react';
+import type { SessionInfo } from 'angaria-earsiv-sdk';
+import { ChevronRightIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createDraftInvoice, fetchTCMBRateTable, getDrafts } from '@/lib/angaria.ts';
-import { customerName, findCustomer, nameError, taxIDError } from '@/lib/customer.ts';
+import { customerName, defaultPDFLanguage, findCustomer, learnCustomer } from '@/lib/customer.ts';
 import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
+import { saveDueDate } from '@/lib/invoice-due-dates.ts';
 import {
+  applyCustomer,
   cleanItems,
   CURRENCY_OPTIONS,
   formatDecimal,
   formatRate,
+  invoiceDefaults,
   invoiceTotals,
-  matchesTemplate,
   parseDecimal,
   sameInvoice,
   toDraftDetails,
@@ -57,6 +52,7 @@ import {
   useStoredInvoiceForm,
   type InvoiceForm,
 } from './use-invoice-form.ts';
+import { useSMSSign } from './use-sms-sign.tsx';
 
 const isMac = navigator.userAgent.includes('Mac');
 
@@ -84,23 +80,12 @@ const styles = create({
     },
     top: spacing.s6,
   },
-  customerHint: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
-  },
   customerOption: {
     color: colors.muted,
     flexShrink: 0,
     fontSize: font.sizeXs,
     fontVariantNumeric: 'tabular-nums',
     marginInlineStart: 'auto',
-  },
-  dialogForm: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
   },
   fields: {
     display: 'grid',
@@ -234,13 +219,17 @@ function Section({ children, hint, title }: { children: ReactNode; hint?: string
 }
 
 function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: Recipient }) {
-  const { newId, savedRecipients, setSavedRecipients } = useStore();
+  const { savedRecipients } = useStore();
   const matched = findCustomer(savedRecipients, recipient.taxIDOrTRID, customerName(recipient));
-  const canSave = !matched && !taxIDError(recipient.taxIDOrTRID) && !nameError(recipient);
 
-  const saveCustomer = () => {
-    setSavedRecipients((prev) => [...prev, { ...recipient, id: newId() }]);
-    toast.success(`${displayName(recipient)} müşterilere eklendi`);
+  // The customer's defaults set more than the recipient. Their listeners stay
+  // quiet: applyCustomer already resets a new currency's rate.
+  const pickCustomer = (customer: Recipient) => {
+    const next = applyCustomer(form.state.values, customer);
+    form.setFieldValue('recipient', next.recipient, { dontRunListeners: true });
+    form.setFieldValue('invoiceSettings', next.invoiceSettings, { dontRunListeners: true });
+    form.setFieldValue('items', next.items, { dontRunListeners: true });
+    form.setFieldValue('advancedFields', next.advancedFields, { dontRunListeners: true });
   };
 
   return (
@@ -261,9 +250,7 @@ function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: R
             isItemEqualToValue={(item: Recipient, value: Recipient) => item.id === value.id}
             items={savedRecipients}
             itemToStringLabel={displayName}
-            onValueChange={(customer: Recipient | null) =>
-              customer && form.setFieldValue('recipient', { ...customer })
-            }
+            onValueChange={(customer: Recipient | null) => customer && pickCustomer(customer)}
             value={matched}
           >
             <ComboboxInput
@@ -343,15 +330,6 @@ function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: R
           )}
         </form.AppField>
       </div>
-      {canSave && (
-        <div {...props(styles.customerHint)}>
-          <span {...props(styles.sectionHint)}>Bu alıcı kayıtlı müşterileriniz arasında yok</span>
-          <Button onClick={saveCustomer} variant="outline">
-            <UserPlusIcon />
-            Yeni müşteri olarak kaydet
-          </Button>
-        </div>
-      )}
     </Section>
   );
 }
@@ -415,6 +393,15 @@ function InvoiceSection({
             )}
           </form.AppField>
         )}
+        <form.AppField name="advancedFields.dueDate">
+          {(field) => (
+            <field.DateField
+              allowFuture
+              description="Yalnızca PDF’te görünür, GİB’e gönderilmez"
+              label="Son ödeme tarihi"
+            />
+          )}
+        </form.AppField>
       </div>
     </Section>
   );
@@ -460,71 +447,6 @@ function AdvancedSection({ form, total }: { form: InvoiceForm; total: string }) 
   );
 }
 
-function SaveTemplateDialog({
-  defaultName,
-  onOpenChange,
-  onSave,
-  open,
-}: {
-  defaultName: string;
-  onOpenChange: (open: boolean) => void;
-  onSave: (name: string) => void;
-  open: boolean;
-}) {
-  const [name, setName] = useState(defaultName);
-  const [wasOpen, setWasOpen] = useState(open);
-  const trimmed = name.trim();
-
-  // Each opening starts from the recipient's name.
-  if (open !== wasOpen) {
-    setWasOpen(open);
-    if (open) {
-      setName(defaultName);
-    }
-  }
-
-  return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (trimmed) {
-              onSave(trimmed);
-            }
-          }}
-          {...props(styles.dialogForm)}
-        >
-          <DialogHeader>
-            <DialogTitle>Şablon olarak kaydet</DialogTitle>
-            <DialogDescription>
-              Müşteri, kalemler ve not bir sonraki faturada hazır gelir.
-            </DialogDescription>
-          </DialogHeader>
-          <Field>
-            <FieldLabel htmlFor="template-name">Şablon adı</FieldLabel>
-            <Input
-              autoFocus
-              id="template-name"
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Aylık danışmanlık faturası"
-              value={name}
-            />
-          </Field>
-          <DialogFooter>
-            <Button onClick={() => onOpenChange(false)} variant="outline">
-              Vazgeç
-            </Button>
-            <Button disabled={!trimmed} type="submit">
-              Kaydet
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /**
  * Opens the first field with a visible error (inside a closed details
  * section too) and focuses it.
@@ -554,19 +476,17 @@ export function CreateInvoicePage() {
   const {
     activeEntity,
     companyInfo,
-    invoiceSource,
-    invoiceTemplates,
     newId,
     resetInvoiceForm,
     savedRecipients,
     setAdvancedFields,
     setInvoiceDateRange,
     setInvoiceSettings,
-    setInvoiceTemplates,
     setItems,
     setNote,
     setRecipient,
     setSavedItems,
+    setSavedRecipients,
   } = useStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -580,12 +500,18 @@ export function CreateInvoicePage() {
     draft: CreatedDraft;
     values: InvoiceFormValues;
   } | null>(null);
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-  const [templateSaved, setTemplateSaved] = useState(false);
+  const sms = useSMSSign();
 
   const createDraft = useMutation({
-    mutationFn: async (values: InvoiceFormValues) => {
-      const draft = await gib.run(account, async (session): Promise<CreatedDraft> => {
+    mutationFn: async ({
+      sign,
+      values,
+    }: {
+      pdfLanguage: PDFLanguage;
+      sign: boolean;
+      values: InvoiceFormValues;
+    }) => {
+      const createOnGIB = async (session: SessionInfo): Promise<CreatedDraft> => {
         const result = await createDraftInvoice(session, toDraftDetails(values));
         if (!result.uuid) {
           return { date: result.date, uuid: '' };
@@ -596,23 +522,43 @@ export function CreateInvoicePage() {
         )) as Array<Invoice>;
         const number = drafts.find((row) => row.ettn === result.uuid)?.belgeNumarasi;
         return { date: result.date, number, uuid: result.uuid };
-      });
+      };
+      let draft: CreatedDraft;
+      if (sign) {
+        // Created and signed on one session: the SMS code goes out right away.
+        const result = await sms.sign(async (session) => {
+          const value = await createOnGIB(session);
+          return { ettns: value.uuid ? [value.uuid] : [], value };
+        });
+        if (!result) {
+          return null;
+        }
+        draft = { ...result.value, signed: result.signed };
+      } else {
+        draft = await gib.run(account, createOnGIB);
+      }
       if (draft.uuid) {
         // Cached for the invoice screen too. Optional: without it the draft
         // still exists, only unverified.
         draft.html = await queryClient
-          .fetchQuery(invoiceHTMLQuery(account, draft.uuid, 'Onaylanmadı'))
+          .fetchQuery(
+            invoiceHTMLQuery(account, draft.uuid, draft.signed ? 'Onaylandı' : 'Onaylanmadı'),
+          )
           .catch(() => undefined);
       }
       return { draft, values };
     },
-    onSuccess: ({ draft, values }) => {
+    // Null: the screen closed before GİB answered.
+    onSuccess: (result, { pdfLanguage }) => {
+      if (!result) {
+        return;
+      }
+      const { draft, values } = result;
+      const done = draft.signed ? 'Fatura onaylandı' : 'Taslak fatura oluşturuldu';
       if (draft.html) {
-        toast.success('Taslak fatura oluşturuldu');
+        toast.success(done);
       } else {
-        toast.warning(
-          'Taslak fatura oluşturuldu ama GİB’den doğrulanamadı. Faturalar listesinden kontrol edin.',
-        );
+        toast.warning(`${done} ama GİB’den doğrulanamadı. Faturalar listesinden kontrol edin.`);
       }
 
       // Make the new draft visible in the invoices list: refetch it and
@@ -630,19 +576,42 @@ export function CreateInvoicePage() {
         });
       }
 
+      if (draft.uuid && values.advancedFields.dueDate) {
+        saveDueDate(draft.uuid, values.advancedFields.dueDate);
+      }
+      // Every invoice keeps its customer and services up to date.
       setSavedItems((prev) => upsertSavedItems(prev, cleanItems(values.items), newId));
+      const learned = learnCustomer(
+        savedRecipients,
+        values.recipient,
+        invoiceDefaults(values, { date: draft.date, pdfLanguage }),
+        newId,
+      );
+      setSavedRecipients(learned.customers);
+      if (learned.added) {
+        toast('Müşteri kaydedildi', { description: displayName(values.recipient) });
+      }
       setCreated({ draft, values });
     },
   });
 
+  /** The invoice's PDF language: its own choice, else its customer's default. */
+  const pdfLanguageOf = (source: InvoiceFormValues) => {
+    const { recipient } = source;
+    const saved = findCustomer(savedRecipients, recipient.taxIDOrTRID, customerName(recipient));
+    return resolvePDFLanguage(recipient.pdfLanguage, defaultPDFLanguage(saved ?? recipient));
+  };
+
   const form = useInvoiceForm({
     defaultValues,
-    onSubmit: async (values) => {
+    onSubmit: async (values, { sign }) => {
       if (!requireCredentials()) {
         return;
       }
       // A failure shows as a toast (the app's MutationCache).
-      await createDraft.mutateAsync(values).catch(() => {});
+      await createDraft
+        .mutateAsync({ pdfLanguage: pdfLanguageOf(values), sign, values })
+        .catch(() => {});
     },
     onSubmitInvalid: () => revealFirstError(rootRef.current),
   });
@@ -719,15 +688,7 @@ export function CreateInvoicePage() {
     rateDescription = 'TCMB kuru alınıyor';
   }
 
-  const matchedCustomer = findCustomer(
-    savedRecipients,
-    values.recipient.taxIDOrTRID,
-    customerName(values.recipient),
-  );
-  const pdfLanguage = resolvePDFLanguage(
-    values.recipient.pdfLanguage,
-    matchedCustomer?.pdfLanguage,
-  );
+  const pdfLanguage = pdfLanguageOf(values);
   const setPDFLanguage = (language: PDFLanguage) =>
     form.setFieldValue('recipient.pdfLanguage', language, { dontUpdateMeta: true });
 
@@ -761,33 +722,6 @@ export function CreateInvoicePage() {
 
   // The success state lasts until the invoice is edited (the PDF language aside).
   const success = created && sameInvoice(values, created.values) ? created : null;
-  const sourceTemplate =
-    invoiceSource?.kind === 'template'
-      ? invoiceTemplates.find((template) => template.id === invoiceSource.templateId)
-      : undefined;
-  const offerTemplate =
-    !templateSaved &&
-    !(success && sourceTemplate && matchesTemplate(success.values, sourceTemplate));
-
-  const saveTemplate = (name: string) => {
-    const current = form.state.values;
-    const items = cleanItems(current.items);
-    setInvoiceTemplates((prev) => [
-      ...prev,
-      {
-        id: newId(),
-        items,
-        name,
-        note: current.note,
-        recipient: { ...current.recipient },
-        settings: { ...current.invoiceSettings },
-      },
-    ]);
-    setSavedItems((prev) => upsertSavedItems(prev, items, newId));
-    setTemplateSaved(true);
-    setTemplateDialogOpen(false);
-    toast.success('Fatura şablonu kaydedildi');
-  };
 
   const openCreated = () => {
     if (!success?.draft.uuid) {
@@ -797,23 +731,23 @@ export function CreateInvoicePage() {
     void navigate({ params: { ettn: success.draft.uuid }, to: '/faturalar/$ettn' });
   };
 
+  // ⌘↵ creates the draft, ⌘⇧↵ creates and signs it.
   const submitShortcut = useEffectEvent((event: KeyboardEvent) => {
     const mod = isMac ? event.metaKey : event.ctrlKey;
     if (
       !mod ||
       event.key !== 'Enter' ||
       event.altKey ||
-      event.shiftKey ||
       event.isComposing ||
       event.defaultPrevented ||
-      // A dialog's own Enter handling wins (the template name dialog).
+      // A dialog's own Enter handling wins (the SMS code dialog).
       (event.target as Element | null)?.closest?.('[role="dialog"], [role="alertdialog"]')
     ) {
       return;
     }
     event.preventDefault();
     if (!success && !form.state.isSubmitting) {
-      void form.handleSubmit();
+      void form.handleSubmit({ sign: event.shiftKey });
     }
   });
 
@@ -851,12 +785,10 @@ export function CreateInvoicePage() {
           {success ? (
             <SuccessPanel
               created={success.draft}
-              offerTemplate={offerTemplate}
               onDownloadPDF={() => downloadPDF(success.values, success.draft)}
               onNewInvoice={resetInvoiceForm}
               onOpenInvoice={openCreated}
               onPDFLanguageChange={setPDFLanguage}
-              onSaveTemplate={() => setTemplateDialogOpen(true)}
               pdfLanguage={pdfLanguage}
             />
           ) : (
@@ -865,20 +797,15 @@ export function CreateInvoicePage() {
               onClear={clearForm}
               onDownloadPDF={() => downloadPDF(values)}
               onPDFLanguageChange={setPDFLanguage}
-              onSaveTemplate={() => setTemplateDialogOpen(true)}
               pdfLanguage={pdfLanguage}
               rate={rate}
+              signing={createDraft.isPending && createDraft.variables?.sign === true}
               values={values}
             />
           )}
         </aside>
       </div>
-      <SaveTemplateDialog
-        defaultName={customerName(values.recipient)}
-        onOpenChange={setTemplateDialogOpen}
-        onSave={saveTemplate}
-        open={templateDialogOpen}
-      />
+      {sms.dialog}
     </div>
   );
 }
