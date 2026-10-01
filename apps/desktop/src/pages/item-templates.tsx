@@ -21,7 +21,7 @@ import {
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceItem } from '@/lib/types.ts';
@@ -244,6 +244,8 @@ function ItemDetail({
   );
 }
 
+const matchesItem = (item: InvoiceItem, query: string) => matchesQuery(query, item.name);
+
 export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
   const { defaultItemAdvanced, newId, savedItems, setSavedItems } = useStore();
   const [query, setQuery] = useState('');
@@ -251,11 +253,11 @@ export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
   const nameRef = useRef<HTMLInputElement>(null);
   const deleting = useDialogTarget<InvoiceItem>();
 
-  const visible = useMemo(
-    () => savedItems.filter((item) => matchesQuery(query, item.name)),
-    [query, savedItems],
+  const { neighborOf, select, selected, visible } = useListSelection(
+    savedItems,
+    query,
+    matchesItem,
   );
-  const { neighborOf, select, selected } = useListSelection(visible);
 
   const addItem = () => {
     const id = newId();
