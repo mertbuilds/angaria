@@ -77,11 +77,11 @@ export function CommandPalette({
         {otherEntities.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Varlık değiştir">
+            <CommandGroup heading="Şirket değiştir">
               {otherEntities.map((entity) => (
                 <CommandItem
                   key={entity.id}
-                  keywords={['varlık', 'firma', entity.companyInfo.name]}
+                  keywords={['şirket', 'firma', entity.companyInfo.name]}
                   onSelect={run(() => setActiveEntityId(entity.id))}
                   value={`${entity.name} ${entity.id}`}
                 >

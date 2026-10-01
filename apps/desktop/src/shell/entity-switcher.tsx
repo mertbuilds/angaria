@@ -67,7 +67,7 @@ export function EntitySwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Varlık değiştir"
+        aria-label="Şirket değiştir"
         render={<SidebarMenuButton style={styles.trigger} />}
       >
         <span {...props(styles.badge)}>
@@ -82,7 +82,7 @@ export function EntitySwitcher() {
         <ChevronsUpDownIcon {...props(styles.icon, styles.chevron)} />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" style={styles.menu}>
-        <DropdownMenuLabel>Varlıklar</DropdownMenuLabel>
+        <DropdownMenuLabel>Şirketler</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           onValueChange={(value: string) => setActiveEntityId(value)}
           value={activeEntityId}
@@ -91,7 +91,9 @@ export function EntitySwitcher() {
             <DropdownMenuRadioItem key={entity.id} value={entity.id}>
               <span {...props(styles.text)}>
                 <span {...props(styles.name)}>{entity.name}</span>
-                <span {...props(styles.detail)}>{entity.companyInfo.name || 'Boş varlık'}</span>
+                <span {...props(styles.detail)}>
+                  {entity.companyInfo.name || 'Firma bilgisi eklenmedi'}
+                </span>
               </span>
             </DropdownMenuRadioItem>
           ))}
@@ -99,7 +101,7 @@ export function EntitySwitcher() {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={createEntity}>
           <PlusIcon />
-          Yeni varlık
+          Yeni şirket
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

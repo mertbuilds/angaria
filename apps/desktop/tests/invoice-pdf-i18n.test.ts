@@ -143,10 +143,10 @@ describe('buildInvoicePDFFilename', () => {
   test('falls back to the company name and localized placeholders', () => {
     const empty = { companyName: '', date: '', recipientTitle: '' };
     expect(buildInvoicePDFFilename({ ...empty, language: 'tr' })).toBe(
-      'Fatura-tarihsiz-varlik-alici.pdf',
+      'Fatura-tarihsiz-sirket-alici.pdf',
     );
     expect(buildInvoicePDFFilename({ ...empty, language: 'en' })).toBe(
-      'Invoice-undated-entity-recipient.pdf',
+      'Invoice-undated-company-recipient.pdf',
     );
     expect(buildInvoicePDFFilename({ ...base, entityName: undefined, language: 'en' })).toBe(
       'Invoice-2026-03-05-Vinena-Studio-ACME-GmbH.pdf',
