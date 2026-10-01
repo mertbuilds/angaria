@@ -190,6 +190,14 @@ function StatusSelect({
   );
 }
 
+const matchesRow = ({ invoice }: { invoice: Invoice }, query: string) =>
+  matchesQuery(
+    query,
+    invoice.aliciUnvanAdSoyad ?? '',
+    invoice.belgeNumarasi ?? '',
+    invoice.aliciVknTckn ?? '',
+  );
+
 /**
  * Faturalar: GİB's documents in the chosen range on the left, the open one
  * (child route /faturalar/$ettn) on the right. ↑/↓ move, ↵ or a click opens,
@@ -211,20 +219,11 @@ export function InvoicesScreen() {
   const rows = useMemo(
     () =>
       (list.data ?? []).flatMap((invoice) =>
-        invoice.ettn &&
-        matchesStatus(invoice, status) &&
-        matchesQuery(
-          query,
-          invoice.aliciUnvanAdSoyad ?? '',
-          invoice.belgeNumarasi ?? '',
-          invoice.aliciVknTckn ?? '',
-        )
-          ? [{ id: invoice.ettn, invoice }]
-          : [],
+        invoice.ettn && matchesStatus(invoice, status) ? [{ id: invoice.ettn, invoice }] : [],
       ),
-    [list.data, query, status],
+    [list.data, status],
   );
-  const { select, selected } = useListSelection(rows);
+  const { select, selected, visible } = useListSelection(rows, query, matchesRow);
 
   useEffect(() => {
     if (openEttn) {
@@ -316,7 +315,7 @@ export function InvoicesScreen() {
         }}
         searchPlaceholder="Alıcı, belge no veya VKN ara"
         selected={selected}
-        visible={rows}
+        visible={visible}
       />
     );
   }

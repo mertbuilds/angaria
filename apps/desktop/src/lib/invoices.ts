@@ -2,6 +2,7 @@
 // and reading GİB's invoice detail. No Tauri or React imports, so tests run
 // them directly.
 
+import { addDays, subMonths } from 'date-fns';
 import { previousMonthRange } from './reissue.ts';
 import type { Invoice, InvoiceItem, InvoiceSettings, Recipient } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
@@ -30,10 +31,8 @@ export function presetRange(preset: DatePreset, now: Date): DateRange {
     case 'gecen-ay':
       return previousMonthRange(now);
     case 'son-3-ay':
-      return {
-        end: today,
-        start: toGIB(new Date(now.getFullYear(), now.getMonth() - 3, now.getDate() + 1)),
-      };
+      // subMonths stops at the month's end: 31 May goes back to 28 February.
+      return { end: today, start: toGIB(addDays(subMonths(now, 3), 1)) };
   }
 }
 

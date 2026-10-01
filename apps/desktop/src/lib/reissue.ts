@@ -37,3 +37,14 @@ export function lastMonthInvoice(invoices: Iterable<Invoice>, now: Date): Invoic
   }
   return best?.invoice ?? null;
 }
+
+/**
+ * Last month's newest invoice, from GİB's list for that whole month. Lists
+ * of other ranges may hold only part of the month, so they are not searched.
+ */
+export async function fetchLastMonthInvoice(
+  fetchList: (range: { end: string; start: string }) => Promise<Array<Invoice>>,
+  now: Date,
+): Promise<Invoice | null> {
+  return lastMonthInvoice(await fetchList(previousMonthRange(now)), now);
+}

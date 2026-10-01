@@ -158,6 +158,9 @@ function templateTotals(items: Array<InvoiceItem>) {
 
 const lastUsed = (template: InvoiceTemplate) => template.lastUsedAt ?? 0;
 
+const matchesInvoiceTemplate = (template: InvoiceTemplate, query: string) =>
+  matchesQuery(query, template.name, template.recipient.title);
+
 function Fact({ children, term }: { children: ReactNode; term: string }) {
   return (
     <>
@@ -342,14 +345,15 @@ export function InvoiceTemplatesPage({ tabs }: { tabs: ReactNode }) {
   const deleting = useDialogTarget<InvoiceTemplate>();
 
   // Most recently used first, so ↵ on the top row repeats the usual invoice.
-  const visible = useMemo(
-    () =>
-      invoiceTemplates
-        .filter((template) => matchesQuery(query, template.name, template.recipient.title))
-        .toSorted((a, b) => lastUsed(b) - lastUsed(a)),
-    [invoiceTemplates, query],
+  const sorted = useMemo(
+    () => invoiceTemplates.toSorted((a, b) => lastUsed(b) - lastUsed(a)),
+    [invoiceTemplates],
   );
-  const { neighborOf, select, selected } = useListSelection(visible);
+  const { neighborOf, select, selected, visible } = useListSelection(
+    sorted,
+    query,
+    matchesInvoiceTemplate,
+  );
 
   const issue = (template: InvoiceTemplate) =>
     void navigate({ search: { sablon: template.id }, to: '/yeni' });

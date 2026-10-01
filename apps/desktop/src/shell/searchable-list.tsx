@@ -1,8 +1,9 @@
 import { Input, Kbd } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { GIB_INVOICE_TYPES, GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
+import { listRows, type ListSelection } from './list-selection.ts';
 
 const styles = create({
   empty: {
@@ -178,12 +179,26 @@ export const unitLabel = (code: string) =>
   GIB_UNIT_TYPES.find((unit) => unit.value === code)?.label ?? code;
 
 /**
- * The selected row of a filtered list. A selection that the filter hides, or
- * none yet, falls back to the first visible row.
+ * The rows of `items` that `query` lists, and the selected one. A selection
+ * the search hides, or none yet, falls back to the first row; a row edited
+ * out of the search stays listed and selected until the search changes.
+ * `matches` must be stable (a module-level function).
  */
-export function useListSelection<T extends { id: string }>(visible: Array<T>) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = visible.find((item) => item.id === selectedId) ?? visible[0] ?? null;
+export function useListSelection<T extends { id: string }>(
+  items: ReadonlyArray<T>,
+  query: string,
+  matches: (item: T, query: string) => boolean,
+) {
+  const [selection, setSelection] = useState<ListSelection>({ id: null, query: null });
+  const { next, selected, visible } = useMemo(
+    () => listRows(items, query, matches, selection),
+    [items, matches, query, selection],
+  );
+  if (next !== selection) {
+    setSelection(next);
+  }
+
+  const select = useCallback((id: string | null) => setSelection({ id, query: null }), []);
 
   /** The row to select once `id` is gone: the next one, else the previous. */
   const neighborOf = (id: string) => {
@@ -191,7 +206,7 @@ export function useListSelection<T extends { id: string }>(visible: Array<T>) {
     return (visible[index + 1] ?? visible[index - 1])?.id ?? null;
   };
 
-  return { neighborOf, select: setSelectedId, selected };
+  return { neighborOf, select, selected, visible };
 }
 
 /** The row a dialog is about. Kept after closing, so the text stays while it fades out. */
@@ -232,7 +247,7 @@ export interface SearchableListProps<T extends { id: string }> {
   row: (item: T) => ListRow;
   searchPlaceholder: string;
   selected: T | null;
-  visible: Array<T>;
+  visible: ReadonlyArray<T>;
 }
 
 /**
@@ -289,6 +304,13 @@ export function SearchableList<T extends { id: string }>({
       const fromSearch = event.target === searchRef.current;
       const fromList = event.target === listRef.current || event.target === document.body;
       if (!fromSearch && !fromList) {
+        return;
+      }
+      // An open dialog owns the keys, also when the focus fell back to the page.
+      if (
+        document.querySelector('[role="dialog"], [role="alertdialog"]') ||
+        listRef.current?.closest('[aria-hidden="true"], [inert]')
+      ) {
         return;
       }
       const index = selected ? visible.indexOf(selected) : -1;

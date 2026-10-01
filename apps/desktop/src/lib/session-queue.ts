@@ -25,7 +25,10 @@ export interface RunOptions {
    * never hold up what the user just asked for.
    */
   background?: boolean;
-  /** A task still waiting when this aborts is dropped and rejects. */
+  /**
+   * A task still waiting when this aborts is dropped and rejects. A running
+   * task gets it as its second argument.
+   */
   signal?: AbortSignal;
 }
 
@@ -86,8 +89,11 @@ export function createSessionQueue(client: SessionClient) {
           await job.run(open.session);
         } catch (error) {
           job.reject(error);
-          // The failure may have ended the session on GİB's side.
-          await close();
+          // The failure may have ended the session on GİB's side. A task that
+          // stopped for its abort (between requests) left it open.
+          if (!job.signal?.aborted || error !== job.signal.reason) {
+            await close();
+          }
         }
       }
       await close();
@@ -95,10 +101,13 @@ export function createSessionQueue(client: SessionClient) {
     draining = false;
   }
 
-  /** Runs `task` with a logged-in session, after the tasks queued before it. */
+  /**
+   * Runs `task` with a logged-in session, after the tasks queued before it.
+   * The task gets the run's `signal` to stop early (between GİB requests).
+   */
   function run<T>(
     account: GIBAccount,
-    task: (session: SessionInfo) => Promise<T>,
+    task: (session: SessionInfo, signal?: AbortSignal) => Promise<T>,
     { background = false, signal }: RunOptions = {},
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
@@ -110,7 +119,7 @@ export function createSessionQueue(client: SessionClient) {
         account,
         background,
         reject,
-        run: async (session) => resolve(await task(session)),
+        run: async (session) => resolve(await task(session, signal)),
         signal,
       });
       void drain();
@@ -119,22 +128,79 @@ export function createSessionQueue(client: SessionClient) {
 
   /**
    * Holds the session until `release` is called, for flows that span user
-   * input (SMS signing). Other tasks wait meanwhile.
+   * input (SMS signing). Other tasks wait meanwhile. A lease whose `signal`
+   * aborts before it is granted is dropped and rejects.
    */
-  function lease(account: GIBAccount): Promise<SessionLease> {
+  function lease(
+    account: GIBAccount,
+    { signal }: { signal?: AbortSignal } = {},
+  ): Promise<SessionLease> {
     return new Promise<SessionLease>((resolveLease, rejectLease) => {
       run(
         account,
         (session) =>
-          new Promise<void>((done, fail) =>
+          new Promise<void>((done, fail) => {
+            if (signal?.aborted) {
+              rejectLease(signal.reason);
+              done();
+              return;
+            }
             resolveLease({
               release: (error) => (error === undefined ? done() : fail(error)),
               session,
-            }),
-          ),
+            });
+          }),
+        { signal },
       ).catch(rejectLease);
     });
   }
 
-  return { lease, run };
+  /**
+   * Leases the session and runs `start` on it, the first step of a flow that
+   * then waits on the user (SMS signing: send the code, then verify it).
+   * `signal` belongs to the screen that asked: once it aborts, the session
+   * goes back to the queue as soon as no call runs on it, and a lease not
+   * handed out yet resolves null. A screen that closes mid-flow never blocks
+   * the queue. A failed `start` hands the session back and rejects.
+   */
+  async function leaseWith<T>(
+    account: GIBAccount,
+    start: (session: SessionInfo) => Promise<T>,
+    signal: AbortSignal,
+  ): Promise<{ lease: SessionLease; value: T } | null> {
+    let held: SessionLease;
+    try {
+      held = await lease(account, { signal });
+    } catch (error) {
+      if (signal.aborted) {
+        return null;
+      }
+      throw error;
+    }
+    let value: T;
+    try {
+      value = await start(held.session);
+    } catch (error) {
+      held.release(error);
+      throw error;
+    }
+    if (signal.aborted) {
+      held.release();
+      return null;
+    }
+    const onAbort = () => held.release();
+    signal.addEventListener('abort', onAbort, { once: true });
+    return {
+      lease: {
+        release: (error) => {
+          signal.removeEventListener('abort', onAbort);
+          held.release(error);
+        },
+        session: held.session,
+      },
+      value,
+    };
+  }
+
+  return { lease, leaseWith, run };
 }

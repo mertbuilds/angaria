@@ -25,7 +25,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ChevronRightIcon, UserPlusIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createDraftInvoice, fetchTCMBRateTable, getDrafts } from '@/lib/angaria.ts';
-import { customerName, nameError, taxIDError } from '@/lib/customer.ts';
+import { customerName, findCustomer, nameError, taxIDError } from '@/lib/customer.ts';
 import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
 import {
@@ -39,6 +39,7 @@ import {
   sameInvoice,
   toDraftDetails,
   toPDFData,
+  unparsableItemFields,
   upsertSavedItems,
 } from '@/lib/invoice-form.ts';
 import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
@@ -220,12 +221,6 @@ const INVOICE_TYPE_OPTIONS = GIB_INVOICE_TYPES.map((type) => ({
 
 const displayName = (customer: Recipient) => customerName(customer) || 'Adsız müşteri';
 
-/** The saved customer with this VKN / TCKN, if any. */
-function findCustomer(customers: ReadonlyArray<Recipient>, taxID: string) {
-  const key = taxID.trim();
-  return key ? (customers.find((customer) => customer.taxIDOrTRID.trim() === key) ?? null) : null;
-}
-
 function Section({ children, hint, title }: { children: ReactNode; hint?: string; title: string }) {
   return (
     <section {...props(styles.section)}>
@@ -240,7 +235,7 @@ function Section({ children, hint, title }: { children: ReactNode; hint?: string
 
 function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: Recipient }) {
   const { newId, savedRecipients, setSavedRecipients } = useStore();
-  const matched = findCustomer(savedRecipients, recipient.taxIDOrTRID);
+  const matched = findCustomer(savedRecipients, recipient.taxIDOrTRID, customerName(recipient));
   const canSave = !matched && !taxIDError(recipient.taxIDOrTRID) && !nameError(recipient);
 
   const saveCustomer = () => {
@@ -724,7 +719,11 @@ export function CreateInvoicePage() {
     rateDescription = 'TCMB kuru alınıyor';
   }
 
-  const matchedCustomer = findCustomer(savedRecipients, values.recipient.taxIDOrTRID);
+  const matchedCustomer = findCustomer(
+    savedRecipients,
+    values.recipient.taxIDOrTRID,
+    customerName(values.recipient),
+  );
   const pdfLanguage = resolvePDFLanguage(
     values.recipient.pdfLanguage,
     matchedCustomer?.pdfLanguage,
@@ -732,12 +731,24 @@ export function CreateInvoicePage() {
   const setPDFLanguage = (language: PDFLanguage) =>
     form.setFieldValue('recipient.pdfLanguage', language, { dontUpdateMeta: true });
 
-  const downloadPDF = (source: InvoiceFormValues, invoiceNumber?: string) => {
+  /** The PDF of `source`; `created` carries GİB's number and date once the draft exists. */
+  const downloadPDF = (source: InvoiceFormValues, created?: CreatedDraft) => {
+    // A number that does not parse would print as NaN: show its error instead.
+    const unparsable = unparsableItemFields(source.items);
+    if (unparsable.length > 0) {
+      for (const name of unparsable) {
+        form.setFieldMeta(name, (meta) => ({ ...meta, isTouched: true }));
+      }
+      void form.validate('change');
+      revealFirstError(rootRef.current);
+      return;
+    }
     const id = toast.loading('PDF hazırlanıyor');
     const data = toPDFData(source, {
       company: companyInfo,
+      date: created?.date,
       entityName: activeEntity.name,
-      invoiceNumber,
+      invoiceNumber: created?.number,
       language: pdfLanguage,
     });
     // react-pdf is large, so it loads with the first PDF.
@@ -840,7 +851,7 @@ export function CreateInvoicePage() {
             <SuccessPanel
               created={success.draft}
               offerTemplate={offerTemplate}
-              onDownloadPDF={() => downloadPDF(success.values, success.draft.number)}
+              onDownloadPDF={() => downloadPDF(success.values, success.draft)}
               onNewInvoice={resetInvoiceForm}
               onOpenInvoice={openCreated}
               onPDFLanguageChange={setPDFLanguage}

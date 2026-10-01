@@ -38,11 +38,14 @@ export function parseDecimal(text: string): number | null {
 
 const decimalFormats = new Map<number, Intl.NumberFormat>();
 
-/** A number as Turkish input text: 1250.5 is "1.250,5". */
+/**
+ * A number as Turkish input text: 1250.5 is "1250,5". No thousands dots:
+ * parseDecimal reads "5.000" as 5.
+ */
 export function formatDecimal(value: number, maximumFractionDigits = 4) {
   let format = decimalFormats.get(maximumFractionDigits);
   if (!format) {
-    format = new Intl.NumberFormat('tr-TR', { maximumFractionDigits });
+    format = new Intl.NumberFormat('tr-TR', { maximumFractionDigits, useGrouping: false });
     decimalFormats.set(maximumFractionDigits, format);
   }
   return format.format(value);
@@ -213,7 +216,8 @@ export function toDraftDetails(values: InvoiceFormValues, now = new Date()): Inv
     date: advancedFields.manualDate || toGIB(now),
     time: normalizeTime(advancedFields.manualTime) || formatTime(now),
     currency: invoiceSettings.currency,
-    currencyRate: rate ? String(rate) : undefined,
+    // GİB prints dovzTLkur as sent: four decimals, like TCMB's rate.
+    currencyRate: rate ? rate.toFixed(4) : undefined,
     invoiceType: invoiceSettings.invoiceType,
     taxIDOrTRID: recipient.taxIDOrTRID.trim(),
     taxOffice: recipient.taxOffice,
@@ -251,17 +255,40 @@ export function toDraftDetails(values: InvoiceFormValues, now = new Date()): Inv
   };
 }
 
-/** The PDF of the form as it is; `invoiceNumber` once GİB assigned one. */
+const ITEM_NUMBERS = [
+  'quantity',
+  'unitPrice',
+  'VATRate',
+  'discountRate',
+  'discountAmount',
+] as const;
+
+/** Item fields whose text did not parse (NaN), as form field names: "items[0].unitPrice". */
+export function unparsableItemFields(items: ReadonlyArray<InvoiceItem>) {
+  return items.flatMap((item, index) =>
+    // Rows saved before discounts existed have none.
+    ITEM_NUMBERS.filter((key) => !Number.isFinite(item[key] ?? 0)).map(
+      (key) => `items[${index}].${key}` as const,
+    ),
+  );
+}
+
+/**
+ * The PDF of the form as it is; `invoiceNumber` and `date` once GİB assigned
+ * them. Unparsable numbers print as 0: check unparsableItemFields first.
+ */
 export function toPDFData(
   values: InvoiceFormValues,
   {
     company,
+    date,
     entityName,
     invoiceNumber,
     language,
     now = new Date(),
   }: {
     company: CompanyInfo;
+    date?: string;
     entityName: string;
     invoiceNumber?: string;
     language: PDFLanguage;
@@ -271,11 +298,11 @@ export function toPDFData(
   const totals = invoiceTotals(values.items);
   return {
     company,
-    date: values.advancedFields.manualDate || toGIB(now),
+    date: date || values.advancedFields.manualDate || toGIB(now),
     entityName,
     grandTotal: totals.net,
     invoiceNumber,
-    items: values.items,
+    items: cleanItems(values.items),
     language,
     note: values.note,
     paymentTotal: paymentTotal(values, totals.total),

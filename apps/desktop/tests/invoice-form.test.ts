@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   cleanItems,
   discountForRate,
+  formatDecimal,
   formatRate,
   gibToInputDate,
   inputDateToGIB,
@@ -12,10 +13,12 @@ import {
   parseDecimal,
   sameInvoice,
   toDraftDetails,
+  toPDFData,
+  unparsableItemFields,
   upsertSavedItems,
   validateInvoice,
 } from '../src/lib/invoice-form.ts';
-import type { InvoiceFormValues, InvoiceItem } from '../src/lib/types.ts';
+import type { CompanyInfo, InvoiceFormValues, InvoiceItem } from '../src/lib/types.ts';
 
 const item = (fields: Partial<InvoiceItem> = {}): InvoiceItem => ({
   discountAmount: 0,
@@ -72,6 +75,21 @@ describe('parseDecimal', () => {
     expect(parseDecimal('-5')).toBeNull();
     expect(parseDecimal('abc')).toBeNull();
     expect(parseDecimal('.')).toBeNull();
+  });
+});
+
+describe('formatDecimal', () => {
+  test('writes no thousands dots', () => {
+    expect(formatDecimal(5000)).toBe('5000');
+    expect(formatDecimal(1234.5)).toBe('1234,5');
+    expect(formatDecimal(1_000_000)).toBe('1000000');
+    expect(formatDecimal(1234.5678, 2)).toBe('1234,57');
+  });
+
+  test('reads back as the same number', () => {
+    for (const value of [5000, 1234.5, 0.5, 1_000_000, 0, 12.3456]) {
+      expect(parseDecimal(formatDecimal(value))).toBe(value);
+    }
   });
 });
 
@@ -185,7 +203,7 @@ describe('toDraftDetails', () => {
     );
     expect(details).toMatchObject({
       currency: 'USD',
-      currencyRate: '41.5',
+      currencyRate: '41.5000',
       date: '01/10/2026',
       grandTotal: 900,
       grandTotalInclVAT: 1080,
@@ -197,6 +215,22 @@ describe('toDraftDetails', () => {
       totalVAT: 180,
     });
     expect(details.items[0]).toMatchObject({ discountAmount: 100, price: 1000, VATAmount: 180 });
+  });
+
+  test('sends the TCMB rate as the main-branch app did', () => {
+    // TCMB publishes 38.1230; String() would drop the trailing zero.
+    const tcmbRate = 38.123;
+    const values = form({
+      invoiceSettings: {
+        currency: 'EUR',
+        currencyRate: formatRate(tcmbRate),
+        invoiceType: 'SATIS',
+      },
+    });
+    // main's create-invoice.tsx filled the field with rate.toFixed(4) and sent it as is.
+    const main = { currency: 'EUR', currencyRate: tcmbRate.toFixed(4) };
+    expect(toDraftDetails(values, now)).toMatchObject(main);
+    expect(main.currencyRate).toBe('38.1230');
   });
 
   test('sends no rate for lira and fills in date and time', () => {
@@ -264,4 +298,30 @@ test('sameInvoice ignores the PDF language only', () => {
     false,
   );
   expect(sameInvoice({ ...values, note: 'Ekim' }, values)).toBe(false);
+});
+
+describe('PDF data', () => {
+  const company = { name: 'Örnek Yazılım' } as CompanyInfo;
+  const now = new Date(2026, 9, 1, 14, 30);
+
+  test('unparsableItemFields names every number that did not parse', () => {
+    expect(unparsableItemFields([item()])).toEqual([]);
+    expect(
+      unparsableItemFields([
+        item(),
+        item({ discountAmount: Number.NaN, unitPrice: Number.POSITIVE_INFINITY }),
+      ]),
+    ).toEqual(['items[1].unitPrice', 'items[1].discountAmount']);
+  });
+
+  test('toPDFData prints no NaN and takes the date GİB gave the draft', () => {
+    const values = form({ items: [item({ quantity: Number.NaN })] });
+    const base = { company, entityName: 'Örnek', language: 'tr' as const, now };
+
+    const data = toPDFData(values, base);
+    expect(data.items[0].quantity).toBe(0);
+    expect(data.date).toBe('01/10/2026');
+
+    expect(toPDFData(values, { ...base, date: '30/09/2026' }).date).toBe('30/09/2026');
+  });
 });

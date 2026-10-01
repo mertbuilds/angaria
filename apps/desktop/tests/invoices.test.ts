@@ -26,6 +26,13 @@ describe('presetRange', () => {
       start: '11/11/2025',
     });
   });
+
+  test('Son 3 ay stops at the end of a shorter month', () => {
+    expect(presetRange('son-3-ay', new Date(2026, 4, 31)).start).toBe('01/03/2026');
+    expect(presetRange('son-3-ay', new Date(2026, 11, 31)).start).toBe('01/10/2026');
+    expect(presetRange('son-3-ay', new Date(2028, 1, 29)).start).toBe('30/11/2027');
+    expect(presetRange('son-3-ay', new Date(2028, 4, 31)).start).toBe('01/03/2028');
+  });
 });
 
 describe('rangePreset', () => {
@@ -143,5 +150,7 @@ describe('parseGIBInvoice', () => {
     expect(parseGIBInvoice(withoutTotal).total).toBe(3480);
     expect(parseGIBInvoice({}).items).toEqual([]);
     expect(parseGIBInvoice({ dovzTLkur: '32,5' }).settings.currencyRate).toBe('32,5');
+    // Tekrar kes loads the form through it too, so a numeric rate survives.
+    expect(parseGIBInvoice({ dovzTLkur: 38.123 }).settings.currencyRate).toBe('38.123');
   });
 });

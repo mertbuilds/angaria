@@ -248,6 +248,8 @@ const s = StyleSheet.create({
   colDesc: { flex: 1, paddingRight: 8 },
   colUnitCost: { width: 78, textAlign: 'right' },
   colQty: { width: 36, textAlign: 'center' },
+  // "MİKTAR" needs more room than "QTY" beside "BİRİM FİYAT EUR".
+  colQtyTR: { width: 48 },
   colAmount: { width: 88, textAlign: 'right' },
   cellText: { fontSize: 9 },
   cellSub: { fontSize: 7.5, color: TERTIARY, marginTop: 2 },
@@ -389,6 +391,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
   const displayDate = formatPDFDate(language, date);
   const addrLines = addressLines(company.address);
   const recipientAddrLines = addressLines(recipient.fullAddress);
+  const qtyColumn = language === 'tr' ? { ...s.colQty, ...s.colQtyTR } : s.colQty;
 
   return (
     <Document>
@@ -465,7 +468,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
               <Text style={[s.thText, s.colUnitCost]}>
                 {upper(t.unitCost)} {cur}
               </Text>
-              <Text style={[s.thText, s.colQty]}>{upper(t.quantity)}</Text>
+              <Text style={[s.thText, qtyColumn]}>{upper(t.quantity)}</Text>
               <Text style={[s.thText, s.colAmount]}>
                 {upper(t.amount)} {cur}
               </Text>
@@ -482,7 +485,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
                     )}
                   </View>
                   <Text style={[s.cellText, s.colUnitCost]}>{fmtAmount(cur, item.unitPrice)}</Text>
-                  <Text style={[s.cellText, s.colQty]}>
+                  <Text style={[s.cellText, qtyColumn]}>
                     {formatPDFQuantity(language, item.quantity)}
                   </Text>
                   <Text style={[s.cellText, s.colAmount]}>{fmtAmount(cur, lineTotal)}</Text>

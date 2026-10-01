@@ -91,6 +91,19 @@ describe('getDrafts', () => {
     ]);
   });
 
+  test('requests no further chunk once the signal aborts', async () => {
+    const controller = new AbortController();
+    const { client, requests } = fakePortal(() => {
+      controller.abort(new Error('Aralık değişti'));
+      return [{ belgeTarihi: '02-09-2026', ettn: 'a' }];
+    });
+
+    await expect(
+      client.getDrafts(session, '01/09/2026', '30/09/2026', { signal: controller.signal }),
+    ).rejects.toThrow('Aralık değişti');
+    expect(requests).toEqual(['01/09/2026-07/09/2026']);
+  });
+
   test('throws the message of a refused query instead of returning it as a row', async () => {
     const { client } = fakePortal(() => [
       { error: 'Seçilen tarih aralığı 7 günden fazla olamaz!' },

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { customerName, nameError, taxIDError } from '../src/lib/customer.ts';
+import { customerName, findCustomer, nameError, taxIDError } from '../src/lib/customer.ts';
 import type { Recipient } from '../src/lib/types.ts';
 
 const customer = (fields: Partial<Recipient>): Recipient => ({
@@ -48,5 +48,28 @@ describe('customerName and nameError', () => {
     expect(customerName(half)).toBe('Ayşe');
     expect(nameError(half)).toBe('Unvan ya da ad ve soyad gerekli');
     expect(customerName(customer({}))).toBe('');
+  });
+});
+
+describe('findCustomer', () => {
+  const abroad = [
+    customer({ id: 'plastic', taxIDOrTRID: '2222222222', title: 'PLASTIC SOFTWARE LLC' }),
+    customer({ id: 'acme', taxIDOrTRID: '2222222222', title: 'Acme GmbH' }),
+    customer({ id: 'ayse', name: 'Ayşe', surname: 'Işık', taxIDOrTRID: '12345678901' }),
+  ];
+
+  test('tells customers abroad apart by name', () => {
+    expect(findCustomer(abroad, '2222222222', 'ACME GMBH')?.id).toBe('acme');
+    expect(findCustomer(abroad, ' 2222222222 ', 'Plastic Software LLC')?.id).toBe('plastic');
+    expect(findCustomer(abroad, '2222222222', 'Initech')).toBeNull();
+  });
+
+  test('matches a person by first and last name with Turkish casing', () => {
+    expect(findCustomer(abroad, '12345678901', 'AYŞE  IŞIK')?.id).toBe('ayse');
+    expect(findCustomer(abroad, '12345678901', 'AYSE ISIK')).toBeNull();
+  });
+
+  test('needs a VKN / TCKN', () => {
+    expect(findCustomer(abroad, ' ', 'Acme GmbH')).toBeNull();
   });
 });

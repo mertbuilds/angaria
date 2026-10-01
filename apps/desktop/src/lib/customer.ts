@@ -8,6 +8,24 @@ export function customerName(customer: Recipient) {
   );
 }
 
+// Turkish capitals, with İ as I: "Plastic" and "PLASTIC" are one name.
+const nameKey = (name: string) =>
+  name.trim().replaceAll(/\s+/g, ' ').toLocaleUpperCase('tr').replaceAll('İ', 'I');
+
+/**
+ * The saved customer with this VKN / TCKN and name (unvan, else "Ad Soyad"),
+ * if any. The name counts too: every customer abroad has VKN 2222222222.
+ */
+export function findCustomer(customers: ReadonlyArray<Recipient>, taxID: string, name: string) {
+  const id = taxID.trim();
+  const key = nameKey(name);
+  return id
+    ? (customers.find(
+        (customer) => customer.taxIDOrTRID.trim() === id && nameKey(customerName(customer)) === key,
+      ) ?? null)
+    : null;
+}
+
 /** VKN is 10 digits, TCKN 11. The problem with `value` in Turkish, or null. */
 export function taxIDError(value: string) {
   const digits = value.trim();

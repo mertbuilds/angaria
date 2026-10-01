@@ -31,7 +31,7 @@ import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useId, useMemo, useRef, useState, type RefObject } from 'react';
+import { useId, useRef, useState, type RefObject } from 'react';
 import { customerName, nameError, taxIDError } from '@/lib/customer.ts';
 import { GIB_COUNTRIES } from '@/lib/gib-constants.ts';
 import { isPDFLanguage, resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
@@ -126,6 +126,16 @@ const BLANK_CUSTOMER: Omit<Recipient, 'id'> = {
 };
 
 const displayName = (customer: Recipient) => customerName(customer) || 'Adsız müşteri';
+
+const matchesCustomer = (customer: Recipient, query: string) =>
+  matchesQuery(
+    query,
+    customer.title,
+    customer.name,
+    customer.surname,
+    customer.taxIDOrTRID,
+    customer.city,
+  );
 
 function CustomerDetail({
   autoFocusTitle,
@@ -323,21 +333,11 @@ export function CustomersPage() {
   const titleRef = useRef<HTMLInputElement>(null);
   const deleting = useDialogTarget<Recipient>();
 
-  const visible = useMemo(
-    () =>
-      savedRecipients.filter((customer) =>
-        matchesQuery(
-          query,
-          customer.title,
-          customer.name,
-          customer.surname,
-          customer.taxIDOrTRID,
-          customer.city,
-        ),
-      ),
-    [query, savedRecipients],
+  const { neighborOf, select, selected, visible } = useListSelection(
+    savedRecipients,
+    query,
+    matchesCustomer,
   );
-  const { neighborOf, select, selected } = useListSelection(visible);
 
   const addCustomer = () => {
     const id = newId();
