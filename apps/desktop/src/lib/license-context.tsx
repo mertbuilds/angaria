@@ -12,22 +12,19 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { SecretStore } from './credentials.ts';
+import { vault } from './app-vault.ts';
 import { reportKeychainError } from './keychain-error.ts';
-import { clearLicense, loadLicense, saveLicense } from './license-vault.ts';
 import { watchLicense } from './license-watch.ts';
 import {
   activatedLicense,
   LicenseError,
   refreshLicense,
   resolveLicense,
+  shouldSaveLicense,
   type LicenseStatus,
   type StoredLicense,
 } from './license.ts';
-import { secretDelete, secretGet, secretSet } from './native.ts';
 import { createPolarClient } from './polar.ts';
-
-const secrets: SecretStore = { delete: secretDelete, get: secretGet, set: secretSet };
 
 const KEYCHAIN_ERROR = 'Lisans bilgilerine sistem anahtar zincirinde erişilemedi.';
 
@@ -72,15 +69,29 @@ const unlicensed = (error: string | null = null): LicenseSnapshot => ({
   status: { kind: 'unlicensed' },
 });
 
-async function checkLicense(): Promise<LicenseSnapshot> {
+// Keeps the license in memory and writes it only when shouldSaveLicense says
+// the change is worth it. The status before the first check counts as no change.
+const keepLicense = (
+  next: { license: StoredLicense; status: LicenseStatus },
+  previous: LicenseState,
+) =>
+  vault.setLicense(next.license, {
+    save: shouldSaveLicense(
+      vault.savedLicense(),
+      next.license,
+      previous.kind !== 'checking' && previous.kind !== next.status.kind,
+    ),
+  });
+
+async function checkLicense(previous: LicenseState): Promise<LicenseSnapshot> {
   try {
-    const stored = await loadLicense(secrets, localStorage);
+    const stored = await vault.getLicense();
     if (!stored) {
       return unlicensed();
     }
     const outcome = await polar.validate(stored.key, stored.activationId);
     const next = resolveLicense(stored, outcome, Date.now());
-    await saveLicense(secrets, next.license);
+    await keepLicense(next, previous);
     return { error: null, ...next };
   } catch (error) {
     return unlicensed(reportKeychainError(KEYCHAIN_ERROR, error));
@@ -95,7 +106,7 @@ async function refreshSnapshot(snapshot: LicenseSnapshot): Promise<LicenseSnapsh
   }
   const next = refreshLicense(license, status, Date.now());
   try {
-    await saveLicense(secrets, next.license);
+    await keepLicense(next, status);
   } catch (error) {
     return unlicensed(reportKeychainError(KEYCHAIN_ERROR, error));
   }
@@ -133,7 +144,10 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     setSnapshot(next);
   }, []);
 
-  const check = useCallback(() => serially(async () => update(await checkLicense())), [update]);
+  const check = useCallback(
+    () => serially(async () => update(await checkLicense(latest.current.status))),
+    [update],
+  );
 
   const refresh = useCallback(
     () => serially(async () => update(await refreshSnapshot(latest.current))),
@@ -151,7 +165,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
         }
         const license = activatedLicense(key, result.activationId, result.details, Date.now());
         try {
-          await saveLicense(secrets, license);
+          await vault.setLicense(license, { save: true });
         } catch (error) {
           await polar.deactivate(key, result.activationId);
           throw new Error(
@@ -167,14 +181,14 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
   const deactivate = useCallback(
     () =>
       serially(async () => {
-        const stored = await loadLicense(secrets, localStorage);
+        const stored = await vault.getLicense();
         if (stored) {
           const result = await polar.deactivate(stored.key, stored.activationId);
           if (result.kind !== 'deactivated') {
             throw new LicenseError(result.kind);
           }
         }
-        await clearLicense(secrets);
+        await vault.setLicense(null, { save: true });
         update(unlicensed());
       }),
     [update],
@@ -186,7 +200,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     }
     let current = true;
     void serially(async () => {
-      const next = await checkLicense();
+      const next = await checkLicense(latest.current.status);
       if (current) {
         update(next);
       }

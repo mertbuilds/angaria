@@ -2,15 +2,15 @@
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
-import { passwordKey } from '../src/lib/credentials.ts';
-import { secretGet } from '../src/lib/native.ts';
+import { vaultRead } from '../src/lib/native.ts';
 import { StoreProvider, useStore } from '../src/lib/store.tsx';
 
 vi.mock('@angaria/ui', () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
 vi.mock('../src/lib/native.ts', () => ({
   secretDelete: vi.fn(async () => {}),
   secretGet: vi.fn(async () => null),
-  secretSet: vi.fn(async () => {}),
+  vaultRead: vi.fn(async () => null),
+  vaultWrite: vi.fn(async () => {}),
 }));
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -24,7 +24,7 @@ vi.stubGlobal('localStorage', {
   },
 });
 
-// Lets the store's startup keychain reads and any pending effects settle.
+// Lets the store's startup vault read and any pending effects settle.
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
 // Reads the active company's password whenever the active company changes,
@@ -64,6 +64,7 @@ test("a new company's password is read once it is active, not reported missing",
   const entities: Array<{ id: string }> = JSON.parse(storage.get('fatura-entities') ?? '[]');
   expect(entities).toHaveLength(2);
   expect(errors).toEqual([]);
-  expect(secretGet).toHaveBeenCalledWith(passwordKey(entities[1].id));
+  // Both companies' passwords came from memory: one read for the launch.
+  expect(vaultRead).toHaveBeenCalledTimes(1);
   act(() => root.unmount());
 });

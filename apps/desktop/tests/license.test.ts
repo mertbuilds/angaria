@@ -2,13 +2,17 @@ import { describe, expect, test } from 'vitest';
 import {
   activatedLicense,
   GRACE_PERIOD_MS,
+  LAST_SEEN_SAVE_INTERVAL_MS,
   LicenseError,
   offlineStatus,
   parseStoredLicense,
   refreshLicense,
   resolveLicense,
+  shouldSaveLicense,
+  type LicenseStatus,
   type StoredLicense,
 } from '../src/lib/license.ts';
+import { createVault, parseVault } from '../src/lib/vault.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
@@ -222,6 +226,83 @@ describe('refreshLicense', () => {
   test('leaves an unreadable time seen for the next online check', () => {
     const license = { ...stored, lastSeenAt: 'garbage' };
     expect(refreshLicense(license, grace, validatedAt + DAY).license).toBe(license);
+  });
+});
+
+describe('shouldSaveLicense', () => {
+  test('saves a first license, a new status and every change but the time seen', () => {
+    expect(shouldSaveLicense(null, stored, false)).toBe(true);
+    expect(shouldSaveLicense(stored, stored, true)).toBe(true);
+    expect(shouldSaveLicense(stored, { ...stored }, false)).toBe(false);
+    expect(shouldSaveLicense(stored, { ...stored, expiresAt: iso(validatedAt + DAY) }, false)).toBe(
+      true,
+    );
+    expect(
+      shouldSaveLicense(stored, { ...stored, lastValidatedAt: iso(validatedAt + 1) }, false),
+    ).toBe(true);
+    expect(shouldSaveLicense(stored, { ...stored, displayKey: '****-WXYZ' }, false)).toBe(true);
+    expect(shouldSaveLicense(stored, { ...stored, activationId: 'activation-2' }, false)).toBe(
+      true,
+    );
+  });
+
+  test('saves the time seen alone once a day, or when it moves back', () => {
+    const seen = (time: number) => ({ ...stored, lastSeenAt: iso(time) });
+    expect(shouldSaveLicense(stored, seen(validatedAt + HOUR), false)).toBe(false);
+    expect(
+      shouldSaveLicense(stored, seen(validatedAt + LAST_SEEN_SAVE_INTERVAL_MS - 1), false),
+    ).toBe(false);
+    expect(shouldSaveLicense(stored, seen(validatedAt + LAST_SEEN_SAVE_INTERVAL_MS), false)).toBe(
+      true,
+    );
+    expect(shouldSaveLicense(seen(validatedAt + DAY), seen(validatedAt), false)).toBe(true);
+    expect(shouldSaveLicense(stored, { ...stored, lastSeenAt: 'garbage' }, false)).toBe(true);
+  });
+
+  test('hourly recounts write once a day, and a clock set back is still caught', async () => {
+    const backend = {
+      stored: JSON.stringify({ gibPasswords: {}, license: stored, v: 1 }),
+      writes: 0,
+    };
+    const vault = createVault({
+      backend: {
+        read: async () => backend.stored,
+        write: async (json) => {
+          backend.stored = json;
+          backend.writes++;
+        },
+      },
+      migrate: () => Promise.reject(new Error('no migration')),
+    });
+    let license = (await vault.getLicense())!;
+    let status: LicenseStatus = { kind: 'valid' };
+
+    for (let hour = 1; hour <= 30; hour++) {
+      const next = refreshLicense(license, status, validatedAt + hour * HOUR);
+      await vault.setLicense(next.license, {
+        save: shouldSaveLicense(
+          vault.savedLicense(),
+          next.license,
+          status.kind !== next.status.kind,
+        ),
+      });
+      ({ license, status } = next);
+    }
+
+    expect(backend.writes).toBe(1);
+    // In memory the time seen is current, so the app catches an hour set back at once.
+    expect(license.lastSeenAt).toBe(iso(validatedAt + 30 * HOUR));
+    expect(offlineStatus(license, validatedAt + 29 * HOUR)).toEqual({
+      kind: 'expired',
+      reason: 'offline',
+    });
+    // After a restart it counts from the saved time seen, at most a day behind.
+    const saved = parseVault(backend.stored).license!;
+    expect(saved.lastSeenAt).toBe(iso(validatedAt + DAY));
+    expect(offlineStatus(saved, validatedAt + DAY - 1)).toEqual({
+      kind: 'expired',
+      reason: 'offline',
+    });
   });
 });
 

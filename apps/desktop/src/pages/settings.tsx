@@ -113,8 +113,15 @@ const styles = create({
 });
 
 function GibAccountSection() {
-  const { activeEntity, activeEntityId, creds, getCredentials, hasCredentials, setCredentials } =
-    useStore();
+  const {
+    activeEntity,
+    activeEntityId,
+    creds,
+    flushCredentials,
+    getCredentials,
+    hasCredentials,
+    setCredentials,
+  } = useStore();
   const [loggingOut, setLoggingOut] = useState(false);
   // The password read from the keychain, tagged with its company
   const [loaded, setLoaded] = useState<{ entityId: string; password: string } | null>(null);
@@ -139,6 +146,9 @@ function GibAccountSection() {
       active = false;
     };
   }, [activeEntityId, getCredentials]);
+
+  // A password change waits for typing to pause; leaving Ayarlar writes it now.
+  useEffect(() => () => void flushCredentials(), [flushCredentials]);
 
   function handlePasswordChange(value: string) {
     setLoaded({ entityId: activeEntityId, password: value });
@@ -190,6 +200,7 @@ function GibAccountSection() {
         <Input
           disabled={password === null}
           id="gib-password"
+          onBlur={() => void flushCredentials()}
           onChange={(event) => handlePasswordChange(event.target.value)}
           placeholder="GİB şifresi"
           type="password"

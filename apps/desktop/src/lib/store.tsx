@@ -10,8 +10,8 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { vault } from './app-vault.ts';
 import {
-  createPasswordVault,
   ENTITIES_STORAGE_KEY,
   LEGACY_CREDS_STORAGE_KEY,
   migrateCredentials,
@@ -20,7 +20,6 @@ import { customerName, findCustomer } from './customer.ts';
 import { applyCustomer } from './invoice-form.ts';
 import { parseGIBInvoice, presetRange, type DateRange } from './invoices.ts';
 import { reportKeychainError } from './keychain-error.ts';
-import { secretDelete, secretGet, secretSet } from './native.ts';
 import type {
   AdvancedInvoiceFields,
   CompanyInfo,
@@ -39,9 +38,6 @@ import { toGIB } from './utils.ts';
 const newId = () => crypto.randomUUID();
 const NO_RECIPIENTS: Array<Recipient> = [];
 const ACTIVE_ENTITY_STORAGE_KEY = 'fatura-active-entity-id';
-
-const secrets = { delete: secretDelete, get: secretGet, set: secretSet };
-const passwords = createPasswordVault(secrets);
 
 const SEED_RECIPIENTS: Array<Recipient> = [
   {
@@ -251,11 +247,12 @@ function loadEntities(): Array<Entity> {
 
 const MIGRATION_WARNING =
   "GİB şifresi Anahtar Zinciri'ne taşınamadı. Şifreniz silinmedi, uygulama bir sonraki açılışta yeniden deneyecek.";
+const READ_ERROR = "GİB şifresi Anahtar Zinciri'nden okunamadı";
 
 interface CredentialStartup {
   /** The warning to show when a password could not move to the keychain */
   migrationWarning: string | null;
-  /** Entity ids with a password in the keychain */
+  /** Entity ids with a password in the vault */
   passwordSaved: Record<string, boolean>;
 }
 
@@ -263,16 +260,15 @@ async function prepareCredentials(): Promise<CredentialStartup> {
   // Persist the normalized entities first so legacy single-entity creds get an
   // entity id to migrate under.
   localStorage.setItem(ENTITIES_STORAGE_KEY, JSON.stringify(loadEntities()));
-  const { error, failed } = await migrateCredentials(localStorage, secrets);
-  const saved = await Promise.all(
-    loadEntities().map(async (entity) => {
-      const password = await passwords.get(entity.id).catch(() => null);
-      return [entity.id, Boolean(password)] as const;
-    }),
-  );
+  // The vault's one read of this launch. If it fails, getCredentials tries
+  // again and reports it when a password is needed.
+  await vault.load().catch((error: unknown) => reportKeychainError(READ_ERROR, error));
+  const { error, failed } = await migrateCredentials(localStorage, vault);
   return {
     migrationWarning: failed > 0 ? reportKeychainError(MIGRATION_WARNING, error) : null,
-    passwordSaved: Object.fromEntries(saved),
+    passwordSaved: Object.fromEntries(
+      loadEntities().map((entity) => [entity.id, vault.hasPassword(entity.id)]),
+    ),
   };
 }
 
@@ -298,7 +294,9 @@ interface Store {
   /** Also removes the entity's password from the keychain */
   deleteEntity: (id: string) => void;
   entities: Array<Entity>;
-  /** Full login for an entity, password read from the keychain. Call right before logging in. */
+  /** Writes a pending password change now (blur, leaving Ayarlar). Never rejects. */
+  flushCredentials: () => Promise<void>;
+  /** Full login for an entity, password read from the vault. Call right before logging in. */
   getCredentials: (entityId: string) => Promise<Credentials>;
   /** true when the active entity has a username and a saved password */
   hasCredentials: boolean;
@@ -335,7 +333,8 @@ interface Store {
   setCompanyInfo: React.Dispatch<React.SetStateAction<CompanyInfo>>;
   /**
    * Update the given fields. username and testMode apply immediately; a password
-   * is written to the keychain ('' removes it). Rejects if the keychain write fails.
+   * is written to the keychain once typing pauses ('' removes it). Resolves after
+   * that write, rejects if it fails.
    */
   setCredentials: (entityId: string, creds: Partial<Credentials>) => Promise<void>;
   setInvoiceDateRange: React.Dispatch<React.SetStateAction<DateRange>>;
@@ -361,7 +360,7 @@ export function useStore() {
   return ctx;
 }
 
-/** Renders children once GİB passwords are migrated to the keychain and loaded. */
+/** Renders children once the vault is loaded and GİB passwords are migrated to it. */
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [startup, setStartup] = useState<CredentialStartup | null>(null);
 
@@ -463,8 +462,8 @@ function LoadedStoreProvider({
   const deleteEntity = useCallback(
     (id: string) => {
       if (entities.length > 1 && entities.some((entity) => entity.id === id)) {
-        void passwords
-          .delete(id)
+        void vault
+          .deletePassword(id)
           .catch((error: unknown) =>
             toast.warning(
               reportKeychainError(
@@ -502,24 +501,33 @@ function LoadedStoreProvider({
     [],
   );
 
-  const getCredentials = useCallback(async (entityId: string): Promise<Credentials> => {
-    const entity = entitiesRef.current.find((e) => e.id === entityId);
-    if (!entity) {
-      throw new Error('Şirket bulunamadı');
-    }
-    const { password: plaintext, ...creds } = entity.creds;
-    let password: string | null = null;
-    try {
-      password = await passwords.get(entityId);
-    } catch (error) {
-      if (!plaintext) {
-        throw new Error(reportKeychainError("GİB şifresi Anahtar Zinciri'nden okunamadı", error), {
-          cause: error,
-        });
-      }
-    }
-    return { ...creds, password: password ?? plaintext ?? '' };
+  /** Takes hasPassword for an entity from the vault in memory. */
+  const syncPasswordSaved = useCallback((entityId: string) => {
+    const saved = vault.hasPassword(entityId);
+    setPasswordSaved((prev) => (prev[entityId] === saved ? prev : { ...prev, [entityId]: saved }));
   }, []);
+
+  const getCredentials = useCallback(
+    async (entityId: string): Promise<Credentials> => {
+      const entity = entitiesRef.current.find((e) => e.id === entityId);
+      if (!entity) {
+        throw new Error('Şirket bulunamadı');
+      }
+      const { password: plaintext, ...creds } = entity.creds;
+      let password: string | null = null;
+      try {
+        password = await vault.getPassword(entityId);
+        // The startup read may have failed and this one worked.
+        syncPasswordSaved(entityId);
+      } catch (error) {
+        if (!plaintext) {
+          throw new Error(reportKeychainError(READ_ERROR, error), { cause: error });
+        }
+      }
+      return { ...creds, password: password ?? plaintext ?? '' };
+    },
+    [syncPasswordSaved],
+  );
 
   const setCredentials = useCallback(
     async (entityId: string, { password, ...fields }: Partial<Credentials>) => {
@@ -530,17 +538,18 @@ function LoadedStoreProvider({
         return;
       }
       try {
-        await passwords.set(entityId, password);
+        await vault.setPassword(entityId, password);
       } catch (error) {
         throw new Error(
           reportKeychainError("GİB şifresi Anahtar Zinciri'ne kaydedilemedi", error),
           { cause: error },
         );
+      } finally {
+        syncPasswordSaved(entityId);
       }
       updateCreds(entityId, withoutPassword);
-      setPasswordSaved((prev) => ({ ...prev, [entityId]: password !== '' }));
     },
-    [updateCreds],
+    [syncPasswordSaved, updateCreds],
   );
 
   const deleteCredentials = useCallback(
@@ -671,6 +680,7 @@ function LoadedStoreProvider({
         createEntity,
         renameEntity,
         deleteEntity,
+        flushCredentials: vault.flush,
         creds,
         hasCredentials,
         getCredentials,

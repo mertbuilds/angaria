@@ -1,21 +1,13 @@
-// GİB passwords live in the OS keychain under `gib-password:<entityId>`. This
-// module has no Tauri imports so tests can inject storage and keychain fakes.
+// GİB passwords live in the vault (vault.ts), keyed by entity id. This module
+// has no Tauri imports so tests can inject storage and vault fakes.
 
 export const ENTITIES_STORAGE_KEY = 'fatura-entities';
 export const LEGACY_CREDS_STORAGE_KEY = 'fatura-creds';
 
-export const passwordKey = (entityId: string) => `gib-password:${entityId}`;
-
-export interface SecretStore {
-  delete: (key: string) => Promise<void>;
-  get: (key: string) => Promise<string | null>;
-  set: (key: string, value: string) => Promise<void>;
-}
-
 export type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
 export interface MigrationResult {
-  /** The keychain error of the last failed write */
+  /** The vault error of a failed write */
   error?: unknown;
   failed: number;
   migrated: number;
@@ -33,43 +25,52 @@ function readJSON(storage: KeyValueStorage, key: string): unknown {
 }
 
 /**
- * Moves plaintext passwords from localStorage into the keychain. A password is
- * removed from localStorage only after its keychain write succeeds, so a failed
- * run keeps the plaintext and the next run retries it.
+ * Moves plaintext passwords from localStorage into the vault in one write. The
+ * passwords are removed from localStorage only after that write succeeds, so a
+ * failed run keeps the plaintext and the next run retries it.
  */
 export async function migrateCredentials(
   storage: KeyValueStorage,
-  secrets: Pick<SecretStore, 'set'>,
+  vault: { savePasswords: (passwords: Record<string, string>) => Promise<void> },
 ): Promise<MigrationResult> {
   const result: MigrationResult = { failed: 0, migrated: 0 };
   const entities = readJSON(storage, ENTITIES_STORAGE_KEY);
   const hasEntities = Array.isArray(entities) && entities.length > 0;
 
   if (hasEntities) {
+    const withPassword = entities.flatMap((entity) =>
+      isRecord(entity) &&
+      typeof entity.id === 'string' &&
+      entity.id &&
+      isRecord(entity.creds) &&
+      'password' in entity.creds
+        ? [{ creds: entity.creds, id: entity.id }]
+        : [],
+    );
+    const passwords: Record<string, string> = {};
+    for (const { creds, id } of withPassword) {
+      if (typeof creds.password === 'string' && creds.password !== '') {
+        passwords[id] = creds.password;
+      }
+    }
+    const count = Object.keys(passwords).length;
+    let saved = true;
+    if (count > 0) {
+      try {
+        await vault.savePasswords(passwords);
+        result.migrated = count;
+      } catch (error) {
+        result.error = error;
+        result.failed = count;
+        saved = false;
+      }
+    }
     let changed = false;
-    for (const entity of entities) {
-      if (
-        !isRecord(entity) ||
-        typeof entity.id !== 'string' ||
-        !entity.id ||
-        !isRecord(entity.creds) ||
-        !('password' in entity.creds)
-      ) {
-        continue;
+    for (const { creds, id } of withPassword) {
+      if (saved || !Object.hasOwn(passwords, id)) {
+        delete creds.password;
+        changed = true;
       }
-      const { password } = entity.creds;
-      if (typeof password === 'string' && password !== '') {
-        try {
-          await secrets.set(passwordKey(entity.id), password);
-        } catch (error) {
-          result.error = error;
-          result.failed++;
-          continue;
-        }
-        result.migrated++;
-      }
-      delete entity.creds.password;
-      changed = true;
     }
     if (changed) {
       storage.setItem(ENTITIES_STORAGE_KEY, JSON.stringify(entities));
@@ -86,30 +87,4 @@ export async function migrateCredentials(
   }
 
   return result;
-}
-
-/**
- * Keychain access per entity. Calls for the same entity run in call order, so
- * saving on every keystroke cannot finish with an older value, and a read waits
- * for pending writes. An empty password deletes the item.
- */
-export function createPasswordVault(secrets: SecretStore) {
-  const queues = new Map<string, Promise<unknown>>();
-
-  const run = <T>(entityId: string, task: () => Promise<T>): Promise<T> => {
-    const next = (queues.get(entityId) ?? Promise.resolve()).then(task, task);
-    queues.set(entityId, next);
-    return next;
-  };
-
-  return {
-    delete: (entityId: string) => run(entityId, () => secrets.delete(passwordKey(entityId))),
-    get: (entityId: string) => run(entityId, () => secrets.get(passwordKey(entityId))),
-    set: (entityId: string, password: string) =>
-      run(entityId, () =>
-        password
-          ? secrets.set(passwordKey(entityId), password)
-          : secrets.delete(passwordKey(entityId)),
-      ),
-  };
 }
