@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import type { Page } from '@/components/app-sidebar.tsx';
 import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
 import { downloadInvoicePDF } from '@/components/invoice-pdf.tsx';
+import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker.tsx';
@@ -64,7 +65,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import * as angaria from '@/lib/angaria.ts';
+import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
 import { useStore } from '@/lib/store.tsx';
+import type { PDFLanguage } from '@/lib/types.ts';
 import { parseGIB, toGIB, formatDateHuman } from '@/lib/utils.ts';
 
 /** Safely convert unknown GIB field to string */
@@ -158,6 +161,7 @@ export function InvoicesPage({
     invoicePageSize,
     setInvoicePageSize,
     loadFromGIBInvoice,
+    savedRecipients,
   } = useStore();
   const queryClient = useQueryClient();
 
@@ -171,6 +175,17 @@ export function InvoicesPage({
   const [globalFilter, setGlobalFilter] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [sorting, setSorting] = useState<SortingState>([]);
+  // Per-invoice PDF language override, keyed by ETTN
+  const [pdfLanguages, setPdfLanguages] = useState<Record<string, PDFLanguage>>({});
+
+  function pdfLanguageFor(invoice: Invoice) {
+    return resolvePDFLanguage(
+      invoice.ettn ? pdfLanguages[invoice.ettn] : undefined,
+      invoice.aliciVknTckn
+        ? savedRecipients.find((r) => r.taxIDOrTRID === invoice.aliciVknTckn)?.pdfLanguage
+        : undefined,
+    );
+  }
 
   // SMS signing state
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
@@ -274,7 +289,7 @@ export function InvoicesPage({
   const pdfToastRef = useRef<string | number>('');
 
   const downloadPDFMutation = useMutation({
-    mutationFn: async (invoice: Invoice) => {
+    mutationFn: async ({ invoice, language }: { invoice: Invoice; language: PDFLanguage }) => {
       if (!invoice.ettn) {
         throw new Error('Fatura ETTN bulunamadı');
       }
@@ -327,6 +342,7 @@ export function InvoicesPage({
           items,
           date: invoice.belgeTarihi ?? '',
           invoiceNumber: invoice.belgeNumarasi,
+          language,
           note: str(detail.not),
           grandTotal,
           totalVAT,
@@ -445,17 +461,32 @@ export function InvoicesPage({
                     Şablon olarak kullan
                   </DropdownMenuItem>
                   {inv.onayDurumu === 'Onaylandı' && (
-                    <DropdownMenuItem
-                      onClick={() => {
-                        if (!requireCredentials()) {
-                          return;
-                        }
-                        downloadPDFMutation.mutate(inv);
-                      }}
-                    >
-                      <Download className="size-4" />
-                      PDF indir
-                    </DropdownMenuItem>
+                    <div className="flex items-center gap-1">
+                      <DropdownMenuItem
+                        className="flex-1"
+                        onClick={() => {
+                          if (!requireCredentials()) {
+                            return;
+                          }
+                          downloadPDFMutation.mutate({
+                            invoice: inv,
+                            language: pdfLanguageFor(inv),
+                          });
+                        }}
+                      >
+                        <Download className="size-4" />
+                        PDF indir
+                      </DropdownMenuItem>
+                      <PDFLanguageToggle
+                        onChange={(language) => {
+                          const { ettn } = inv;
+                          if (ettn) {
+                            setPdfLanguages((prev) => ({ ...prev, [ettn]: language }));
+                          }
+                        }}
+                        value={pdfLanguageFor(inv)}
+                      />
+                    </div>
                   )}
                   {showDelete && (
                     <>
@@ -473,7 +504,7 @@ export function InvoicesPage({
         },
       },
     ],
-    [loadingPreview, mutating],
+    [loadingPreview, mutating, pdfLanguages, savedRecipients],
   );
 
   const table = useReactTable({
