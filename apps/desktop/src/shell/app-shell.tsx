@@ -6,7 +6,6 @@ import { useStore } from '@/lib/store.tsx';
 import { AppSidebar } from './app-sidebar.tsx';
 import { CommandPalette } from './command-palette.tsx';
 import { CredentialsGuard } from './credentials-guard.tsx';
-import { PreviewTabsProvider, usePreviewTabs } from './preview-tabs.tsx';
 import { useShortcuts } from './use-shortcuts.ts';
 import { useUpdateCheck } from './use-update-check.ts';
 
@@ -28,10 +27,9 @@ const styles = create({
   },
 });
 
-/** A new entity starts clean: blank invoice form, no previews of the old one. */
+/** A new company starts clean: blank invoice form, no invoice of the old one open. */
 function useResetOnEntityChange() {
   const { activeEntityId, resetInvoiceForm } = useStore();
-  const { clearTabs } = usePreviewTabs();
   const navigate = useNavigate();
   const router = useRouter();
   const previous = useRef(activeEntityId);
@@ -42,11 +40,10 @@ function useResetOnEntityChange() {
     }
     previous.current = activeEntityId;
     resetInvoiceForm();
-    clearTabs();
     if (router.state.location.pathname.startsWith('/faturalar/')) {
       void navigate({ to: '/faturalar' });
     }
-  }, [activeEntityId, clearTabs, navigate, resetInvoiceForm, router]);
+  }, [activeEntityId, navigate, resetInvoiceForm, router]);
 }
 
 function ShellLayout() {
@@ -68,14 +65,12 @@ function ShellLayout() {
 
 /**
  * The root route: sidebar, the routed main area, the ⌘K palette and the
- * shortcuts, inside the credentials guard and the preview tabs.
+ * shortcuts, inside the credentials guard.
  */
 export function AppShell() {
   return (
     <CredentialsGuard>
-      <PreviewTabsProvider>
-        <ShellLayout />
-      </PreviewTabsProvider>
+      <ShellLayout />
     </CredentialsGuard>
   );
 }

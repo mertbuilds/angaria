@@ -4,7 +4,16 @@ import { fetchTCMBRates as _fetchTCMBRates } from 'angaria-utils';
 
 export type { SessionInfo, InvoiceItem, InvoiceDetails } from 'angaria-earsiv-sdk';
 
-const client = createClient({ fetch: tauriFetch });
+// Dev only: VITE_GIB_FIXTURES=1 answers GİB calls from src/dev/gib-fixtures.ts,
+// for the screens in a plain browser. import.meta.env.DEV is statically false
+// in production builds, so the fixtures never ship.
+const gibFetch: typeof tauriFetch =
+  import.meta.env.DEV && import.meta.env.VITE_GIB_FIXTURES === '1'
+    ? (input, init) =>
+        import('../dev/gib-fixtures.ts').then(({ fixtureFetch }) => fixtureFetch(input, init))
+    : tauriFetch;
+
+const client = createClient({ fetch: gibFetch });
 
 export const login = (...args: Parameters<typeof client.login>) => client.login(...args);
 export const logout = (...args: Parameters<typeof client.logout>) => client.logout(...args);

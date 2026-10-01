@@ -40,7 +40,8 @@
     "react-dom": "^19.1.0",
     "shadcn": "catalog:",
     "tailwind-merge": "^3.0.0",
-    "tw-animate-css": "catalog:"
+    "tw-animate-css": "catalog:",
+    "uqr": "catalog:"
   },
   "devDependencies": {
     "@stylexjs/unplugin": "catalog:",
