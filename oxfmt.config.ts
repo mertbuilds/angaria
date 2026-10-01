@@ -11,6 +11,7 @@ export default defineConfig({
     'storybook-static',
     'apps/desktop/src-tauri/target',
     'apps/desktop/src-tauri/gen',
+    'apps/desktop/src/routeTree.gen.ts',
     'apps/web/src/paraglide',
     'apps/web/src/routeTree.gen.ts',
     '.cloudflare',

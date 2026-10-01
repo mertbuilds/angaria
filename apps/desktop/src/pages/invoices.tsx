@@ -1,3 +1,4 @@
+import { toast } from '@angaria/ui';
 import { ReloadIcon, ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -23,8 +24,6 @@ import {
   Download,
 } from 'lucide-react';
 import { useState, useRef, useMemo } from 'react';
-import { toast } from 'sonner';
-import type { Page } from '@/components/app-sidebar.tsx';
 import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
 import { downloadInvoicePDF } from '@/components/invoice-pdf.tsx';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +65,7 @@ import {
 import * as angaria from '@/lib/angaria.ts';
 import { useStore } from '@/lib/store.tsx';
 import { parseGIB, toGIB, formatDateHuman } from '@/lib/utils.ts';
+import type { Page } from '@/shell/legacy-page.tsx';
 
 /** Safely convert unknown GIB field to string */
 function str(v: unknown, fallback = ''): string {

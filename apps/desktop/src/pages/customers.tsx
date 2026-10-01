@@ -1,7 +1,7 @@
+import { toast } from '@angaria/ui';
 import { Delete01Icon, PlusSignIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

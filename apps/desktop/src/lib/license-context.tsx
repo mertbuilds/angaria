@@ -1,3 +1,4 @@
+import { toast } from '@angaria/ui';
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { hostname } from '@tauri-apps/plugin-os';
@@ -10,7 +11,6 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { toast } from 'sonner';
 import {
   activatedLicense,
   LicenseError,

@@ -14,6 +14,7 @@ export default defineConfig({
     '.cloudflare',
     '.wrangler',
     'apps/desktop/src-tauri',
+    'apps/desktop/src/routeTree.gen.ts',
     'apps/web/src/paraglide',
     'apps/web/src/routeTree.gen.ts',
     '.claude/skills',
@@ -55,10 +56,8 @@ export default defineConfig({
       // store actions, not hooks, and namespace imports would need call-site
       // rewrites. Drop a file from this list when the relaunch rewrites it.
       files: [
-        'apps/desktop/src/app.tsx',
         'apps/desktop/src/components/invoice-picker-dialog.tsx',
         'apps/desktop/src/components/ui/**',
-        'apps/desktop/src/hooks/use-mobile.ts',
         'apps/desktop/src/lib/store.tsx',
         'apps/desktop/src/pages/create-invoice.tsx',
         'apps/desktop/src/pages/customers.tsx',

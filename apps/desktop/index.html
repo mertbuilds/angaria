@@ -1,6 +1,8 @@
 <!doctype html>
-<!-- data-theme="light" pins the pre-relaunch screens to light, the only theme
-     they have. Remove it once the screens move to @angaria/ui. -->
+<!-- data-theme="light" pins the app to light. The shell (src/shell) follows any
+     theme, but the pre-relaunch screens in src/pages draw with light-only
+     colors (src/app.css) and turn unreadable in dark mode. Remove the pin
+     once the last of them moves to @angaria/ui. -->
 <html lang="tr" data-theme="light">
   <head>
     <meta charset="UTF-8" />

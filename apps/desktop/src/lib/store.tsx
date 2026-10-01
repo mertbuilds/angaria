@@ -1,3 +1,4 @@
+import { toast } from '@angaria/ui';
 import {
   createContext,
   useContext,
@@ -7,7 +8,6 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import { toast } from 'sonner';
 import {
   createPasswordVault,
   ENTITIES_STORAGE_KEY,
