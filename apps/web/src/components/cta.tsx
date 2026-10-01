@@ -1,7 +1,7 @@
 import { Button, type ButtonVariant } from '@angaria/ui';
 import { create, props } from '@stylexjs/stylex';
 import { track, type CtaLocation } from '../lib/analytics.ts';
-import { config } from '../lib/config.ts';
+import { config, type Plan } from '../lib/config.ts';
 import { m } from '../paraglide/messages.js';
 
 const styles = create({
@@ -19,7 +19,7 @@ const styles = create({
 export function DownloadButton({ location }: { location: CtaLocation }) {
   return (
     <Button
-      onClick={() => track('download_click', location)}
+      onClick={() => track('download_click', { location })}
       render={<a href={config.downloadUrl} />}
     >
       <svg aria-hidden="true" viewBox="0 0 384 512" {...props(styles.appleMark)}>
@@ -31,22 +31,25 @@ export function DownloadButton({ location }: { location: CtaLocation }) {
 }
 
 /**
- * The Polar checkout. The 14-day trial is part of the subscription, so trying
- * and buying are the same link.
+ * The Polar checkout of one plan. The 14-day trial is part of the subscription,
+ * so trying and buying are the same link. Only the pricing section offers the
+ * monthly plan; every other button sells the yearly one.
  */
 export function CheckoutButton({
   label = m.cta_trial(),
   location,
+  plan = 'yearly',
   variant = 'outline',
 }: {
   label?: string | undefined;
   location: CtaLocation;
+  plan?: Plan | undefined;
   variant?: ButtonVariant | undefined;
 }) {
   return (
     <Button
-      onClick={() => track('checkout_click', location)}
-      render={<a href={config.checkoutUrl} />}
+      onClick={() => track('checkout_click', { location, plan })}
+      render={<a href={config.checkoutUrls[plan]} />}
       variant={variant}
     >
       {label}

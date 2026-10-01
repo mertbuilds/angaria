@@ -1,11 +1,17 @@
 import type { PostHog } from 'posthog-js';
-import { config } from './config.ts';
-
-/** The named events the site sends. Page views are captured by PostHog itself. */
-export type AnalyticsEvent = 'checkout_click' | 'download_click';
+import { config, type Plan } from './config.ts';
 
 /** Where on the site a button sits, so the events can be told apart. */
 export type CtaLocation = 'header' | 'hero' | 'pricing' | 'thanks';
+
+/**
+ * The named events the site sends and what each carries. Page views are
+ * captured by PostHog itself.
+ */
+interface AnalyticsEvents {
+  checkout_click: { location: CtaLocation; plan: Plan };
+  download_click: { location: CtaLocation };
+}
 
 let client: PostHog | null = null;
 let starting = false;
@@ -45,6 +51,9 @@ export async function startAnalytics(key = config.posthogKey): Promise<void> {
  * Sends one named event. A CTA usually leaves the page right after the click,
  * so the event goes out at once as a beacon instead of waiting in the batch.
  */
-export function track(event: AnalyticsEvent, location: CtaLocation): void {
-  client?.capture(event, { location }, { send_instantly: true, transport: 'sendBeacon' });
+export function track<Event extends keyof AnalyticsEvents>(
+  event: Event,
+  properties: AnalyticsEvents[Event],
+): void {
+  client?.capture(event, properties, { send_instantly: true, transport: 'sendBeacon' });
 }
