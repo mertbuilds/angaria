@@ -80,7 +80,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 
 ## Web (`apps/web`)
 
-- Config: public `VITE_` values in `apps/web/.env.development` (Polar sandbox checkout) and `.env.production` (go-live TODOs); local overrides in `.env.*.local`. The `deploy` script refuses to build without `VITE_CHECKOUT_URL`.
+- Config: public `VITE_` values in `apps/web/.env.development` (Polar sandbox checkout) and `.env.production` (go-live TODOs); local overrides in `.env.*.local`. The `deploy` script refuses to build without `VITE_CHECKOUT_URL_YEARLY` and `VITE_CHECKOUT_URL_MONTHLY` (one Polar checkout link per plan; the pricing section's Yıllık / Aylık switch picks one, every other checkout button is yearly).
 - Every user-facing string is a Paraglide message in `messages/tr.json`. Generated `src/paraglide/` and `src/routeTree.gen.ts` come from the web build, which `pnpm lint` and `pnpm typecheck` run first.
 - Analytics: PostHog EU through the `/ingest` proxy, cookieless (`persistence: 'memory'`), page views plus named CTA events only. Without `VITE_POSTHOG_KEY` nothing loads.
 - The privacy section lists exactly the hosts the desktop app reaches (`src/components/app-hosts.tsx`); a test fails when the desktop http allowlist or updater endpoint changes without it.

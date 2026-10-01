@@ -7,8 +7,9 @@ import { layout } from '../lib/layout.ts';
 import { Sentence } from '../lib/slot.tsx';
 import { m } from '../paraglide/messages.js';
 
-// Polar's checkout link sends buyers here after payment (its success URL), so
-// the page is for people who already have a key and stays out of search.
+// Both plans' Polar checkout links send buyers here after payment (their
+// success URL), so the page is for people who already have a key and stays
+// out of search.
 export const Route = createFileRoute('/tesekkurler')({
   component: Thanks,
   head: () => ({

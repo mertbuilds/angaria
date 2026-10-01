@@ -1,19 +1,36 @@
-import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
+import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Check } from 'lucide-react';
 import { AppHosts } from '../components/app-hosts.tsx';
 import { CheckoutButton, DownloadButton } from '../components/cta.tsx';
+import { PRICES_TRY, Pricing } from '../components/pricing.tsx';
 import { WindowFrame } from '../components/window-frame.tsx';
 import { SITE_URL } from '../lib/canonical.ts';
+import type { Plan } from '../lib/config.ts';
 import { layout } from '../lib/layout.ts';
 import { Sentence } from '../lib/slot.tsx';
 import { m } from '../paraglide/messages.js';
 
-/** The yearly price in lira, for the structured data. The page shows m.pricing_amount. */
-const PRICE_TRY = 1499;
+/** UN/CEFACT codes for the unit each plan's price is per. */
+const BILLING_UNITS: Record<Plan, 'ANN' | 'MON'> = { monthly: 'MON', yearly: 'ANN' };
 
-/** What search engines read about the app: a macOS business app with one offer. */
+/** One plan as an offer: its price, billed once per year or month. */
+const offer = (plan: Plan, name: string) => ({
+  '@type': 'Offer',
+  name,
+  price: String(PRICES_TRY[plan]),
+  priceCurrency: 'TRY',
+  priceSpecification: {
+    '@type': 'UnitPriceSpecification',
+    billingIncrement: 1,
+    price: PRICES_TRY[plan],
+    priceCurrency: 'TRY',
+    unitCode: BILLING_UNITS[plan],
+  },
+  url: `${SITE_URL}/#fiyat`,
+});
+
+/** What search engines read about the app: a macOS business app with a yearly and a monthly offer. */
 const structuredData = () => ({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -21,12 +38,7 @@ const structuredData = () => ({
   description: m.meta_description(),
   inLanguage: 'tr',
   name: 'Angaria',
-  offers: {
-    '@type': 'Offer',
-    price: String(PRICE_TRY),
-    priceCurrency: 'TRY',
-    url: `${SITE_URL}/#fiyat`,
-  },
+  offers: [offer('yearly', m.pricing_yearly()), offer('monthly', m.pricing_monthly())],
   operatingSystem: 'macOS',
   publisher: { '@type': 'Organization', name: 'Vinena Studio', url: 'https://vinena.studio' },
   url: `${SITE_URL}/`,
@@ -53,13 +65,6 @@ const styles = create({
   caption: {
     color: colors.muted,
     fontSize: font.sizeSm,
-  },
-  check: {
-    color: colors.fg,
-    flexShrink: 0,
-    height: 16,
-    marginBlockStart: 4,
-    width: 16,
   },
   figure: {
     display: 'flex',
@@ -95,35 +100,6 @@ const styles = create({
   },
   lead: {
     fontSize: 17,
-  },
-  perk: {
-    alignItems: 'flex-start',
-    display: 'flex',
-    gap: spacing.s2,
-  },
-  price: {
-    alignItems: 'baseline',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: spacing.s2,
-  },
-  priceAmount: {
-    fontSize: 36,
-    fontVariantNumeric: 'tabular-nums',
-    fontWeight: font.weightMedium,
-    letterSpacing: '-0.02em',
-    lineHeight: 1.1,
-  },
-  pricing: {
-    alignItems: 'flex-start',
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    padding: spacing.s6,
   },
   privacyLead: {
     fontSize: font.sizeLg,
@@ -212,19 +188,7 @@ function Landing() {
         <h2 id="fiyat" {...props(layout.heading)}>
           {m.pricing_title()}
         </h2>
-        <div {...props(styles.pricing)}>
-          <p {...props(layout.text, styles.price)}>
-            <span {...props(styles.priceAmount)}>{m.pricing_amount()}</span>
-            <span {...props(layout.muted)}>{m.pricing_period()}</span>
-          </p>
-          <ul {...props(layout.list)}>
-            <Perk>{m.pricing_trial()}</Perk>
-            <Perk>{m.pricing_cancel()}</Perk>
-            <Perk>{m.pricing_devices()}</Perk>
-          </ul>
-          <CheckoutButton location="pricing" variant="default" />
-          <p {...props(layout.text, layout.muted, layout.small)}>{m.pricing_note()}</p>
-        </div>
+        <Pricing />
       </section>
 
       <section aria-labelledby="sss" {...props(layout.section)}>
@@ -236,6 +200,7 @@ function Landing() {
           <Feature body={m.faq_audience_a()} title={m.faq_audience_q()} />
           <Feature body={m.faq_windows_a()} title={m.faq_windows_q()} />
           <Feature body={m.faq_data_a()} title={m.faq_data_q()} />
+          <Feature body={m.faq_price_a()} title={m.faq_price_q()} />
           <Feature body={m.faq_cancel_a()} title={m.faq_cancel_q()} />
           <Feature body={m.faq_efatura_a()} title={m.faq_efatura_q()} />
         </dl>
@@ -260,14 +225,5 @@ function Feature({ body, title }: { body: string; title: string }) {
       <dt {...props(styles.term)}>{title}</dt>
       <dd {...props(layout.text, layout.muted)}>{body}</dd>
     </div>
-  );
-}
-
-function Perk({ children }: { children: string }) {
-  return (
-    <li {...props(styles.perk)}>
-      <Check aria-hidden="true" {...props(styles.check)} />
-      <span>{children}</span>
-    </li>
   );
 }

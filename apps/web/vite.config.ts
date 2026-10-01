@@ -5,10 +5,10 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
-// The `deploy` script sets ANGARIA_DEPLOY=1. A deploy refuses to ship without the
-// checkout link; a plain build (lint, typecheck, local preview) still runs and
-// the checkout buttons fall back to the pricing section.
-const requiredDeployEnv = ['VITE_CHECKOUT_URL'];
+// The `deploy` script sets ANGARIA_DEPLOY=1. A deploy refuses to ship without
+// both plans' checkout links; a plain build (lint, typecheck, local preview)
+// still runs and the checkout buttons fall back to the pricing section.
+const requiredDeployEnv = ['VITE_CHECKOUT_URL_YEARLY', 'VITE_CHECKOUT_URL_MONTHLY'];
 
 // Dependencies of @angaria/ui (source-consumed). Routes reach it through Start's
 // virtual modules, which the dep scanner cannot follow, so dev found each one on
@@ -45,7 +45,7 @@ export default defineConfig(({ command, mode }) => {
     if (missing.length > 0) {
       throw new Error(
         `Deploy build is missing ${missing.join(', ')}. ` +
-          'Set it in apps/web/.env.production or the environment.',
+          'Set them in apps/web/.env.production or the environment.',
       );
     }
   }

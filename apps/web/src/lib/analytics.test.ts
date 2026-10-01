@@ -7,7 +7,7 @@ describe('analytics', () => {
   test('does nothing without a PostHog key', async () => {
     const { default: posthog } = await import('posthog-js');
     await startAnalytics(null);
-    track('download_click', 'hero');
+    track('download_click', { location: 'hero' });
     expect(posthog.init).not.toHaveBeenCalled();
     expect(posthog.capture).not.toHaveBeenCalled();
   });
@@ -19,10 +19,10 @@ describe('analytics', () => {
       'phc_test',
       expect.objectContaining({ autocapture: false, persistence: 'memory' }),
     );
-    track('checkout_click', 'pricing');
+    track('checkout_click', { location: 'pricing', plan: 'monthly' });
     expect(posthog.capture).toHaveBeenCalledWith(
       'checkout_click',
-      { location: 'pricing' },
+      { location: 'pricing', plan: 'monthly' },
       expect.objectContaining({ transport: 'sendBeacon' }),
     );
   });
