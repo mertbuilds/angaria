@@ -13,6 +13,7 @@ import { getLocale } from '../paraglide/runtime.js';
 import '@angaria/ui/fonts.css';
 import '@angaria/ui/theme.css';
 import '@angaria/ui/base.css';
+import '../brand.css';
 import '../app.css';
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {

@@ -26,9 +26,10 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 
 - Suisse Intl 400/500 only (woff2 gitignored, fetched by `scripts/fetch-fonts.sh`; local copies in `/Users/duzgundev/code/mertbuilds/knobs.dev/packages/ui/fonts/`). Inter fallback. Headings weight 500, never bold. License covers app embedding.
 - Black/white; grays `#f5f5f5/#1a1a1a`, `#d4d4d4/#3f3f3f`, `#8a8a8a`. Only chroma: destructive `#dc2626/#f87171`, warning `#d97706/#fbbf24`. No emerald.
+- Website only (2026-10-01): one pale red, `#f07f77` (`--brand`, `apps/web/src/brand.css`), used sparingly: primary buttons (black text, 8.0:1), the selected plan, section markers, link hovers (`#bd3936` on white), the hero pattern. The desktop app stays black and white.
 - Radius 8px cards/dialogs; pill buttons (28px, ~40px hit area) and pill inputs (40px).
 - 4px spacing grid, 1px borders, no shadows/gradients. Dark mode follows system, `data-theme` override.
-- Motion: 200ms fade, 260ms `cubic-bezier(0.16,1,0.3,1)`, respect reduced motion.
+- Motion: 200ms fade, 260ms `cubic-bezier(0.16,1,0.3,1)`, respect reduced motion. The landing's scroll reveals rise 16px over 700ms on the same curve.
 - No em dashes in copy. No unit abbreviations in copy.
 
 ## Desktop app

@@ -1,0 +1,48 @@
+/*
+ * The site's one color: a pale red, layered on @angaria/ui's theme for the
+ * website only (the desktop app keeps black and white). Import after
+ * theme.css: same selectors, later in the cascade, so these win.
+ *
+ * --brand       pale red, oklch(0.72 0.14 25). Button fills, the selected
+ *               plan, markers and the hero pattern. Black text on it is 8.0:1.
+ * --brand-ink   red that reads as text: 5.5:1 on white in light, the pale red
+ *               itself (8.0:1 on black) in dark. Link hovers, the focus ring.
+ * --brand-tint  a wash of the red behind small highlights.
+ * --shot-shadow the one shadow on the page, under the hero screenshot: soft
+ *               gray on white, a faint red glow on black.
+ *
+ * The dark values are written twice, like theme.css: behind the system
+ * preference and behind data-theme='dark'. Keep both blocks in sync.
+ */
+:root,
+[data-theme='light'] {
+  --brand: #f07f77;
+  --brand-ink: #bd3936;
+  --brand-tint: #ffefed;
+  --shot-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.35);
+  --primary: var(--brand);
+  --primary-foreground: #000000;
+  --ring: var(--brand-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --brand: #f07f77;
+    --brand-ink: #f07f77;
+    --brand-tint: #2b1311;
+    --shot-shadow: 0 32px 96px -48px rgb(240 127 119 / 0.22);
+    --primary: var(--brand);
+    --primary-foreground: #000000;
+    --ring: var(--brand-ink);
+  }
+}
+
+[data-theme='dark'] {
+  --brand: #f07f77;
+  --brand-ink: #f07f77;
+  --brand-tint: #2b1311;
+  --shot-shadow: 0 32px 96px -48px rgb(240 127 119 / 0.22);
+  --primary: var(--brand);
+  --primary-foreground: #000000;
+  --ring: var(--brand-ink);
+}

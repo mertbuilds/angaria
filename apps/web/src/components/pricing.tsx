@@ -3,6 +3,7 @@ import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { Check } from 'lucide-react';
 import { useState } from 'react';
+import { brand, reveal } from '../lib/brand.stylex.ts';
 import type { Plan } from '../lib/config.ts';
 import { layout } from '../lib/layout.ts';
 import { m } from '../paraglide/messages.js';
@@ -13,16 +14,36 @@ export const PRICES_TRY: Record<Plan, number> = { monthly: 199, yearly: 1499 };
 
 const styles = create({
   check: {
-    color: colors.fg,
+    color: brand.ink,
     flexShrink: 0,
     height: 16,
     marginBlockStart: 4,
     width: 16,
   },
+  // The selected plan's pale red pill, sliding under the two equal tabs.
   perk: {
     alignItems: 'flex-start',
     display: 'flex',
     gap: spacing.s2,
+  },
+  pill: {
+    backgroundColor: brand.fill,
+    borderRadius: radius.full,
+    bottom: 2,
+    left: 2,
+    pointerEvents: 'none',
+    position: 'absolute',
+    top: 2,
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0s',
+      default: '260ms',
+    },
+    transitionProperty: 'translate',
+    transitionTimingFunction: reveal.ease,
+    width: 'calc(50% - 2px)',
+  },
+  pillMonthly: {
+    translate: '100% 0',
   },
   // Both panels stay mounted in one grid cell, so the card keeps the taller
   // panel's height and nothing below it moves when the plan changes.
@@ -35,10 +56,19 @@ const styles = create({
     gridRow: '1',
     // Back to base.css's keyboard focus ring: the panel is a tab stop.
     outline: null,
+    // The prices cross-fade: the new one rises a little as the old one goes.
+    transitionDuration: {
+      '@media (prefers-reduced-motion: reduce)': '0s',
+      default: '200ms',
+    },
+    transitionProperty: 'opacity, translate, visibility',
+    transitionTimingFunction: reveal.ease,
   },
   // The inactive panel keeps Base UI's `hidden` and `inert`; its box still
   // counts for the height, its content does not show.
   planHidden: {
+    opacity: 0,
+    translate: '0 4px',
     visibility: 'hidden',
   },
   plans: {
@@ -69,8 +99,39 @@ const styles = create({
     gap: spacing.s4,
     padding: spacing.s6,
   },
+  // A small radius, not a pill: on a phone the note wraps to two lines.
+  saving: {
+    alignSelf: 'flex-start',
+    backgroundColor: brand.tint,
+    borderRadius: 6,
+    color: brand.ink,
+    fontSize: font.sizeSm,
+    marginBlockStart: spacing.s1,
+    paddingBlock: 2,
+    paddingInline: spacing.s2,
+  },
   stack: {
     display: 'grid',
+  },
+  // Two equal columns, so the pill moves by exactly its own width.
+  switch: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    position: 'relative',
+  },
+  // Above the pill: the selected label reads black on it, the other stays gray.
+  tab: {
+    backgroundColor: 'transparent',
+    boxShadow: {
+      ':focus-visible': `0 0 0 1px ${colors.bg}, 0 0 0 2px ${brand.ink}`,
+      default: null,
+    },
+    paddingInline: spacing.s4,
+    transitionProperty: 'color, box-shadow',
+    zIndex: 1,
+  },
+  tabActive: {
+    color: '#000000',
   },
 });
 
@@ -85,9 +146,17 @@ export function Pricing() {
         style={styles.plans}
         value={plan}
       >
-        <TabsList aria-label={m.pricing_plans()}>
-          <TabsTrigger value="yearly">{m.pricing_yearly()}</TabsTrigger>
-          <TabsTrigger value="monthly">{m.pricing_monthly()}</TabsTrigger>
+        <TabsList aria-label={m.pricing_plans()} style={styles.switch}>
+          <span
+            aria-hidden="true"
+            {...props(styles.pill, plan === 'monthly' && styles.pillMonthly)}
+          />
+          <TabsTrigger style={[styles.tab, plan === 'yearly' && styles.tabActive]} value="yearly">
+            {m.pricing_yearly()}
+          </TabsTrigger>
+          <TabsTrigger style={[styles.tab, plan === 'monthly' && styles.tabActive]} value="monthly">
+            {m.pricing_monthly()}
+          </TabsTrigger>
         </TabsList>
         <div {...props(styles.stack)}>
           <TabsContent
@@ -96,7 +165,7 @@ export function Pricing() {
             value="yearly"
           >
             <Price amount={m.pricing_yearly_amount()} period={m.pricing_yearly_period()} />
-            <p {...props(layout.text, layout.muted, layout.small)}>{m.pricing_yearly_saving()}</p>
+            <p {...props(layout.text, styles.saving)}>{m.pricing_yearly_saving()}</p>
           </TabsContent>
           <TabsContent
             keepMounted

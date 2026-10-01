@@ -8,3 +8,17 @@
     scroll-behavior: smooth;
   }
 }
+
+/* The hero's pattern sits at z-index -1, under every in-flow box. html keeps
+   painting the page color; a body background would cover the pattern. */
+body {
+  background: transparent;
+}
+
+/* Links turn the site's red on hover. In @layer base like theme.css's link
+   rules, so StyleX colors (buttons rendered as links) still win. */
+@layer base {
+  a:hover {
+    color: var(--brand-ink);
+  }
+}
