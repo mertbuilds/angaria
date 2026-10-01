@@ -84,7 +84,12 @@ export interface EarsivClient {
     details: InvoiceDetails,
   ): Promise<{ date: string; response: Record<string, unknown>; uuid: string }>;
   forceLogout(username: string, password: string, testMode: boolean): Promise<void>;
-  getDrafts(session: SessionInfo, startDate: string, endDate: string): Promise<Array<unknown>>;
+  getDrafts(
+    session: SessionInfo,
+    startDate: string,
+    endDate: string,
+    signal?: AbortSignal,
+  ): Promise<Array<unknown>>;
   getInvoiceDetail(session: SessionInfo, ettn: string): Promise<Record<string, unknown>>;
   getInvoiceHTML(session: SessionInfo, uuid: string, onayDurumu: string): Promise<string>;
   getSigningPhone(session: SessionInfo): Promise<string>;
@@ -434,16 +439,19 @@ export function createClient(options?: ClientOptions): EarsivClient {
   /**
    * Every document dated within the range. Ranges longer than GİB allows are
    * fetched in chunks, one after the other on the same session, and merged
-   * oldest first; a row returned twice (same ETTN) is kept once.
+   * oldest first; a row returned twice (same ETTN) is kept once. Once
+   * `signal` aborts, no further chunk is requested and the call rejects.
    */
   async function getDrafts(
     session: SessionInfo,
     startDate: string,
     endDate: string,
+    signal?: AbortSignal,
   ): Promise<Array<unknown>> {
     const rows: Array<unknown> = [];
     const seen = new Set<string>();
     for (const range of splitDateRange(startDate, endDate)) {
+      signal?.throwIfAborted();
       const result = await dispatch(
         session,
         'EARSIV_PORTAL_TASLAKLARI_GETIR',

@@ -102,6 +102,35 @@ describe('createSessionQueue', () => {
     expect(skipped).not.toHaveBeenCalled();
   });
 
+  test('a running task gets its signal, and stopping for it keeps the session', async () => {
+    const { client, log } = fakeClient();
+    const queue = createSessionQueue(client);
+    const user = account('33333301');
+    const controller = new AbortController();
+    const chunks: Array<string> = [];
+
+    const list = queue.run(
+      user,
+      async (session, signal) => {
+        for (const chunk of ['1-7 Eylül', '8-14 Eylül', '15-21 Eylül']) {
+          signal?.throwIfAborted();
+          chunks.push(chunk);
+          controller.abort(new Error('Aralık değişti'));
+          await tick();
+        }
+        return session.token;
+      },
+      { signal: controller.signal },
+    );
+    const next = queue.run(user, async (session) => session.token);
+
+    await expect(list).rejects.toThrow('Aralık değişti');
+    expect(chunks).toEqual(['1-7 Eylül']);
+    expect(await next).toBe('t1');
+    await tick();
+    expect(log).toEqual(['login 33333301', 'logout t1']);
+  });
+
   test('logs in again after a failed task and for another account', async () => {
     const { client, log } = fakeClient();
     const queue = createSessionQueue(client);
