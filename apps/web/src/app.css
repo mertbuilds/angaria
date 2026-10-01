@@ -1,0 +1,10 @@
+/* App CSS entry. StyleX build output is injected into this asset. The page
+   shell (background, text color, font) comes from @angaria/ui/base.css. */
+
+/* The header links down the page, so those jumps are eased, for everyone who
+   has not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

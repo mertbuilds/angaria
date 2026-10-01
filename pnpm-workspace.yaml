@@ -42,7 +42,9 @@ catalog:
 catalogMode: prefer
 
 allowBuilds:
+  core-js: false
   esbuild: true
   lefthook: true
   msw: false
   react-grab: false
+  workerd: true
