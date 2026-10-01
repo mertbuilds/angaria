@@ -1,6 +1,7 @@
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { Link } from '@tanstack/react-router';
+import { brand } from '../lib/brand.stylex.ts';
 import { Sentence } from '../lib/slot.tsx';
 import { m } from '../paraglide/messages.js';
 
@@ -29,7 +30,7 @@ const styles = create({
   },
   link: {
     color: {
-      ':hover': colors.fg,
+      ':hover': brand.ink,
       default: 'inherit',
     },
   },
