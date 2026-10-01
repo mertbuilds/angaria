@@ -1,0 +1,30 @@
+{
+  "name": "@angaria/mcp-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Internal MCP server exposing GİB e-Arşiv invoice tools via the Angaria SDK",
+  "bin": {
+    "angaria-mcp": "./dist/index.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
+    "angaria-earsiv-sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
