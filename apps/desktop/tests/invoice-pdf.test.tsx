@@ -1,19 +1,21 @@
 import { inflateSync } from 'node:zlib';
 import { expect, test, vi } from 'vitest';
 import { type InvoicePDFData, renderInvoicePDF } from '../src/components/invoice-pdf.tsx';
-import { PDF_LANGUAGES } from '../src/lib/invoice-pdf-i18n.ts';
-import type { PDFLanguage } from '../src/lib/types.ts';
+import { PDF_LANGUAGES, PDF_STYLES } from '../src/lib/invoice-pdf-i18n.ts';
+import type { PDFLanguage, PDFStyle } from '../src/lib/types.ts';
 
 // Vite resolves font imports to dev-server URLs; react-pdf in Node reads files.
-vi.mock('@/assets/fonts/Inter-Regular.ttf', () => ({
-  default: `${import.meta.dirname}/../src/assets/fonts/Inter-Regular.ttf`,
+// Inter, so the test does not depend on the licensed Suisse Intl files.
+vi.mock('@/components/invoice-pdf-fonts.ts', () => ({
+  PDF_FONT_FILES: {
+    medium: `${import.meta.dirname}/../src/assets/fonts/Inter-SemiBold.ttf`,
+    regular: `${import.meta.dirname}/../src/assets/fonts/Inter-Regular.ttf`,
+  },
 }));
-vi.mock('@/assets/fonts/Inter-SemiBold.ttf', () => ({
-  default: `${import.meta.dirname}/../src/assets/fonts/Inter-SemiBold.ttf`,
-}));
-vi.mock('@/assets/fonts/Inter-Bold.ttf', () => ({
-  default: `${import.meta.dirname}/../src/assets/fonts/Inter-Bold.ttf`,
-}));
+
+// A 1 by 1 pixel PNG
+const logo =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 const data: Omit<InvoicePDFData, 'language'> = {
   company: {
@@ -30,8 +32,10 @@ const data: Omit<InvoicePDFData, 'language'> = {
     taxOffice: 'Antalya Kurumlar',
   },
   date: '05/03/2026',
+  dueDate: '04/04/2026',
+  ettn: '13cc1102-6e3e-45de-bcd8-4ffc9e7075f3',
+  gibNumber: 'GIB2026000000001',
   grandTotal: 1500,
-  invoiceNumber: 'GIB2026000000001',
   items: [
     {
       discountAmount: 100,
@@ -47,6 +51,7 @@ const data: Omit<InvoicePDFData, 'language'> = {
     },
   ],
   note: 'Ödeme 30 gün içinde yapılmalıdır.',
+  qrValue: '{"no":"GIB2026000000001","ettn":"13cc1102-6e3e-45de-bcd8-4ffc9e7075f3"}',
   recipient: {
     city: 'İzmir',
     country: 'Türkiye',
@@ -65,10 +70,12 @@ const data: Omit<InvoicePDFData, 'language'> = {
   totalVAT: 300,
 };
 
-async function render(language: PDFLanguage) {
-  const blob = await renderInvoicePDF({ ...data, language });
+async function render(language: PDFLanguage, style: PDFStyle = 'minimal', extra = {}) {
+  const blob = await renderInvoicePDF({ ...data, language, style, ...extra });
   return Buffer.from(await blob.arrayBuffer());
 }
+
+const pageCount = (pdf: Buffer) => pdf.toString('latin1').match(/\/Type \/Page\b/g)?.length;
 
 /** Glyph to text entries of every ToUnicode CMap, i.e. the PDF's text layer */
 function textLayer(pdf: Buffer) {
@@ -99,8 +106,7 @@ function textLayer(pdf: Buffer) {
 // rendered after it lost those characters from its text layer.
 test('renders English then Turkish with every character in the text layer', async () => {
   const pdfs = { en: await render('en'), tr: await render('tr') };
-  for (const language of PDF_LANGUAGES) {
-    const pdf = pdfs[language];
+  for (const pdf of Object.values(pdfs)) {
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
     expect(pdf.toString('latin1')).toContain('/FontFile2');
     expect(textLayer(pdf).filter(({ text }) => text === '')).toEqual([]);
@@ -111,4 +117,25 @@ test('renders English then Turkish with every character in the text layer', asyn
   for (const char of 'ğĞşŞıİçÇöÖüÜG') {
     expect(chars).toContain(char);
   }
+});
+
+test.each(PDF_STYLES.flatMap((style) => PDF_LANGUAGES.map((language) => [style, language])))(
+  '%s %s renders with a logo, a QR code and a complete text layer',
+  async (style, language) => {
+    const pdf = await render(language as PDFLanguage, style as PDFStyle, {
+      company: { ...data.company, logo },
+    });
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(pdf.toString('latin1')).toContain('/Subtype /Image');
+    expect(pageCount(pdf)).toBe(1);
+    expect(textLayer(pdf).filter(({ text }) => text === '')).toEqual([]);
+  },
+);
+
+test.each(PDF_STYLES)('%s breaks a long invoice over pages', async (style) => {
+  const items = Array.from({ length: 30 }, (_, index) => ({
+    ...data.items[0],
+    id: String(index),
+  }));
+  expect(pageCount(await render('both', style, { items }))).toBeGreaterThan(1);
 });

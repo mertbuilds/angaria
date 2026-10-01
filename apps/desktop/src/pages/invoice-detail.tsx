@@ -40,6 +40,7 @@ import {
   useGIBAccount,
 } from '@/lib/gib.ts';
 import { dueDateOf } from '@/lib/invoice-due-dates.ts';
+import { readQRValue } from '@/lib/invoice-preview.ts';
 import { invoiceStatus, parseGIBInvoice } from '@/lib/invoices.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice, PDFLanguage } from '@/lib/types.ts';
@@ -297,6 +298,10 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     mutationFn: async (language: PDFLanguage) => {
       toast.loading('PDF hazırlanıyor...', { id: `pdf-${ettn}` });
       const { items, note, recipient, settings, subtotal, vat } = await readDetail();
+      // The QR code's text sits in GİB's preview, which the pane shows already.
+      const html = await queryClient.fetchQuery(
+        invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
+      );
       // react-pdf is large, so it loads with the first PDF.
       const { downloadInvoicePDF } = await import('@/components/invoice-pdf.tsx');
       await downloadInvoicePDF({
@@ -304,11 +309,13 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
         date: invoice.belgeTarihi ?? '',
         dueDate: dueDateOf(ettn),
         entityName: activeEntity.name,
+        ettn,
+        gibNumber: invoice.belgeNumarasi,
         grandTotal: subtotal,
-        invoiceNumber: invoice.belgeNumarasi,
         items: items.map((item, index) => ({ ...item, id: String(index) })),
         language,
         note,
+        qrValue: readQRValue(html),
         recipient: { ...recipient, id: '' },
         settings,
         total: subtotal + vat,

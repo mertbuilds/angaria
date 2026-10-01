@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# Fetch licensed Suisse Intl woff2 files (400 and 500 only) from a private bucket.
-# Never blocks: without FONT_BUCKET_URL (or on any download failure) the apps
+# Fetch licensed Suisse Intl (400 and 500 only) from a private bucket: woff2 for
+# the apps' CSS, TrueType for the desktop app's PDFs (react-pdf cannot embed
+# woff2). Never blocks: without FONT_BUCKET_URL (or on any download failure) the apps
 # fall back to Inter, so this exits 0 with a warning.
 set -uo pipefail
 
 DEST="$(cd "$(dirname "$0")/.." && pwd)/packages/ui/fonts"
-FILES=(SuisseIntl-Regular.woff2 SuisseIntl-Medium.woff2)
+FILES=(
+  SuisseIntl-Regular.woff2
+  SuisseIntl-Medium.woff2
+  SuisseIntl-Regular.ttf
+  SuisseIntl-Medium.ttf
+)
 
 if [[ -z "${FONT_BUCKET_URL:-}" ]]; then
   echo "warn: FONT_BUCKET_URL not set, Suisse Intl not fetched, Inter fallback active."

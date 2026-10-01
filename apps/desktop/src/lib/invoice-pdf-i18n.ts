@@ -1,18 +1,26 @@
-import type { PDFLanguage } from './types.ts';
+import { GIB_UNIT_TYPES } from './gib-constants.ts';
+import type { PDFLanguage, PDFStyle } from './types.ts';
 
-export const PDF_LANGUAGES: ReadonlyArray<Exclude<PDFLanguage, 'both'>> = ['tr', 'en'];
+export const PDF_LANGUAGES: ReadonlyArray<PDFLanguage> = ['tr', 'en', 'both'];
 
 export const DEFAULT_PDF_LANGUAGE: PDFLanguage = 'en';
 
-const LOCALES: Record<PDFLanguage, string> = {
-  // Until the bilingual layout lands, 'both' prints the English labels and formats.
-  both: 'en-US',
+export const PDF_STYLES: ReadonlyArray<PDFStyle> = ['minimal', 'classic'];
+
+export const DEFAULT_PDF_STYLE: PDFStyle = 'minimal';
+
+type Locale = 'en' | 'tr';
+
+const LOCALES: Record<Locale, string> = {
   en: 'en-US',
   tr: 'tr-TR',
 };
 
+/** Numbers, dates and file names follow Turkish on a Turkish or bilingual PDF. */
+const localeOf = (language: PDFLanguage): Locale => (language === 'en' ? 'en' : 'tr');
+
 export function isPDFLanguage(value: unknown): value is PDFLanguage {
-  return value === 'en' || value === 'tr' || value === 'both';
+  return PDF_LANGUAGES.includes(value as PDFLanguage);
 }
 
 /** First valid candidate (invoice override, customer default), else the app default */
@@ -20,92 +28,147 @@ export function resolvePDFLanguage(...candidates: Array<unknown>): PDFLanguage {
   return candidates.find(isPDFLanguage) ?? DEFAULT_PDF_LANGUAGE;
 }
 
+export function isPDFStyle(value: unknown): value is PDFStyle {
+  return PDF_STYLES.includes(value as PDFStyle);
+}
+
+/** First valid candidate (the PDF's own, the company's), else the default */
+export function resolvePDFStyle(...candidates: Array<unknown>): PDFStyle {
+  return candidates.find(isPDFStyle) ?? DEFAULT_PDF_STYLE;
+}
+
 export interface PDFLabels {
   accountHolder: string;
   amount: string;
-  bankAccountDetails: string;
   bankAddress: string;
+  bankDetails: string;
   bankName: string;
   billedTo: string;
   companyNameFallback: string;
+  date: string;
   description: string;
   discount: string;
-  entityFallback: string;
-  filenamePrefix: string;
+  dueDate: string;
+  eArchiveInvoice: string;
+  ettn: string;
+  exchangeRate: string;
+  from: string;
+  gibNumber: string;
   iban: string;
-  invoiceDate: string;
+  invoice: string;
   invoiceNumber: string;
-  invoiceTotal: string;
   note: string;
   quantity: string;
-  recipientFallback: string;
   subtotal: string;
   swiftCode: string;
-  undated: string;
-  unitCost: string;
+  taxID: string;
+  taxOffice: string;
+  total: string;
+  totalInTRY: string;
+  unitPrice: string;
   vat: string;
 }
 
-export const PDF_LABELS: Record<Exclude<PDFLanguage, 'both'>, PDFLabels> = {
-  en: {
-    accountHolder: 'Account Holder',
-    amount: 'Amount',
-    bankAccountDetails: 'Bank Account Details',
-    bankAddress: 'Bank Address',
-    bankName: 'Bank Name',
-    billedTo: 'Billed To',
-    companyNameFallback: 'Company Name',
-    description: 'Description',
-    discount: 'Discount',
-    entityFallback: 'company',
-    filenamePrefix: 'Invoice',
-    iban: 'IBAN',
-    invoiceDate: 'Invoice Date:',
-    invoiceNumber: 'Invoice Number',
-    invoiceTotal: 'Invoice Total',
-    note: 'Note',
-    quantity: 'Qty',
-    recipientFallback: 'recipient',
-    subtotal: 'Subtotal',
-    swiftCode: 'Swift Code',
-    undated: 'undated',
-    unitCost: 'Unit Cost',
-    vat: 'VAT',
-  },
-  tr: {
-    accountHolder: 'Hesap Sahibi',
-    amount: 'Tutar',
-    bankAccountDetails: 'Banka Bilgileri',
-    bankAddress: 'Banka Adresi',
-    bankName: 'Banka Adı',
-    billedTo: 'Sayın',
-    companyNameFallback: 'Firma Adı',
-    description: 'Açıklama',
-    discount: 'İndirim',
-    entityFallback: 'sirket',
-    filenamePrefix: 'Fatura',
-    iban: 'IBAN',
-    invoiceDate: 'Fatura Tarihi:',
-    invoiceNumber: 'Fatura No',
-    invoiceTotal: 'Genel Toplam',
-    note: 'Not',
-    quantity: 'Miktar',
-    recipientFallback: 'alici',
-    subtotal: 'Ara Toplam',
-    swiftCode: 'SWIFT Kodu',
-    undated: 'tarihsiz',
-    unitCost: 'Birim Fiyat',
-    vat: 'KDV',
-  },
+const TR: PDFLabels = {
+  accountHolder: 'Hesap sahibi',
+  amount: 'Tutar',
+  bankAddress: 'Banka adresi',
+  bankDetails: 'Banka bilgileri',
+  bankName: 'Banka',
+  billedTo: 'Sayın',
+  companyNameFallback: 'Firma adı',
+  date: 'Tarih',
+  description: 'Açıklama',
+  discount: 'İndirim',
+  dueDate: 'Son ödeme tarihi',
+  eArchiveInvoice: 'e-Arşiv fatura',
+  ettn: 'ETTN',
+  exchangeRate: 'Döviz kuru',
+  from: 'Düzenleyen',
+  gibNumber: 'GİB no',
+  iban: 'IBAN',
+  invoice: 'Fatura',
+  invoiceNumber: 'Fatura no',
+  note: 'Not',
+  quantity: 'Miktar',
+  subtotal: 'Ara toplam',
+  swiftCode: 'SWIFT',
+  taxID: 'VKN/TCKN',
+  taxOffice: 'Vergi dairesi',
+  total: 'Genel toplam',
+  totalInTRY: 'Türk lirası karşılığı',
+  unitPrice: 'Birim fiyat',
+  vat: 'KDV',
+};
+
+const EN: PDFLabels = {
+  accountHolder: 'Account holder',
+  amount: 'Amount',
+  bankAddress: 'Bank address',
+  bankDetails: 'Bank details',
+  bankName: 'Bank',
+  billedTo: 'Billed to',
+  companyNameFallback: 'Company name',
+  date: 'Date',
+  description: 'Description',
+  discount: 'Discount',
+  dueDate: 'Due date',
+  eArchiveInvoice: 'e-Archive invoice',
+  ettn: 'ETTN',
+  exchangeRate: 'Exchange rate',
+  from: 'From',
+  gibNumber: 'GİB no',
+  iban: 'IBAN',
+  invoice: 'Invoice',
+  invoiceNumber: 'Invoice no.',
+  note: 'Note',
+  quantity: 'Qty',
+  subtotal: 'Subtotal',
+  swiftCode: 'SWIFT',
+  taxID: 'Tax ID',
+  taxOffice: 'Tax office',
+  total: 'Total',
+  totalInTRY: 'Total in Turkish lira',
+  unitPrice: 'Unit price',
+  vat: 'VAT',
+};
+
+/** Between the Turkish and the English half of a bilingual label */
+export const BILINGUAL_SEPARATOR = ' / ';
+
+/** "Fatura / Invoice"; a label both languages share appears once ("IBAN"). */
+function bilingual(tr: PDFLabels, en: PDFLabels): PDFLabels {
+  const labels = { ...tr };
+  for (const key of Object.keys(tr) as Array<keyof PDFLabels>) {
+    if (tr[key] !== en[key]) {
+      labels[key] = `${tr[key]}${BILINGUAL_SEPARATOR}${en[key]}`;
+    }
+  }
+  return labels;
+}
+
+export const PDF_LABELS: Record<PDFLanguage, PDFLabels> = {
+  both: bilingual(TR, EN),
+  en: EN,
+  tr: TR,
 };
 
 /**
- * Uppercase with the language's casing rules (Turkish "i" becomes "İ"). The
- * PDF's `textTransform: 'uppercase'` is locale-blind, so Turkish labels under
- * it are uppercased here first.
+ * Uppercase with each language's casing rules (Turkish "i" becomes "İ", the
+ * English half of a bilingual label keeps "I"). The PDF's
+ * `textTransform: 'uppercase'` is locale-blind, so labels are uppercased here.
  */
 export function pdfUpper(language: PDFLanguage, text: string): string {
-  return text.toLocaleUpperCase(LOCALES[language]);
+  if (language !== 'both') {
+    return text.toLocaleUpperCase(LOCALES[language]);
+  }
+  const at = text.indexOf(BILINGUAL_SEPARATOR);
+  if (at === -1) {
+    return text.toLocaleUpperCase(LOCALES.tr);
+  }
+  const tr = text.slice(0, at).toLocaleUpperCase(LOCALES.tr);
+  const en = text.slice(at + BILINGUAL_SEPARATOR.length).toLocaleUpperCase(LOCALES.en);
+  return `${tr}${BILINGUAL_SEPARATOR}${en}`;
 }
 
 const EN_MONTHS = [
@@ -123,7 +186,7 @@ const EN_MONTHS = [
   'December',
 ];
 
-/** Format a GİB date ("dd/MM/yyyy" or "dd-MM-yyyy"): "dd Month yyyy" in English, "dd.MM.yyyy" in Turkish */
+/** Format a GİB date ("dd/MM/yyyy" or "dd-MM-yyyy"): "dd Month yyyy" in English, "dd.MM.yyyy" otherwise */
 export function formatPDFDate(language: PDFLanguage, raw: string): string {
   if (!raw) {
     return '';
@@ -134,25 +197,91 @@ export function formatPDFDate(language: PDFLanguage, raw: string): string {
   if (!dd || !yyyy || !Number.isInteger(monthIdx) || monthIdx < 0 || monthIdx > 11) {
     return raw;
   }
-  if (language === 'tr') {
+  if (localeOf(language) === 'tr') {
     return `${dd.padStart(2, '0')}.${mm.padStart(2, '0')}.${yyyy}`;
   }
   return `${dd} ${EN_MONTHS[monthIdx]} ${yyyy}`;
 }
 
+/** Two decimals with the language's grouping: "1,234.56" or "1.234,56" */
+export function formatPDFNumber(language: PDFLanguage, n: number, fractionDigits = 2): string {
+  return n.toLocaleString(LOCALES[localeOf(language)], {
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: fractionDigits,
+  });
+}
+
 /** Currency code, then the amount with two decimals: "USD 1,234.56" or "USD 1.234,56" */
 export function formatPDFAmount(language: PDFLanguage, currency: string, n: number): string {
-  return `${currency} ${n.toLocaleString(LOCALES[language], {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-  })}`;
+  return `${currency} ${formatPDFNumber(language, n)}`;
 }
 
 export function formatPDFQuantity(language: PDFLanguage, n: number): string {
-  return language === 'tr'
+  return localeOf(language) === 'tr'
     ? n.toLocaleString(LOCALES.tr, { maximumFractionDigits: 20 })
     : String(n);
 }
+
+/** A VAT rate: "%20" in Turkish, "20%" in English */
+export function formatPDFPercent(language: PDFLanguage, rate: number): string {
+  const locale = localeOf(language);
+  const value = rate.toLocaleString(LOCALES[locale], { maximumFractionDigits: 2 });
+  return locale === 'tr' ? `%${value}` : `${value}%`;
+}
+
+/** Spelled-out names for GİB's word units; symbols (kg, m2) print as GİB writes them. */
+const UNIT_NAMES: Partial<Record<string, { en: readonly [string, string]; tr: string }>> = {
+  ANN: { en: ['year', 'years'], tr: 'yıl' },
+  BX: { en: ['box', 'boxes'], tr: 'kutu' },
+  D61: { en: ['minute', 'minutes'], tr: 'dakika' },
+  D62: { en: ['second', 'seconds'], tr: 'saniye' },
+  DAY: { en: ['day', 'days'], tr: 'gün' },
+  HUR: { en: ['hour', 'hours'], tr: 'saat' },
+  MON: { en: ['month', 'months'], tr: 'ay' },
+  PA: { en: ['package', 'packages'], tr: 'paket' },
+  PR: { en: ['pair', 'pairs'], tr: 'çift' },
+  SET: { en: ['set', 'sets'], tr: 'set' },
+};
+
+/** "1,5 saat", "2 hours"; a piece count (C62, Adet) is the bare number. */
+export function formatPDFQuantityUnit(
+  language: PDFLanguage,
+  quantity: number,
+  unitType: string,
+): string {
+  const amount = formatPDFQuantity(language, quantity);
+  if (!unitType || unitType === 'C62') {
+    return amount;
+  }
+  const names = UNIT_NAMES[unitType];
+  let unit: string;
+  if (!names) {
+    unit = GIB_UNIT_TYPES.find((type) => type.value === unitType)?.label ?? unitType;
+  } else if (localeOf(language) === 'tr') {
+    unit = names.tr;
+  } else {
+    unit = quantity === 1 ? names.en[0] : names.en[1];
+  }
+  return `${amount} ${unit}`;
+}
+
+const FILENAME_WORDS: Record<
+  Locale,
+  { entityFallback: string; prefix: string; recipientFallback: string; undated: string }
+> = {
+  en: {
+    entityFallback: 'company',
+    prefix: 'Invoice',
+    recipientFallback: 'recipient',
+    undated: 'undated',
+  },
+  tr: {
+    entityFallback: 'sirket',
+    prefix: 'Fatura',
+    recipientFallback: 'alici',
+    undated: 'tarihsiz',
+  },
+};
 
 function sanitizeFilenamePart(value: string | undefined, fallback: string) {
   const withoutControlChars = Array.from(value ?? '')
@@ -194,8 +323,8 @@ export function buildInvoicePDFFilename({
   language: PDFLanguage;
   recipientTitle: string;
 }) {
-  const t = PDF_LABELS[language === 'both' ? 'en' : language];
-  const recipientName = sanitizeFilenamePart(recipientTitle, t.recipientFallback);
-  const entity = sanitizeFilenamePart(entityName || companyName, t.entityFallback);
-  return `${t.filenamePrefix}-${formatFilenameDate(date, t.undated)}-${entity}-${recipientName}.pdf`;
+  const words = FILENAME_WORDS[localeOf(language)];
+  const recipientName = sanitizeFilenamePart(recipientTitle, words.recipientFallback);
+  const entity = sanitizeFilenamePart(entityName || companyName, words.entityFallback);
+  return `${words.prefix}-${formatFilenameDate(date, words.undated)}-${entity}-${recipientName}.pdf`;
 }

@@ -1,6 +1,6 @@
 import { renderSVG } from 'uqr';
 import { describe, expect, test } from 'vitest';
-import { withQRCode } from '../src/lib/invoice-preview.ts';
+import { readQRValue, withQRCode } from '../src/lib/invoice-preview.ts';
 
 // The shape of GİB's preview: the QR script library in <head>, an empty
 // #qrcode target, the JSON in a hidden #qrvalue div, then the drawing script.
@@ -39,5 +39,19 @@ describe('withQRCode', () => {
   test('leaves HTML without a QR value as it was, minus scripts', () => {
     expect(withQRCode('<p>Fatura</p><script>alert(1)</script>')).toBe('<p>Fatura</p>');
     expect(withQRCode(gibPreview(' '))).not.toContain('<img');
+  });
+});
+
+describe('readQRValue', () => {
+  test('reads the #qrvalue text with its entities decoded', () => {
+    expect(readQRValue(gibPreview('{"unvan":"A &amp; B &#304;n&#x015F;aat"}'))).toBe(
+      '{"unvan":"A & B İnşaat"}',
+    );
+    expect(readQRValue(withQRCode(gibPreview('{"no":"GIB1"}')))).toBe('{"no":"GIB1"}');
+  });
+
+  test('is undefined without a QR value', () => {
+    expect(readQRValue('<p>Fatura</p>')).toBeUndefined();
+    expect(readQRValue(gibPreview(' \n '))).toBeUndefined();
   });
 });

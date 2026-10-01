@@ -28,14 +28,16 @@ import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { getVersion } from '@tauri-apps/api/app';
 import { ChevronRightIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LicenseCard } from '@/components/license-card.tsx';
 import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
 import { forceLogout } from '@/lib/angaria.ts';
+import { LOGO_TYPES, readLogo } from '@/lib/company-logo.ts';
 import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
+import { isPDFStyle, PDF_STYLES, resolvePDFStyle } from '@/lib/invoice-pdf-i18n.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
-import type { CompanyInfo, Entity } from '@/lib/types.ts';
+import type { CompanyInfo, Entity, PDFStyle } from '@/lib/types.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
 
 const styles = create({
@@ -49,6 +51,18 @@ const styles = create({
   dialogForm: {
     display: 'grid',
     gap: spacing.s4,
+  },
+  // The PDF is white paper in both themes, so the logo shows on white.
+  logo: {
+    backgroundColor: '#ffffff',
+    borderColor: colors.border,
+    borderRadius: radius.base,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    height: '40px',
+    maxWidth: '160px',
+    objectFit: 'contain',
+    padding: spacing.s1,
   },
   page: {
     paddingBlock: spacing.s8,
@@ -359,7 +373,7 @@ function CompaniesSection() {
 }
 
 interface CompanyField {
-  key: keyof CompanyInfo;
+  key: Exclude<keyof CompanyInfo, 'logo' | 'pdfStyle'>;
   label: string;
   multiline?: boolean;
   placeholder: string;
@@ -408,6 +422,92 @@ function CompanyFields({ fields }: { fields: Array<CompanyField> }) {
       </SettingsRow>
     );
   });
+}
+
+function CompanyLogoRow() {
+  const { companyInfo, setCompanyInfo } = useStore();
+  const input = useRef<HTMLInputElement>(null);
+  const [reading, setReading] = useState(false);
+
+  async function handleFile(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+    setReading(true);
+    try {
+      const logo = await readLogo(file);
+      setCompanyInfo((info) => ({ ...info, logo }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Logo okunamadı');
+    } finally {
+      setReading(false);
+    }
+  }
+
+  return (
+    <SettingsRow
+      hint="PNG, JPG ya da SVG, en fazla 1 megabayt. Logo yoksa PDF’te firma adı yazılır"
+      label="Logo"
+    >
+      {companyInfo.logo && <img alt="Logo" src={companyInfo.logo} {...props(styles.logo)} />}
+      <input
+        accept={LOGO_TYPES.join(',')}
+        hidden
+        onChange={(event) => {
+          void handleFile(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+        ref={input}
+        type="file"
+      />
+      <Button disabled={reading} onClick={() => input.current?.click()} variant="outline">
+        {companyInfo.logo ? 'Değiştir' : 'Logo yükle'}
+      </Button>
+      {companyInfo.logo && (
+        <Button
+          aria-label="Logoyu kaldır"
+          onClick={() => setCompanyInfo((info) => ({ ...info, logo: undefined }))}
+          size="icon"
+          variant="ghost"
+        >
+          <Trash2Icon />
+        </Button>
+      )}
+    </SettingsRow>
+  );
+}
+
+const pdfStyleLabels: Record<PDFStyle, string> = {
+  classic: 'Klasik',
+  minimal: 'Sade',
+};
+
+function PDFStyleRow() {
+  const { companyInfo, setCompanyInfo } = useStore();
+
+  return (
+    <SettingsRow
+      hint="Sade ince çizgilerle, Klasik çerçeveli tablolarla basılır"
+      label="PDF tasarımı"
+    >
+      <Tabs
+        onValueChange={(value) => {
+          if (isPDFStyle(value)) {
+            setCompanyInfo((info) => ({ ...info, pdfStyle: value }));
+          }
+        }}
+        value={resolvePDFStyle(companyInfo.pdfStyle)}
+      >
+        <TabsList>
+          {PDF_STYLES.map((style) => (
+            <TabsTrigger key={style} value={style}>
+              {pdfStyleLabels[style]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    </SettingsRow>
+  );
 }
 
 const themeLabels: Record<ThemeChoice, string> = {
@@ -548,7 +648,9 @@ export function SettingsPage() {
           description="PDF faturalarda satıcı bilgisi olarak görünür."
           title="Firma bilgileri"
         >
+          <CompanyLogoRow />
           <CompanyFields fields={companyFields} />
+          <PDFStyleRow />
         </SettingsSection>
         <SettingsSection
           description="PDF faturalarda ödeme bilgisi olarak görünür."

@@ -32,6 +32,7 @@ apps/web/src/routeTree.gen.ts
 
 # licensed fonts, fetched by scripts/fetch-fonts.sh, never committed
 packages/ui/fonts/*.woff2
+packages/ui/fonts/*.ttf
 
 # logs
 logs

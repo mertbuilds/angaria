@@ -1,6 +1,9 @@
 /** A PDF's language: Turkish, English, or both side by side. */
 export type PDFLanguage = 'en' | 'tr' | 'both';
 
+/** The PDF's look: 'minimal' (hairlines, no boxes) or 'classic' (bordered boxes). */
+export type PDFStyle = 'minimal' | 'classic';
+
 /**
  * An invoice's recipient, and a saved customer. The optional fields are a
  * saved customer's invoice defaults, learned from each invoice; missing ones
@@ -100,7 +103,11 @@ export interface CompanyInfo {
   bankName: string;
   email: string;
   iban: string;
+  /** PNG data URL shown at the top of the PDF; the name stands in without one */
+  logo?: string;
   name: string;
+  /** Missing means the default style */
+  pdfStyle?: PDFStyle;
   phone: string;
   swiftCode: string;
   taxID: string;

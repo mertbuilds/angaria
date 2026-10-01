@@ -38,6 +38,7 @@ import {
   upsertSavedItems,
 } from '@/lib/invoice-form.ts';
 import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
+import { readQRValue } from '@/lib/invoice-preview.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice, InvoiceFormValues, PDFLanguage, Recipient } from '@/lib/types.ts';
 import { formatDateHuman, parseGIB, toGIB } from '@/lib/utils.ts';
@@ -709,8 +710,11 @@ export function CreateInvoicePage() {
       company: companyInfo,
       date: created?.date,
       entityName: activeEntity.name,
-      invoiceNumber: created?.number,
+      ettn: created?.uuid || undefined,
+      gibNumber: created?.number,
       language: pdfLanguage,
+      // GİB's QR code, once the invoice is signed.
+      qrValue: created?.signed && created.html ? readQRValue(created.html) : undefined,
     });
     // react-pdf is large, so it loads with the first PDF.
     import('@/components/invoice-pdf.tsx')

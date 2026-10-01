@@ -20,17 +20,17 @@ packages/
 
 ## Commands
 
-| Command          | What                                                                      |
-| ---------------- | ------------------------------------------------------------------------- |
-| `pnpm dev`       | mprocs: desktop, gib emulator, web (`https://angaria.localhost`)          |
-| `pnpm emulate`   | GİB and TCMB emulator on `http://127.0.0.1:5180` (packages/gib-emulator)  |
-| `pnpm build`     | turbo build (workspace packages first, then the desktop and web apps)     |
-| `pnpm typecheck` | `tsc --noEmit` per package via turbo                                      |
-| `pnpm lint`      | builds packages and web, then oxlint type-aware + TS errors (tsgolint)    |
-| `pnpm format`    | oxfmt (write mode); `pnpm format:check` to verify                         |
-| `pnpm test`      | vitest per package via turbo                                              |
-| `pnpm fonts`     | fetch licensed Suisse Intl woff2 into packages/ui/fonts (FONT_BUCKET_URL) |
-| `cargo check`    | Rust check, run in `apps/desktop/src-tauri`                               |
+| Command          | What                                                                            |
+| ---------------- | ------------------------------------------------------------------------------- |
+| `pnpm dev`       | mprocs: desktop, gib emulator, web (`https://angaria.localhost`)                |
+| `pnpm emulate`   | GİB and TCMB emulator on `http://127.0.0.1:5180` (packages/gib-emulator)        |
+| `pnpm build`     | turbo build (workspace packages first, then the desktop and web apps)           |
+| `pnpm typecheck` | `tsc --noEmit` per package via turbo                                            |
+| `pnpm lint`      | builds packages and web, then oxlint type-aware + TS errors (tsgolint)          |
+| `pnpm format`    | oxfmt (write mode); `pnpm format:check` to verify                               |
+| `pnpm test`      | vitest per package via turbo                                                    |
+| `pnpm fonts`     | fetch licensed Suisse Intl woff2 + ttf into packages/ui/fonts (FONT_BUCKET_URL) |
+| `cargo check`    | Rust check, run in `apps/desktop/src-tauri`                                     |
 
 Desktop: `pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json` (same as `pnpm dev`; the overlay lets the app reach the emulator), `pnpm --filter desktop tauri build` for a bundle.
 

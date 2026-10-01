@@ -18,6 +18,7 @@ import {
   unparsableItemFields,
   upsertSavedItems,
   validateInvoice,
+  vatByRate,
 } from '../src/lib/invoice-form.ts';
 import type { CompanyInfo, InvoiceFormValues, InvoiceItem, Recipient } from '../src/lib/types.ts';
 
@@ -111,6 +112,27 @@ describe('invoiceTotals', () => {
 
   test('counts an unparsable number as zero', () => {
     expect(invoiceTotals([item({ unitPrice: Number.NaN })]).total).toBe(0);
+  });
+});
+
+describe('vatByRate', () => {
+  test('sums VAT per rate after discounts, highest rate first', () => {
+    expect(
+      vatByRate([
+        item({ unitPrice: 300, VATRate: 0 }),
+        item({ discountAmount: 100, quantity: 2, unitPrice: 500 }),
+        item({ unitPrice: 200, VATRate: 10 }),
+        item({ unitPrice: 600 }),
+      ]),
+    ).toEqual([
+      { rate: 20, vat: 300 },
+      { rate: 10, vat: 20 },
+      { rate: 0, vat: 0 },
+    ]);
+  });
+
+  test('counts an unparsable rate as zero', () => {
+    expect(vatByRate([item({ VATRate: Number.NaN })])).toEqual([{ rate: 0, vat: 0 }]);
   });
 });
 
@@ -410,6 +432,25 @@ describe('PDF data', () => {
     expect(data.date).toBe('01/10/2026');
 
     expect(toPDFData(values, { ...base, date: '30/09/2026' }).date).toBe('30/09/2026');
+  });
+
+  test('toPDFData carries the GİB number, ETTN and QR code text', () => {
+    const base = { company, entityName: 'Örnek', language: 'both' as const, now };
+    expect(toPDFData(form(), base)).toMatchObject({ ettn: undefined, gibNumber: undefined });
+    expect(toPDFData(form(), base)).toMatchObject({ qrValue: undefined });
+    expect(
+      toPDFData(form(), {
+        ...base,
+        ettn: 'e-t-t-n',
+        gibNumber: 'GIB2026000000001',
+        qrValue: '{"no":"GIB2026000000001"}',
+      }),
+    ).toMatchObject({
+      ettn: 'e-t-t-n',
+      gibNumber: 'GIB2026000000001',
+      language: 'both',
+      qrValue: '{"no":"GIB2026000000001"}',
+    });
   });
 
   test('toPDFData carries the due date when there is one', () => {

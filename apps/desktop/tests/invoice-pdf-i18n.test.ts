@@ -1,18 +1,26 @@
 import { describe, expect, test } from 'vitest';
 import {
+  BILINGUAL_SEPARATOR,
   buildInvoicePDFFilename,
   DEFAULT_PDF_LANGUAGE,
+  DEFAULT_PDF_STYLE,
   formatPDFAmount,
   formatPDFDate,
+  formatPDFNumber,
+  formatPDFPercent,
   formatPDFQuantity,
+  formatPDFQuantityUnit,
   PDF_LABELS,
   PDF_LANGUAGES,
   pdfUpper,
   resolvePDFLanguage,
+  resolvePDFStyle,
+  type PDFLabels,
 } from '../src/lib/invoice-pdf-i18n.ts';
 
 describe('labels', () => {
   test('every language has a dictionary', () => {
+    expect(PDF_LANGUAGES.toSorted()).toEqual(['both', 'en', 'tr']);
     expect(Object.keys(PDF_LABELS).toSorted()).toEqual([...PDF_LANGUAGES].toSorted());
   });
 
@@ -24,25 +32,43 @@ describe('labels', () => {
     }
   });
 
+  test('bilingual labels put Turkish first and name a shared label once', () => {
+    for (const key of Object.keys(PDF_LABELS.tr) as Array<keyof PDFLabels>) {
+      const tr = PDF_LABELS.tr[key];
+      const en = PDF_LABELS.en[key];
+      expect(PDF_LABELS.both[key]).toBe(tr === en ? tr : `${tr}${BILINGUAL_SEPARATOR}${en}`);
+    }
+    expect(PDF_LABELS.both).toMatchObject({
+      billedTo: 'Sayın / Billed to',
+      date: 'Tarih / Date',
+      iban: 'IBAN',
+      invoice: 'Fatura / Invoice',
+      total: 'Genel toplam / Total',
+    });
+  });
+
+  test('no single-language label contains the bilingual separator', () => {
+    for (const language of ['tr', 'en'] as const) {
+      for (const value of Object.values(PDF_LABELS[language])) {
+        expect(value).not.toContain(BILINGUAL_SEPARATOR);
+      }
+    }
+  });
+
   test('Turkish labels use e-invoice wording', () => {
     expect(PDF_LABELS.tr).toMatchObject({
-      accountHolder: 'Hesap Sahibi',
       amount: 'Tutar',
-      bankAccountDetails: 'Banka Bilgileri',
-      bankAddress: 'Banka Adresi',
-      bankName: 'Banka Adı',
       billedTo: 'Sayın',
       description: 'Açıklama',
       discount: 'İndirim',
-      iban: 'IBAN',
-      invoiceDate: 'Fatura Tarihi:',
-      invoiceNumber: 'Fatura No',
-      invoiceTotal: 'Genel Toplam',
-      note: 'Not',
+      dueDate: 'Son ödeme tarihi',
+      eArchiveInvoice: 'e-Arşiv fatura',
+      invoice: 'Fatura',
+      invoiceNumber: 'Fatura no',
       quantity: 'Miktar',
-      subtotal: 'Ara Toplam',
-      swiftCode: 'SWIFT Kodu',
-      unitCost: 'Birim Fiyat',
+      subtotal: 'Ara toplam',
+      total: 'Genel toplam',
+      unitPrice: 'Birim fiyat',
       vat: 'KDV',
     });
   });
@@ -58,16 +84,31 @@ describe('resolvePDFLanguage', () => {
   test('prefers the first valid candidate', () => {
     expect(resolvePDFLanguage(undefined, 'tr')).toBe('tr');
     expect(resolvePDFLanguage('en', 'tr')).toBe('en');
+    expect(resolvePDFLanguage('both', 'tr')).toBe('both');
     expect(resolvePDFLanguage('de', 'tr')).toBe('tr');
     expect(resolvePDFLanguage('de')).toBe('en');
   });
 });
 
+describe('resolvePDFStyle', () => {
+  test('falls back to minimal', () => {
+    expect(DEFAULT_PDF_STYLE).toBe('minimal');
+    expect(resolvePDFStyle()).toBe('minimal');
+    expect(resolvePDFStyle('fancy')).toBe('minimal');
+  });
+
+  test('prefers the first valid candidate', () => {
+    expect(resolvePDFStyle(undefined, 'classic')).toBe('classic');
+    expect(resolvePDFStyle('minimal', 'classic')).toBe('minimal');
+  });
+});
+
 describe('formatPDFAmount', () => {
-  test('Turkish uses dot grouping and comma decimals', () => {
+  test('Turkish and bilingual use dot grouping and comma decimals', () => {
     expect(formatPDFAmount('tr', 'USD', 1234.56)).toBe('USD 1.234,56');
     expect(formatPDFAmount('tr', 'TRY', 1_234_567.8)).toBe('TRY 1.234.567,80');
     expect(formatPDFAmount('tr', 'EUR', 0)).toBe('EUR 0,00');
+    expect(formatPDFAmount('both', 'USD', 1234.56)).toBe('USD 1.234,56');
   });
 
   test('English keeps comma grouping and dot decimals', () => {
@@ -77,11 +118,20 @@ describe('formatPDFAmount', () => {
   });
 });
 
+describe('formatPDFNumber', () => {
+  test('takes the fraction digits it is given', () => {
+    expect(formatPDFNumber('tr', 38.5, 4)).toBe('38,5000');
+    expect(formatPDFNumber('both', 1500)).toBe('1.500,00');
+    expect(formatPDFNumber('en', 38.5, 4)).toBe('38.5000');
+  });
+});
+
 describe('formatPDFQuantity', () => {
-  test('Turkish uses comma decimals', () => {
+  test('Turkish and bilingual use comma decimals', () => {
     expect(formatPDFQuantity('tr', 1)).toBe('1');
     expect(formatPDFQuantity('tr', 1.5)).toBe('1,5');
     expect(formatPDFQuantity('tr', 1000)).toBe('1.000');
+    expect(formatPDFQuantity('both', 1.5)).toBe('1,5');
   });
 
   test('English prints the raw number', () => {
@@ -90,10 +140,40 @@ describe('formatPDFQuantity', () => {
   });
 });
 
+describe('formatPDFQuantityUnit', () => {
+  test('a piece count is the bare number', () => {
+    expect(formatPDFQuantityUnit('tr', 3, 'C62')).toBe('3');
+    expect(formatPDFQuantityUnit('en', 3, '')).toBe('3');
+  });
+
+  test('word units are spelled out in the language', () => {
+    expect(formatPDFQuantityUnit('tr', 1.5, 'HUR')).toBe('1,5 saat');
+    expect(formatPDFQuantityUnit('both', 2, 'DAY')).toBe('2 gün');
+    expect(formatPDFQuantityUnit('en', 1, 'HUR')).toBe('1 hour');
+    expect(formatPDFQuantityUnit('en', 1.5, 'HUR')).toBe('1.5 hours');
+    expect(formatPDFQuantityUnit('en', 12, 'MON')).toBe('12 months');
+  });
+
+  test('symbols and unknown codes print as GİB writes them', () => {
+    expect(formatPDFQuantityUnit('en', 5, 'KGM')).toBe('5 kg');
+    expect(formatPDFQuantityUnit('tr', 5, 'XYZ')).toBe('5 XYZ');
+  });
+});
+
+describe('formatPDFPercent', () => {
+  test('Turkish puts the sign first, English last', () => {
+    expect(formatPDFPercent('tr', 20)).toBe('%20');
+    expect(formatPDFPercent('both', 0)).toBe('%0');
+    expect(formatPDFPercent('en', 20)).toBe('20%');
+    expect(formatPDFPercent('tr', 0.5)).toBe('%0,5');
+  });
+});
+
 describe('formatPDFDate', () => {
-  test('Turkish uses dd.MM.yyyy', () => {
+  test('Turkish and bilingual use dd.MM.yyyy', () => {
     expect(formatPDFDate('tr', '05/03/2026')).toBe('05.03.2026');
     expect(formatPDFDate('tr', '5-3-2026')).toBe('05.03.2026');
+    expect(formatPDFDate('both', '05/03/2026')).toBe('05.03.2026');
   });
 
   test('English uses dd Month yyyy', () => {
@@ -111,7 +191,7 @@ describe('formatPDFDate', () => {
 
 describe('pdfUpper', () => {
   test('uses Turkish casing for Turkish labels', () => {
-    expect(pdfUpper('tr', PDF_LABELS.tr.unitCost)).toBe('BİRİM FİYAT');
+    expect(pdfUpper('tr', PDF_LABELS.tr.unitPrice)).toBe('BİRİM FİYAT');
     expect(pdfUpper('tr', PDF_LABELS.tr.description)).toBe('AÇIKLAMA');
     expect(pdfUpper('tr', PDF_LABELS.tr.discount)).toBe('İNDİRİM');
   });
@@ -120,6 +200,13 @@ describe('pdfUpper', () => {
     for (const value of Object.values(PDF_LABELS.en)) {
       expect(pdfUpper('en', value)).toBe(value.toUpperCase());
     }
+  });
+
+  test('cases each half of a bilingual label in its own language', () => {
+    expect(pdfUpper('both', PDF_LABELS.both.invoice)).toBe('FATURA / INVOICE');
+    expect(pdfUpper('both', PDF_LABELS.both.unitPrice)).toBe('BİRİM FİYAT / UNIT PRICE');
+    expect(pdfUpper('both', PDF_LABELS.both.billedTo)).toBe('SAYIN / BILLED TO');
+    expect(pdfUpper('both', PDF_LABELS.both.iban)).toBe('IBAN');
   });
 });
 
@@ -137,6 +224,9 @@ describe('buildInvoicePDFFilename', () => {
     );
     expect(buildInvoicePDFFilename({ ...base, language: 'en' })).toBe(
       'Invoice-2026-03-05-Ana-Varlık-ACME-GmbH.pdf',
+    );
+    expect(buildInvoicePDFFilename({ ...base, language: 'both' })).toBe(
+      'Fatura-2026-03-05-Ana-Varlık-ACME-GmbH.pdf',
     );
   });
 
