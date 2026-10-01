@@ -22,6 +22,9 @@ catalog:
   # Tilde: newer minors need the tauri 2.12 crate, the app is on 2.10.
   '@tauri-apps/plugin-opener': ~2.5.5
   '@tauri-apps/plugin-os': ~2.3.2
+  # Tilde: match the locked tauri-plugin-process 2.3 and tauri-plugin-updater 2.12 crates.
+  '@tauri-apps/plugin-process': ~2.3.1
+  '@tauri-apps/plugin-updater': ~2.12.0
   '@types/node': ^24.10.1
   '@vitejs/plugin-react': ^6.1.1
   class-variance-authority: ^0.7.1

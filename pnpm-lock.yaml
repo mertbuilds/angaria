@@ -60,6 +60,12 @@ catalogs:
     '@tauri-apps/plugin-os':
       specifier: ~2.3.2
       version: 2.3.2
+    '@tauri-apps/plugin-process':
+      specifier: ~2.3.1
+      version: 2.3.1
+    '@tauri-apps/plugin-updater':
+      specifier: ~2.12.0
+      version: 2.12.0
     '@types/node':
       specifier: ^24.10.1
       version: 24.12.0
@@ -197,6 +203,12 @@ importers:
       '@tauri-apps/plugin-os':
         specifier: 'catalog:'
         version: 2.3.2
+      '@tauri-apps/plugin-process':
+        specifier: 'catalog:'
+        version: 2.3.1
+      '@tauri-apps/plugin-updater':
+        specifier: 'catalog:'
+        version: 2.12.0
       angaria-earsiv-sdk:
         specifier: workspace:*
         version: link:../../packages/earsiv-sdk
@@ -3404,6 +3416,12 @@ packages:
 
   '@tauri-apps/plugin-os@2.3.2':
     resolution: {integrity: sha512-n+nXWeuSeF9wcEsSPmRnBEGrRgOy6jjkSU+UVCOV8YUGKb2erhDOxis7IqRXiRVHhY8XMKks00BJ0OAdkpf6+A==}
+
+  '@tauri-apps/plugin-process@2.3.1':
+    resolution: {integrity: sha512-nCa4fGVaDL/B9ai03VyPOjfAHRHSBz5v6F/ObsB73r/dA3MHHhZtldaDMIc0V/pnUw9ehzr2iEG+XkSEyC0JJA==}
+
+  '@tauri-apps/plugin-updater@2.12.0':
+    resolution: {integrity: sha512-74+g7rSIHXQje3ttR6tYap3FJP/UtZqqYxGVF9EE0Kpz0YADxHX2Ynw/eIlNPMy9D1aG+F8oBosT+6nphSa8Og==}
 
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
@@ -9494,6 +9512,14 @@ snapshots:
   '@tauri-apps/plugin-os@2.3.2':
     dependencies:
       '@tauri-apps/api': 2.10.1
+
+  '@tauri-apps/plugin-process@2.3.1':
+    dependencies:
+      '@tauri-apps/api': 2.12.0
+
+  '@tauri-apps/plugin-updater@2.12.0':
+    dependencies:
+      '@tauri-apps/api': 2.12.0
 
   '@testing-library/dom@10.4.2':
     dependencies:

@@ -1,31 +1,63 @@
-import { toast } from '@angaria/ui';
-import { Building2, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Badge,
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Switch,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  Textarea,
+  toast,
+} from '@angaria/ui';
+import { readTheme, themeChoices, type ThemeChoice } from '@angaria/ui/theme';
+import { spacing } from '@angaria/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
+import { getVersion } from '@tauri-apps/api/app';
+import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { LicenseCard } from '@/components/license-card.tsx';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
+import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
 import * as angaria from '@/lib/angaria.ts';
 import { useStore } from '@/lib/store.tsx';
+import { setTheme } from '@/lib/theme.ts';
+import type { CompanyInfo, Entity } from '@/lib/types.ts';
+import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
 
-export function SettingsPage() {
-  const {
-    entities,
-    activeEntity,
-    activeEntityId,
-    createEntity,
-    renameEntity,
-    deleteEntity,
-    creds,
-    hasCredentials,
-    getCredentials,
-    setCredentials,
-    companyInfo,
-    setCompanyInfo,
-  } = useStore();
+const styles = create({
+  column: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s8,
+    marginInline: 'auto',
+    maxWidth: '640px',
+  },
+  dialogForm: {
+    display: 'grid',
+    gap: spacing.s4,
+  },
+  page: {
+    paddingBlock: spacing.s8,
+    paddingInline: spacing.s6,
+  },
+});
+
+function GibAccountSection() {
+  const { activeEntity, activeEntityId, creds, getCredentials, hasCredentials, setCredentials } =
+    useStore();
   const [loggingOut, setLoggingOut] = useState(false);
   // null while the keychain read is pending
   const [password, setPassword] = useState<string | null>(null);
@@ -77,227 +109,370 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Varlık Yönetimi</CardTitle>
-          <CardDescription>
-            Her varlık kendi GİB hesabını, firma bilgisini ve şablonlarını tutar.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-background">
-              <Building2 className="size-4" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-2">
-              <div>
-                <p className="text-sm font-medium">Aktif varlık</p>
-                <p className="text-xs text-muted-foreground">
-                  Sol alttaki menuden hızlıca varlık değiştirebilirsiniz.
-                </p>
-              </div>
-              <Input
-                onChange={(e) => renameEntity(activeEntityId, e.target.value)}
-                placeholder="Varlık adı"
-                value={activeEntity.name}
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={createEntity} type="button" variant="outline">
-              <Plus className="size-4" />
-              Yeni Varlık
+    <SettingsSection
+      description="e-Arşiv portalına bu bilgilerle girilir. Şifre bu cihazın anahtar zincirinde saklanır."
+      title="GİB hesabı"
+    >
+      <SettingsRow label="Şirket">
+        <SettingsValue>{activeEntity.name}</SettingsValue>
+      </SettingsRow>
+      <SettingsRow htmlFor="gib-username" label="Kullanıcı adı">
+        <Input
+          autoComplete="off"
+          id="gib-username"
+          onChange={(event) =>
+            void setCredentials(activeEntityId, { username: event.target.value })
+          }
+          placeholder="GİB kullanıcı adı"
+          spellCheck={false}
+          value={creds.username}
+        />
+      </SettingsRow>
+      <SettingsRow htmlFor="gib-password" label="Şifre">
+        <Input
+          disabled={password === null}
+          id="gib-password"
+          onChange={(event) => handlePasswordChange(event.target.value)}
+          placeholder="GİB şifresi"
+          type="password"
+          value={password ?? ''}
+        />
+      </SettingsRow>
+      <SettingsRow hint="earsivportaltest.efatura.gov.tr adresine bağlanır" label="Test modu">
+        <Switch
+          aria-label="Test modu"
+          checked={creds.testMode}
+          onCheckedChange={(checked) => void setCredentials(activeEntityId, { testMode: checked })}
+        />
+      </SettingsRow>
+      <SettingsRow hint="GİB portalında açık kalan oturumu kapatır" label="Oturum">
+        <Button
+          disabled={loggingOut || !hasCredentials}
+          onClick={() => void handleForceLogout()}
+          variant="outline"
+        >
+          {loggingOut ? 'Kapatılıyor...' : 'Oturumu kapat'}
+        </Button>
+      </SettingsRow>
+    </SettingsSection>
+  );
+}
+
+function CompaniesSection() {
+  const { activeEntityId, createEntity, deleteEntity, entities, renameEntity, setActiveEntityId } =
+    useStore();
+  // The target outlives the open flag so the dialog keeps its text while it closes.
+  const [target, setTarget] = useState<Entity | null>(null);
+  const [dialog, setDialog] = useState<'delete' | 'rename' | null>(null);
+
+  function openDialog(kind: 'delete' | 'rename', entity: Entity) {
+    setTarget(entity);
+    setDialog(kind);
+  }
+
+  function handleRename(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (target) {
+      renameEntity(target.id, String(new FormData(event.currentTarget).get('name') ?? ''));
+    }
+    setDialog(null);
+  }
+
+  function handleDelete() {
+    if (target) {
+      deleteEntity(target.id);
+    }
+    setDialog(null);
+  }
+
+  return (
+    <SettingsSection
+      description="Her şirket kendi GİB hesabını, firma bilgilerini, müşterilerini ve şablonlarını tutar. Bu sayfadaki diğer ayarlar etkin şirkete aittir."
+      title="Şirketler"
+    >
+      {entities.map((entity) => (
+        <SettingsRow
+          hint={entity.companyInfo.name || 'Firma bilgisi eklenmedi'}
+          key={entity.id}
+          label={entity.name}
+        >
+          {entity.id === activeEntityId ? (
+            <Badge variant="secondary">Etkin</Badge>
+          ) : (
+            <Button onClick={() => setActiveEntityId(entity.id)} variant="ghost">
+              Seç
             </Button>
-            <Button
-              disabled={entities.length === 1}
-              onClick={() => deleteEntity(activeEntityId)}
-              type="button"
-              variant="outline"
-            >
-              <Trash2 className="size-4" />
-              Varlığı Sil
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>GİB Kimlik Bilgileri</CardTitle>
-          <CardDescription>
-            e-Arşiv portal giriş bilgileriniz. Bilgileriniz yalnızca bu cihazda saklanır.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cred-user">Kullanıcı Adı</Label>
-              <Input
-                id="cred-user"
-                onChange={(e) => void setCredentials(activeEntityId, { username: e.target.value })}
-                placeholder="GİB kullanıcı adı"
-                value={creds.username}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cred-pass">Şifre</Label>
-              <Input
-                disabled={password === null}
-                id="cred-pass"
-                onChange={(e) => handlePasswordChange(e.target.value)}
-                placeholder="GİB şifre"
-                type="password"
-                value={password ?? ''}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={creds.testMode}
-              id="test-mode"
-              onCheckedChange={(checked) =>
-                void setCredentials(activeEntityId, { testMode: checked })
-              }
-            />
-            <Label htmlFor="test-mode">Test modu (earsivportaltest.efatura.gov.tr)</Label>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Firma Bilgileri</CardTitle>
-          <CardDescription>PDF faturalarınızda görünecek firma bilgileriniz.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Firma Adı / Ünvan</Label>
-              <Input
-                onChange={(e) => setCompanyInfo((c) => ({ ...c, name: e.target.value }))}
-                placeholder="Firma Adı A.Ş."
-                value={companyInfo.name}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>VKN / TCKN</Label>
-              <Input
-                onChange={(e) => setCompanyInfo((c) => ({ ...c, taxID: e.target.value }))}
-                placeholder="1234567890"
-                value={companyInfo.taxID}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Vergi Dairesi</Label>
-            <Input
-              onChange={(e) => setCompanyInfo((c) => ({ ...c, taxOffice: e.target.value }))}
-              placeholder="Kadıköy"
-              value={companyInfo.taxOffice}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Adres</Label>
-            <Textarea
-              onChange={(e) => setCompanyInfo((c) => ({ ...c, address: e.target.value }))}
-              placeholder="Tam adres"
-              rows={3}
-              value={companyInfo.address}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Telefon</Label>
-              <Input
-                onChange={(e) => setCompanyInfo((c) => ({ ...c, phone: e.target.value }))}
-                placeholder="+90 555 123 45 67"
-                value={companyInfo.phone}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>E-posta</Label>
-              <Input
-                onChange={(e) => setCompanyInfo((c) => ({ ...c, email: e.target.value }))}
-                placeholder="info@firma.com"
-                value={companyInfo.email}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Banka Bilgileri</CardTitle>
-          <CardDescription>PDF faturalarınızda görünecek banka hesap bilgileri.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Banka Adı</Label>
-              <Input
-                onChange={(e) => setCompanyInfo((c) => ({ ...c, bankName: e.target.value }))}
-                placeholder="Ziraat Bankası"
-                value={companyInfo.bankName}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Hesap Sahibi</Label>
-              <Input
-                onChange={(e) => setCompanyInfo((c) => ({ ...c, accountHolder: e.target.value }))}
-                placeholder="Ad Soyad"
-                value={companyInfo.accountHolder}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>IBAN</Label>
-              <Input
-                onChange={(e) => setCompanyInfo((c) => ({ ...c, iban: e.target.value }))}
-                placeholder="TR00 0000 0000 0000 0000 0000 00"
-                value={companyInfo.iban}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Swift Kodu</Label>
-              <Input
-                onChange={(e) => setCompanyInfo((c) => ({ ...c, swiftCode: e.target.value }))}
-                placeholder="TCZBTR2AXXX"
-                value={companyInfo.swiftCode}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Banka Adresi</Label>
-            <Textarea
-              onChange={(e) => setCompanyInfo((c) => ({ ...c, bankAddress: e.target.value }))}
-              placeholder="Banka şube adresi"
-              rows={2}
-              value={companyInfo.bankAddress}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Oturum Yönetimi</CardTitle>
-          <CardDescription>GİB portalda açık kalmış oturumu kapatır.</CardDescription>
-        </CardHeader>
-        <CardContent>
+          )}
           <Button
-            disabled={loggingOut || !hasCredentials}
-            onClick={handleForceLogout}
-            variant="outline"
+            aria-label={`${entity.name} adını değiştir`}
+            onClick={() => openDialog('rename', entity)}
+            size="icon"
+            variant="ghost"
           >
-            {loggingOut ? 'Çıkış yapılıyor...' : 'Güvenli Çıkış (Oturumu Kapat)'}
+            <PencilIcon />
           </Button>
-        </CardContent>
-      </Card>
+          <Button
+            aria-label={`${entity.name} sil`}
+            disabled={entities.length === 1}
+            onClick={() => openDialog('delete', entity)}
+            size="icon"
+            variant="ghost"
+          >
+            <Trash2Icon />
+          </Button>
+        </SettingsRow>
+      ))}
+      <SettingsRow>
+        <Button onClick={createEntity} variant="outline">
+          <PlusIcon />
+          Yeni şirket
+        </Button>
+      </SettingsRow>
 
-      <LicenseCard />
+      <Dialog onOpenChange={(open) => !open && setDialog(null)} open={dialog === 'rename'}>
+        <DialogContent showCloseButton={false}>
+          <form onSubmit={handleRename} {...props(styles.dialogForm)}>
+            <DialogHeader>
+              <DialogTitle>Şirketin adını değiştir</DialogTitle>
+            </DialogHeader>
+            <Input
+              aria-label="Şirket adı"
+              defaultValue={target?.name}
+              key={target?.id}
+              name="name"
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" />}>İptal</DialogClose>
+              <Button type="submit">Kaydet</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog onOpenChange={(open) => !open && setDialog(null)} open={dialog === 'delete'}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Şirketi sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              {target?.name} ile birlikte GİB hesabı, firma bilgileri, müşterileri ve şablonları bu
+              cihazdan silinir. Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} variant="destructive">
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </SettingsSection>
+  );
+}
+
+interface CompanyField {
+  key: keyof CompanyInfo;
+  label: string;
+  multiline?: boolean;
+  placeholder: string;
+}
+
+const companyFields: Array<CompanyField> = [
+  { key: 'name', label: 'Firma adı veya unvan', placeholder: 'Firma Adı A.Ş.' },
+  { key: 'taxID', label: 'VKN veya TCKN', placeholder: '1234567890' },
+  { key: 'taxOffice', label: 'Vergi dairesi', placeholder: 'Kadıköy' },
+  { key: 'address', label: 'Adres', multiline: true, placeholder: 'Tam adres' },
+  { key: 'phone', label: 'Telefon', placeholder: '+90 555 123 45 67' },
+  { key: 'email', label: 'E-posta', placeholder: 'info@firma.com' },
+];
+
+const bankFields: Array<CompanyField> = [
+  { key: 'bankName', label: 'Banka adı', placeholder: 'Ziraat Bankası' },
+  { key: 'accountHolder', label: 'Hesap sahibi', placeholder: 'Ad Soyad' },
+  { key: 'iban', label: 'IBAN', placeholder: 'TR00 0000 0000 0000 0000 0000 00' },
+  { key: 'swiftCode', label: 'SWIFT kodu', placeholder: 'TCZBTR2AXXX' },
+  { key: 'bankAddress', label: 'Banka adresi', multiline: true, placeholder: 'Banka şube adresi' },
+];
+
+/** Text rows bound to the active company's PDF details. */
+function CompanyFields({ fields }: { fields: Array<CompanyField> }) {
+  const { companyInfo, setCompanyInfo } = useStore();
+
+  return fields.map((field) => {
+    const id = `company-${field.key}`;
+    const control = {
+      id,
+      onChange: (event: { target: { value: string } }) => {
+        const { value } = event.target;
+        setCompanyInfo((info) => ({ ...info, [field.key]: value }));
+      },
+      placeholder: field.placeholder,
+      value: companyInfo[field.key],
+    };
+    return (
+      <SettingsRow
+        align={field.multiline ? 'top' : 'center'}
+        htmlFor={id}
+        key={field.key}
+        label={field.label}
+      >
+        {field.multiline ? <Textarea rows={2} {...control} /> : <Input {...control} />}
+      </SettingsRow>
+    );
+  });
+}
+
+const themeLabels: Record<ThemeChoice, string> = {
+  dark: 'Koyu',
+  light: 'Açık',
+  system: 'Sistem',
+};
+
+function AppearanceSection() {
+  const [theme, setThemeChoice] = useState<ThemeChoice>(() => readTheme());
+
+  function handleChange(value: unknown) {
+    const choice = themeChoices.find((item) => item === value);
+    if (choice) {
+      setTheme(choice);
+      setThemeChoice(choice);
+    }
+  }
+
+  return (
+    <SettingsSection title="Görünüm">
+      <SettingsRow hint="Sistem, macOS görünüm ayarını izler" label="Tema">
+        <Tabs onValueChange={handleChange} value={theme}>
+          <TabsList>
+            {themeChoices.map((choice) => (
+              <TabsTrigger key={choice} value={choice}>
+                {themeLabels[choice]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </SettingsRow>
+    </SettingsSection>
+  );
+}
+
+type UpdateState =
+  | { kind: 'available'; update: Update }
+  | { kind: 'checking' }
+  | { kind: 'current' }
+  | { kind: 'downloading'; progress: number | null }
+  | { kind: 'failed'; message: string }
+  | { kind: 'idle' };
+
+const percent = new Intl.NumberFormat('tr-TR', { style: 'percent' });
+
+function updateStatus(state: UpdateState) {
+  switch (state.kind) {
+    case 'available':
+      return `Yeni sürüm var: ${state.update.version}`;
+    case 'checking':
+      return 'Denetleniyor...';
+    case 'current':
+      return 'Angaria güncel';
+    case 'downloading':
+      return state.progress === null
+        ? 'İndiriliyor...'
+        : `İndiriliyor, ${percent.format(state.progress)}`;
+    case 'failed':
+      return state.message;
+    case 'idle':
+      return null;
+  }
+}
+
+function AboutSection() {
+  const [version, setVersion] = useState<string | null>(null);
+  const [state, setState] = useState<UpdateState>({ kind: 'idle' });
+
+  useEffect(() => {
+    let active = true;
+    getVersion()
+      .then((value) => {
+        if (active) {
+          setVersion(value);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setVersion('Bilinmiyor');
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleCheck() {
+    setState({ kind: 'checking' });
+    try {
+      const update = await checkForUpdate();
+      setState(update ? { kind: 'available', update } : { kind: 'current' });
+    } catch {
+      setState({ kind: 'failed', message: 'Güncellemeler denetlenemedi' });
+    }
+  }
+
+  async function handleInstall(update: Update) {
+    setState({ kind: 'downloading', progress: null });
+    try {
+      await installUpdate(update, (progress) => setState({ kind: 'downloading', progress }));
+    } catch {
+      setState({ kind: 'failed', message: 'Güncelleme yüklenemedi' });
+    }
+  }
+
+  const status = updateStatus(state);
+  const busy = state.kind === 'checking' || state.kind === 'downloading';
+
+  return (
+    <SettingsSection title="Hakkında">
+      <SettingsRow label="Sürüm">
+        <SettingsValue>{version ?? ''}</SettingsValue>
+      </SettingsRow>
+      <SettingsRow label="Güncellemeler">
+        {status && (
+          <SettingsValue tone={state.kind === 'failed' ? 'error' : 'muted'}>{status}</SettingsValue>
+        )}
+        {state.kind === 'available' ? (
+          <Button onClick={() => void handleInstall(state.update)}>Yükle</Button>
+        ) : (
+          <Button disabled={busy} onClick={() => void handleCheck()} variant="outline">
+            Güncellemeleri denetle
+          </Button>
+        )}
+      </SettingsRow>
+    </SettingsSection>
+  );
+}
+
+export function SettingsPage() {
+  return (
+    <div {...props(styles.page)}>
+      <div {...props(styles.column)}>
+        <GibAccountSection />
+        <CompaniesSection />
+        <SettingsSection
+          description="PDF faturalarda satıcı bilgisi olarak görünür."
+          title="Firma bilgileri"
+        >
+          <CompanyFields fields={companyFields} />
+        </SettingsSection>
+        <SettingsSection
+          description="PDF faturalarda ödeme bilgisi olarak görünür."
+          title="Banka bilgileri"
+        >
+          <CompanyFields fields={bankFields} />
+        </SettingsSection>
+        <LicenseCard />
+        <AppearanceSection />
+        <AboutSection />
+      </div>
     </div>
   );
 }
