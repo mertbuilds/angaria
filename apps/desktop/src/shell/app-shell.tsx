@@ -7,7 +7,6 @@ import { AppSidebar } from './app-sidebar.tsx';
 import { CommandPalette } from './command-palette.tsx';
 import { CredentialsGuard } from './credentials-guard.tsx';
 import { useShortcuts } from './use-shortcuts.ts';
-import { useUpdateCheck } from './use-update-check.ts';
 
 const styles = create({
   main: {
@@ -50,7 +49,6 @@ function ShellLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   useShortcuts(setPaletteOpen);
   useResetOnEntityChange();
-  useUpdateCheck();
 
   return (
     <div {...props(styles.root)}>
