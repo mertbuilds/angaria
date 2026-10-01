@@ -1,10 +1,11 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { createClient } from 'angaria-earsiv-sdk';
-import { fetchTCMBRates as _fetchTCMBRates } from 'angaria-utils';
+import { fetchTCMBRateTable as _fetchTCMBRateTable } from 'angaria-utils';
 import { activeGibEmulatorURL } from './gib-emulator.ts';
 
 export type { SessionInfo, InvoiceItem, InvoiceDetails } from 'angaria-earsiv-sdk';
+export type { TCMBRateTable } from 'angaria-utils';
 
 // Dev only: with the Emülatör switch on (src/lib/gib-emulator.ts), GİB and TCMB
 // calls go to the local emulator. A plain browser has no Tauri http plugin and
@@ -49,5 +50,5 @@ export const startSMSSign = (...args: Parameters<typeof client.startSMSSign>) =>
 export const cancelInvoice = (...args: Parameters<typeof client.cancelInvoice>) =>
   client.cancelInvoice(...args);
 
-export const fetchTCMBRates = (baseDate?: Date) =>
-  _fetchTCMBRates(baseDate, { baseUrl: activeGibEmulatorURL, fetch: hostFetch });
+export const fetchTCMBRateTable = (baseDate?: Date) =>
+  _fetchTCMBRateTable(baseDate, { baseUrl: activeGibEmulatorURL, fetch: hostFetch });

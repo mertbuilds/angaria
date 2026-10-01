@@ -26,7 +26,7 @@ import {
   toast,
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
-import { create, keyframes, props } from '@stylexjs/stylex';
+import { create, keyframes, props, type StyleXStyles } from '@stylexjs/stylex';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
@@ -184,9 +184,10 @@ const PAGE_WIDTH = 840;
 
 /**
  * GİB's HTML in `<iframe sandbox="">`: no scripts, forms, plugins or
- * same-origin access to the app.
+ * same-origin access to the app. `style` sizes the box (32rem high at least
+ * by default); the page scales to its width.
  */
-function InvoiceFrame({ html }: { html: string }) {
+export function InvoiceFrame({ html, style }: { html: string; style?: StyleXStyles }) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ height: number; width: number } | null>(null);
 
@@ -204,7 +205,7 @@ function InvoiceFrame({ html }: { html: string }) {
 
   const scale = size ? Math.min(1, size.width / PAGE_WIDTH) : 1;
   return (
-    <div ref={box} {...props(styles.frameBox)}>
+    <div ref={box} {...props(styles.frameBox, style)}>
       {size && (
         <iframe
           sandbox=""
