@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { cancelInvoice, startSMSSign, verifyAndSign } from '@/lib/angaria.ts';
+import { findCustomer } from '@/lib/customer.ts';
 import {
   cachedInvoices,
   gib,
@@ -394,7 +395,8 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const open = useRef(new AbortController());
 
   const defaultLanguage = resolvePDFLanguage(
-    savedRecipients.find((customer) => customer.taxIDOrTRID === invoice.aliciVknTckn)?.pdfLanguage,
+    findCustomer(savedRecipients, invoice.aliciVknTckn ?? '', invoice.aliciUnvanAdSoyad ?? '')
+      ?.pdfLanguage,
   );
 
   const readDetail = async () =>

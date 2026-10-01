@@ -25,7 +25,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ChevronRightIcon, UserPlusIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createDraftInvoice, fetchTCMBRateTable, getDrafts } from '@/lib/angaria.ts';
-import { customerName, nameError, taxIDError } from '@/lib/customer.ts';
+import { customerName, findCustomer, nameError, taxIDError } from '@/lib/customer.ts';
 import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
 import {
@@ -220,12 +220,6 @@ const INVOICE_TYPE_OPTIONS = GIB_INVOICE_TYPES.map((type) => ({
 
 const displayName = (customer: Recipient) => customerName(customer) || 'Adsız müşteri';
 
-/** The saved customer with this VKN / TCKN, if any. */
-function findCustomer(customers: ReadonlyArray<Recipient>, taxID: string) {
-  const key = taxID.trim();
-  return key ? (customers.find((customer) => customer.taxIDOrTRID.trim() === key) ?? null) : null;
-}
-
 function Section({ children, hint, title }: { children: ReactNode; hint?: string; title: string }) {
   return (
     <section {...props(styles.section)}>
@@ -240,7 +234,7 @@ function Section({ children, hint, title }: { children: ReactNode; hint?: string
 
 function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: Recipient }) {
   const { newId, savedRecipients, setSavedRecipients } = useStore();
-  const matched = findCustomer(savedRecipients, recipient.taxIDOrTRID);
+  const matched = findCustomer(savedRecipients, recipient.taxIDOrTRID, customerName(recipient));
   const canSave = !matched && !taxIDError(recipient.taxIDOrTRID) && !nameError(recipient);
 
   const saveCustomer = () => {
@@ -724,7 +718,11 @@ export function CreateInvoicePage() {
     rateDescription = 'TCMB kuru alınıyor';
   }
 
-  const matchedCustomer = findCustomer(savedRecipients, values.recipient.taxIDOrTRID);
+  const matchedCustomer = findCustomer(
+    savedRecipients,
+    values.recipient.taxIDOrTRID,
+    customerName(values.recipient),
+  );
   const pdfLanguage = resolvePDFLanguage(
     values.recipient.pdfLanguage,
     matchedCustomer?.pdfLanguage,
