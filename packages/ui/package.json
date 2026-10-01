@@ -1,0 +1,37 @@
+{
+  "name": "@angaria/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./base.css": "./src/base.css",
+    "./fonts.css": "./src/fonts.css",
+    "./theme": "./src/theme.ts",
+    "./theme.css": "./src/theme.css",
+    "./tokens.stylex": "./src/tokens.stylex.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@base-ui/react": "catalog:",
+    "@fontsource-variable/inter": "catalog:",
+    "@stylexjs/stylex": "catalog:",
+    "cmdk": "catalog:",
+    "lucide-react": "catalog:",
+    "sonner": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
