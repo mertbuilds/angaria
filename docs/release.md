@@ -41,6 +41,8 @@ security find-identity -v -p codesigning
 
 The full identity name (`Developer ID Application: <name> (<team id>)`) goes into `APPLE_SIGNING_IDENTITY`.
 
+Run the script from a terminal in your logged-in desktop session. codesign needs the unlocked login keychain. Without it (SSH, background agents) signing fails with `errSecInternalComponent`. On the first run macOS asks to allow codesign to use the key: choose Always Allow.
+
 ### Notary credentials
 
 Create an app-specific password at account.apple.com (Sign-In and Security, App-Specific Passwords), then store it in the keychain:

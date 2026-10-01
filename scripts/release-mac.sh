@@ -300,7 +300,8 @@ echo
 echo "artifacts in $OUT:"
 (cd "$OUT" && find . -type f | sed 's|^\./|  |' | sort)
 echo
-echo "signed by: $(codesign -dvv "$APP" 2>&1 | grep -m1 'Authority=' | sed 's/^Authority=//')"
+authority=$(codesign -dvv "$APP" 2>&1 | grep -m1 'Authority=' | sed 's/^Authority=//' || true)
+echo "signed by: ${authority:-ad-hoc}"
 if [[ $notarize -eq 1 ]]; then
   echo "notarized and stapled: app and dmg"
 else
