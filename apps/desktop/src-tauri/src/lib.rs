@@ -1,5 +1,7 @@
 mod secrets;
 
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -15,6 +17,8 @@ pub fn run() {
             .build(),
         )?;
       }
+      let store = secrets::VaultStore::for_build(|| app.path().app_data_dir())?;
+      app.manage(store);
       #[cfg(desktop)]
       app
         .handle()
@@ -22,7 +26,8 @@ pub fn run() {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
-      secrets::secret_set,
+      secrets::vault_read,
+      secrets::vault_write,
       secrets::secret_get,
       secrets::secret_delete
     ])

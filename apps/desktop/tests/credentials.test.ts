@@ -1,11 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import {
-  createPasswordVault,
   ENTITIES_STORAGE_KEY,
   LEGACY_CREDS_STORAGE_KEY,
   migrateCredentials,
-  passwordKey,
-  type SecretStore,
 } from '../src/lib/credentials.ts';
 
 function memoryStorage(initial: Record<string, unknown>) {
@@ -19,21 +16,24 @@ function memoryStorage(initial: Record<string, unknown>) {
   };
 }
 
-function memorySecrets({ failOn = [] }: { failOn?: Array<string> } = {}) {
-  const items = new Map<string, string>();
-  const secrets: SecretStore = {
-    delete: async (key) => {
-      items.delete(key);
+function memoryVault({ fail = false } = {}) {
+  const passwords = new Map<string, string>();
+  const writes: Array<Record<string, string>> = [];
+  return {
+    passwords,
+    vault: {
+      savePasswords: async (next: Record<string, string>) => {
+        if (fail) {
+          throw new Error('keychain unavailable');
+        }
+        writes.push(next);
+        for (const [id, password] of Object.entries(next)) {
+          passwords.set(id, password);
+        }
+      },
     },
-    get: async (key) => items.get(key) ?? null,
-    set: async (key, value) => {
-      if (failOn.includes(key)) {
-        throw new Error('keychain unavailable');
-      }
-      items.set(key, value);
-    },
+    writes,
   };
-  return { items, secrets };
 }
 
 const entity = (id: string, creds: Record<string, unknown>) => ({
@@ -44,20 +44,21 @@ const entity = (id: string, creds: Record<string, unknown>) => ({
 });
 
 describe('migrateCredentials', () => {
-  test('moves each entity password to the keychain and strips it from localStorage', async () => {
+  test('moves every entity password to the vault in one write and strips it from localStorage', async () => {
     const storage = memoryStorage({
       [ENTITIES_STORAGE_KEY]: [
         entity('a', { password: 'secret-a', testMode: false, username: 'user-a' }),
         entity('b', { password: 'secret-b', testMode: true, username: 'user-b' }),
       ],
     });
-    const { items, secrets } = memorySecrets();
+    const { passwords, vault, writes } = memoryVault();
 
-    const result = await migrateCredentials(storage, secrets);
+    const result = await migrateCredentials(storage, vault);
 
     expect(result).toEqual({ failed: 0, migrated: 2 });
-    expect(items.get(passwordKey('a'))).toBe('secret-a');
-    expect(items.get(passwordKey('b'))).toBe('secret-b');
+    expect(writes).toHaveLength(1);
+    expect(passwords.get('a')).toBe('secret-a');
+    expect(passwords.get('b')).toBe('secret-b');
     expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
       entity('a', { testMode: false, username: 'user-a' }),
       entity('b', { testMode: true, username: 'user-b' }),
@@ -69,64 +70,65 @@ describe('migrateCredentials', () => {
       [ENTITIES_STORAGE_KEY]: [entity('a', { password: 'secret', testMode: true, username: 'u' })],
       [LEGACY_CREDS_STORAGE_KEY]: { password: 'old', testMode: true, username: 'u' },
     });
-    const { items, secrets } = memorySecrets();
+    const { passwords, vault, writes } = memoryVault();
 
-    await migrateCredentials(storage, secrets);
+    await migrateCredentials(storage, vault);
     const entitiesAfterFirst = storage.read(ENTITIES_STORAGE_KEY);
     const legacyAfterFirst = storage.read(LEGACY_CREDS_STORAGE_KEY);
-    const second = await migrateCredentials(storage, secrets);
+    const second = await migrateCredentials(storage, vault);
 
     expect(second).toEqual({ failed: 0, migrated: 0 });
+    expect(writes).toHaveLength(1);
     expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual(entitiesAfterFirst);
     expect(storage.read(LEGACY_CREDS_STORAGE_KEY)).toEqual(legacyAfterFirst);
-    expect(items.get(passwordKey('a'))).toBe('secret');
+    expect(passwords.get('a')).toBe('secret');
   });
 
-  test('keeps the plaintext password when the keychain write fails', async () => {
+  test('keeps the plaintext passwords when the vault write fails', async () => {
     const storage = memoryStorage({
       [ENTITIES_STORAGE_KEY]: [
         entity('a', { password: 'secret-a', testMode: true, username: 'user-a' }),
-        entity('b', { password: 'secret-b', testMode: true, username: 'user-b' }),
+        entity('b', { password: '', testMode: true, username: 'user-b' }),
       ],
     });
-    const { items, secrets } = memorySecrets({ failOn: [passwordKey('a')] });
+    const { passwords, vault } = memoryVault({ fail: true });
 
-    const result = await migrateCredentials(storage, secrets);
+    const result = await migrateCredentials(storage, vault);
 
-    expect(result).toEqual({ error: new Error('keychain unavailable'), failed: 1, migrated: 1 });
-    expect(items.has(passwordKey('a'))).toBe(false);
+    expect(result).toEqual({ error: new Error('keychain unavailable'), failed: 1, migrated: 0 });
+    expect(passwords.size).toBe(0);
     expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
       entity('a', { password: 'secret-a', testMode: true, username: 'user-a' }),
       entity('b', { testMode: true, username: 'user-b' }),
     ]);
   });
 
-  test('retries a failed entity on the next run', async () => {
+  test('retries on the next run', async () => {
     const storage = memoryStorage({
       [ENTITIES_STORAGE_KEY]: [entity('a', { password: 'secret', testMode: true, username: 'u' })],
     });
 
-    await migrateCredentials(storage, memorySecrets({ failOn: [passwordKey('a')] }).secrets);
-    const { items, secrets } = memorySecrets();
-    const result = await migrateCredentials(storage, secrets);
+    await migrateCredentials(storage, memoryVault({ fail: true }).vault);
+    const { passwords, vault } = memoryVault();
+    const result = await migrateCredentials(storage, vault);
 
     expect(result).toEqual({ failed: 0, migrated: 1 });
-    expect(items.get(passwordKey('a'))).toBe('secret');
+    expect(passwords.get('a')).toBe('secret');
     expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
       entity('a', { testMode: true, username: 'u' }),
     ]);
   });
 
-  test('strips an empty password without writing to the keychain', async () => {
+  test('strips an empty password without writing to the vault', async () => {
     const storage = memoryStorage({
       [ENTITIES_STORAGE_KEY]: [entity('a', { password: '', testMode: true, username: '' })],
     });
-    const { items, secrets } = memorySecrets();
+    const { vault, writes } = memoryVault();
 
-    const result = await migrateCredentials(storage, secrets);
+    const result = await migrateCredentials(storage, vault);
 
     expect(result).toEqual({ failed: 0, migrated: 0 });
-    expect(items.size).toBe(0);
+    expect(writes).toHaveLength(0);
     expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
       entity('a', { testMode: true, username: '' }),
     ]);
@@ -137,20 +139,20 @@ describe('migrateCredentials', () => {
       [ENTITIES_STORAGE_KEY]: [entity('a', { testMode: true, username: 'u' })],
       [LEGACY_CREDS_STORAGE_KEY]: { password: 'old', testMode: false, username: 'u' },
     });
-    const { items, secrets } = memorySecrets();
+    const { vault, writes } = memoryVault();
 
-    await migrateCredentials(storage, secrets);
+    await migrateCredentials(storage, vault);
 
-    expect(items.size).toBe(0);
+    expect(writes).toHaveLength(0);
     expect(storage.read(LEGACY_CREDS_STORAGE_KEY)).toEqual({ testMode: false, username: 'u' });
   });
 
   test('leaves the legacy password alone when no entities exist', async () => {
     const legacy = { password: 'only-copy', testMode: true, username: 'u' };
     const storage = memoryStorage({ [LEGACY_CREDS_STORAGE_KEY]: legacy });
-    const { secrets } = memorySecrets();
+    const { vault } = memoryVault();
 
-    const result = await migrateCredentials(storage, secrets);
+    const result = await migrateCredentials(storage, vault);
 
     expect(result).toEqual({ failed: 0, migrated: 0 });
     expect(storage.read(LEGACY_CREDS_STORAGE_KEY)).toEqual(legacy);
@@ -159,53 +161,9 @@ describe('migrateCredentials', () => {
   test('ignores unreadable storage', async () => {
     const storage = memoryStorage({});
     storage.setItem(ENTITIES_STORAGE_KEY, '{not json');
-    const { secrets } = memorySecrets();
+    const { vault } = memoryVault();
 
-    await expect(migrateCredentials(storage, secrets)).resolves.toEqual({ failed: 0, migrated: 0 });
+    await expect(migrateCredentials(storage, vault)).resolves.toEqual({ failed: 0, migrated: 0 });
     expect(storage.getItem(ENTITIES_STORAGE_KEY)).toBe('{not json');
-  });
-});
-
-describe('createPasswordVault', () => {
-  test('applies writes for one entity in call order', async () => {
-    const items = new Map<string, string>();
-    // Each later call resolves faster, so unordered writes would end on the first value.
-    let delay = 30;
-    const secrets: SecretStore = {
-      delete: async (key) => {
-        items.delete(key);
-      },
-      get: async (key) => items.get(key) ?? null,
-      set: (key, value) => {
-        const ms = delay;
-        delay -= 10;
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            items.set(key, value);
-            resolve();
-          }, ms);
-        });
-      },
-    };
-    const vault = createPasswordVault(secrets);
-
-    void vault.set('a', 'p');
-    void vault.set('a', 'pa');
-    void vault.set('a', 'pas');
-
-    expect(await vault.get('a')).toBe('pas');
-  });
-
-  test('an empty password deletes the item and a failed write does not block the next', async () => {
-    const { items, secrets } = memorySecrets({ failOn: [passwordKey('b')] });
-    const vault = createPasswordVault(secrets);
-
-    await vault.set('a', 'secret');
-    await vault.set('a', '');
-    await expect(vault.set('b', 'secret')).rejects.toThrow('keychain unavailable');
-    await vault.delete('b');
-
-    expect(items.has(passwordKey('a'))).toBe(false);
-    expect(await vault.get('b')).toBeNull();
   });
 });

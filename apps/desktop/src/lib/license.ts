@@ -8,7 +8,7 @@ export interface LicenseDetails {
   expiresAt: string | null;
 }
 
-// The whole record lives in one keychain item (license-vault.ts).
+// The whole record lives in the vault (vault.ts).
 export interface StoredLicense extends LicenseDetails {
   activationId: string;
   key: string;
@@ -132,6 +132,39 @@ export function refreshLicense(
     license: seenAt(license, now),
     status: status.kind === 'grace' ? offlineStatus(license, now) : status,
   };
+}
+
+/** The time seen alone is written at most this often. */
+export const LAST_SEEN_SAVE_INTERVAL_MS = DAY_MS;
+
+/**
+ * Whether a license change is worth a write: a new status, any change but the
+ * time seen, or a time seen that moved back or a day past the saved one. In
+ * between, lastSeenAt moves forward in memory only, so a clock set back is
+ * caught at once while the app runs, and after a restart against a saved time
+ * at most a day old.
+ */
+export function shouldSaveLicense(
+  saved: StoredLicense | null,
+  next: StoredLicense,
+  statusChanged: boolean,
+): boolean {
+  if (!saved || statusChanged) {
+    return true;
+  }
+  const fields = [
+    'activationId',
+    'customerEmail',
+    'displayKey',
+    'expiresAt',
+    'key',
+    'lastValidatedAt',
+  ] as const;
+  if (fields.some((field) => saved[field] !== next[field])) {
+    return true;
+  }
+  const ahead = Date.parse(next.lastSeenAt) - Date.parse(saved.lastSeenAt);
+  return !(ahead >= 0 && ahead < LAST_SEEN_SAVE_INTERVAL_MS);
 }
 
 export function activatedLicense(
