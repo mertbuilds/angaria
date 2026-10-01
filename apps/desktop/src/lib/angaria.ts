@@ -1,8 +1,16 @@
+import { isTauri } from '@tauri-apps/api/core';
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { createClient } from 'angaria-earsiv-sdk';
 import { fetchTCMBRates as _fetchTCMBRates } from 'angaria-utils';
+import { activeGibEmulatorURL } from './gib-emulator.ts';
 
 export type { SessionInfo, InvoiceItem, InvoiceDetails } from 'angaria-earsiv-sdk';
+
+// Dev only: with the Emülatör switch on (src/lib/gib-emulator.ts), GİB and TCMB
+// calls go to the local emulator. A plain browser has no Tauri http plugin and
+// reaches it with its own fetch; the emulator allows CORS.
+const hostFetch: typeof tauriFetch =
+  activeGibEmulatorURL && !isTauri() ? (input, init) => fetch(input, init) : tauriFetch;
 
 // Dev only: VITE_GIB_FIXTURES=1 answers GİB calls from src/dev/gib-fixtures.ts,
 // for the screens in a plain browser. import.meta.env.DEV is statically false
@@ -11,9 +19,9 @@ const gibFetch: typeof tauriFetch =
   import.meta.env.DEV && import.meta.env.VITE_GIB_FIXTURES === '1'
     ? (input, init) =>
         import('../dev/gib-fixtures.ts').then(({ fixtureFetch }) => fixtureFetch(input, init))
-    : tauriFetch;
+    : hostFetch;
 
-const client = createClient({ fetch: gibFetch });
+const client = createClient({ baseUrl: activeGibEmulatorURL, fetch: gibFetch });
 
 export const login = (...args: Parameters<typeof client.login>) => client.login(...args);
 export const logout = (...args: Parameters<typeof client.logout>) => client.logout(...args);
@@ -41,4 +49,5 @@ export const startSMSSign = (...args: Parameters<typeof client.startSMSSign>) =>
 export const cancelInvoice = (...args: Parameters<typeof client.cancelInvoice>) =>
   client.cancelInvoice(...args);
 
-export const fetchTCMBRates = (baseDate?: Date) => _fetchTCMBRates(baseDate, { fetch: tauriFetch });
+export const fetchTCMBRates = (baseDate?: Date) =>
+  _fetchTCMBRates(baseDate, { baseUrl: activeGibEmulatorURL, fetch: hostFetch });

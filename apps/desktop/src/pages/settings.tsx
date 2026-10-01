@@ -32,6 +32,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { LicenseCard } from '@/components/license-card.tsx';
 import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
 import * as angaria from '@/lib/angaria.ts';
+import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import type { CompanyInfo, Entity } from '@/lib/types.ts';
@@ -145,6 +146,18 @@ function GibAccountSection() {
           onCheckedChange={(checked) => void setCredentials(activeEntityId, { testMode: checked })}
         />
       </SettingsRow>
+      {import.meta.env.DEV && gibEmulatorURL && (
+        <SettingsRow
+          hint={`Geliştirme: GİB ve TCMB yerine ${gibEmulatorURL} (pnpm emulate)`}
+          label="Emülatör"
+        >
+          <Switch
+            aria-label="Emülatör"
+            checked={Boolean(activeGibEmulatorURL)}
+            onCheckedChange={setGibEmulator}
+          />
+        </SettingsRow>
+      )}
       <SettingsRow hint="GİB portalında açık kalan oturumu kapatır" label="Oturum">
         <Button
           disabled={loggingOut || !hasCredentials}
