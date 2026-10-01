@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'vitest';
+import { GIB_COUNTRIES } from '../src/lib/gib-constants.ts';
 import {
   BILINGUAL_SEPARATOR,
   buildInvoicePDFFilename,
   DEFAULT_PDF_LANGUAGE,
   DEFAULT_PDF_STYLE,
   formatPDFAmount,
+  formatPDFCountry,
   formatPDFDate,
   formatPDFNumber,
   formatPDFPercent,
@@ -157,6 +159,49 @@ describe('formatPDFQuantityUnit', () => {
   test('symbols and unknown codes print as GİB writes them', () => {
     expect(formatPDFQuantityUnit('en', 5, 'KGM')).toBe('5 kg');
     expect(formatPDFQuantityUnit('tr', 5, 'XYZ')).toBe('5 XYZ');
+  });
+});
+
+describe('formatPDFCountry', () => {
+  test('prints the full name of a country GİB cuts short', () => {
+    expect(formatPDFCountry('tr', 'Amerika Birleşik Dev')).toBe('Amerika Birleşik Devletleri');
+    expect(formatPDFCountry('en', 'Amerika Birleşik Dev')).toBe('United States');
+    expect(formatPDFCountry('both', 'Amerika Birleşik Dev')).toBe(
+      'Amerika Birleşik Devletleri / United States',
+    );
+  });
+
+  test('names a country both languages share once, and prints unknown values as given', () => {
+    expect(formatPDFCountry('both', 'Andorra')).toBe('Andorra');
+    expect(formatPDFCountry('both', 'Almanya')).toBe('Almanya / Germany');
+    expect(formatPDFCountry('en', 'Atlantis')).toBe('Atlantis');
+  });
+
+  test('every GİB country has a Turkish and an English name', () => {
+    for (const { en, label } of GIB_COUNTRIES) {
+      expect(label.trim()).toBe(label);
+      expect(en.trim()).toBe(en);
+      expect(label).not.toBe('');
+      expect(en).not.toBe('');
+    }
+  });
+
+  test('every name GİB cuts at 20 characters has its full name', () => {
+    // 20 characters or more, and complete as GİB has them
+    const complete = new Set([
+      'Çin Halk Cumhuriyeti',
+      'Dağistan Cumhuriyeti',
+      'Serbest Bölge (Ba-Bs)',
+    ]);
+    // Cut at 20 before a space, which GİB then trims
+    const cutShorter = new Set(['Heard Adaları Ve Mc']);
+    const cut = GIB_COUNTRIES.filter(
+      ({ value }) => (value.length >= 20 && !complete.has(value)) || cutShorter.has(value),
+    );
+    expect(cut).toHaveLength(30);
+    for (const { label, value } of cut) {
+      expect(label, value).not.toBe(value);
+    }
   });
 });
 

@@ -3,7 +3,7 @@ import { expect, test, vi } from 'vitest';
 import { renderInvoicePDF } from '../src/components/invoice-pdf.tsx';
 import { PDF_LANGUAGES, PDF_STYLES } from '../src/lib/invoice-pdf-i18n.ts';
 import type { PDFLanguage, PDFStyle } from '../src/lib/types.ts';
-import { data } from './invoice-pdf-helpers.ts';
+import { data, pdfRuns } from './invoice-pdf-helpers.ts';
 
 // Vite resolves font imports to dev-server URLs; react-pdf in Node reads files.
 // Inter, so the test does not depend on the licensed Suisse Intl files.
@@ -86,4 +86,17 @@ test.each(PDF_STYLES)('%s breaks a long invoice over pages', async (style) => {
     id: String(index),
   }));
   expect(pageCount(await render('both', style, { items }))).toBeGreaterThan(1);
+});
+
+test.each(
+  PDF_STYLES.flatMap((style) => [
+    [style, 'tr', 'Amerika Birleşik Devletleri'],
+    [style, 'en', 'United States'],
+    [style, 'both', 'Amerika Birleşik Devletleri / United States'],
+  ]),
+)('%s %s prints the full name of a country GİB cuts short', async (style, language, country) => {
+  const recipient = { ...data.recipient, country: 'Amerika Birleşik Dev' };
+  const runs = pdfRuns(await render(language as PDFLanguage, style as PDFStyle, { recipient }));
+  expect(runs).toContain(country);
+  expect(runs).not.toContain('Amerika Birleşik Dev');
 });

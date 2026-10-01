@@ -1,4 +1,4 @@
-import { GIB_UNIT_TYPES } from './gib-constants.ts';
+import { GIB_COUNTRIES, GIB_UNIT_TYPES } from './gib-constants.ts';
 import type { PDFLanguage, PDFStyle } from './types.ts';
 
 export const PDF_LANGUAGES: ReadonlyArray<PDFLanguage> = ['tr', 'en', 'both'];
@@ -263,6 +263,24 @@ export function formatPDFQuantityUnit(
     unit = quantity === 1 ? names.en[0] : names.en[1];
   }
   return `${amount} ${unit}`;
+}
+
+const COUNTRIES = new Map(GIB_COUNTRIES.map((country) => [country.value, country]));
+
+/**
+ * A GİB country by its full name: "Amerika Birleşik Devletleri" for GİB's
+ * "Amerika Birleşik Dev", "United States" in English, both on a bilingual PDF
+ * (once when they match). A value outside GİB's list prints as it is.
+ */
+export function formatPDFCountry(language: PDFLanguage, country: string): string {
+  const names = COUNTRIES.get(country);
+  if (!names) {
+    return country;
+  }
+  if (language !== 'both') {
+    return language === 'en' ? names.en : names.label;
+  }
+  return names.label === names.en ? names.label : `${names.label}${BILINGUAL_SEPARATOR}${names.en}`;
 }
 
 const FILENAME_WORDS: Record<
