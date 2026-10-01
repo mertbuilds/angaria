@@ -6,11 +6,12 @@ const WIDE = '@media (min-width: 640px)';
 
 /**
  * Every host the desktop app talks to, and nothing else. Keep it in step with
- * the app's CSP and http allowlist (docs/relaunch.md); the sandbox and GİB test
- * hosts are dev builds only and stay off this list.
+ * the app's CSP and http allowlist (docs/relaunch.md); the Polar sandbox is in
+ * dev builds only and stays off this list.
  */
 export const APP_HOSTS = [
   { host: 'earsivportal.efatura.gov.tr', purpose: m.host_gib },
+  { host: 'earsivportaltest.efatura.gov.tr', purpose: m.host_gib_test },
   { host: 'www.tcmb.gov.tr', purpose: m.host_tcmb },
   { host: 'api.polar.sh', purpose: m.host_polar },
   { host: 'dl.angaria.app', purpose: m.host_updates },

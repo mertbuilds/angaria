@@ -49,6 +49,7 @@
   "privacy_site_note_link": "gizlilik politikasında",
 
   "host_gib": "Faturaların",
+  "host_gib_test": "GİB test portalı (yalnızca Test modu açıkken)",
   "host_tcmb": "Döviz kuru",
   "host_polar": "Lisans kontrolü",
   "host_updates": "Güncelleme kontrolü",
@@ -107,7 +108,7 @@
   "privacy_page_controller_body": "Veri sorumlusu Vinena Studio'dur. Bize mert@vinena.studio adresinden ulaşabilirsin.",
   "privacy_page_app_title": "Uygulama",
   "privacy_page_app_body": "Angaria'nın bir sunucusu yok. Uygulama müşteri kayıtlarını, şablonlarını ve ayarlarını yalnızca senin Mac'inde saklar, bu veriler bize gönderilmez. GİB e-Arşiv şifren macOS Anahtar Zinciri'nde (Keychain) tutulur. Uygulamada analitik, takip ya da hata raporlama yok.",
-  "privacy_page_app_gib": "GİB e-Arşiv portalı: faturalarını kesmek, listelemek ve onaylamak için senin kullanıcı adın ve şifrenle bağlanır. Bu bağlantı Mac'inden doğrudan GİB'e gider, bizden geçmez.",
+  "privacy_page_app_gib": "GİB e-Arşiv portalı: faturalarını kesmek, listelemek ve onaylamak için senin kullanıcı adın ve şifrenle bağlanır. Bu bağlantı Mac'inden doğrudan GİB'e gider, bizden geçmez. Ayarlar'da Test modunu açarsan uygulama aynı şekilde GİB'in test portalına bağlanır.",
   "privacy_page_app_tcmb": "TCMB: döviz kurlarını TCMB'nin herkese açık kur sayfasından alır. Bu istekte kişisel veri gönderilmez.",
   "privacy_page_app_polar": "Polar: lisansını etkinleştirirken ve doğrularken lisans anahtarın ve Mac'inin adı Polar'a gönderilir. Polar bu bilgilerle lisansının geçerli olup olmadığını ve kaç cihazda kullanıldığını kontrol eder.",
   "privacy_page_app_updates": "dl.angaria.app: yeni sürüm olup olmadığını kontrol eder ve güncellemeleri indirir. Bu istekte kişisel veri gönderilmez.",
