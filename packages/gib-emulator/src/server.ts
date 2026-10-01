@@ -68,12 +68,37 @@ function parseCookies(header: string | undefined): Record<string, string> {
   return cookies;
 }
 
-function send(request: IncomingMessage, response: ServerResponse, reply: Reply) {
+/**
+ * Names this server answers to, with an optional port: loopback and the
+ * portless aliases. Any other Host is a DNS rebinding attempt.
+ */
+const LOOPBACK_HOST = String.raw`(?:127\.0\.0\.1|localhost|\[::1\]|[\w-]+(?:\.[\w-]+)*\.angaria\.localhost)(?::\d+)?`;
+const ALLOWED_HOST = new RegExp(`^${LOOPBACK_HOST}$`, 'i');
+
+/** Pages served from those names, the only origins that may use /__emulator. */
+const LOOPBACK_ORIGIN = new RegExp(`^https?://${LOOPBACK_HOST}$`, 'i');
+
+/**
+ * The desktop frontend in dev (Vite on a localhost port, or a Tauri webview):
+ * the only origins that get CORS headers on portal and TCMB routes. GİB itself
+ * sends no CORS headers.
+ */
+const DESKTOP_ORIGIN =
+  /^(?:http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?|tauri:\/\/localhost|http:\/\/tauri\.localhost)$/;
+
+const isAdminPath = (path: string) => path === '/__emulator' || path.startsWith('/__emulator/');
+
+function refuse(response: ServerResponse, status: number, text: string) {
+  response.writeHead(status, { 'content-type': 'text/plain;charset=UTF-8' });
+  response.end(text);
+}
+
+function send(response: ServerResponse, reply: Reply, corsOrigin: string | undefined) {
   response.statusCode = reply.status;
   response.setHeader('content-type', reply.contentType);
-  // A plain browser (the desktop frontend outside Tauri) calls the emulator
-  // cross-origin; GİB itself sends no CORS headers.
-  response.setHeader('access-control-allow-origin', request.headers.origin ?? '*');
+  if (corsOrigin) {
+    response.setHeader('access-control-allow-origin', corsOrigin);
+  }
   response.setHeader('vary', 'origin');
   if (reply.setCookies?.length) {
     response.setHeader('set-cookie', reply.setCookies);
@@ -169,7 +194,7 @@ export function createEmulator(options: EmulatorOptions = {}): Emulator {
     const path = new URL(request.url ?? '/', 'http://emulator').pathname;
     const ctx = context;
 
-    if (path === '/__emulator' || path.startsWith('/__emulator/')) {
+    if (isAdminPath(path)) {
       const text = method === 'GET' || method === 'DELETE' ? '' : await readBody(request);
       let body: unknown = {};
       try {
@@ -213,23 +238,44 @@ export function createEmulator(options: EmulatorOptions = {}): Emulator {
   }
 
   function handle(request: IncomingMessage, response: ServerResponse) {
+    if (!ALLOWED_HOST.test(request.headers.host ?? '')) {
+      log(`refused Host ${request.headers.host ?? '(none)'}`);
+      refuse(response, 403, 'Host not allowed.');
+      return;
+    }
+    const { origin } = request.headers;
+    const admin = isAdminPath(new URL(request.url ?? '/', 'http://emulator').pathname);
+    // The control API changes state and gets no CORS headers: a web page on
+    // another origin must not drive it, not even with a request that skips
+    // the preflight.
+    if (admin && origin !== undefined && !LOOPBACK_ORIGIN.test(origin)) {
+      log(`refused /__emulator request from ${origin}`);
+      refuse(response, 403, 'Origin not allowed.');
+      return;
+    }
+    const corsOrigin = !admin && origin && DESKTOP_ORIGIN.test(origin) ? origin : undefined;
     if (request.method === 'OPTIONS') {
-      response.writeHead(204, {
-        'access-control-allow-headers':
-          request.headers['access-control-request-headers'] ?? 'content-type',
-        'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-        'access-control-allow-origin': request.headers.origin ?? '*',
-        'access-control-max-age': '600',
-        vary: 'origin',
-      });
+      response.writeHead(
+        204,
+        corsOrigin
+          ? {
+              'access-control-allow-headers':
+                request.headers['access-control-request-headers'] ?? 'content-type',
+              'access-control-allow-methods': 'GET, POST, OPTIONS',
+              'access-control-allow-origin': corsOrigin,
+              'access-control-max-age': '600',
+              vary: 'origin',
+            }
+          : { vary: 'origin' },
+      );
       response.end();
       return;
     }
     route(request).then(
-      (reply) => send(request, response, reply),
+      (reply) => send(response, reply, corsOrigin),
       (error: unknown) => {
         log(`error: ${error instanceof Error ? error.message : String(error)}`);
-        send(request, response, html(serverErrorHTML(500), 500));
+        send(response, html(serverErrorHTML(500), 500), corsOrigin);
       },
     );
   }

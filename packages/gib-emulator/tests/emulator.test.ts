@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
@@ -480,6 +481,111 @@ describe('TCMB', () => {
 
   test('today.xml is the latest bulletin', async () => {
     expect(await (await get('today.xml')).text()).toContain('Tarih="30.09.2026"');
+  });
+});
+
+/** A raw request, so the test can send any Host header. */
+function raw(
+  path: string,
+  {
+    body,
+    headers = {},
+    method = 'GET',
+  }: {
+    body?: string;
+    headers?: Record<string, string>;
+    method?: string;
+  } = {},
+) {
+  return new Promise<{ body: string; headers: Record<string, unknown>; status: number }>(
+    (resolve, reject) => {
+      const outgoing = request(`${emulator.url}${path}`, { headers, method }, (response) => {
+        let text = '';
+        response.setEncoding('utf8');
+        response.on('data', (chunk: string) => (text += chunk));
+        response.on('end', () =>
+          resolve({ body: text, headers: response.headers, status: response.statusCode ?? 0 }),
+        );
+      });
+      outgoing.on('error', reject);
+      outgoing.end(body);
+    },
+  );
+}
+
+describe('access', () => {
+  test('refuses a Host other than loopback or *.angaria.localhost', async () => {
+    expect(
+      (await raw('/__emulator/state', { headers: { host: 'rebind.evil.example' } })).status,
+    ).toBe(403);
+    expect(
+      (await raw('/kurlar/today.xml', { headers: { host: 'evil.example:5180' } })).status,
+    ).toBe(403);
+    for (const host of ['127.0.0.1:5180', 'localhost', '[::1]:5180', 'gib.angaria.localhost']) {
+      expect((await raw('/__emulator/state', { headers: { host } })).status).toBe(200);
+    }
+  });
+
+  test('refuses /__emulator from a web page on another origin, and sends no CORS headers', async () => {
+    const preflight = await raw('/__emulator/config', {
+      headers: {
+        'access-control-request-method': 'PATCH',
+        origin: 'https://evil.example',
+      },
+      method: 'OPTIONS',
+    });
+    expect(preflight.status).toBe(403);
+    expect(preflight.headers['access-control-allow-origin']).toBeUndefined();
+
+    const seed = await raw('/__emulator/seed', {
+      body: JSON.stringify({ invoices: [{ userid: '33333301' }] }),
+      headers: { 'content-type': 'text/plain', origin: 'https://evil.example' },
+      method: 'POST',
+    });
+    expect(seed.status).toBe(403);
+    const state = (await (await admin('GET', '/state')).json()) as { invoices: Array<unknown> };
+    expect(state.invoices).toHaveLength(3);
+
+    const local = await raw('/__emulator/state', { headers: { origin: 'http://localhost:5173' } });
+    expect(local.status).toBe(200);
+    expect(local.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  test('PATCH /__emulator/config never takes a state file', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gib-emulator-'));
+    const stateFile = join(dir, 'written.json');
+    try {
+      const response = await admin('PATCH', '/config', { maxRangeDays: 3, stateFile });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: expect.stringContaining('Not patchable: stateFile'),
+      });
+      await admin('POST', '/seed', { invoices: [{ userid: '33333301' }] });
+      expect(existsSync(stateFile)).toBe(false);
+      expect(emulator.config.maxRangeDays).toBe(7);
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  });
+
+  test('portal routes allow CORS for the desktop dev origins only', async () => {
+    for (const origin of [
+      'http://localhost:5173',
+      'http://127.0.0.1:1420',
+      'tauri://localhost',
+      'http://tauri.localhost',
+    ]) {
+      const response = await raw('/kurlar/today.xml', { headers: { origin } });
+      expect(response.headers['access-control-allow-origin']).toBe(origin);
+      const preflight = await raw('/earsiv-services/dispatch', {
+        headers: { 'access-control-request-method': 'POST', origin },
+        method: 'OPTIONS',
+      });
+      expect(preflight.headers['access-control-allow-origin']).toBe(origin);
+    }
+    const foreign = await raw('/kurlar/today.xml', { headers: { origin: 'https://evil.example' } });
+    expect(foreign.status).toBe(200);
+    expect(foreign.headers['access-control-allow-origin']).toBeUndefined();
   });
 });
 

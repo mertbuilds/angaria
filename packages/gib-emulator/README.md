@@ -28,7 +28,7 @@ The SMS code is `123456` unless configured.
 - SDK: `createClient({ baseUrl: 'http://127.0.0.1:5180' })`. `baseUrl` replaces both the production and the test portal.
 - TCMB: `fetchTCMBRates(date, { baseUrl: 'http://127.0.0.1:5180' })` (angaria-utils).
 - Smoke script: `EARSIV_MODE=emulator NODE_EXTRA_CA_CERTS=~/.portless/ca.pem node packages/earsiv-sdk/scripts/smoke.ts`. Node ignores the macOS trust store, so the portless CA is passed explicitly; `EARSIV_EMULATOR_URL=http://127.0.0.1:5180` skips TLS.
-- Desktop app (dev only): Ayarlar › GİB hesabı › Emülatör. GİB and TCMB calls then go to `VITE_GIB_EMULATOR_URL` (`apps/desktop/.env.development`). The app uses plain http on loopback, not the portless alias: the Tauri http plugin (reqwest with rustls and bundled roots) does not trust portless's local CA. `tauri dev --config src-tauri/tauri.dev.conf.json` (the `desktop` pane of `pnpm dev`) adds that URL to the http allowlist; release builds never see it. In a plain browser (`pnpm --filter desktop dev`, `VITE_LICENSE_BYPASS=1`) the app reaches the emulator with the browser's fetch, which the emulator allows through CORS.
+- Desktop app (dev only): Ayarlar › GİB hesabı › Emülatör. GİB and TCMB calls then go to `VITE_GIB_EMULATOR_URL` (`apps/desktop/.env.development`). The app uses plain http on loopback, not the portless alias: the Tauri http plugin (reqwest with rustls and bundled roots) does not trust portless's local CA. `tauri dev --config src-tauri/tauri.dev.conf.json` (the `desktop` pane of `pnpm dev`) adds that URL to the http allowlist; release builds never see it. In a plain browser (`pnpm --filter desktop dev`, `VITE_LICENSE_BYPASS=1`) the app reaches the emulator with the browser's fetch, which the emulator allows through CORS for the desktop dev origins (`http://localhost:<port>`, `http://127.0.0.1:<port>`, `tauri://localhost`, `http://tauri.localhost`) on the portal and TCMB routes.
 - Tests: `startEmulator({ port: 0 })` in-process. `packages/earsiv-sdk/tests/emulator-setup.ts` starts one per test run.
 
 ## Protocol
@@ -85,14 +85,14 @@ With `stateFile`, documents, numbering and edited profiles are written after eve
 
 ## Control API
 
-No auth: keep the default loopback host.
+No auth, so the emulator guards it in other ways. Every request must name a loopback host (`127.0.0.1`, `localhost`, `[::1]`, with any port) or a `*.angaria.localhost` alias in `Host`, else 403: this stops DNS rebinding, and it means the emulator only works on loopback. `/__emulator` sends no CORS headers and answers 403 to a request whose `Origin` is not one of those names, so a web page elsewhere cannot drive it. Keep the default loopback host.
 
 | Request                            | Body                                                                                                                            |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /__emulator/state`            | Config, users, sessions, documents, SMS codes and queued faults.                                                                |
 | `POST /__emulator/reset`           | Back to the start config and the seed state.                                                                                    |
 | `POST /__emulator/seed`            | `{ users?: [...], invoices?: [{ userid, date?, daysAgo?, status?, recipient?, taxID?, amount?, currency?, vatRate?, item? }] }` |
-| `PATCH /__emulator/config`         | A partial config, e.g. `{ "chaos": { "latencyMs": 2000 } }` or `{ "maxRangeDays": 3 }`.                                         |
+| `PATCH /__emulator/config`         | `chaos`, `lockedUsers`, `maxRangeDays`, `sessionTtlSeconds`, `smsCode`, `smsTtlSeconds`, `tcmbHolidays`; anything else is 400.  |
 | `POST /__emulator/sms-code`        | `{ "code": "654321" }` or `{ "code": "random" }`.                                                                               |
 | `POST /__emulator/faults`          | One fault or a list: `{ kind, cmd?, count?, status?, text? }`. `cmd` is a dispatch `cmd`, a login `assoscmd` or `tcmb`.         |
 | `GET`, `DELETE /__emulator/faults` | List or clear queued faults.                                                                                                    |
