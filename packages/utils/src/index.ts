@@ -15,9 +15,14 @@ export interface TCMBRateTable {
  */
 export async function fetchTCMBRateTable(
   baseDate?: Date,
-  options?: { fetch?: typeof globalThis.fetch },
+  options?: {
+    /** TCMB origin, e.g. the local GİB emulator, which also serves /kurlar. */
+    baseUrl?: string;
+    fetch?: typeof globalThis.fetch;
+  },
 ): Promise<TCMBRateTable> {
   const fetchFn = options?.fetch ?? globalThis.fetch;
+  const base = options?.baseUrl ? `${options.baseUrl}/kurlar` : TCMB_BASE;
   const start = baseDate ?? new Date();
   for (let i = 0; i < 7; i++) {
     const date = new Date(start);
@@ -25,7 +30,7 @@ export async function fetchTCMBRateTable(
     const d = pad(date.getDate());
     const m = pad(date.getMonth() + 1);
     const y = date.getFullYear();
-    const url = `${TCMB_BASE}/${y}${m}/${d}${m}${y}.xml`;
+    const url = `${base}/${y}${m}/${d}${m}${y}.xml`;
     const response = await fetchFn(url);
     if (!response.ok) {
       continue;
@@ -54,7 +59,7 @@ export async function fetchTCMBRateTable(
  */
 export async function fetchTCMBRates(
   baseDate?: Date,
-  options?: { fetch?: typeof globalThis.fetch },
+  options?: Parameters<typeof fetchTCMBRateTable>[1],
 ): Promise<Map<string, number>> {
   return (await fetchTCMBRateTable(baseDate, options)).rates;
 }

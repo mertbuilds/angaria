@@ -155,8 +155,18 @@ export function splitDateRange(
   return ranges;
 }
 
-export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
+export interface ClientOptions {
+  /**
+   * Portal origin for both modes, e.g. the local GİB emulator
+   * (packages/gib-emulator). Default: the real production and test portals.
+   */
+  baseUrl?: string;
+  fetch?: FetchFn;
+}
+
+export function createClient(options?: ClientOptions): EarsivClient {
   const fetchFn: FetchFn = options?.fetch ?? globalThis.fetch;
+  const portalUrl = (testMode: boolean) => options?.baseUrl ?? (testMode ? TEST_URL : PROD_URL);
 
   async function dispatch(
     session: SessionInfo,
@@ -197,7 +207,7 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
     password: string,
     testMode: boolean,
   ): Promise<SessionInfo> {
-    const baseUrl = testMode ? TEST_URL : PROD_URL;
+    const baseUrl = portalUrl(testMode);
     const cmd = testMode ? 'login' : 'anologin';
 
     const response = await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
@@ -235,7 +245,7 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
   }
 
   async function forceLogout(username: string, password: string, testMode: boolean): Promise<void> {
-    const baseUrl = testMode ? TEST_URL : PROD_URL;
+    const baseUrl = portalUrl(testMode);
     const cmd = testMode ? 'login' : 'anologin';
 
     const response = await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
