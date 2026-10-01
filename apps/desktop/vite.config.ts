@@ -29,7 +29,8 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       // File routes in src/routes generate src/routeTree.gen.ts (committed, so
       // typecheck and lint work without a build). Must come before react().
-      tanstackRouter({ addExtensions: true, target: 'react' }),
+      // autoCodeSplitting loads each route's component in its own chunk.
+      tanstackRouter({ addExtensions: true, autoCodeSplitting: true, target: 'react' }),
       react(),
       // Compiles StyleX in src/ and in @angaria/ui (source-consumed). The build
       // appends its CSS to the main CSS asset; in dev the plugin injects

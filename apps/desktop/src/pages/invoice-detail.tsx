@@ -39,7 +39,6 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { downloadInvoicePDF } from '@/components/invoice-pdf.tsx';
 import { cancelInvoice, startSMSSign, verifyAndSign } from '@/lib/angaria.ts';
 import {
   cachedInvoices,
@@ -403,6 +402,8 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     mutationFn: async (language: PDFLanguage) => {
       toast.loading('PDF hazırlanıyor...', { id: `pdf-${ettn}` });
       const { items, note, recipient, settings, subtotal, vat } = await readDetail();
+      // react-pdf is large, so it loads with the first PDF.
+      const { downloadInvoicePDF } = await import('@/components/invoice-pdf.tsx');
       await downloadInvoicePDF({
         company: companyInfo,
         date: invoice.belgeTarihi ?? '',

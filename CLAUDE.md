@@ -42,7 +42,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 
 ## Desktop shell (`apps/desktop`)
 
-- Routing: TanStack Router file routes in `src/routes` (`/faturalar`, `/faturalar/$ettn`, `/yeni?sablon=&kaynak=`, `/musteriler`, `/sablonlar?sekme=kalemler`, `/ayarlar`). The Vite plugin regenerates `src/routeTree.gen.ts` on dev and build; it is committed so typecheck and lint run without a build. Never edit it.
+- Routing: TanStack Router file routes in `src/routes` (`/faturalar`, `/faturalar/$ettn`, `/yeni?sablon=&kaynak=`, `/musteriler`, `/sablonlar?sekme=kalemler`, `/ayarlar`). The Vite plugin regenerates `src/routeTree.gen.ts` on dev and build; it is committed so typecheck and lint run without a build. Never edit it. `autoCodeSplitting` loads each route's component in its own chunk.
 - Screens live in `src/pages` and routes in `src/routes`: a route file owns its URL (params, search) and renders its screen from `src/pages`.
 - The frame lives in `src/shell`: `Screen` (a route's toolbar and content), `ListDetail` (list column and detail pane), `SearchableList` (a list column with search and ↑/↓/↵ keys), `useRequireCredentials`, `useAppActions`, the ⌘K palette and the shortcuts (⌘N, ⌘1-5, ⌘,).
 - GİB: run every portal call through `gib` in `src/lib/gib.ts` (`gib.run`, `gib.lease` for SMS signing). GİB refuses a second login while a session is open, so the queue runs calls one at a time on one shared session; the query options there (`invoiceListQuery`, `invoiceDetailQuery`, `invoiceHTMLQuery`) already do. The SDK's `getDrafts` splits ranges into the seven days GİB allows per request.
@@ -50,6 +50,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 - Browser without Tauri: `VITE_GIB_FIXTURES=1` (dev only) answers GİB calls from `src/dev/gib-fixtures.ts`; with `VITE_LICENSE_BYPASS=1` the screens run in a plain browser. GİB credentials still need a username and a password in localStorage `fatura-entities` there (the keychain is Tauri only).
 - Styles: StyleX only, no Tailwind. `src/app.css` holds the few global rules (the element reset the screens are laid out against, no overscroll); anything else is a StyleX style next to its component.
 - Theme: the app follows the system. Ayarlar › Görünüm saves a choice in localStorage `angaria-theme` (`src/lib/theme.ts`); `main.tsx` re-applies it before render. The GİB preview stays on white paper in both themes.
+- PDF: `@react-pdf/renderer` is large, so `src/components/invoice-pdf.tsx` loads with a dynamic `import()` when a PDF is made. Keep it out of static imports (a type-only import is fine).
 - Updates: `useUpdateCheck` (`src/shell`) checks once per launch outside dev and offers the update in a toast; Ayarlar › Hakkında checks on demand. Both go through `src/lib/updater.ts` (`@tauri-apps/plugin-updater`, then `relaunch` from `@tauri-apps/plugin-process`).
 - Import `.stylex.ts` files (e.g. `shell.stylex.ts`) by relative path: the StyleX compiler does not resolve the `@/` alias and the build fails.
 
