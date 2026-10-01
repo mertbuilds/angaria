@@ -69,18 +69,20 @@ import { parseGIB, toGIB, formatDateHuman } from '@/lib/utils.ts';
 
 /** Safely convert unknown GIB field to string */
 function str(v: unknown, fallback = ''): string {
-  if (v == null) return fallback;
+  if (v == null) {
+    return fallback;
+  }
   return typeof v === 'string' ? v : fallback;
 }
 
 export interface Invoice {
-  belgeNumarasi?: string;
-  aliciVknTckn?: string;
   aliciUnvanAdSoyad?: string;
+  aliciVknTckn?: string;
+  belgeNumarasi?: string;
   belgeTarihi?: string;
   belgeTuru?: string;
-  onayDurumu?: string;
   ettn?: string;
+  onayDurumu?: string;
 }
 
 async function fetchDrafts(
@@ -89,23 +91,26 @@ async function fetchDrafts(
   testMode: boolean,
   startDate: string,
   endDate: string,
-): Promise<Invoice[]> {
+): Promise<Array<Invoice>> {
   const session = await angaria.login(username, password, testMode);
   try {
-    return (await angaria.getDrafts(session, startDate, endDate)) as Invoice[];
+    return (await angaria.getDrafts(session, startDate, endDate)) as Array<Invoice>;
   } finally {
     angaria.logout(session).catch(() => {});
   }
 }
 
 function StatusBadge({ status }: { status?: string }) {
-  if (status === 'Onaylandı')
+  if (status === 'Onaylandı') {
     return (
       <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
         Onaylı
       </Badge>
     );
-  if (status === 'Silinmiş') return <Badge variant="destructive">Silinmiş</Badge>;
+  }
+  if (status === 'Silinmiş') {
+    return <Badge variant="destructive">Silinmiş</Badge>;
+  }
   return <Badge variant="outline">Taslak</Badge>;
 }
 
@@ -119,9 +124,9 @@ function SortableHeader({
   const sorted = column.getIsSorted();
   return (
     <button
-      type="button"
       className="-ml-2 flex items-center gap-1 rounded px-2 py-1 hover:bg-muted/50"
       onClick={() => column.toggleSorting()}
+      type="button"
     >
       {label}
       {sorted === 'asc' ? (
@@ -140,8 +145,8 @@ export function InvoicesPage({
   onNavigate,
   requireCredentials,
 }: {
-  onPreview: (invoice: Invoice) => Promise<void>;
   onNavigate: (page: Page) => void;
+  onPreview: (invoice: Invoice) => Promise<void>;
   requireCredentials: () => boolean;
 }) {
   const {
@@ -173,7 +178,7 @@ export function InvoicesPage({
   const [smsPhone, setSmsPhone] = useState('');
   const smsSessionRef = useRef<angaria.SessionInfo | null>(null);
   const smsOidRef = useRef('');
-  const smsInvoiceIdsRef = useRef<string[]>([]);
+  const smsInvoiceIdsRef = useRef<Array<string>>([]);
 
   const hasCredentials = Boolean(creds.username && creds.password);
 
@@ -229,7 +234,9 @@ export function InvoicesPage({
   const verifySignMutation = useMutation({
     mutationFn: async () => {
       const session = smsSessionRef.current;
-      if (!session) throw new Error('Oturum bulunamadı');
+      if (!session) {
+        throw new Error('Oturum bulunamadı');
+      }
       return angaria.verifyAndSign(session, smsCode, smsOidRef.current, smsInvoiceIdsRef.current);
     },
     onSuccess: () => {
@@ -248,7 +255,9 @@ export function InvoicesPage({
 
   const useAsTemplateMutation = useMutation({
     mutationFn: async (invoice: Invoice) => {
-      if (!invoice.ettn) throw new Error('Fatura ETTN bulunamadı');
+      if (!invoice.ettn) {
+        throw new Error('Fatura ETTN bulunamadı');
+      }
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
         return await angaria.getInvoiceDetail(session, invoice.ettn);
@@ -266,12 +275,14 @@ export function InvoicesPage({
 
   const downloadPDFMutation = useMutation({
     mutationFn: async (invoice: Invoice) => {
-      if (!invoice.ettn) throw new Error('Fatura ETTN bulunamadı');
+      if (!invoice.ettn) {
+        throw new Error('Fatura ETTN bulunamadı');
+      }
       pdfToastRef.current = toast.loading('PDF hazırlanıyor...');
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
         const detail = await angaria.getInvoiceDetail(session, invoice.ettn);
-        const table = (detail.malHizmetTable as Record<string, unknown>[]) ?? [];
+        const table = (detail.malHizmetTable as Array<Record<string, unknown>>) ?? [];
         const items = table.map((row, i) => ({
           id: String(i),
           name: str(row.malHizmet),
@@ -372,7 +383,7 @@ export function InvoicesPage({
     setSmsDialogOpen(false);
   }
 
-  const columns = useMemo<ColumnDef<Invoice>[]>(
+  const columns = useMemo<Array<ColumnDef<Invoice>>>(
     () => [
       {
         accessorKey: 'belgeNumarasi',
@@ -409,7 +420,7 @@ export function InvoicesPage({
             <div className="flex justify-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon-sm">
+                  <Button size="icon-sm" variant="ghost">
                     <MoreVertical className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -436,7 +447,9 @@ export function InvoicesPage({
                   {inv.onayDurumu === 'Onaylandı' && (
                     <DropdownMenuItem
                       onClick={() => {
-                        if (!requireCredentials()) return;
+                        if (!requireCredentials()) {
+                          return;
+                        }
                         downloadPDFMutation.mutate(inv);
                       }}
                     >
@@ -447,7 +460,7 @@ export function InvoicesPage({
                   {showDelete && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(inv)}>
+                      <DropdownMenuItem onClick={() => setDeleteTarget(inv)} variant="destructive">
                         <Trash2 className="size-4" />
                         Sil
                       </DropdownMenuItem>
@@ -487,27 +500,29 @@ export function InvoicesPage({
         <div className="flex-1 space-y-1">
           <Label>Başlangıç</Label>
           <DatePicker
-            value={parseGIB(listStartDate)}
             onChange={(d) => setListStartDate(toGIB(d))}
+            value={parseGIB(listStartDate)}
           />
         </div>
         <div className="flex-1 space-y-1">
           <Label>Bitiş</Label>
-          <DatePicker value={parseGIB(listEndDate)} onChange={(d) => setListEndDate(toGIB(d))} />
+          <DatePicker onChange={(d) => setListEndDate(toGIB(d))} value={parseGIB(listEndDate)} />
         </div>
         <Button
-          variant="outline"
-          size="icon"
           disabled={loading}
           onClick={() => {
-            if (!requireCredentials()) return;
+            if (!requireCredentials()) {
+              return;
+            }
             void queryClient.invalidateQueries({ queryKey: ['invoices'] });
           }}
+          size="icon"
+          variant="outline"
         >
           <HugeiconsIcon
+            className={loading ? 'animate-spin' : ''}
             icon={ReloadIcon}
             strokeWidth={1.5}
-            className={loading ? 'animate-spin' : ''}
           />
         </Button>
       </div>
@@ -558,9 +573,9 @@ export function InvoicesPage({
       {invoiceList.length > 0 && (
         <div className="space-y-4">
           <Input
+            onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder="Belge no, alıcı veya tarih ile ara..."
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
           />
 
           <div className="rounded-md border">
@@ -591,7 +606,7 @@ export function InvoicesPage({
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                    <TableCell className="h-24 text-center" colSpan={columns.length}>
                       Sonuç bulunamadı
                     </TableCell>
                   </TableRow>
@@ -612,8 +627,8 @@ export function InvoicesPage({
                 )}
               </span>
               <Select
-                value={String(table.getState().pagination.pageSize)}
                 onValueChange={(val) => table.setPageSize(Number(val))}
+                value={String(table.getState().pagination.pageSize)}
               >
                 <SelectTrigger className="h-8 w-[70px]">
                   <SelectValue />
@@ -632,18 +647,18 @@ export function InvoicesPage({
                 Sayfa {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
               </span>
               <Button
-                variant="outline"
-                size="icon-sm"
                 disabled={!table.getCanPreviousPage()}
                 onClick={() => table.previousPage()}
+                size="icon-sm"
+                variant="outline"
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.5} />
               </Button>
               <Button
-                variant="outline"
-                size="icon-sm"
                 disabled={!table.getCanNextPage()}
                 onClick={() => table.nextPage()}
+                size="icon-sm"
+                variant="outline"
               >
                 <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.5} />
               </Button>
@@ -659,9 +674,6 @@ export function InvoicesPage({
       )}
 
       <ConfirmDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Faturayı Sil"
         description="Bu faturayı GİB portaldan silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
         onConfirm={() => {
           if (deleteTarget) {
@@ -669,9 +681,12 @@ export function InvoicesPage({
             setDeleteTarget(null);
           }
         }}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        open={deleteTarget !== null}
+        title="Faturayı Sil"
       />
 
-      <Dialog open={smsDialogOpen} onOpenChange={(open) => !open && handleSmsDialogClose()}>
+      <Dialog onOpenChange={(open) => !open && handleSmsDialogClose()} open={smsDialogOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>SMS Onay Kodu</DialogTitle>
@@ -680,16 +695,18 @@ export function InvoicesPage({
             </DialogDescription>
           </DialogHeader>
           <Input
-            placeholder="SMS kodu"
-            value={smsCode}
+            autoFocus
             onChange={(e) => setSmsCode(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && smsCode) verifySignMutation.mutate();
+              if (e.key === 'Enter' && smsCode) {
+                verifySignMutation.mutate();
+              }
             }}
-            autoFocus
+            placeholder="SMS kodu"
+            value={smsCode}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={handleSmsDialogClose}>
+            <Button onClick={handleSmsDialogClose} variant="outline">
               İptal
             </Button>
             <Button

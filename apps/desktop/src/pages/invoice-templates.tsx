@@ -26,7 +26,7 @@ export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) 
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         {invoiceTemplates.map((t) => (
-          <Card key={t.id} className="cursor-pointer transition-colors hover:bg-accent/50">
+          <Card className="cursor-pointer transition-colors hover:bg-accent/50" key={t.id}>
             <CardHeader>
               <CardTitle>{t.name}</CardTitle>
               <CardDescription>{t.recipient.title}</CardDescription>
@@ -38,10 +38,10 @@ export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) 
                 <Badge variant="outline">{t.settings.invoiceType}</Badge>
               </div>
               <div className="mt-4 flex gap-2">
-                <Button size="sm" onClick={() => useTemplate(t.id)}>
+                <Button onClick={() => useTemplate(t.id)} size="sm">
                   Kullan
                 </Button>
-                <Button variant="destructive" size="icon-sm" onClick={() => setDeleteId(t.id)}>
+                <Button onClick={() => setDeleteId(t.id)} size="icon-sm" variant="destructive">
                   <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
                 </Button>
               </div>
@@ -49,19 +49,16 @@ export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) 
           </Card>
         ))}
         <button
-          type="button"
-          onClick={() => onNavigate('create')}
           className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+          onClick={() => onNavigate('create')}
+          type="button"
         >
-          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} className="size-6" />
+          <HugeiconsIcon className="size-6" icon={PlusSignIcon} strokeWidth={1.5} />
           <span className="text-sm font-medium">Yeni Şablon</span>
         </button>
       </div>
 
       <ConfirmDialog
-        open={deleteId !== null}
-        onOpenChange={(open) => !open && setDeleteId(null)}
-        title="Fatura Şablonunu Sil"
         description="Bu şablonu silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
         onConfirm={() => {
           if (deleteId) {
@@ -70,6 +67,9 @@ export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) 
             setDeleteId(null);
           }
         }}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        open={deleteId !== null}
+        title="Fatura Şablonunu Sil"
       />
     </div>
   );

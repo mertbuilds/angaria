@@ -34,8 +34,8 @@ export function SettingsPage() {
     try {
       await angaria.forceLogout(creds.username, creds.password, creds.testMode);
       toast.success('Oturum kapatıldı');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Çıkış yapılamadı');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Çıkış yapılamadı');
     } finally {
       setLoggingOut(false);
     }
@@ -63,22 +63,22 @@ export function SettingsPage() {
                 </p>
               </div>
               <Input
-                value={activeEntity.name}
                 onChange={(e) => renameEntity(activeEntityId, e.target.value)}
                 placeholder="Varlık adı"
+                value={activeEntity.name}
               />
             </div>
           </div>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={createEntity}>
+            <Button onClick={createEntity} type="button" variant="outline">
               <Plus className="size-4" />
               Yeni Varlık
             </Button>
             <Button
-              type="button"
-              variant="outline"
               disabled={entities.length === 1}
               onClick={() => deleteEntity(activeEntityId)}
+              type="button"
+              variant="outline"
             >
               <Trash2 className="size-4" />
               Varlığı Sil
@@ -100,26 +100,26 @@ export function SettingsPage() {
               <Label htmlFor="cred-user">Kullanıcı Adı</Label>
               <Input
                 id="cred-user"
-                value={creds.username}
                 onChange={(e) => setCreds((c) => ({ ...c, username: e.target.value }))}
                 placeholder="GİB kullanıcı adı"
+                value={creds.username}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="cred-pass">Şifre</Label>
               <Input
                 id="cred-pass"
-                type="password"
-                value={creds.password}
                 onChange={(e) => setCreds((c) => ({ ...c, password: e.target.value }))}
                 placeholder="GİB şifre"
+                type="password"
+                value={creds.password}
               />
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Switch
-              id="test-mode"
               checked={creds.testMode}
+              id="test-mode"
               onCheckedChange={(checked) => setCreds((c) => ({ ...c, testMode: checked }))}
             />
             <Label htmlFor="test-mode">Test modu (earsivportaltest.efatura.gov.tr)</Label>
@@ -137,52 +137,52 @@ export function SettingsPage() {
             <div className="space-y-2">
               <Label>Firma Adı / Ünvan</Label>
               <Input
-                value={companyInfo.name}
                 onChange={(e) => setCompanyInfo((c) => ({ ...c, name: e.target.value }))}
                 placeholder="Firma Adı A.Ş."
+                value={companyInfo.name}
               />
             </div>
             <div className="space-y-2">
               <Label>VKN / TCKN</Label>
               <Input
-                value={companyInfo.taxID}
                 onChange={(e) => setCompanyInfo((c) => ({ ...c, taxID: e.target.value }))}
                 placeholder="1234567890"
+                value={companyInfo.taxID}
               />
             </div>
           </div>
           <div className="space-y-2">
             <Label>Vergi Dairesi</Label>
             <Input
-              value={companyInfo.taxOffice}
               onChange={(e) => setCompanyInfo((c) => ({ ...c, taxOffice: e.target.value }))}
               placeholder="Kadıköy"
+              value={companyInfo.taxOffice}
             />
           </div>
           <div className="space-y-2">
             <Label>Adres</Label>
             <Textarea
-              value={companyInfo.address}
               onChange={(e) => setCompanyInfo((c) => ({ ...c, address: e.target.value }))}
               placeholder="Tam adres"
               rows={3}
+              value={companyInfo.address}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Telefon</Label>
               <Input
-                value={companyInfo.phone}
                 onChange={(e) => setCompanyInfo((c) => ({ ...c, phone: e.target.value }))}
                 placeholder="+90 555 123 45 67"
+                value={companyInfo.phone}
               />
             </div>
             <div className="space-y-2">
               <Label>E-posta</Label>
               <Input
-                value={companyInfo.email}
                 onChange={(e) => setCompanyInfo((c) => ({ ...c, email: e.target.value }))}
                 placeholder="info@firma.com"
+                value={companyInfo.email}
               />
             </div>
           </div>
@@ -199,17 +199,17 @@ export function SettingsPage() {
             <div className="space-y-2">
               <Label>Banka Adı</Label>
               <Input
-                value={companyInfo.bankName}
                 onChange={(e) => setCompanyInfo((c) => ({ ...c, bankName: e.target.value }))}
                 placeholder="Ziraat Bankası"
+                value={companyInfo.bankName}
               />
             </div>
             <div className="space-y-2">
               <Label>Hesap Sahibi</Label>
               <Input
-                value={companyInfo.accountHolder}
                 onChange={(e) => setCompanyInfo((c) => ({ ...c, accountHolder: e.target.value }))}
                 placeholder="Ad Soyad"
+                value={companyInfo.accountHolder}
               />
             </div>
           </div>
@@ -217,27 +217,27 @@ export function SettingsPage() {
             <div className="space-y-2">
               <Label>IBAN</Label>
               <Input
-                value={companyInfo.iban}
                 onChange={(e) => setCompanyInfo((c) => ({ ...c, iban: e.target.value }))}
                 placeholder="TR00 0000 0000 0000 0000 0000 00"
+                value={companyInfo.iban}
               />
             </div>
             <div className="space-y-2">
               <Label>Swift Kodu</Label>
               <Input
-                value={companyInfo.swiftCode}
                 onChange={(e) => setCompanyInfo((c) => ({ ...c, swiftCode: e.target.value }))}
                 placeholder="TCZBTR2AXXX"
+                value={companyInfo.swiftCode}
               />
             </div>
           </div>
           <div className="space-y-2">
             <Label>Banka Adresi</Label>
             <Textarea
-              value={companyInfo.bankAddress}
               onChange={(e) => setCompanyInfo((c) => ({ ...c, bankAddress: e.target.value }))}
               placeholder="Banka şube adresi"
               rows={2}
+              value={companyInfo.bankAddress}
             />
           </div>
         </CardContent>
@@ -250,9 +250,9 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <Button
-            variant="outline"
             disabled={loggingOut || !creds.username || !creds.password}
             onClick={handleForceLogout}
+            variant="outline"
           >
             {loggingOut ? 'Çıkış yapılıyor...' : 'Güvenli Çıkış (Oturumu Kapat)'}
           </Button>

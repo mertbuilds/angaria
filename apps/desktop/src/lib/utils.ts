@@ -3,7 +3,7 @@ import { format, parse } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { twMerge } from 'tailwind-merge';
 
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: Array<ClassValue>) {
   return twMerge(clsx(inputs));
 }
 
@@ -12,11 +12,13 @@ const GIB_FORMAT_DASH = 'dd-MM-yyyy';
 
 /** Parse a GIB date string (dd/MM/yyyy or dd-MM-yyyy) into a Date */
 export function parseGIB(s: string): Date | undefined {
-  if (!s) return undefined;
+  if (!s) {
+    return undefined;
+  }
   try {
     const fmt = s.includes('/') ? GIB_FORMAT : GIB_FORMAT_DASH;
     const d = parse(s, fmt, new Date());
-    return isNaN(d.getTime()) ? undefined : d;
+    return Number.isNaN(d.getTime()) ? undefined : d;
   } catch {
     return undefined;
   }

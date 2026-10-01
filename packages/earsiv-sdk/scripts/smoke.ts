@@ -45,16 +45,16 @@ async function loginWithRetry(): Promise<SessionInfo> {
     const s = await client.login(USER, PASS, MODE === 'test');
     ok('login', `token=${s.token.slice(0, 10)}…`);
     return s;
-  } catch (err) {
-    if (err instanceof Error && err.message.includes('birden fazla giriş')) {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('birden fazla giriş')) {
       try {
         console.log('… açık oturum var, kapatılıp tekrar deneniyor');
         await client.forceLogout(USER, PASS, MODE === 'test');
         const s = await client.login(USER, PASS, MODE === 'test');
         ok('login (2. deneme)', `token=${s.token.slice(0, 10)}…`);
         return s;
-      } catch (retryErr) {
-        fail('login (2. deneme)', retryErr);
+      } catch (error) {
+        fail('login (2. deneme)', error);
         if (MODE === 'test') {
           console.error(
             'Demo hesap meşgul olabilir; başka bir hesap deneyin: EARSIV_USER=33333315 EARSIV_PASS=1',
@@ -63,7 +63,7 @@ async function loginWithRetry(): Promise<SessionInfo> {
         process.exit(1);
       }
     }
-    fail('login', err);
+    fail('login', error);
     process.exit(1);
   }
 }
@@ -105,10 +105,13 @@ try {
   });
   uuid = draft.uuid;
   ok('createDraftInvoice', `GİB yanıtı: ${JSON.stringify(draft.response.data)}`);
-  if (uuid) ok('ETTN bulundu', uuid);
-  else fail('ETTN bulunamadı', 'GİB başarı dedi ama taslak listesinde eşleşen kayıt yok');
-} catch (err) {
-  fail('createDraftInvoice', err);
+  if (uuid) {
+    ok('ETTN bulundu', uuid);
+  } else {
+    fail('ETTN bulunamadı', 'GİB başarı dedi ama taslak listesinde eşleşen kayıt yok');
+  }
+} catch (error) {
+  fail('createDraftInvoice', error);
 }
 
 let createdRow: Record<string, unknown> | undefined;
@@ -127,16 +130,16 @@ try {
   } else if (uuid) {
     fail('getDrafts', 'oluşturulan taslak listede YOK');
   }
-} catch (err) {
-  fail('getDrafts', err);
+} catch (error) {
+  fail('getDrafts', error);
 }
 
 if (uuid) {
   try {
     const html = await client.getInvoiceHTML(session, uuid, 'Onaylanmadı');
     ok('getInvoiceHTML (önizleme)', `${html.length} karakter`);
-  } catch (err) {
-    fail('getInvoiceHTML (önizleme)', err);
+  } catch (error) {
+    fail('getInvoiceHTML (önizleme)', error);
   }
 }
 
@@ -144,8 +147,8 @@ if (createdRow && !KEEP) {
   try {
     await client.cancelInvoice(session, 'smoke test temizliği', createdRow);
     ok('cancelInvoice (temizlik)', 'test taslağı silindi');
-  } catch (err) {
-    fail('cancelInvoice (temizlik)', err);
+  } catch (error) {
+    fail('cancelInvoice (temizlik)', error);
   }
 } else if (createdRow && KEEP) {
   console.log('EARSIV_KEEP=1 — test taslağı silinmedi, portalda inceleyebilirsiniz.');
@@ -154,6 +157,6 @@ if (createdRow && !KEEP) {
 try {
   await client.logout(session);
   ok('logout');
-} catch (err) {
-  fail('logout', err);
+} catch (error) {
+  fail('logout', error);
 }

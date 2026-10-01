@@ -43,11 +43,15 @@ const MONTHS = [
 
 /** Parse "dd/MM/yyyy" or "dd-MM-yyyy" into "dd Month yyyy" */
 function formatDateHuman(raw: string): string {
-  if (!raw) return '';
+  if (!raw) {
+    return '';
+  }
   const sep = raw.includes('/') ? '/' : '-';
   const [dd, mm, yyyy] = raw.split(sep);
   const monthIdx = Number(mm) - 1;
-  if (monthIdx < 0 || monthIdx > 11) return raw;
+  if (monthIdx < 0 || monthIdx > 11) {
+    return raw;
+  }
   return `${dd} ${MONTHS[monthIdx]} ${yyyy}`;
 }
 
@@ -114,7 +118,7 @@ function countryEN(tr: string): string {
 }
 
 /** Split a multiline address string into individual lines */
-function addressLines(addr: string): string[] {
+function addressLines(addr: string): Array<string> {
   return addr
     .split(/[\n,]+/)
     .map((l) => l.trim())
@@ -374,20 +378,20 @@ const s = StyleSheet.create({
 // ── Data interface ──
 
 export interface InvoicePDFData {
-  entityName?: string;
   company: CompanyInfo;
+  date: string;
+  entityName?: string;
+  grandTotal: number;
+  invoiceNumber?: string;
+  items: Array<InvoiceItem>;
+  note?: string;
+  paymentTotal?: number;
   recipient: Recipient;
   settings: InvoiceSettings;
-  items: InvoiceItem[];
-  date: string;
   time?: string;
-  invoiceNumber?: string;
-  note?: string;
-  grandTotal: number;
-  totalVAT: number;
   total: number;
   totalDiscount?: number;
-  paymentTotal?: number;
+  totalVAT: number;
 }
 
 function sanitizeFilenamePart(value: string | undefined, fallback: string) {
@@ -395,19 +399,25 @@ function sanitizeFilenamePart(value: string | undefined, fallback: string) {
     .filter((char) => char >= ' ')
     .join('');
   const cleaned = withoutControlChars
-    .replace(/[^\p{L}\p{N}]+/gu, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
+    .replaceAll(/[^\p{L}\p{N}]+/gu, '-')
+    .replaceAll(/-+/g, '-')
+    .replaceAll(/^-|-$/g, '')
     .trim();
   return cleaned || fallback;
 }
 
 function formatFilenameDate(date: string) {
-  if (!date) return 'tarihsiz';
+  if (!date) {
+    return 'tarihsiz';
+  }
   const sep = date.includes('/') ? '/' : date.includes('-') ? '-' : null;
-  if (!sep) return sanitizeFilenamePart(date, 'tarihsiz');
+  if (!sep) {
+    return sanitizeFilenamePart(date, 'tarihsiz');
+  }
   const [dd, mm, yyyy] = date.split(sep);
-  if (!dd || !mm || !yyyy) return sanitizeFilenamePart(date, 'tarihsiz');
+  if (!dd || !mm || !yyyy) {
+    return sanitizeFilenamePart(date, 'tarihsiz');
+  }
   return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
 
@@ -609,7 +619,7 @@ export async function downloadInvoicePDF(data: InvoicePDFData, filename?: string
   const a = document.createElement('a');
   a.href = url;
   a.download = filename ?? buildInvoicePDFFilename(data);
-  document.body.appendChild(a);
+  document.body.append(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);

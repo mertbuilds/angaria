@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceItem } from '@/lib/types.ts';
 
+const formatMoney = (n: number) =>
+  new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+
 export function ItemTemplatesPage() {
   const { savedItems, setSavedItems, newId, defaultItemAdvanced } = useStore();
 
@@ -27,9 +30,6 @@ export function ItemTemplatesPage() {
     ]);
     setEditingItemId(id);
   }
-
-  const formatMoney = (n: number) =>
-    new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
 
   return (
     <div className="space-y-4">
@@ -59,15 +59,15 @@ export function ItemTemplatesPage() {
                 {savedItems.map((item) => {
                   const isEditing = editingItemId === item.id;
                   return (
-                    <tr key={item.id} className="group border-b last:border-0 hover:bg-muted/30">
+                    <tr className="group border-b last:border-0 hover:bg-muted/30" key={item.id}>
                       <td className="px-4 py-2">
                         {isEditing ? (
                           <Input
-                            value={item.name}
+                            autoFocus
+                            className="h-8"
                             onChange={(e) => updateSavedItem(item.id, 'name', e.target.value)}
                             placeholder="Kalem adı"
-                            className="h-8"
-                            autoFocus
+                            value={item.name}
                           />
                         ) : (
                           <span className="inline-flex h-8 items-center font-medium">
@@ -78,12 +78,12 @@ export function ItemTemplatesPage() {
                       <td className="px-2 py-2 text-right">
                         {isEditing ? (
                           <Input
+                            className="h-8 text-right"
                             inputMode="numeric"
-                            value={item.quantity}
                             onChange={(e) =>
                               updateSavedItem(item.id, 'quantity', Number(e.target.value) || 0)
                             }
-                            className="h-8 text-right"
+                            value={item.quantity}
                           />
                         ) : (
                           <span className="inline-flex h-8 items-center tabular-nums">
@@ -94,12 +94,12 @@ export function ItemTemplatesPage() {
                       <td className="px-2 py-2 text-right">
                         {isEditing ? (
                           <Input
+                            className="h-8 text-right"
                             inputMode="decimal"
-                            value={item.unitPrice || ''}
                             onChange={(e) =>
                               updateSavedItem(item.id, 'unitPrice', Number(e.target.value) || 0)
                             }
-                            className="h-8 text-right"
+                            value={item.unitPrice || ''}
                           />
                         ) : (
                           <span className="inline-flex h-8 items-center tabular-nums">
@@ -110,12 +110,12 @@ export function ItemTemplatesPage() {
                       <td className="px-2 py-2 text-right">
                         {isEditing ? (
                           <Input
+                            className="h-8 text-right"
                             inputMode="numeric"
-                            value={item.VATRate}
                             onChange={(e) =>
                               updateSavedItem(item.id, 'VATRate', Number(e.target.value) || 0)
                             }
-                            className="h-8 text-right"
+                            value={item.VATRate}
                           />
                         ) : (
                           <span className="inline-flex h-8 items-center tabular-nums">
@@ -126,8 +126,6 @@ export function ItemTemplatesPage() {
                       <td className="px-2 py-2">
                         <div className="flex items-center justify-end gap-1">
                           <Button
-                            variant={isEditing ? 'outline' : 'ghost'}
-                            size="icon-xs"
                             onClick={() => {
                               if (isEditing) {
                                 setEditingItemId(null);
@@ -136,6 +134,8 @@ export function ItemTemplatesPage() {
                                 setEditingItemId(item.id);
                               }
                             }}
+                            size="icon-xs"
+                            variant={isEditing ? 'outline' : 'ghost'}
                           >
                             <HugeiconsIcon
                               icon={isEditing ? Tick02Icon : Edit01Icon}
@@ -143,9 +143,9 @@ export function ItemTemplatesPage() {
                             />
                           </Button>
                           <Button
-                            variant="destructive"
-                            size="icon-xs"
                             onClick={() => setDeleteId(item.id)}
+                            size="icon-xs"
+                            variant="destructive"
                           >
                             <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} />
                           </Button>
@@ -159,19 +159,16 @@ export function ItemTemplatesPage() {
           )}
         </CardContent>
         <button
-          type="button"
-          onClick={addNewItem}
           className="flex w-full items-center justify-center gap-2 border-t py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={addNewItem}
+          type="button"
         >
-          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} className="size-4" />
+          <HugeiconsIcon className="size-4" icon={PlusSignIcon} strokeWidth={1.5} />
           Yeni Kalem
         </button>
       </Card>
 
       <ConfirmDialog
-        open={deleteId !== null}
-        onOpenChange={(open) => !open && setDeleteId(null)}
-        title="Kalem Şablonunu Sil"
         description="Bu şablonu silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
         onConfirm={() => {
           if (deleteId) {
@@ -180,6 +177,9 @@ export function ItemTemplatesPage() {
             setDeleteId(null);
           }
         }}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        open={deleteId !== null}
+        title="Kalem Şablonunu Sil"
       />
     </div>
   );

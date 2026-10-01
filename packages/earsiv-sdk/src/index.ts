@@ -2,104 +2,111 @@ const PROD_URL = 'https://earsivportal.efatura.gov.tr';
 const TEST_URL = 'https://earsivportaltest.efatura.gov.tr';
 
 export interface SessionInfo {
-  token: string;
-  cookies: string[];
   baseUrl: string;
+  cookies: Array<string>;
+  token: string;
 }
 
 export interface InvoiceItem {
-  name: string;
-  quantity: number;
-  unitType?: string;
-  unitPrice: number;
-  price: number;
-  VATRate: number;
-  VATAmount: number;
-  discountRate?: number;
   discountAmount?: number;
+  discountRate?: number;
   discountReason?: string;
   gtip?: string;
+  name: string;
+  price: number;
+  quantity: number;
+  unitPrice: number;
+  unitType?: string;
+  VATAmount: number;
+  VATRate: number;
 }
 
 export interface InvoiceDetails {
-  date: string; // DD/MM/YYYY
-  time: string; // HH:MM:SS
+  city?: string;
+  country?: string;
   currency?: string;
   currencyRate?: string;
-  invoiceType?: string;
-  taxIDOrTRID: string;
-  title: string;
-  name?: string;
-  surname?: string;
-  fullAddress: string;
-  country?: string;
-  city?: string;
+  date: string; // DD/MM/YYYY
   district?: string;
-  taxOffice?: string;
-  items: InvoiceItem[];
+  fullAddress: string;
   grandTotal: number;
-  totalVAT: number;
   grandTotalInclVAT: number;
-  paymentTotal: number;
-  note?: string;
-  totalDiscount?: number;
+  invoiceType?: string;
   irsaliyeNumarasi?: string;
   irsaliyeTarihi?: string;
+  items: Array<InvoiceItem>;
+  name?: string;
+  note?: string;
+  paymentTotal: number;
+  surname?: string;
+  taxIDOrTRID: string;
+  taxOffice?: string;
+  time: string; // HH:MM:SS
+  title: string;
+  totalDiscount?: number;
+  totalVAT: number;
 }
 
 type FetchFn = typeof globalThis.fetch;
 
-function extractCookies(response: Response): string[] {
-  const cookies: string[] = [];
+function extractCookies(response: Response): Array<string> {
+  const cookies: Array<string> = [];
   response.headers.forEach((value, key) => {
     if (key.toLowerCase() === 'set-cookie') {
       const cookie = value.split(';')[0];
-      if (cookie) cookies.push(cookie);
+      if (cookie) {
+        cookies.push(cookie);
+      }
     }
   });
   return cookies;
 }
 
-function mergeCookies(existing: string[], incoming: string[]): string[] {
+function mergeCookies(existing: Array<string>, incoming: Array<string>): Array<string> {
   const map = new Map<string, string>();
   for (const c of [...existing, ...incoming]) {
     const name = c.split('=')[0];
-    if (name) map.set(name, c);
+    if (name) {
+      map.set(name, c);
+    }
   }
   return [...map.values()];
 }
 
 export interface EarsivClient {
-  login(username: string, password: string, testMode: boolean): Promise<SessionInfo>;
-  logout(session: SessionInfo): Promise<void>;
-  forceLogout(username: string, password: string, testMode: boolean): Promise<void>;
-  getUUID(session: SessionInfo): Promise<string>;
-  createDraftInvoice(
-    session: SessionInfo,
-    details: InvoiceDetails,
-  ): Promise<{ uuid: string; date: string; response: Record<string, unknown> }>;
-  getInvoiceDetail(session: SessionInfo, ettn: string): Promise<Record<string, unknown>>;
-  getInvoiceHTML(session: SessionInfo, uuid: string, onayDurumu: string): Promise<string>;
-  getDrafts(session: SessionInfo, startDate: string, endDate: string): Promise<unknown[]>;
-  signInvoiceHSM(
-    session: SessionInfo,
-    invoice: Record<string, unknown>,
-  ): Promise<Record<string, unknown>>;
-  getSigningPhone(session: SessionInfo): Promise<string>;
-  requestSigningSMS(session: SessionInfo, phone: string): Promise<string>;
-  verifyAndSign(
-    session: SessionInfo,
-    smsCode: string,
-    oid: string,
-    invoiceIds: string[],
-  ): Promise<Record<string, unknown>>;
-  startSMSSign(session: SessionInfo): Promise<{ phone: string; oid: string }>;
   cancelInvoice(
     session: SessionInfo,
     reason: string,
     invoice: Record<string, unknown>,
   ): Promise<Record<string, unknown>>;
+  createDraftInvoice(
+    session: SessionInfo,
+    details: InvoiceDetails,
+  ): Promise<{ date: string; response: Record<string, unknown>; uuid: string }>;
+  forceLogout(username: string, password: string, testMode: boolean): Promise<void>;
+  getDrafts(session: SessionInfo, startDate: string, endDate: string): Promise<Array<unknown>>;
+  getInvoiceDetail(session: SessionInfo, ettn: string): Promise<Record<string, unknown>>;
+  getInvoiceHTML(session: SessionInfo, uuid: string, onayDurumu: string): Promise<string>;
+  getSigningPhone(session: SessionInfo): Promise<string>;
+  getUUID(session: SessionInfo): Promise<string>;
+  login(username: string, password: string, testMode: boolean): Promise<SessionInfo>;
+  logout(session: SessionInfo): Promise<void>;
+  requestSigningSMS(session: SessionInfo, phone: string): Promise<string>;
+  signInvoiceHSM(
+    session: SessionInfo,
+    invoice: Record<string, unknown>,
+  ): Promise<Record<string, unknown>>;
+  startSMSSign(session: SessionInfo): Promise<{ oid: string; phone: string }>;
+  verifyAndSign(
+    session: SessionInfo,
+    smsCode: string,
+    oid: string,
+    invoiceIds: Array<string>,
+  ): Promise<Record<string, unknown>>;
 }
+
+const str = (v: unknown) => (typeof v === 'string' ? v : '');
+const norm = (s: string) => s.trim().toLocaleUpperCase('tr');
 
 export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
   const fetchFn: FetchFn = options?.fetch ?? globalThis.fetch;
@@ -217,7 +224,7 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
   async function createDraftInvoice(
     session: SessionInfo,
     details: InvoiceDetails,
-  ): Promise<{ uuid: string; date: string; response: Record<string, unknown> }> {
+  ): Promise<{ date: string; response: Record<string, unknown>; uuid: string }> {
     const invoiceData: Record<string, unknown> = {
       // Must be empty: GİB now assigns the ETTN server-side and rejects
       // client-generated UUIDs with "Ettn ya eksik ya boş..." errors.
@@ -327,13 +334,13 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
           d.onayDurumu === 'Onaylanmadı',
       );
 
-      const str = (v: unknown) => (typeof v === 'string' ? v : '');
-      const norm = (s: string) => s.trim().toLocaleUpperCase('tr');
       const candidates = [details.title, `${details.name ?? ''} ${details.surname ?? ''}`]
         .map(norm)
         .filter(Boolean);
       const recipientRows = rows.filter((d) => candidates.includes(norm(str(d.aliciUnvanAdSoyad))));
-      if (recipientRows.length > 0) rows = recipientRows;
+      if (recipientRows.length > 0) {
+        rows = recipientRows;
+      }
 
       const newest = rows.reduce<Record<string, unknown> | undefined>(
         (best, d) => (!best || str(d.belgeNumarasi) > str(best.belgeNumarasi) ? d : best),
@@ -371,14 +378,14 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
     session: SessionInfo,
     startDate: string,
     endDate: string,
-  ): Promise<unknown[]> {
+  ): Promise<Array<unknown>> {
     const result = await dispatch(session, 'EARSIV_PORTAL_TASLAKLARI_GETIR', 'RG_BASITTASLAKLAR', {
       baslangic: startDate,
       bitis: endDate,
       hangiTip: '5000/30000',
       table: [],
     });
-    return (result.data as unknown[]) ?? [];
+    return (result.data as Array<unknown>) ?? [];
   }
 
   async function signInvoiceHSM(
@@ -415,7 +422,7 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
     session: SessionInfo,
     smsCode: string,
     oid: string,
-    invoiceIds: string[],
+    invoiceIds: Array<string>,
   ): Promise<Record<string, unknown>> {
     const result = await dispatch(session, '0lhozfib5410mp', 'RG_SMSONAY', {
       SIFRE: smsCode,
@@ -432,11 +439,15 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
     return result;
   }
 
-  async function startSMSSign(session: SessionInfo): Promise<{ phone: string; oid: string }> {
+  async function startSMSSign(session: SessionInfo): Promise<{ oid: string; phone: string }> {
     const phone = await getSigningPhone(session);
-    if (!phone) throw new Error('SMS onay için kayıtlı telefon numarası bulunamadı');
+    if (!phone) {
+      throw new Error('SMS onay için kayıtlı telefon numarası bulunamadı');
+    }
     const oid = await requestSigningSMS(session, phone);
-    if (!oid) throw new Error('SMS gönderimi başarısız');
+    if (!oid) {
+      throw new Error('SMS gönderimi başarısız');
+    }
     return { phone, oid };
   }
 

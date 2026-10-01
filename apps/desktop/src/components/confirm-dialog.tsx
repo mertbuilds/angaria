@@ -18,16 +18,16 @@ export function ConfirmDialog({
   confirmLabel = 'Sil',
   cancelLabel = 'İptal',
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
+  cancelLabel?: string;
+  confirmLabel?: string;
   description: string;
   onConfirm: () => void;
-  confirmLabel?: string;
-  cancelLabel?: string;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  title: string;
 }) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog onOpenChange={onOpenChange} open={open}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

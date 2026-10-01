@@ -26,11 +26,53 @@ export default defineConfig({
       },
     },
     {
+      // CLI scripts (e.g. the e-Arşiv smoke test) report to the terminal.
+      files: ['**/scripts/**'],
+      rules: {
+        'no-console': 'off',
+      },
+    },
+    {
       // The desktop app is Turkish only and has no i18n layer, so its UI
       // strings are inline by design. Paraglide applies to apps/web.
       files: ['apps/desktop/**'],
       rules: {
         'react/jsx-no-literals': 'off',
+      },
+    },
+    {
+      // Pre-relaunch code keeps its object key order: sorting would reorder
+      // ~950 literals, including the GİB request payloads built in the SDK.
+      files: ['apps/desktop/src/**', 'packages/earsiv-sdk/**'],
+      rules: {
+        'perfectionist/sort-objects': 'off',
+      },
+    },
+    {
+      // Pre-relaunch desktop files (shadcn copies in components/ui included).
+      // Fixing these changes behavior, not just code shape: hook deps and
+      // effects change when code runs, the use* calls flagged in callbacks are
+      // store actions, not hooks, and namespace imports would need call-site
+      // rewrites. Drop a file from this list when the relaunch rewrites it.
+      files: [
+        'apps/desktop/src/app.tsx',
+        'apps/desktop/src/components/invoice-picker-dialog.tsx',
+        'apps/desktop/src/components/ui/**',
+        'apps/desktop/src/hooks/use-mobile.ts',
+        'apps/desktop/src/lib/store.tsx',
+        'apps/desktop/src/pages/create-invoice.tsx',
+        'apps/desktop/src/pages/customers.tsx',
+        'apps/desktop/src/pages/invoice-templates.tsx',
+        'apps/desktop/src/pages/invoices.tsx',
+        'apps/desktop/src/pages/settings.tsx',
+      ],
+      rules: {
+        'import/no-namespace': 'off',
+        'react/exhaustive-deps': 'off',
+        'react/incompatible-library': 'off',
+        'react/purity': 'off',
+        'react/rules-of-hooks': 'off',
+        'react/set-state-in-effect': 'off',
       },
     },
     {

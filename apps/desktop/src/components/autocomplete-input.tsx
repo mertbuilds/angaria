@@ -14,13 +14,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 
 interface AutocompleteInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSelect: (id: string) => void;
-  onCreate?: (value: string) => void;
-  suggestions: { id: string; label: string }[];
-  placeholder?: string;
   className?: string;
+  onChange: (value: string) => void;
+  onCreate?: (value: string) => void;
+  onSelect: (id: string) => void;
+  placeholder?: string;
+  suggestions: Array<{ id: string; label: string }>;
+  value: string;
 }
 
 export function AutocompleteInput({
@@ -36,35 +36,34 @@ export function AutocompleteInput({
   const [search, setSearch] = useState('');
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
-          size="sm"
-          role="combobox"
           aria-expanded={open}
           className={cn(
             'w-[240px] justify-between font-normal',
             !value && 'text-muted-foreground',
             className,
           )}
+          role="combobox"
+          size="sm"
+          variant="outline"
         >
           <span className="truncate">{value || placeholder}</span>
           <HugeiconsIcon
+            className="ml-auto size-4 shrink-0 opacity-50"
             icon={ArrowDown01Icon}
             strokeWidth={1.5}
-            className="ml-auto size-4 shrink-0 opacity-50"
           />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command shouldFilter={false}>
-          <CommandInput placeholder="Ara veya yaz..." value={search} onValueChange={setSearch} />
+          <CommandInput onValueChange={setSearch} placeholder="Ara veya yaz..." value={search} />
           <CommandList>
             <CommandEmpty>
               {search.trim() ? (
                 <button
-                  type="button"
                   className="w-full px-2 py-1.5 text-left text-sm hover:bg-accent"
                   onClick={() => {
                     const val = search.trim();
@@ -73,6 +72,7 @@ export function AutocompleteInput({
                     setSearch('');
                     setOpen(false);
                   }}
+                  type="button"
                 >
                   &ldquo;{search.trim()}&rdquo; olarak kullan
                 </button>
@@ -85,14 +85,14 @@ export function AutocompleteInput({
                 .filter((s) => s.label.toLowerCase().includes(search.toLowerCase()))
                 .map((s) => (
                   <CommandItem
-                    key={s.id}
-                    value={s.label}
                     data-checked={s.label === value}
+                    key={s.id}
                     onSelect={() => {
                       onSelect(s.id);
                       setSearch('');
                       setOpen(false);
                     }}
+                    value={s.label}
                   >
                     {s.label}
                   </CommandItem>

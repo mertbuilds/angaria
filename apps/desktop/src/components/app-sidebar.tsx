@@ -42,12 +42,12 @@ export type Page =
   | 'customers'
   | 'settings';
 
-const mainNav: { page: Page; label: string; icon: typeof Invoice01Icon }[] = [
+const mainNav: Array<{ icon: typeof Invoice01Icon; label: string; page: Page }> = [
   { page: 'create', label: 'Fatura Oluştur', icon: FileAddIcon },
   { page: 'invoices', label: 'Faturalarım', icon: Invoice01Icon },
 ];
 
-const templateNav: { page: Page; label: string; icon: typeof Invoice01Icon }[] = [
+const templateNav: Array<{ icon: typeof Invoice01Icon; label: string; page: Page }> = [
   { page: 'invoice-templates', label: 'Faturalar', icon: ClipboardIcon },
   { page: 'item-templates', label: 'Kalemler', icon: AddToListIcon },
   { page: 'customers', label: 'Müşteriler', icon: UserAccountIcon },
@@ -62,9 +62,13 @@ export function AppSidebar({
 }) {
   const { entities, activeEntity, activeEntityId, setActiveEntityId, createEntity } = useStore();
   const handleDrag = useCallback((e: React.MouseEvent) => {
-    if (e.buttons !== 1) return;
+    if (e.buttons !== 1) {
+      return;
+    }
     const target = e.target as HTMLElement;
-    if (target.closest('button, a, input, [role=button]')) return;
+    if (target.closest('button, a, input, [role=button]')) {
+      return;
+    }
     if (e.detail === 2) {
       void getCurrentWindow().toggleMaximize();
     } else {
@@ -143,11 +147,11 @@ export function AppSidebar({
                   <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="min-w-56">
+              <DropdownMenuContent align="start" className="min-w-56" side="top">
                 <DropdownMenuLabel>Varlıklar</DropdownMenuLabel>
                 <DropdownMenuRadioGroup
-                  value={activeEntityId}
                   onValueChange={(value) => setActiveEntityId(value)}
+                  value={activeEntityId}
                 >
                   {entities.map((entity) => (
                     <DropdownMenuRadioItem key={entity.id} value={entity.id}>

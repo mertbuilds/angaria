@@ -50,6 +50,8 @@ import { parseGIB, toGIB } from '@/lib/utils.ts';
 const formatMoney = (currency: string, n: number) =>
   new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(n);
 
+const p = (n: number) => String(n).padStart(2, '0');
+
 export function CreateInvoicePage({ requireCredentials }: { requireCredentials: () => boolean }) {
   const {
     activeEntity,
@@ -103,7 +105,9 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
 
   // Auto-fill currency rate when rates arrive or currency changes
   useEffect(() => {
-    if (!isForeignCurrency || !tcmbQuery.data) return;
+    if (!isForeignCurrency || !tcmbQuery.data) {
+      return;
+    }
     const rate = tcmbQuery.data.get(invoiceSettings.currency);
     if (rate) {
       setInvoiceSettings((s) => ({ ...s, currencyRate: rate.toFixed(4) }));
@@ -129,13 +133,17 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
 
   function selectRecipient(id: string) {
     const found = savedRecipients.find((r) => r.id === id);
-    if (found) setRecipient({ ...found });
+    if (found) {
+      setRecipient({ ...found });
+    }
   }
 
   function updateItem(id: string, field: string, value: string | number) {
     setItems((prev) =>
       prev.map((i) => {
-        if (i.id !== id) return i;
+        if (i.id !== id) {
+          return i;
+        }
         const updated = { ...i, [field]: value };
         // Auto-calculate discount amount from rate
         if (field === 'discountRate') {
@@ -149,7 +157,9 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
   // Auto-sync items with non-empty names to saved item templates
   useEffect(() => {
     const namedItems = items.filter((i) => i.name.trim());
-    if (namedItems.length === 0) return;
+    if (namedItems.length === 0) {
+      return;
+    }
     setSavedItems((prev) => {
       let next = [...prev];
       for (const item of namedItems) {
@@ -179,10 +189,15 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
         const from = ids.indexOf(lastCheckedRef.current);
         const to = ids.indexOf(id);
         const [start, end] = from < to ? [from, to] : [to, from];
-        for (let i = start; i <= end; i++) next.add(ids[i]);
+        for (let i = start; i <= end; i++) {
+          next.add(ids[i]);
+        }
       } else {
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
       }
       return next;
     });
@@ -198,7 +213,9 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
   }
 
   function confirmRemoveItems() {
-    if (selectedItemIds.size === 0) return;
+    if (selectedItemIds.size === 0) {
+      return;
+    }
     setItems((prev) => {
       const remaining = prev.filter((i) => !selectedItemIds.has(i.id));
       return remaining.length > 0 ? remaining : [prev[0]];
@@ -209,7 +226,9 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
 
   function loadItemTemplate(templateId: string, itemId: string) {
     const t = savedItems.find((x) => x.id === templateId);
-    if (t) setItems((prev) => prev.map((i) => (i.id === itemId ? { ...t, id: itemId } : i)));
+    if (t) {
+      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...t, id: itemId } : i)));
+    }
   }
 
   function saveInvoiceTemplate(name: string) {
@@ -229,7 +248,6 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
 
   function buildPDFData(invoiceNumber?: string): InvoicePDFData {
     const now = new Date();
-    const p = (n: number) => String(n).padStart(2, '0');
     const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
     const date = advancedFields.manualDate || autoDate;
     const paymentTotal = advancedFields.paymentTotal ? Number(advancedFields.paymentTotal) : total;
@@ -261,7 +279,6 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
   const createMutation = useMutation({
     mutationFn: async () => {
       const now = new Date();
-      const p = (n: number) => String(n).padStart(2, '0');
       const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
       const autoTime = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
       const date = advancedFields.manualDate || autoDate;
@@ -378,7 +395,9 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
   });
 
   function createInvoice() {
-    if (!requireCredentials()) return;
+    if (!requireCredentials()) {
+      return;
+    }
     if (!recipient.taxIDOrTRID || !recipient.title || !recipient.fullAddress) {
       toast.error('Alıcı bilgileri eksik');
       return;
@@ -407,8 +426,8 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="grid gap-4 sm:grid-cols-3">
               {recentTemplates.map((t) => (
                 <Card
-                  key={t.id}
                   className="cursor-pointer transition-colors hover:bg-accent/50"
+                  key={t.id}
                   onClick={() => {
                     loadTemplate(t.id);
                     toast.success(`"${t.name}" şablonu yüklendi`);
@@ -444,33 +463,35 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
 
         <div className="grid gap-4 sm:grid-cols-2">
           <button
-            type="button"
-            onClick={startBlankInvoice}
             className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            onClick={startBlankInvoice}
+            type="button"
           >
-            <HugeiconsIcon icon={FileAddIcon} strokeWidth={1.5} className="size-6" />
+            <HugeiconsIcon className="size-6" icon={FileAddIcon} strokeWidth={1.5} />
             <span className="text-sm font-medium">Sıfırdan Oluştur</span>
           </button>
           <button
-            type="button"
+            className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
             onClick={() => {
-              if (!requireCredentials()) return;
+              if (!requireCredentials()) {
+                return;
+              }
               setShowInvoicePicker(true);
             }}
-            className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            type="button"
           >
-            <HugeiconsIcon icon={Invoice01Icon} strokeWidth={1.5} className="size-6" />
+            <HugeiconsIcon className="size-6" icon={Invoice01Icon} strokeWidth={1.5} />
             <span className="text-sm font-medium">Eski Faturadan Oluştur</span>
           </button>
         </div>
 
         <InvoicePickerDialog
-          open={showInvoicePicker}
           onOpenChange={setShowInvoicePicker}
           onSelect={(detail) => {
             loadFromGIBInvoice(detail as unknown as Record<string, unknown>);
             setShowInvoicePicker(false);
           }}
+          open={showInvoicePicker}
         />
       </div>
     );
@@ -488,8 +509,8 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="space-y-2">
               <Label>Fatura Tipi</Label>
               <Select
-                value={invoiceSettings.invoiceType}
                 onValueChange={(v) => setInvoiceSettings((s) => ({ ...s, invoiceType: v }))}
+                value={invoiceSettings.invoiceType}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -506,7 +527,6 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="space-y-2">
               <Label>Para Birimi</Label>
               <Select
-                value={invoiceSettings.currency}
                 onValueChange={(v) =>
                   setInvoiceSettings((s) => ({
                     ...s,
@@ -514,6 +534,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                     currencyRate: v === 'TRY' ? '' : s.currencyRate,
                   }))
                 }
+                value={invoiceSettings.currency}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -533,7 +554,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                 {invoiceSettings.currency !== 'TRY' && <span className="text-destructive"> *</span>}
               </Label>
               <Input
-                value={invoiceSettings.currencyRate}
+                disabled={invoiceSettings.currency === 'TRY' || ratesLoading}
                 onChange={(e) =>
                   setInvoiceSettings((s) => ({ ...s, currencyRate: e.target.value }))
                 }
@@ -544,7 +565,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                       ? "TCMB'den alınıyor..."
                       : 'ör: 38.50'
                 }
-                disabled={invoiceSettings.currency === 'TRY' || ratesLoading}
+                value={invoiceSettings.currencyRate}
               />
               {invoiceSettings.currency !== 'TRY' && invoiceSettings.currencyRate && (
                 <p className="text-xs text-muted-foreground">
@@ -558,19 +579,19 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="space-y-2">
               <Label>Düzenlenme Tarihi</Label>
               <DatePicker
-                value={parseGIB(advancedFields.manualDate) ?? new Date()}
-                onChange={(d) => setAdvancedFields((f) => ({ ...f, manualDate: toGIB(d) }))}
                 maxDate={new Date()}
+                onChange={(d) => setAdvancedFields((f) => ({ ...f, manualDate: toGIB(d) }))}
+                value={parseGIB(advancedFields.manualDate) ?? new Date()}
               />
             </div>
             <div className="space-y-2">
               <Label>Düzenlenme Saati</Label>
               <Input
-                type="time"
-                step="1"
-                value={advancedFields.manualTime}
-                onChange={(e) => setAdvancedFields((f) => ({ ...f, manualTime: e.target.value }))}
                 className="appearance-none tabular-nums [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                onChange={(e) => setAdvancedFields((f) => ({ ...f, manualTime: e.target.value }))}
+                step="1"
+                type="time"
+                value={advancedFields.manualTime}
               />
             </div>
           </div>
@@ -603,17 +624,17 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="space-y-2">
               <Label>VKN / TCKN</Label>
               <Input
-                value={recipient.taxIDOrTRID}
                 onChange={(e) => setRecipient((r) => ({ ...r, taxIDOrTRID: e.target.value }))}
                 placeholder="1234567890"
+                value={recipient.taxIDOrTRID}
               />
             </div>
             <div className="space-y-2">
               <Label>Ünvan</Label>
               <Input
-                value={recipient.title}
                 onChange={(e) => setRecipient((r) => ({ ...r, title: e.target.value }))}
                 placeholder="Firma Adı"
+                value={recipient.title}
               />
             </div>
           </div>
@@ -621,15 +642,15 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="space-y-2">
               <Label>Adı</Label>
               <Input
-                value={recipient.name}
                 onChange={(e) => setRecipient((r) => ({ ...r, name: e.target.value }))}
+                value={recipient.name}
               />
             </div>
             <div className="space-y-2">
               <Label>Soyadı</Label>
               <Input
-                value={recipient.surname}
                 onChange={(e) => setRecipient((r) => ({ ...r, surname: e.target.value }))}
+                value={recipient.surname}
               />
             </div>
           </div>
@@ -637,15 +658,15 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="space-y-2">
               <Label>Vergi Dairesi</Label>
               <Input
-                value={recipient.taxOffice}
                 onChange={(e) => setRecipient((r) => ({ ...r, taxOffice: e.target.value }))}
+                value={recipient.taxOffice}
               />
             </div>
             <div className="space-y-2">
               <Label>Ülke</Label>
               <Select
-                value={recipient.country}
                 onValueChange={(v) => setRecipient((r) => ({ ...r, country: v }))}
+                value={recipient.country}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Ülke seçin..." />
@@ -663,10 +684,10 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           <div className="space-y-2">
             <Label>Adres</Label>
             <Textarea
-              value={recipient.fullAddress}
               onChange={(e) => setRecipient((r) => ({ ...r, fullAddress: e.target.value }))}
               placeholder="Tam adres"
               rows={3}
+              value={recipient.fullAddress}
             />
           </div>
         </CardContent>
@@ -682,18 +703,18 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             <div className="space-y-2">
               <Label>İrsaliye Numarası</Label>
               <Input
-                value={advancedFields.irsaliyeNumarasi}
                 onChange={(e) =>
                   setAdvancedFields((f) => ({ ...f, irsaliyeNumarasi: e.target.value }))
                 }
+                value={advancedFields.irsaliyeNumarasi}
               />
             </div>
             <div className="space-y-2">
               <Label>İrsaliye Tarihi</Label>
               <DatePicker
-                value={parseGIB(advancedFields.irsaliyeTarihi)}
-                onChange={(d) => setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: toGIB(d) }))}
                 maxDate={new Date()}
+                onChange={(d) => setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: toGIB(d) }))}
+                value={parseGIB(advancedFields.irsaliyeTarihi)}
               />
             </div>
           </div>
@@ -706,12 +727,12 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           <CardTitle className="leading-8">Kalemler</CardTitle>
           <CardAction>
             <Button
-              variant="destructive"
-              size="sm"
               className={selectedItemIds.size > 0 ? '' : 'invisible'}
               onClick={() => setShowDeleteConfirm(true)}
+              size="sm"
+              variant="destructive"
             >
-              <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} data-icon="inline-start" />
+              <HugeiconsIcon data-icon="inline-start" icon={Delete01Icon} strokeWidth={1.5} />
               {selectedItemIds.size} Sil
             </Button>
           </CardAction>
@@ -736,7 +757,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} className="group border-b last:border-0">
+                <tr className="group border-b last:border-0" key={item.id}>
                   <td
                     className="w-10 px-3 py-2 cursor-pointer"
                     onClick={(e) => toggleSelectItem(item.id, e.shiftKey)}
@@ -745,29 +766,29 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                   </td>
                   <td className="px-2 py-2">
                     <AutocompleteInput
-                      value={item.name}
+                      className="h-8"
                       onChange={(v) => updateItem(item.id, 'name', v)}
-                      onSelect={(id) => loadItemTemplate(id, item.id)}
                       onCreate={(name) =>
                         setSavedItems((prev) => [...prev, { ...item, id: newId(), name }])
                       }
-                      suggestions={savedItems.map((s) => ({ id: s.id, label: s.name }))}
+                      onSelect={(id) => loadItemTemplate(id, item.id)}
                       placeholder="Mal / Hizmet adı"
-                      className="h-8"
+                      suggestions={savedItems.map((s) => ({ id: s.id, label: s.name }))}
+                      value={item.name}
                     />
                   </td>
                   <td className="px-2 py-2">
                     <Input
-                      inputMode="numeric"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value) || 0)}
                       className="h-8"
+                      inputMode="numeric"
+                      onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value) || 0)}
+                      value={item.quantity}
                     />
                   </td>
                   <td className="px-2 py-2">
                     <Select
-                      value={item.unitType}
                       onValueChange={(v) => updateItem(item.id, 'unitType', v)}
+                      value={item.unitType}
                     >
                       <SelectTrigger className="h-8">
                         <SelectValue />
@@ -783,20 +804,20 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                   </td>
                   <td className="px-2 py-2">
                     <Input
+                      className="h-8"
                       inputMode="decimal"
-                      value={item.unitPrice || ''}
                       onChange={(e) =>
                         updateItem(item.id, 'unitPrice', Number(e.target.value) || 0)
                       }
-                      className="h-8"
+                      value={item.unitPrice || ''}
                     />
                   </td>
                   <td className="px-2 py-2">
                     <Input
-                      inputMode="numeric"
-                      value={item.VATRate}
-                      onChange={(e) => updateItem(item.id, 'VATRate', Number(e.target.value) || 0)}
                       className="h-8"
+                      inputMode="numeric"
+                      onChange={(e) => updateItem(item.id, 'VATRate', Number(e.target.value) || 0)}
+                      value={item.VATRate}
                     />
                   </td>
                   <td className="px-2 py-2 text-right tabular-nums">
@@ -828,7 +849,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                     item.discountAmount ||
                     item.discountReason ||
                     item.gtip) && (
-                    <div key={item.id} className="space-y-2">
+                    <div className="space-y-2" key={item.id}>
                       <span className="text-xs font-medium text-muted-foreground">
                         {item.name || 'Adsız kalem'} — İskonto & GTİP
                       </span>
@@ -837,34 +858,34 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
                           <Label className="text-xs text-muted-foreground">İskonto %</Label>
                           <Input
                             inputMode="numeric"
-                            value={item.discountRate || ''}
                             onChange={(e) =>
                               updateItem(item.id, 'discountRate', Number(e.target.value) || 0)
                             }
+                            value={item.discountRate || ''}
                           />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">İskonto Tutarı</Label>
                           <Input
                             inputMode="decimal"
-                            value={item.discountAmount || ''}
                             onChange={(e) =>
                               updateItem(item.id, 'discountAmount', Number(e.target.value) || 0)
                             }
+                            value={item.discountAmount || ''}
                           />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">İskonto Nedeni</Label>
                           <Input
-                            value={item.discountReason}
                             onChange={(e) => updateItem(item.id, 'discountReason', e.target.value)}
+                            value={item.discountReason}
                           />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">GTİP</Label>
                           <Input
-                            value={item.gtip}
                             onChange={(e) => updateItem(item.id, 'gtip', e.target.value)}
+                            value={item.gtip}
                           />
                         </div>
                       </div>
@@ -875,11 +896,11 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           )}
         </CardContent>
         <button
-          type="button"
-          onClick={addItem}
           className="flex w-full items-center justify-center gap-2 border-t py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={addItem}
+          type="button"
         >
-          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} className="size-4" />
+          <HugeiconsIcon className="size-4" icon={PlusSignIcon} strokeWidth={1.5} />
           Kalem Ekle
         </button>
       </Card>
@@ -890,9 +911,9 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           <div className="space-y-2">
             <Label>Not (opsiyonel)</Label>
             <Textarea
-              value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Fatura notu"
+              value={note}
             />
           </div>
         </CardContent>
@@ -933,11 +954,11 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
             <span className="text-sm text-muted-foreground">Ödenecek Tutar</span>
             <Input
-              inputMode="decimal"
               className="w-40 text-right"
-              value={advancedFields.paymentTotal || ''}
+              inputMode="decimal"
               onChange={(e) => setAdvancedFields((f) => ({ ...f, paymentTotal: e.target.value }))}
               placeholder={total.toFixed(2)}
+              value={advancedFields.paymentTotal || ''}
             />
           </div>
         </div>
@@ -947,11 +968,11 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
       {templateEditMode ? (
         <Button
           className="w-full"
-          size="lg"
           onClick={() => {
             setTemplateName(recipient.title);
             setShowTemplateSaveDialog(true);
           }}
+          size="lg"
         >
           Şablon Olarak Kaydet
         </Button>
@@ -959,13 +980,13 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
         <div className="flex gap-3">
           <Button
             className="flex-1"
-            size="lg"
             disabled={createMutation.isPending}
             onClick={createInvoice}
+            size="lg"
           >
             {createMutation.isPending ? 'Oluşturuluyor...' : 'Taslak Fatura Oluştur'}
           </Button>
-          <Button variant="outline" size="lg" onClick={handleDownloadPDF}>
+          <Button onClick={handleDownloadPDF} size="lg" variant="outline">
             <Download className="size-4" />
             PDF
           </Button>
@@ -978,15 +999,15 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           <CardHeader>
             <CardTitle>Fatura Önizleme</CardTitle>
             <CardAction>
-              <Button variant="ghost" size="sm" onClick={() => setInvoiceHTML(null)}>
+              <Button onClick={() => setInvoiceHTML(null)} size="sm" variant="ghost">
                 Kapat
               </Button>
             </CardAction>
           </CardHeader>
           <CardContent>
             <iframe
-              srcDoc={invoiceHTML}
               className="h-[600px] w-full rounded-md border"
+              srcDoc={invoiceHTML}
               title="Fatura önizleme"
             />
           </CardContent>
@@ -994,7 +1015,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
       )}
 
       {/* Template Save Dialog */}
-      <Dialog open={showTemplateSaveDialog} onOpenChange={setShowTemplateSaveDialog}>
+      <Dialog onOpenChange={setShowTemplateSaveDialog} open={showTemplateSaveDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Şablon Olarak Kaydet</DialogTitle>
@@ -1006,20 +1027,20 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           <div className="space-y-2">
             <Label>Şablon Adı</Label>
             <Input
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="ör: Aylık danışmanlık faturası"
               autoFocus
+              onChange={(e) => setTemplateName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && templateName.trim()) {
                   saveInvoiceTemplate(templateName.trim());
                   setShowTemplateSaveDialog(false);
                 }
               }}
+              placeholder="ör: Aylık danışmanlık faturası"
+              value={templateName}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTemplateSaveDialog(false)}>
+            <Button onClick={() => setShowTemplateSaveDialog(false)} variant="outline">
               Hayır
             </Button>
             <Button
@@ -1036,11 +1057,11 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
       </Dialog>
 
       <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
-        title="Kalemleri Sil"
         description={`${selectedItemIds.size} kalemi silmek istediğinize emin misiniz?`}
         onConfirm={confirmRemoveItems}
+        onOpenChange={setShowDeleteConfirm}
+        open={showDeleteConfirm}
+        title="Kalemleri Sil"
       />
     </div>
   );

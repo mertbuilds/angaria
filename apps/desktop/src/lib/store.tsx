@@ -14,7 +14,7 @@ const newId = () => crypto.randomUUID();
 const ENTITIES_STORAGE_KEY = 'fatura-entities';
 const ACTIVE_ENTITY_STORAGE_KEY = 'fatura-active-entity-id';
 
-const SEED_RECIPIENTS: Recipient[] = [
+const SEED_RECIPIENTS: Array<Recipient> = [
   {
     id: newId(),
     taxIDOrTRID: '2222222222',
@@ -77,7 +77,7 @@ const DEFAULT_COMPANY_INFO: CompanyInfo = {
   bankAddress: '',
 };
 
-const SEED_ITEMS: InvoiceItem[] = [
+const SEED_ITEMS: Array<InvoiceItem> = [
   {
     id: newId(),
     name: 'Engineering Services - Mühendislik Hizmetleri',
@@ -112,9 +112,10 @@ function loadLocal<T>(key: string, fallback: T): T {
   }
 }
 
+const p = (n: number) => String(n).padStart(2, '0');
+
 function currentTime() {
   const now = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
   return `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
 }
 
@@ -147,7 +148,9 @@ export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
 
 /** Safely convert unknown GIB field to string */
 function str(v: unknown, fallback = ''): string {
-  if (v == null) return fallback;
+  if (v == null) {
+    return fallback;
+  }
   return typeof v === 'string' ? v : fallback;
 }
 
@@ -178,8 +181,8 @@ function makeDefaultEntity(index: number, seedData = true): Entity {
   };
 }
 
-function loadEntities(): Entity[] {
-  const stored = loadLocal<Entity[] | null>(ENTITIES_STORAGE_KEY, null);
+function loadEntities(): Array<Entity> {
+  const stored = loadLocal<Array<Entity> | null>(ENTITIES_STORAGE_KEY, null);
   if (Array.isArray(stored) && stored.length > 0) {
     return stored.map((entity, index) => ({
       id: entity.id || newId(),
@@ -205,65 +208,67 @@ function loadEntities(): Entity[] {
 }
 
 interface Store {
-  entities: Entity[];
-  activeEntityId: string;
   activeEntity: Entity;
-  setActiveEntityId: React.Dispatch<React.SetStateAction<string>>;
-  createEntity: () => void;
-  renameEntity: (id: string, name: string) => void;
-  deleteEntity: (id: string) => void;
-  creds: Credentials;
-  setCreds: React.Dispatch<React.SetStateAction<Credentials>>;
-  companyInfo: CompanyInfo;
-  setCompanyInfo: React.Dispatch<React.SetStateAction<CompanyInfo>>;
-  recipient: Recipient;
-  setRecipient: React.Dispatch<React.SetStateAction<Recipient>>;
-  invoiceSettings: InvoiceSettings;
-  setInvoiceSettings: React.Dispatch<React.SetStateAction<InvoiceSettings>>;
-  items: InvoiceItem[];
-  setItems: React.Dispatch<React.SetStateAction<InvoiceItem[]>>;
-  note: string;
-  setNote: React.Dispatch<React.SetStateAction<string>>;
-  savedRecipients: Recipient[];
-  setSavedRecipients: React.Dispatch<React.SetStateAction<Recipient[]>>;
-  savedItems: InvoiceItem[];
-  setSavedItems: React.Dispatch<React.SetStateAction<InvoiceItem[]>>;
-  invoiceTemplates: InvoiceTemplate[];
-  setInvoiceTemplates: React.Dispatch<React.SetStateAction<InvoiceTemplate[]>>;
+  activeEntityId: string;
   advancedFields: AdvancedInvoiceFields;
-  setAdvancedFields: React.Dispatch<React.SetStateAction<AdvancedInvoiceFields>>;
-  invoiceDateRange: { start: string; end: string };
-  setInvoiceDateRange: React.Dispatch<React.SetStateAction<{ start: string; end: string }>>;
+  companyInfo: CompanyInfo;
+  createEntity: () => void;
+  creds: Credentials;
+  defaultItemAdvanced: typeof DEFAULT_ITEM_ADVANCED;
+  deleteEntity: (id: string) => void;
+  entities: Array<Entity>;
+  invoiceDateRange: { end: string; start: string };
   invoicePageSize: number;
-  setInvoicePageSize: React.Dispatch<React.SetStateAction<number>>;
+  invoiceSettings: InvoiceSettings;
   /** true when the invoice form has been initialized (via template or scratch) */
   invoiceStarted: boolean;
-  /** Reset invoice form to blank state */
-  resetInvoiceForm: () => void;
-  /** Load a template into the invoice form and mark it as started */
-  loadTemplate: (id: string) => string | null;
-  /** Start a blank invoice form */
-  startBlankInvoice: () => void;
-  /** ID of the template the invoice was started from, null if from scratch */
-  sourceTemplateId: string | null;
-  /** true when in template editing mode (save as template instead of creating invoice) */
-  templateEditMode: boolean;
+  invoiceTemplates: Array<InvoiceTemplate>;
+  items: Array<InvoiceItem>;
   /** Load a GIB invoice into the form in template editing mode */
   loadFromGIBInvoice: (data: Record<string, unknown>) => void;
+  /** Load a template into the invoice form and mark it as started */
+  loadTemplate: (id: string) => string | null;
   newId: () => string;
-  defaultItemAdvanced: typeof DEFAULT_ITEM_ADVANCED;
+  note: string;
+  recipient: Recipient;
+  renameEntity: (id: string, name: string) => void;
+  /** Reset invoice form to blank state */
+  resetInvoiceForm: () => void;
+  savedItems: Array<InvoiceItem>;
+  savedRecipients: Array<Recipient>;
+  setActiveEntityId: React.Dispatch<React.SetStateAction<string>>;
+  setAdvancedFields: React.Dispatch<React.SetStateAction<AdvancedInvoiceFields>>;
+  setCompanyInfo: React.Dispatch<React.SetStateAction<CompanyInfo>>;
+  setCreds: React.Dispatch<React.SetStateAction<Credentials>>;
+  setInvoiceDateRange: React.Dispatch<React.SetStateAction<{ end: string; start: string }>>;
+  setInvoicePageSize: React.Dispatch<React.SetStateAction<number>>;
+  setInvoiceSettings: React.Dispatch<React.SetStateAction<InvoiceSettings>>;
+  setInvoiceTemplates: React.Dispatch<React.SetStateAction<Array<InvoiceTemplate>>>;
+  setItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>>;
+  setNote: React.Dispatch<React.SetStateAction<string>>;
+  setRecipient: React.Dispatch<React.SetStateAction<Recipient>>;
+  setSavedItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>>;
+  setSavedRecipients: React.Dispatch<React.SetStateAction<Array<Recipient>>>;
+  /** ID of the template the invoice was started from, null if from scratch */
+  sourceTemplateId: string | null;
+  /** Start a blank invoice form */
+  startBlankInvoice: () => void;
+  /** true when in template editing mode (save as template instead of creating invoice) */
+  templateEditMode: boolean;
 }
 
 const StoreContext = createContext<Store | null>(null);
 
 export function useStore() {
   const ctx = useContext(StoreContext);
-  if (!ctx) throw new Error('useStore must be used within StoreProvider');
+  if (!ctx) {
+    throw new Error('useStore must be used within StoreProvider');
+  }
   return ctx;
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [entities, setEntities] = useState<Entity[]>(() => loadEntities());
+  const [entities, setEntities] = useState<Array<Entity>>(() => loadEntities());
   const [activeEntityId, setActiveEntityId] = useState(
     () => loadLocal<string | null>(ACTIVE_ENTITY_STORAGE_KEY, null) ?? loadEntities()[0]?.id ?? '',
   );
@@ -271,7 +276,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Invoice form state — not persisted, starts blank
   const [recipient, setRecipient] = useState<Recipient>({ ...BLANK_RECIPIENT, id: newId() });
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>({ ...DEFAULT_SETTINGS });
-  const [items, setItems] = useState<InvoiceItem[]>(() => [makeBlankItem()]);
+  const [items, setItems] = useState<Array<InvoiceItem>>(() => [makeBlankItem()]);
   const [note, setNote] = useState('');
   const [advancedFields, setAdvancedFields] = useState<AdvancedInvoiceFields>({
     ...DEFAULT_ADVANCED_FIELDS,
@@ -290,7 +295,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (entities.some((entity) => entity.id === activeEntityId)) return;
+    if (entities.some((entity) => entity.id === activeEntityId)) {
+      return;
+    }
     setActiveEntityId(entities[0]?.id ?? '');
   }, [activeEntityId, entities]);
 
@@ -322,11 +329,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const deleteEntity = useCallback(
     (id: string) => {
       setEntities((prev) => {
-        if (prev.length <= 1) return prev;
+        if (prev.length <= 1) {
+          return prev;
+        }
         return prev.filter((entity) => entity.id !== id);
       });
       setActiveEntityId((current) => {
-        if (current !== id) return current;
+        if (current !== id) {
+          return current;
+        }
         const remaining = entities.filter((entity) => entity.id !== id);
         return remaining[0]?.id ?? current;
       });
@@ -354,7 +365,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [updateActiveEntity],
   );
 
-  const setSavedRecipients: React.Dispatch<React.SetStateAction<Recipient[]>> = useCallback(
+  const setSavedRecipients: React.Dispatch<React.SetStateAction<Array<Recipient>>> = useCallback(
     (value) => {
       updateActiveEntity((entity) => ({
         ...entity,
@@ -364,7 +375,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [updateActiveEntity],
   );
 
-  const setSavedItems: React.Dispatch<React.SetStateAction<InvoiceItem[]>> = useCallback(
+  const setSavedItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>> = useCallback(
     (value) => {
       updateActiveEntity((entity) => ({
         ...entity,
@@ -374,15 +385,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [updateActiveEntity],
   );
 
-  const setInvoiceTemplates: React.Dispatch<React.SetStateAction<InvoiceTemplate[]>> = useCallback(
-    (value) => {
-      updateActiveEntity((entity) => ({
-        ...entity,
-        invoiceTemplates: typeof value === 'function' ? value(entity.invoiceTemplates) : value,
-      }));
-    },
-    [updateActiveEntity],
-  );
+  const setInvoiceTemplates: React.Dispatch<React.SetStateAction<Array<InvoiceTemplate>>> =
+    useCallback(
+      (value) => {
+        updateActiveEntity((entity) => ({
+          ...entity,
+          invoiceTemplates: typeof value === 'function' ? value(entity.invoiceTemplates) : value,
+        }));
+      },
+      [updateActiveEntity],
+    );
 
   const creds = activeEntity?.creds ?? DEFAULT_CREDS;
   const companyInfo = activeEntity?.companyInfo ?? DEFAULT_COMPANY_INFO;
@@ -404,7 +416,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const loadTemplate = useCallback(
     (id: string): string | null => {
       const t = invoiceTemplates.find((x) => x.id === id);
-      if (!t) return null;
+      if (!t) {
+        return null;
+      }
       setRecipient({ ...t.recipient, id: newId() });
       setInvoiceSettings({ ...t.settings });
       setItems(t.items.map((i) => ({ ...i, id: newId() })));
@@ -427,7 +441,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [resetInvoiceForm]);
 
   const loadFromGIBInvoice = useCallback((data: Record<string, unknown>) => {
-    const table = (data.malHizmetTable as Record<string, unknown>[]) ?? [];
+    const table = (data.malHizmetTable as Array<Record<string, unknown>>) ?? [];
     setRecipient({
       id: newId(),
       taxIDOrTRID: str(data.vknTckn),

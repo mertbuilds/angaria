@@ -1,14 +1,14 @@
 export interface Recipient {
+  city: string;
+  country: string;
+  district: string;
+  fullAddress: string;
   id: string;
+  name: string;
+  surname: string;
   taxIDOrTRID: string;
   taxOffice: string;
   title: string;
-  name: string;
-  surname: string;
-  fullAddress: string;
-  country: string;
-  city: string;
-  district: string;
 }
 
 export interface InvoiceSettings {
@@ -18,53 +18,53 @@ export interface InvoiceSettings {
 }
 
 export interface InvoiceItem {
+  discountAmount: number;
+  discountRate: number;
+  discountReason: string;
+  gtip: string;
   id: string;
   name: string;
   quantity: number;
   unitPrice: number;
-  VATRate: number;
   // Advanced fields
   unitType: string;
-  discountRate: number;
-  discountAmount: number;
-  discountReason: string;
-  gtip: string;
+  VATRate: number;
 }
 
 export interface AdvancedInvoiceFields {
-  manualDate: string;
-  manualTime: string;
   irsaliyeNumarasi: string;
   irsaliyeTarihi: string;
+  manualDate: string;
+  manualTime: string;
   paymentTotal: string;
 }
 
 export interface Credentials {
-  username: string;
   password: string;
   testMode: boolean;
+  username: string;
 }
 
 export interface CompanyInfo {
-  name: string;
+  accountHolder: string;
   address: string;
+  bankAddress: string;
+  bankName: string;
+  email: string;
+  iban: string;
+  name: string;
+  phone: string;
+  swiftCode: string;
   taxID: string;
   taxOffice: string;
-  phone: string;
-  email: string;
-  bankName: string;
-  accountHolder: string;
-  iban: string;
-  swiftCode: string;
-  bankAddress: string;
 }
 
 export interface EntityData {
-  creds: Credentials;
   companyInfo: CompanyInfo;
-  savedRecipients: Recipient[];
-  savedItems: InvoiceItem[];
-  invoiceTemplates: InvoiceTemplate[];
+  creds: Credentials;
+  invoiceTemplates: Array<InvoiceTemplate>;
+  savedItems: Array<InvoiceItem>;
+  savedRecipients: Array<Recipient>;
 }
 
 export interface Entity extends EntityData {
@@ -74,10 +74,10 @@ export interface Entity extends EntityData {
 
 export interface InvoiceTemplate {
   id: string;
+  items: Array<InvoiceItem>;
+  lastUsedAt?: number;
   name: string;
+  note: string;
   recipient: Recipient;
   settings: InvoiceSettings;
-  items: InvoiceItem[];
-  note: string;
-  lastUsedAt?: number;
 }

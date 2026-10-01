@@ -1,5 +1,7 @@
 const TCMB_BASE = 'https://www.tcmb.gov.tr/kurlar';
 
+const pad = (n: number) => String(n).padStart(2, '0');
+
 /**
  * Fetch TCMB daily exchange rates for a given date (or today).
  * Tries going back up to 7 days to find the most recent available data (holidays/weekends have no data).
@@ -9,7 +11,6 @@ export async function fetchTCMBRates(
   options?: { fetch?: typeof globalThis.fetch },
 ): Promise<Map<string, number>> {
   const fetchFn = options?.fetch ?? globalThis.fetch;
-  const pad = (n: number) => String(n).padStart(2, '0');
   const start = baseDate ?? new Date();
   for (let i = 0; i < 7; i++) {
     const date = new Date(start);
@@ -19,7 +20,9 @@ export async function fetchTCMBRates(
     const y = date.getFullYear();
     const url = `${TCMB_BASE}/${y}${m}/${d}${m}${y}.xml`;
     const response = await fetchFn(url);
-    if (!response.ok) continue;
+    if (!response.ok) {
+      continue;
+    }
     const xml = await response.text();
     const doc = new DOMParser().parseFromString(xml, 'text/xml');
     const rates = new Map<string, number>();
@@ -31,7 +34,9 @@ export async function fetchTCMBRates(
         rates.set(code, buying / unit);
       }
     }
-    if (rates.size > 0) return rates;
+    if (rates.size > 0) {
+      return rates;
+    }
   }
   throw new Error('TCMB kur verisi bulunamadı');
 }

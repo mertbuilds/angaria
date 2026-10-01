@@ -43,9 +43,9 @@ function SortableHeader({
   const sorted = column.getIsSorted();
   return (
     <button
-      type="button"
       className="-ml-2 flex items-center gap-1 rounded px-2 py-1 hover:bg-muted/50"
       onClick={() => column.toggleSorting()}
+      type="button"
     >
       {label}
       {sorted === 'asc' ? (
@@ -65,10 +65,10 @@ export function InvoicePickerDialog({
   onSelect,
   onPreview,
 }: {
-  open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (invoice: Invoice) => void;
   onPreview?: (invoice: Invoice) => Promise<void>;
+  onSelect: (invoice: Invoice) => void;
+  open: boolean;
 }) {
   const { creds } = useStore();
 
@@ -95,7 +95,7 @@ export function InvoicePickerDialog({
     queryFn: async () => {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
       try {
-        return (await angaria.getDrafts(session, dateRange.start, dateRange.end)) as Invoice[];
+        return (await angaria.getDrafts(session, dateRange.start, dateRange.end)) as Array<Invoice>;
       } finally {
         angaria.logout(session).catch(() => {});
       }
@@ -108,7 +108,9 @@ export function InvoicePickerDialog({
   const listLoading = isLoading || isFetching;
 
   async function selectInvoice(invoice: Invoice) {
-    if (!hasCredentials || !invoice.ettn) return;
+    if (!hasCredentials || !invoice.ettn) {
+      return;
+    }
     setLoadingInvoice(true);
     try {
       const session = await angaria.login(creds.username, creds.password, creds.testMode);
@@ -118,14 +120,14 @@ export function InvoicePickerDialog({
       } finally {
         angaria.logout(session).catch(() => {});
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Fatura detayı alınamadı');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Fatura detayı alınamadı');
     } finally {
       setLoadingInvoice(false);
     }
   }
 
-  const columns = useMemo<ColumnDef<Invoice>[]>(
+  const columns = useMemo<Array<ColumnDef<Invoice>>>(
     () => [
       {
         accessorKey: 'belgeNumarasi',
@@ -155,18 +157,18 @@ export function InvoicePickerDialog({
             <div className="flex items-center justify-end gap-1">
               {onPreview && (
                 <Button
-                  variant="ghost"
-                  size="icon-sm"
                   disabled={loadingPreview || loadingInvoice}
                   onClick={() => {
                     setLoadingPreview(true);
                     void onPreview(inv).finally(() => setLoadingPreview(false));
                   }}
+                  size="icon-sm"
+                  variant="ghost"
                 >
                   <Eye className="size-4" />
                 </Button>
               )}
-              <Button size="sm" disabled={loadingInvoice} onClick={() => selectInvoice(inv)}>
+              <Button disabled={loadingInvoice} onClick={() => selectInvoice(inv)} size="sm">
                 <FileInput className="size-4" />
                 Seç
               </Button>
@@ -192,7 +194,7 @@ export function InvoicePickerDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Fatura Seç</DialogTitle>
@@ -202,15 +204,15 @@ export function InvoicePickerDialog({
             <div className="flex-1 space-y-1">
               <Label>Başlangıç</Label>
               <DatePicker
-                value={parseGIB(dateRange.start)}
                 onChange={(d) => setDateRange((prev) => ({ ...prev, start: toGIB(d) }))}
+                value={parseGIB(dateRange.start)}
               />
             </div>
             <div className="flex-1 space-y-1">
               <Label>Bitiş</Label>
               <DatePicker
-                value={parseGIB(dateRange.end)}
                 onChange={(d) => setDateRange((prev) => ({ ...prev, end: toGIB(d) }))}
+                value={parseGIB(dateRange.end)}
               />
             </div>
           </div>
@@ -262,9 +264,9 @@ export function InvoicePickerDialog({
           {invoiceList.length > 0 && (
             <>
               <Input
+                onChange={(e) => setGlobalFilter(e.target.value)}
                 placeholder="Belge no, alıcı veya tarih ile ara..."
                 value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
               />
 
               <div className="max-h-[400px] overflow-auto rounded-md border">
@@ -295,7 +297,7 @@ export function InvoicePickerDialog({
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                        <TableCell className="h-24 text-center" colSpan={columns.length}>
                           Sonuç bulunamadı
                         </TableCell>
                       </TableRow>
@@ -313,18 +315,18 @@ export function InvoicePickerDialog({
                     Sayfa {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
                   </span>
                   <Button
-                    variant="outline"
-                    size="icon-sm"
                     disabled={!table.getCanPreviousPage()}
                     onClick={() => table.previousPage()}
+                    size="icon-sm"
+                    variant="outline"
                   >
                     <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.5} />
                   </Button>
                   <Button
-                    variant="outline"
-                    size="icon-sm"
                     disabled={!table.getCanNextPage()}
                     onClick={() => table.nextPage()}
+                    size="icon-sm"
+                    variant="outline"
                   >
                     <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.5} />
                   </Button>
