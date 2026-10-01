@@ -436,12 +436,12 @@ function AdvancedSection({ form, total }: { form: InvoiceForm; total: string }) 
     <section {...props(styles.section)}>
       <details onToggle={(event) => setOpen(event.currentTarget.open)} open={open}>
         <summary {...props(styles.summary)}>
-          <h2 {...props(styles.sectionTitle)}>Gelişmiş</h2>
-          <span {...props(styles.sectionHint)}>İrsaliye, ödenecek tutar</span>
           <ChevronRightIcon
             aria-hidden
             {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
           />
+          <h2 {...props(styles.sectionTitle)}>Gelişmiş</h2>
+          <span {...props(styles.sectionHint)}>İrsaliye, ödenecek tutar</span>
         </summary>
         <div {...props(styles.fields, styles.advancedFields)}>
           <form.AppField name="advancedFields.irsaliyeNumarasi">
@@ -545,7 +545,8 @@ function revealFirstError(root: HTMLElement | null) {
     if (details) {
       details.open = true;
     }
-    invalid.focus();
+    invalid.scrollIntoView({ block: 'center' });
+    invalid.focus({ preventScroll: true });
   });
 }
 
@@ -805,8 +806,9 @@ export function CreateInvoicePage() {
   });
 
   useEffect(() => {
-    document.addEventListener('keydown', submitShortcut);
-    return () => document.removeEventListener('keydown', submitShortcut);
+    const onKeyDown = (event: KeyboardEvent) => submitShortcut(event);
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const totalText = useMemo(
