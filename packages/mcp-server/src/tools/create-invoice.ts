@@ -1,12 +1,16 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { InvoiceDetails } from 'angaria-earsiv-sdk';
 import { z } from 'zod';
-import { formatGIBDate, formatGIBTime, gibDate, gibTime } from '../dates.ts';
+import { formatGIBDate, formatGIBTime, gibTime, pastGIBDate } from '../dates.ts';
 import type { ToolContext } from '../session.ts';
 import { computeItemFields, computeTotals } from '../totals.ts';
 
 const DEFAULT_CURRENCY = 'USD';
 const DEFAULT_INVOICE_TYPE = 'ISTISNA';
+const MAX_UNIT_PRICE = 1_000_000_000;
+
+/** At most two decimals, the kuruş GİB amounts have. */
+const hasCents = (value: number) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
 
 const itemSchema = z.object({
   discountAmount: z.number().nonnegative().optional().describe('Discount amount in currency units'),
@@ -20,13 +24,34 @@ const itemSchema = z.object({
   gtip: z.string().optional().describe('Customs tariff code (GTIP), for goods export invoices'),
   name: z.string().min(1).describe('Product or service name'),
   quantity: z.number().positive().describe('Quantity'),
-  unitPrice: z.number().nonnegative().describe('Unit price excluding VAT'),
+  unitPrice: z
+    .number()
+    .positive()
+    .max(MAX_UNIT_PRICE)
+    .refine(hasCents, 'At most two decimals')
+    .describe('Unit price excluding VAT, at most two decimals'),
   unitType: z
     .string()
     .optional()
     .describe("Unit code: 'C62' (piece, default), 'HUR' (hour), 'DAY' (day), 'MON' (month)"),
-  VATRate: z.number().min(0).max(100).describe('VAT rate as percentage (0, 1, 10, or 20)'),
+  VATRate: z.literal([0, 1, 10, 20]).describe('VAT rate as percentage: 0, 1, 10 or 20'),
 });
+
+const checkedItem = itemSchema
+  .refine((item) => (item.discountAmount ?? 0) <= computeItemFields(item).price, {
+    message: 'discountAmount must not exceed quantity × unitPrice',
+    path: ['discountAmount'],
+  })
+  .refine(
+    ({ discountAmount, discountRate, ...item }) =>
+      discountAmount === undefined ||
+      discountRate === undefined ||
+      computeItemFields({ ...item, discountRate }).discountAmount === discountAmount,
+    {
+      message: 'discountAmount does not match discountRate; give only one of them',
+      path: ['discountAmount'],
+    },
+  );
 
 export const createInvoiceInput = z
   .object({
@@ -34,13 +59,18 @@ export const createInvoiceInput = z
     country: z.string().optional().describe('Country name in Turkish'),
     currency: z
       .string()
+      .regex(/^[A-Z]{3}$/, 'Expected a three-letter code such as USD')
       .optional()
       .describe(`Currency code: ${DEFAULT_CURRENCY} (default), TRY, EUR, GBP, etc.`),
     currencyRate: z
       .string()
+      .regex(/^\d+(?:\.\d+)?$/, 'Expected a decimal such as 41.5')
+      .refine((value) => Number(value) > 0, 'Must be positive')
       .optional()
       .describe('Exchange rate to TRY. Required when currency is not TRY.'),
-    date: gibDate.optional().describe('Invoice date DD/MM/YYYY. Defaults to today.'),
+    date: pastGIBDate
+      .optional()
+      .describe('Invoice date DD/MM/YYYY, not after today. Defaults to today.'),
     district: z.string().optional().describe('District'),
     fullAddress: z.string().min(1).describe('Recipient full address'),
     invoiceType: z
@@ -49,7 +79,7 @@ export const createInvoiceInput = z
       .describe(
         `Invoice type: ${DEFAULT_INVOICE_TYPE} (default, for exports), SATIS, IADE, TEVKIFAT, OZELMATRAH, IHRACKAYITLI`,
       ),
-    items: z.array(itemSchema).min(1).describe('Invoice line items (at least one)'),
+    items: z.array(checkedItem).min(1).describe('Invoice line items (at least one)'),
     name: z.string().optional().describe('Recipient first name (for individuals)'),
     note: z.string().optional().describe('Note to appear on the invoice'),
     surname: z.string().optional().describe('Recipient last name (for individuals)'),

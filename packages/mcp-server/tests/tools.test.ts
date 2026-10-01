@@ -167,6 +167,44 @@ test('create_invoice rejects invalid input before logging in', async () => {
   expect(client.login).not.toHaveBeenCalled();
 });
 
+test('create_invoice rejects amounts, rates, codes, dates and times GİB cannot take', async () => {
+  const client = fakeClient();
+  const mcp = await connect(client);
+  const item = invoiceArgs.items[0];
+  const cases: Array<[Record<string, unknown>, RegExp]> = [
+    [{ items: [{ ...item, VATRate: 7.5 }] }, /VATRate/],
+    [{ items: [{ ...item, unitPrice: 33.335 }] }, /At most two decimals/],
+    [{ items: [{ ...item, unitPrice: 0 }] }, /unitPrice/],
+    [{ items: [{ ...item, unitPrice: 1e16 }] }, /unitPrice/],
+    [{ items: [{ ...item, discountAmount: 1500 }] }, /must not exceed/],
+    [{ items: [{ ...item, discountAmount: 5, discountRate: 10 }] }, /does not match/],
+    [{ currency: 'USD', currencyRate: '0' }, /Must be positive/],
+    [{ currency: 'USD', currencyRate: 'abc' }, /Expected a decimal/],
+    [{ currency: 'try', currencyRate: '1' }, /three-letter code/],
+    [{ date: '31/02/2026' }, /Not a calendar date/],
+    [{ date: '01/01/2099' }, /not be after today/],
+    [{ time: '24:00:00' }, /00:00:00 to 23:59:59/],
+    [{ time: '99:99:99' }, /00:00:00 to 23:59:59/],
+  ];
+  for (const [overrides, message] of cases) {
+    const result = await call(mcp, 'create_invoice', {
+      ...invoiceArgs,
+      currency: 'TRY',
+      ...overrides,
+    });
+    expect(result.isError, JSON.stringify(overrides)).toBe(true);
+    expect(result.text).toMatch(message);
+  }
+  expect(client.login).not.toHaveBeenCalled();
+
+  const consistent = await call(mcp, 'create_invoice', {
+    ...invoiceArgs,
+    currency: 'TRY',
+    items: [{ ...item, discountAmount: 100, discountRate: 10 }],
+  });
+  expect(consistent.isError).toBe(false);
+});
+
 test('cancel_invoice deletes the matching unsigned draft', async () => {
   const row = { belgeTarihi: '20/03/2026', ettn: 'ettn-1', onayDurumu: 'Onaylanmadı' };
   const client = fakeClient({ getDrafts: vi.fn(async () => [{ ettn: 'other' }, row]) });
@@ -225,6 +263,16 @@ test('list_invoices returns drafts as JSON and validates dates', async () => {
 
   const bad = await call(mcp, 'list_invoices', { endDate: '2026-03-31', startDate: '01/03/2026' });
   expect(bad.isError).toBe(true);
+
+  const reversed = await call(mcp, 'list_invoices', {
+    endDate: '01/03/2026',
+    startDate: '02/03/2026',
+  });
+  expect(reversed.text).toMatch(/startDate must not be after endDate/);
+
+  const long = await call(mcp, 'list_invoices', { endDate: '01/04/2026', startDate: '01/03/2026' });
+  expect(long.text).toMatch(/at most 31 days/);
+  expect(client.getDrafts).toHaveBeenCalledTimes(1);
 });
 
 test('a failed logout goes to stderr and into the result as a warning', async () => {
