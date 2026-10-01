@@ -3,25 +3,25 @@
 //
 // Kullanım:
 //   node scripts/smoke.ts
-//     → TEST portalı, herkese açık demo hesap (33333301/1)
+//     → yerel GİB emülatörü (`pnpm emulate`), http://127.0.0.1:5180, demo hesap
+//       33333301/1. Başka bir adres için: EARSIV_EMULATOR_URL=...
+//
+//   EARSIV_MODE=test node scripts/smoke.ts
+//     → GİB TEST portalı, herkese açık demo hesap (33333301/1). Yalnızca
+//       açıkça istendiğinde: demo hesaplar çoğu zaman başkalarının oturumuyla kilitli.
 //
 //   EARSIV_MODE=prod EARSIV_USER=<kullanıcı> EARSIV_PASS=<şifre> node scripts/smoke.ts
 //     → GERÇEK portal, kendi hesabınla. 1 TL'lik bir taslak oluşturur,
 //       doğrular ve sonunda SİLER (hiçbir belge imzalanmaz/kesinleşmez).
 //       Oluşan taslağı incelemek için silmeyi atla: EARSIV_KEEP=1
-//
-//   EARSIV_MODE=emulator NODE_EXTRA_CA_CERTS=~/.portless/ca.pem node scripts/smoke.ts
-//     → yerel GİB emülatörü (`pnpm emulate`), https://gib.angaria.localhost.
-//       Node portless CA'sına kendiliğinden güvenmez, bu yüzden NODE_EXTRA_CA_CERTS.
-//       Başka bir adres için: EARSIV_EMULATOR_URL=http://127.0.0.1:5180
 import { createClient, type SessionInfo } from '../src/index.ts';
 
-const MODE = ['prod', 'emulator'].includes(process.env.EARSIV_MODE ?? '')
-  ? (process.env.EARSIV_MODE as 'emulator' | 'prod')
-  : 'test';
+const MODE = ['prod', 'test'].includes(process.env.EARSIV_MODE ?? '')
+  ? (process.env.EARSIV_MODE as 'prod' | 'test')
+  : 'emulator';
 const USER = process.env.EARSIV_USER ?? (MODE === 'prod' ? '' : '33333301');
 const PASS = process.env.EARSIV_PASS ?? (MODE === 'prod' ? '' : '1');
-const EMULATOR_URL = process.env.EARSIV_EMULATOR_URL ?? 'https://gib.angaria.localhost';
+const EMULATOR_URL = process.env.EARSIV_EMULATOR_URL ?? 'http://127.0.0.1:5180';
 const TEST_MODE = MODE !== 'prod';
 const KEEP = process.env.EARSIV_KEEP === '1';
 
@@ -132,7 +132,7 @@ try {
 let createdRow: Record<string, unknown> | undefined;
 
 try {
-  const drafts = (await client.getDrafts(session, date, date)) as Array<Record<string, unknown>>;
+  const drafts = await client.getDrafts(session, date, date);
   console.log(`\nBugünkü belgeler (${drafts.length} adet, son 5):`);
   for (const d of drafts.slice(-5)) {
     console.log(

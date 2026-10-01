@@ -26,10 +26,8 @@ export function registerCancelInvoice(server: McpServer, { client, withSession }
     async ({ date, reason, uuid }) => {
       const { endDate, startDate } = draftSearchRange(date, new Date());
 
-      const result = await withSession(async (session) => {
-        const drafts = (await client.getDrafts(session, startDate, endDate)) as Array<
-          Record<string, unknown>
-        >;
+      return withSession(async (session) => {
+        const drafts = await client.getDrafts(session, startDate, endDate);
         const invoice = drafts.find((d) => d.ettn === uuid || d.faturaUuid === uuid);
 
         if (!invoice) {
@@ -45,22 +43,21 @@ export function registerCancelInvoice(server: McpServer, { client, withSession }
           );
         }
 
-        return client.cancelInvoice(session, reason, invoice);
+        const result = await client.cancelInvoice(session, reason, invoice);
+        return {
+          content: [
+            {
+              text: JSON.stringify({
+                message: 'Invoice cancelled successfully',
+                result,
+                success: true,
+                uuid,
+              }),
+              type: 'text',
+            },
+          ],
+        };
       });
-
-      return {
-        content: [
-          {
-            text: JSON.stringify({
-              message: 'Invoice cancelled successfully',
-              result,
-              success: true,
-              uuid,
-            }),
-            type: 'text',
-          },
-        ],
-      };
     },
   );
 }

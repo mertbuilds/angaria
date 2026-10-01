@@ -20,9 +20,9 @@ export function registerGetInvoiceHtml(server: McpServer, { client, withSession 
           .describe('Invoice UUID (ettn) from list_invoices or create_invoice'),
       },
     },
-    async ({ onayDurumu = 'Onaylanmadı', uuid }) => {
-      const html = await withSession((session) => client.getInvoiceHTML(session, uuid, onayDurumu));
-      return { content: [{ text: html, type: 'text' }] };
-    },
+    async ({ onayDurumu = 'Onaylanmadı', uuid }) =>
+      withSession(async (session) => ({
+        content: [{ text: await client.getInvoiceHTML(session, uuid, onayDurumu), type: 'text' }],
+      })),
   );
 }

@@ -22,7 +22,7 @@ export async function fetchTCMBRateTable(
   },
 ): Promise<TCMBRateTable> {
   const fetchFn = options?.fetch ?? globalThis.fetch;
-  const base = options?.baseUrl ? `${options.baseUrl}/kurlar` : TCMB_BASE;
+  const base = options?.baseUrl ? `${options.baseUrl.replace(/\/+$/, '')}/kurlar` : TCMB_BASE;
   const start = baseDate ?? new Date();
   for (let i = 0; i < 7; i++) {
     const date = new Date(start);

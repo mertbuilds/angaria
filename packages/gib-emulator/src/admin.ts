@@ -10,9 +10,24 @@ import { endSessions, jsonReply, type PortalContext, type Reply } from './gib.ts
 import { addFixture, lockUser, type StoredInvoice } from './state.ts';
 
 // The control API under /__emulator. Plain JSON, no auth: the emulator only
-// listens on loopback.
+// listens on loopback, and server.ts refuses other Host names and web pages
+// from other origins.
 
 const FAULT_KINDS = ['5xx', 'error', 'maintenance', 'text'] as const;
+
+/**
+ * What PATCH /__emulator/config may change. Never stateFile (a path the
+ * emulator writes to), users or seedInvoices: those come from the start config.
+ */
+const PATCHABLE_CONFIG = [
+  'chaos',
+  'lockedUsers',
+  'maxRangeDays',
+  'sessionTtlSeconds',
+  'smsCode',
+  'smsTtlSeconds',
+  'tcmbHolidays',
+] as const;
 
 export type FaultKind = (typeof FAULT_KINDS)[number];
 
@@ -103,7 +118,7 @@ const userid = (body: unknown) => {
  * GET  /__emulator, /__emulator/state   everything: config, users, sessions, invoices, SMS codes, faults
  * POST /__emulator/reset                back to the start config and the seed state
  * POST /__emulator/seed                 { users?: [...], invoices?: [InvoiceFixture] }
- * PATCH /__emulator/config              a PartialConfig (chaos knobs, maxRangeDays, smsCode, ...)
+ * PATCH /__emulator/config              chaos, maxRangeDays, smsCode, ... (PATCHABLE_CONFIG only)
  * POST /__emulator/sms-code             { code } ('random' for six random digits per SMS)
  * GET|POST|DELETE /__emulator/faults    list, queue (Fault or Fault[]), clear one-shot failures
  * POST /__emulator/lock                 { userid }: a session opened elsewhere holds the lock
@@ -144,9 +159,19 @@ export function adminReply(ctx: AdminContext, method: string, path: string, body
       ctx.persist();
       return jsonReply({ invoices: created });
     }
-    case 'PATCH /__emulator/config':
-      ctx.setConfig(mergeConfig(ctx.config, asRecord(body) as PartialConfig));
+    case 'PATCH /__emulator/config': {
+      const patch = asRecord(body);
+      const refused = Object.keys(patch).filter(
+        (key) => !PATCHABLE_CONFIG.some((field) => field === key),
+      );
+      if (refused.length > 0) {
+        return badRequest(
+          `Not patchable: ${refused.join(', ')}. Allowed: ${PATCHABLE_CONFIG.join(', ')}.`,
+        );
+      }
+      ctx.setConfig(mergeConfig(ctx.config, patch as PartialConfig));
       return jsonReply(describeState(ctx).config);
+    }
     case 'POST /__emulator/sms-code': {
       const { code } = asRecord(body);
       if (typeof code !== 'string' || !/^(?:\d{4,8}|random)$/.test(code)) {

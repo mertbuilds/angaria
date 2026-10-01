@@ -29,6 +29,8 @@ export const messages = {
   invalidRecipientID: 'Alıcı VKN/TCKN 10 veya 11 haneli olmalıdır.',
   invoiceNotFound: 'Belge bulunamadı.',
   itemsMissing: 'En az bir mal/hizmet satırı girilmelidir.',
+  /** `anologin` without a userid (type '5'). */
+  loginFieldsMissing: 'Sisteme giriş için eksik bilgi verildi',
   maintenance: 'Sistemde bakım çalışması yapılmaktadır. Lütfen daha sonra tekrar deneyiniz.',
   notDeletable: 'Onaylanmış belgeler silinemez, iptal talebi oluşturunuz.',
   phoneMismatch: 'Telefon numarası sistemde kayıtlı numara ile uyuşmuyor.',

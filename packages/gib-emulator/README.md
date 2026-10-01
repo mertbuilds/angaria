@@ -27,13 +27,13 @@ The SMS code is `123456` unless configured.
 
 - SDK: `createClient({ baseUrl: 'http://127.0.0.1:5180' })`. `baseUrl` replaces both the production and the test portal.
 - TCMB: `fetchTCMBRates(date, { baseUrl: 'http://127.0.0.1:5180' })` (angaria-utils).
-- Smoke script: `EARSIV_MODE=emulator NODE_EXTRA_CA_CERTS=~/.portless/ca.pem node packages/earsiv-sdk/scripts/smoke.ts`. Node ignores the macOS trust store, so the portless CA is passed explicitly; `EARSIV_EMULATOR_URL=http://127.0.0.1:5180` skips TLS.
-- Desktop app (dev only): Ayarlar › GİB hesabı › Emülatör. GİB and TCMB calls then go to `VITE_GIB_EMULATOR_URL` (`apps/desktop/.env.development`). The app uses plain http on loopback, not the portless alias: the Tauri http plugin (reqwest with rustls and bundled roots) does not trust portless's local CA. `tauri dev --config src-tauri/tauri.dev.conf.json` (the `desktop` pane of `pnpm dev`) adds that URL to the http allowlist; release builds never see it. In a plain browser (`pnpm --filter desktop dev`, `VITE_LICENSE_BYPASS=1`) the app reaches the emulator with the browser's fetch, which the emulator allows through CORS.
+- Smoke script: `node packages/earsiv-sdk/scripts/smoke.ts` runs against `http://127.0.0.1:5180` by default (`EARSIV_EMULATOR_URL` for another address; for a portless alias add `NODE_EXTRA_CA_CERTS=~/.portless/ca.pem`, Node ignores the macOS trust store). The GİB portals only with `EARSIV_MODE=test` or `prod`.
+- Desktop app (dev only): Ayarlar › GİB hesabı › Emülatör. GİB and TCMB calls then go to `VITE_GIB_EMULATOR_URL` (`apps/desktop/.env.development`). The app uses plain http on loopback, not the portless alias: the Tauri http plugin (reqwest with rustls and bundled roots) does not trust portless's local CA. `tauri dev --config src-tauri/tauri.dev.conf.json` (the `desktop` pane of `pnpm dev`) adds that URL to the http allowlist; release builds never see it. In a plain browser (`pnpm --filter desktop dev`, `VITE_LICENSE_BYPASS=1`) the app reaches the emulator with the browser's fetch, which the emulator allows through CORS for the desktop dev origins (`http://localhost:<port>`, `http://127.0.0.1:<port>`, `tauri://localhost`, `http://tauri.localhost`) on the portal and TCMB routes.
 - Tests: `startEmulator({ port: 0 })` in-process. `packages/earsiv-sdk/tests/emulator-setup.ts` starts one per test run.
 
 ## Protocol
 
-POST `/earsiv-services/assos-login` (form): `assoscmd=login` (test portal) or `anologin` (production) with `userid`, `sifre` logs in and returns `{ token, redirectUrl }` plus a `JSESSIONID` cookie. `logout`, or `anologin` with only a token, logs out.
+POST `/earsiv-services/assos-login` (form): `assoscmd=login` (test portal) or `anologin` (production) with `userid`, `sifre` logs in and returns `{ token, redirectUrl }` plus a `JSESSIONID` cookie. `logout` with the token logs out on both portals. `anologin` without a `userid` is a login with missing fields: error type `5`, "Sisteme giriş için eksik bilgi verildi", and the session stays open.
 
 POST `/earsiv-services/dispatch` (form: `cmd`, `callid`, `pageName`, `token`, `jp` = JSON). Success is `{ data, metadata: { optime: 'yyyyMMddHHmmss' } }`, an error is `{ error: '1', messages: [{ type: '4', text }], metadata }`.
 
@@ -54,9 +54,9 @@ POST `/earsiv-services/dispatch` (form: `cmd`, `callid`, `pageName`, `token`, `j
 | `SICIL_VEYA_MERNISTEN_BILGILERI_GETIR`       | Name and tax office of a known VKN/TCKN, empty strings otherwise.                                                                                                                                                            |
 | anything else                                | Error envelope `Service Not Found`.                                                                                                                                                                                          |
 
-Sessions follow the portal's rules: one open session per user ("Sisteme aynı anda birden fazla giriş yapamazsınız..."), an idle timeout (`sessionTtlSeconds`, default 30 minutes) after which the token fails and the lock is released, and a force logout: the refused login sets a cookie, and a logout carrying it ends the open session (the SDK's `forceLogout`).
+Sessions follow the portal's rules: one open session per user ("Sisteme aynı anda birden fazla giriş yapamazsınız..."), an idle timeout (`sessionTtlSeconds`, default 30 minutes) after which the token fails and the lock is released, and a force logout: the refused login sets a cookie, and a logout carrying it ends the open session (the SDK's `forceLogout`). The force logout is a model, not verified against the live portal: nobody has confirmed that the real portal ends the open session for that cookie.
 
-GET `/kurlar/{yyyyMM}/{ddMMyyyy}.xml` and `/kurlar/today.xml`: TCMB's XML schema (`Tarih_Date` › `Currency[CurrencyCode]` › `Unit`, `ForexBuying`, ...), deterministic rates per day. Weekends, public holidays (fixed ones, Ramazan and Kurban Bayramı for 2025 to 2027, plus `tcmbHolidays`) and days after today answer 404 with an HTML page.
+GET `/kurlar/{yyyyMM}/{ddMMyyyy}.xml` and `/kurlar/today.xml`: TCMB's XML schema (`Tarih_Date` › `Currency[CurrencyCode]` › `Unit`, `ForexBuying`, ...) with the 2026 feed's currencies (USD to KZT, then XDR), deterministic rates per day. TCMB publishes at 15:30 Turkish time: before that, `today.xml` is the previous bulletin and today's file answers 404. Weekends, public holidays (fixed ones, Ramazan and Kurban Bayramı for 2025 to 2027, plus `tcmbHolidays`), half days without a bulletin (28 October and the weekday arife days) and days after the latest bulletin answer 404 with an HTML page.
 
 The texts in `src/messages.ts` are split into verified ones (seen on the live portal by the SDK, PR #1, f/fatura and mlevent/fatura) and best-effort wording.
 
@@ -79,20 +79,20 @@ Start config comes from `GIB_EMULATOR_*` variables, a JSON file (`--config file.
 | `GIB_EMULATOR_TEXT_ERROR_RATE`  | `chaos.textErrorRate` (0-1, draft creation answers HTTP 200 with an error text) | `0`      |
 | `GIB_EMULATOR_MAINTENANCE=1`    | `chaos.maintenance` (portal answers its maintenance HTML page)                  | off      |
 
-`maxRangeDays` is the largest allowed difference between the two dates of a list request. Users and seed documents are `users` and `seedInvoices` in the config file.
+`maxRangeDays` is the longest allowed list range in days, both ends counted: with 7, 01/09 to 07/09 is accepted and 01/09 to 08/09 refused. Users and seed documents are `users` and `seedInvoices` in the config file.
 
 With `stateFile`, documents, numbering and edited profiles are written after every change and read on start; sessions and SMS codes are not kept.
 
 ## Control API
 
-No auth: keep the default loopback host.
+No auth, so the emulator guards it in other ways. Every request must name a loopback host (`127.0.0.1`, `localhost`, `[::1]`, with any port) or a `*.angaria.localhost` alias in `Host`, else 403: this stops DNS rebinding, and it means the emulator only works on loopback. `/__emulator` sends no CORS headers and answers 403 to a request whose `Origin` is not one of those names, so a web page elsewhere cannot drive it. Keep the default loopback host.
 
 | Request                            | Body                                                                                                                            |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /__emulator/state`            | Config, users, sessions, documents, SMS codes and queued faults.                                                                |
 | `POST /__emulator/reset`           | Back to the start config and the seed state.                                                                                    |
 | `POST /__emulator/seed`            | `{ users?: [...], invoices?: [{ userid, date?, daysAgo?, status?, recipient?, taxID?, amount?, currency?, vatRate?, item? }] }` |
-| `PATCH /__emulator/config`         | A partial config, e.g. `{ "chaos": { "latencyMs": 2000 } }` or `{ "maxRangeDays": 3 }`.                                         |
+| `PATCH /__emulator/config`         | `chaos`, `lockedUsers`, `maxRangeDays`, `sessionTtlSeconds`, `smsCode`, `smsTtlSeconds`, `tcmbHolidays`; anything else is 400.  |
 | `POST /__emulator/sms-code`        | `{ "code": "654321" }` or `{ "code": "random" }`.                                                                               |
 | `POST /__emulator/faults`          | One fault or a list: `{ kind, cmd?, count?, status?, text? }`. `cmd` is a dispatch `cmd`, a login `assoscmd` or `tcmb`.         |
 | `GET`, `DELETE /__emulator/faults` | List or clear queued faults.                                                                                                    |
