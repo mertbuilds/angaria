@@ -13,6 +13,9 @@ catalog:
   '@tauri-apps/api': ^2.10.1
   '@tauri-apps/cli': ^2.10.1
   '@tauri-apps/plugin-http': ^2.5.7
+  # Tilde: newer minors need the tauri 2.12 crate, the app is on 2.10.
+  '@tauri-apps/plugin-opener': ~2.5.5
+  '@tauri-apps/plugin-os': ~2.3.2
   '@types/node': ^24.10.1
   '@vitejs/plugin-react': ^6.1.1
   class-variance-authority: ^0.7.1
