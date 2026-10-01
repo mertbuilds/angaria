@@ -26,12 +26,6 @@
           "url": "https://api.polar.sh/*"
         },
         {
-          "url": "https://sandbox.polar.sh/*"
-        },
-        {
-          "url": "https://sandbox-api.polar.sh/*"
-        },
-        {
           "url": "https://angaria.app/*"
         }
       ]
@@ -50,9 +44,6 @@
         },
         {
           "url": "https://api.polar.sh/*"
-        },
-        {
-          "url": "https://sandbox-api.polar.sh/*"
         }
       ]
     }
