@@ -5,7 +5,7 @@ Decisions from the grilling session with Mert. Every agent working on the relaun
 ## Product
 
 - Angaria: Tauri desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers (1-2 invoices/month).
-- Paid: 1,499 TRY/year via **Polar** (new Vinena Studio org), USD fallback price, **14-day free trial** (Polar subscription trial).
+- Paid via **Polar** (new Vinena Studio org), two plans: yearly 1,499 TRY/year (the default) and monthly 199 TRY/month. One Polar product per interval, each with a USD fallback price and a **14-day free trial** (Polar subscription trial). Both grant the same license key benefit (3 Macs), cancel anytime.
 - Turkish only (app + site). Wordmark-only brand: lowercase `angaria` in Suisse Intl Medium. No symbol mark.
 
 ## Repo layout (target)
@@ -52,7 +52,7 @@ Turkish. Sections:
 2. GİB vs Angaria side-by-side (placeholders until Mert sends GİB screenshots).
 3. Features: geçen faturadan başla, geçen ayın faturasını tekrar kes, müşteri ve hizmet kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers).
 4. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, Polar license check, update check); credentials in system keychain; data stays on device.
-5. Pricing: 1.499 ₺/yıl, 14 gün ücretsiz → Polar hosted checkout.
+5. Pricing: Yıllık / Aylık switch (default Yıllık): 1.499 ₺/yıl or 199 ₺/ay, 14 gün ücretsiz → that plan's Polar hosted checkout. Every other checkout button (header, hero) and the app's Satın al open the yearly checkout.
 6. SSS (FAQ), footer.
 
 ## Go-live

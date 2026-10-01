@@ -92,7 +92,7 @@ The dashboard path is R2, `angaria-downloads`, Settings, Custom Domains, Connect
 
 ## Go-live checklist
 
-- Fill `apps/desktop/.env.production` with the production Polar organization, checkout and portal. The production build fails while any of them is empty.
+- Fill `apps/desktop/.env.production` with the production Polar organization, checkout (the yearly plan's link) and portal, and `apps/web/.env.production` with both plans' checkout links. The production build fails while any of them is empty.
 - Release builds reach only `api.polar.sh`. The Polar sandbox hosts are allowed in `src-tauri/tauri.dev.conf.json` only, so a release build cannot check a sandbox license key. Test sandbox licensing with `pnpm dev`, and a release build with a production key.
 
 ## Release steps
