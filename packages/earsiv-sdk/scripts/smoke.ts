@@ -32,7 +32,7 @@ if (!USER || !PASS) {
 if (MODE === 'emulator') {
   console.log(`emülatör: ${EMULATOR_URL}`);
 }
-console.log(`mod: ${MODE} — kullanıcı: ${USER}\n`);
+console.log(`mod: ${MODE}, kullanıcı: ${USER}\n`);
 
 const fetchWithTimeout: typeof fetch = (input, init) =>
   fetch(input, { ...init, signal: AbortSignal.timeout(30_000) });
@@ -42,9 +42,9 @@ const client = createClient({
   fetch: fetchWithTimeout,
 });
 
-const ok = (step: string, extra = '') => console.log(`✓ ${step}${extra ? ` — ${extra}` : ''}`);
+const ok = (step: string, extra = '') => console.log(`✓ ${step}${extra ? `: ${extra}` : ''}`);
 const fail = (step: string, err: unknown) => {
-  console.error(`✗ ${step} — ${err instanceof Error ? err.message : String(err)}`);
+  console.error(`✗ ${step}: ${err instanceof Error ? err.message : String(err)}`);
   process.exitCode = 1;
 };
 const field = (row: Record<string, unknown>, key: string) =>
@@ -166,7 +166,7 @@ if (createdRow && !KEEP) {
     fail('cancelInvoice (temizlik)', error);
   }
 } else if (createdRow && KEEP) {
-  console.log('EARSIV_KEEP=1 — test taslağı silinmedi, portalda inceleyebilirsiniz.');
+  console.log('EARSIV_KEEP=1: test taslağı silinmedi, portalda inceleyebilirsiniz.');
 }
 
 try {
