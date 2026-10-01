@@ -9,23 +9,38 @@
 //     → GERÇEK portal, kendi hesabınla. 1 TL'lik bir taslak oluşturur,
 //       doğrular ve sonunda SİLER (hiçbir belge imzalanmaz/kesinleşmez).
 //       Oluşan taslağı incelemek için silmeyi atla: EARSIV_KEEP=1
+//
+//   EARSIV_MODE=emulator NODE_EXTRA_CA_CERTS=~/.portless/ca.pem node scripts/smoke.ts
+//     → yerel GİB emülatörü (`pnpm emulate`), https://gib.angaria.localhost.
+//       Node portless CA'sına kendiliğinden güvenmez, bu yüzden NODE_EXTRA_CA_CERTS.
+//       Başka bir adres için: EARSIV_EMULATOR_URL=http://127.0.0.1:5180
 import { createClient, type SessionInfo } from '../src/index.ts';
 
-const MODE = process.env.EARSIV_MODE === 'prod' ? 'prod' : 'test';
-const USER = process.env.EARSIV_USER ?? (MODE === 'test' ? '33333301' : '');
-const PASS = process.env.EARSIV_PASS ?? (MODE === 'test' ? '1' : '');
+const MODE = ['prod', 'emulator'].includes(process.env.EARSIV_MODE ?? '')
+  ? (process.env.EARSIV_MODE as 'emulator' | 'prod')
+  : 'test';
+const USER = process.env.EARSIV_USER ?? (MODE === 'prod' ? '' : '33333301');
+const PASS = process.env.EARSIV_PASS ?? (MODE === 'prod' ? '' : '1');
+const EMULATOR_URL = process.env.EARSIV_EMULATOR_URL ?? 'https://gib.angaria.localhost';
+const TEST_MODE = MODE !== 'prod';
 const KEEP = process.env.EARSIV_KEEP === '1';
 
 if (!USER || !PASS) {
   console.error('prod modunda EARSIV_USER ve EARSIV_PASS zorunludur.');
   process.exit(1);
 }
+if (MODE === 'emulator') {
+  console.log(`emülatör: ${EMULATOR_URL}`);
+}
 console.log(`mod: ${MODE} — kullanıcı: ${USER}\n`);
 
 const fetchWithTimeout: typeof fetch = (input, init) =>
   fetch(input, { ...init, signal: AbortSignal.timeout(30_000) });
 
-const client = createClient({ fetch: fetchWithTimeout });
+const client = createClient({
+  baseUrl: MODE === 'emulator' ? EMULATOR_URL : undefined,
+  fetch: fetchWithTimeout,
+});
 
 const ok = (step: string, extra = '') => console.log(`✓ ${step}${extra ? ` — ${extra}` : ''}`);
 const fail = (step: string, err: unknown) => {
@@ -42,15 +57,15 @@ const time = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}
 
 async function loginWithRetry(): Promise<SessionInfo> {
   try {
-    const s = await client.login(USER, PASS, MODE === 'test');
+    const s = await client.login(USER, PASS, TEST_MODE);
     ok('login', `token=${s.token.slice(0, 10)}…`);
     return s;
   } catch (error) {
     if (error instanceof Error && error.message.includes('birden fazla giriş')) {
       try {
         console.log('… açık oturum var, kapatılıp tekrar deneniyor');
-        await client.forceLogout(USER, PASS, MODE === 'test');
-        const s = await client.login(USER, PASS, MODE === 'test');
+        await client.forceLogout(USER, PASS, TEST_MODE);
+        const s = await client.login(USER, PASS, TEST_MODE);
         ok('login (2. deneme)', `token=${s.token.slice(0, 10)}…`);
         return s;
       } catch (error) {

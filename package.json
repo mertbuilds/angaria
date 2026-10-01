@@ -6,6 +6,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "mprocs",
+    "emulate": "pnpm --filter @angaria/gib-emulator start --portless",
     "fonts": "bash scripts/fetch-fonts.sh",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",

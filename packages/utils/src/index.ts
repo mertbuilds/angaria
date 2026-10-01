@@ -8,9 +8,14 @@ const pad = (n: number) => String(n).padStart(2, '0');
  */
 export async function fetchTCMBRates(
   baseDate?: Date,
-  options?: { fetch?: typeof globalThis.fetch },
+  options?: {
+    /** TCMB origin, e.g. the local GİB emulator, which also serves /kurlar. */
+    baseUrl?: string;
+    fetch?: typeof globalThis.fetch;
+  },
 ): Promise<Map<string, number>> {
   const fetchFn = options?.fetch ?? globalThis.fetch;
+  const base = options?.baseUrl ? `${options.baseUrl}/kurlar` : TCMB_BASE;
   const start = baseDate ?? new Date();
   for (let i = 0; i < 7; i++) {
     const date = new Date(start);
@@ -18,7 +23,7 @@ export async function fetchTCMBRates(
     const d = pad(date.getDate());
     const m = pad(date.getMonth() + 1);
     const y = date.getFullYear();
-    const url = `${TCMB_BASE}/${y}${m}/${d}${m}${y}.xml`;
+    const url = `${base}/${y}${m}/${d}${m}${y}.xml`;
     const response = await fetchFn(url);
     if (!response.ok) {
       continue;
