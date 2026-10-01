@@ -10,6 +10,7 @@ apps/
   web/          angaria.app landing page. TanStack Start on Cloudflare Workers, Paraglide (tr only).
 packages/
   earsiv-sdk/   GİB e-Arşiv portal client. tsdown build to dist/.
+  gib-emulator/ Local GİB e-Arşiv portal and TCMB rates emulator. node:http, tsdown, vitest.
   ui/           @angaria/ui design system: StyleX + Base UI components, theme, fonts. Source-consumed, no build.
   utils/        Shared helpers (TCMB rates). tsdown build, vitest tests.
 ```
@@ -18,7 +19,8 @@ packages/
 
 | Command          | What                                                                      |
 | ---------------- | ------------------------------------------------------------------------- |
-| `pnpm dev`       | mprocs: desktop (`tauri dev`) and web (`https://angaria.localhost`)       |
+| `pnpm dev`       | mprocs: desktop, gib emulator, web (`https://angaria.localhost`)          |
+| `pnpm emulate`   | GİB and TCMB emulator on `http://127.0.0.1:5180` (packages/gib-emulator)  |
 | `pnpm build`     | turbo build (workspace packages first, then the desktop and web apps)     |
 | `pnpm typecheck` | `tsc --noEmit` per package via turbo                                      |
 | `pnpm lint`      | builds packages and web, then oxlint type-aware + TS errors (tsgolint)    |
@@ -27,7 +29,7 @@ packages/
 | `pnpm fonts`     | fetch licensed Suisse Intl woff2 into packages/ui/fonts (FONT_BUCKET_URL) |
 | `cargo check`    | Rust check, run in `apps/desktop/src-tauri`                               |
 
-Desktop: `pnpm --filter desktop tauri dev` (same as `pnpm dev`), `pnpm --filter desktop tauri build` for a bundle.
+Desktop: `pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json` (same as `pnpm dev`; the overlay lets the app reach the emulator), `pnpm --filter desktop tauri build` for a bundle.
 
 Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and OG image from Suisse Intl), `run deploy` (build + `wrangler deploy`; not before go-live, and `pnpm deploy` without `run` is pnpm's own command).
 
@@ -39,6 +41,13 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 - Workspace packages are consumed from their built `dist/`. Turbo's `^build` builds them before any dependent build, typecheck, or test, and Tauri's `beforeDevCommand` and `beforeBuildCommand` (`apps/desktop/src-tauri/tauri.conf.json`) go through turbo, so the app never bundles a stale SDK.
 - The desktop dev server stays on the fixed port 5173 because Tauri loads `devUrl`. Web apps run behind portless (`https://<name>.localhost`) from `mprocs.yaml`.
 - Never edit generated output: `dist/`, `apps/desktop/src-tauri/gen/`, `apps/desktop/src-tauri/target/`.
+
+## GİB emulator (`packages/gib-emulator`)
+
+- Never test against live GİB during development: the production portal issues real documents and the test portal's shared demo accounts are locked by other people's sessions. Use the emulator: `pnpm emulate`, users `33333301`/`1` and `12345678`/`angaria`, SMS code `123456`. README: `packages/gib-emulator/README.md`.
+- SDK: `createClient({ baseUrl })`; TCMB: `fetchTCMBRates(date, { baseUrl })`. The SDK's tests start it in-process (`packages/earsiv-sdk/tests/emulator-setup.ts`); the smoke script takes `EARSIV_MODE=emulator`.
+- Desktop: Ayarlar › GİB hesabı › Emülatör (dev only) sends GİB and TCMB calls to `VITE_GIB_EMULATOR_URL` (`.env.development`, plain http: the Tauri http plugin does not trust portless's CA). `src-tauri/tauri.dev.conf.json` adds it to the http allowlist for `tauri dev` only; production builds contain neither the URL nor the switch. A plain browser reaches it too (browser fetch; the emulator allows CORS).
+- Faults (latency, 5xx, HTTP 200 with an error text, maintenance HTML, session locks) and state: the `/__emulator` API.
 
 ## Desktop shell (`apps/desktop`)
 

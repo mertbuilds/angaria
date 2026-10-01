@@ -16,5 +16,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src", "scripts", "tests", "tsdown.config.ts"]
+  "include": ["src", "scripts", "tests", "tsdown.config.ts", "vitest.config.ts"]
 }
