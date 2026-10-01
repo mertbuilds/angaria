@@ -84,8 +84,10 @@ const styles = create({
     position: 'absolute',
     transformOrigin: '0 0',
   },
+  // GİB's page is paper: white, with light form controls, in both themes.
   frameBox: {
     backgroundColor: '#ffffff',
+    colorScheme: 'light',
     flex: 1,
     minHeight: '32rem',
     overflow: 'hidden',
