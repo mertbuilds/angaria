@@ -8,6 +8,7 @@
     "dev": "vite",
     "preview": "vite preview",
     "tauri": "tauri",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -46,6 +47,7 @@
     "react-grab": "catalog:",
     "tailwindcss": "^4.1.0",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

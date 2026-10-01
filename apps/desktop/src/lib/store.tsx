@@ -1,18 +1,38 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from 'react';
+import { toast } from 'sonner';
+import {
+  createPasswordVault,
+  ENTITIES_STORAGE_KEY,
+  LEGACY_CREDS_STORAGE_KEY,
+  migrateCredentials,
+} from './credentials.ts';
+import { secretDelete, secretGet, secretSet } from './native.ts';
 import type {
   AdvancedInvoiceFields,
   CompanyInfo,
   Credentials,
+  CredentialsInfo,
   Entity,
   InvoiceItem,
   InvoiceSettings,
   InvoiceTemplate,
   Recipient,
+  StoredCredentials,
 } from './types.ts';
 
 const newId = () => crypto.randomUUID();
-const ENTITIES_STORAGE_KEY = 'fatura-entities';
 const ACTIVE_ENTITY_STORAGE_KEY = 'fatura-active-entity-id';
+
+const secrets = { delete: secretDelete, get: secretGet, set: secretSet };
+const passwords = createPasswordVault(secrets);
 
 const SEED_RECIPIENTS: Array<Recipient> = [
   {
@@ -61,7 +81,7 @@ const DEFAULT_ITEM_ADVANCED = {
   gtip: '',
 };
 
-const DEFAULT_CREDS: Credentials = { username: '', password: '', testMode: true };
+const DEFAULT_CREDS: StoredCredentials = { username: '', testMode: true };
 
 const DEFAULT_COMPANY_INFO: CompanyInfo = {
   name: '',
@@ -198,7 +218,7 @@ function loadEntities(): Array<Entity> {
   return [
     {
       ...makeDefaultEntity(0, false),
-      creds: loadLocal('fatura-creds', { ...DEFAULT_CREDS }),
+      creds: loadLocal(LEGACY_CREDS_STORAGE_KEY, { ...DEFAULT_CREDS }),
       companyInfo: loadLocal('fatura-company-info', { ...DEFAULT_COMPANY_INFO }),
       savedRecipients: loadLocal('fatura-saved-recipients', SEED_RECIPIENTS),
       savedItems: loadLocal('fatura-saved-items', SEED_ITEMS),
@@ -207,16 +227,52 @@ function loadEntities(): Array<Entity> {
   ];
 }
 
+interface CredentialStartup {
+  migrationFailed: boolean;
+  /** Entity ids with a password in the keychain */
+  passwordSaved: Record<string, boolean>;
+}
+
+async function prepareCredentials(): Promise<CredentialStartup> {
+  // Persist the normalized entities first so legacy single-entity creds get an
+  // entity id to migrate under.
+  localStorage.setItem(ENTITIES_STORAGE_KEY, JSON.stringify(loadEntities()));
+  const { failed } = await migrateCredentials(localStorage, secrets);
+  const saved = await Promise.all(
+    loadEntities().map(async (entity) => {
+      const password = await passwords.get(entity.id).catch(() => null);
+      return [entity.id, Boolean(password)] as const;
+    }),
+  );
+  return { migrationFailed: failed > 0, passwordSaved: Object.fromEntries(saved) };
+}
+
+let credentialStartup: Promise<CredentialStartup> | null = null;
+
+function withoutPassword(creds: StoredCredentials): StoredCredentials {
+  const next = { ...creds };
+  delete next.password;
+  return next;
+}
+
 interface Store {
   activeEntity: Entity;
   activeEntityId: string;
   advancedFields: AdvancedInvoiceFields;
   companyInfo: CompanyInfo;
   createEntity: () => void;
-  creds: Credentials;
+  /** Non-secret credentials of the active entity. Read the password with getCredentials. */
+  creds: CredentialsInfo;
   defaultItemAdvanced: typeof DEFAULT_ITEM_ADVANCED;
+  /** Clear the entity's username and remove its password from the keychain */
+  deleteCredentials: (entityId: string) => Promise<void>;
+  /** Also removes the entity's password from the keychain */
   deleteEntity: (id: string) => void;
   entities: Array<Entity>;
+  /** Full login for an entity, password read from the keychain. Call right before logging in. */
+  getCredentials: (entityId: string) => Promise<Credentials>;
+  /** true when the active entity has a username and a saved password */
+  hasCredentials: boolean;
   invoiceDateRange: { end: string; start: string };
   invoicePageSize: number;
   invoiceSettings: InvoiceSettings;
@@ -239,7 +295,11 @@ interface Store {
   setActiveEntityId: React.Dispatch<React.SetStateAction<string>>;
   setAdvancedFields: React.Dispatch<React.SetStateAction<AdvancedInvoiceFields>>;
   setCompanyInfo: React.Dispatch<React.SetStateAction<CompanyInfo>>;
-  setCreds: React.Dispatch<React.SetStateAction<Credentials>>;
+  /**
+   * Update the given fields. username and testMode apply immediately; a password
+   * is written to the keychain ('' removes it). Rejects if the keychain write fails.
+   */
+  setCredentials: (entityId: string, creds: Partial<Credentials>) => Promise<void>;
   setInvoiceDateRange: React.Dispatch<React.SetStateAction<{ end: string; start: string }>>;
   setInvoicePageSize: React.Dispatch<React.SetStateAction<number>>;
   setInvoiceSettings: React.Dispatch<React.SetStateAction<InvoiceSettings>>;
@@ -267,8 +327,42 @@ export function useStore() {
   return ctx;
 }
 
+/** Renders children once GİB passwords are migrated to the keychain and loaded. */
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const [startup, setStartup] = useState<CredentialStartup | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    credentialStartup ??= prepareCredentials().catch(() => ({
+      migrationFailed: true,
+      passwordSaved: {},
+    }));
+    void credentialStartup.then((result) => {
+      if (active) {
+        setStartup(result);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!startup) {
+    return null;
+  }
+  return <LoadedStoreProvider startup={startup}>{children}</LoadedStoreProvider>;
+}
+
+function LoadedStoreProvider({
+  children,
+  startup,
+}: {
+  children: ReactNode;
+  startup: CredentialStartup;
+}) {
   const [entities, setEntities] = useState<Array<Entity>>(() => loadEntities());
+  const entitiesRef = useRef(entities);
+  const [passwordSaved, setPasswordSaved] = useState(startup.passwordSaved);
   const [activeEntityId, setActiveEntityId] = useState(
     () => loadLocal<string | null>(ACTIVE_ENTITY_STORAGE_KEY, null) ?? loadEntities()[0]?.id ?? '',
   );
@@ -301,6 +395,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setActiveEntityId(entities[0]?.id ?? '');
   }, [activeEntityId, entities]);
 
+  useEffect(() => {
+    entitiesRef.current = entities;
+  }, [entities]);
+
+  useEffect(() => {
+    if (startup.migrationFailed) {
+      toast.warning(
+        "GİB şifresi Anahtar Zinciri'ne taşınamadı. Şifreniz silinmedi, uygulama bir sonraki açılışta yeniden deneyecek.",
+        { id: 'credentials-migration' },
+      );
+    }
+  }, [startup.migrationFailed]);
+
   const activeEntity = entities.find((entity) => entity.id === activeEntityId) ?? entities[0];
 
   const updateActiveEntity = useCallback(
@@ -328,6 +435,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const deleteEntity = useCallback(
     (id: string) => {
+      if (entities.length > 1 && entities.some((entity) => entity.id === id)) {
+        void passwords
+          .delete(id)
+          .catch(() =>
+            toast.warning("Silinen varlığın GİB şifresi Anahtar Zinciri'nden kaldırılamadı."),
+          );
+      }
       setEntities((prev) => {
         if (prev.length <= 1) {
           return prev;
@@ -345,14 +459,56 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [entities],
   );
 
-  const setCreds: React.Dispatch<React.SetStateAction<Credentials>> = useCallback(
-    (value) => {
-      updateActiveEntity((entity) => ({
-        ...entity,
-        creds: typeof value === 'function' ? value(entity.creds) : value,
-      }));
+  const updateCreds = useCallback(
+    (entityId: string, updater: (creds: StoredCredentials) => StoredCredentials) => {
+      setEntities((prev) =>
+        prev.map((entity) =>
+          entity.id === entityId ? { ...entity, creds: updater(entity.creds) } : entity,
+        ),
+      );
     },
-    [updateActiveEntity],
+    [],
+  );
+
+  const getCredentials = useCallback(async (entityId: string): Promise<Credentials> => {
+    const entity = entitiesRef.current.find((e) => e.id === entityId);
+    if (!entity) {
+      throw new Error('Varlık bulunamadı');
+    }
+    const { password: plaintext, ...creds } = entity.creds;
+    let password: string | null = null;
+    try {
+      password = await passwords.get(entityId);
+    } catch (error) {
+      if (!plaintext) {
+        throw new Error("GİB şifresi Anahtar Zinciri'nden okunamadı", { cause: error });
+      }
+    }
+    return { ...creds, password: password ?? plaintext ?? '' };
+  }, []);
+
+  const setCredentials = useCallback(
+    async (entityId: string, { password, ...fields }: Partial<Credentials>) => {
+      if (Object.keys(fields).length > 0) {
+        updateCreds(entityId, (creds) => ({ ...creds, ...fields }));
+      }
+      if (password === undefined) {
+        return;
+      }
+      try {
+        await passwords.set(entityId, password);
+      } catch (error) {
+        throw new Error("GİB şifresi Anahtar Zinciri'ne kaydedilemedi", { cause: error });
+      }
+      updateCreds(entityId, withoutPassword);
+      setPasswordSaved((prev) => ({ ...prev, [entityId]: password !== '' }));
+    },
+    [updateCreds],
+  );
+
+  const deleteCredentials = useCallback(
+    (entityId: string) => setCredentials(entityId, { username: '', password: '' }),
+    [setCredentials],
   );
 
   const setCompanyInfo: React.Dispatch<React.SetStateAction<CompanyInfo>> = useCallback(
@@ -396,7 +552,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       [updateActiveEntity],
     );
 
-  const creds = activeEntity?.creds ?? DEFAULT_CREDS;
+  const storedCreds = activeEntity?.creds ?? DEFAULT_CREDS;
+  const creds: CredentialsInfo = {
+    username: storedCreds.username,
+    testMode: storedCreds.testMode,
+    hasPassword: Boolean(storedCreds.password) || passwordSaved[activeEntity?.id] === true,
+  };
+  const hasCredentials = Boolean(creds.username && creds.hasPassword);
   const companyInfo = activeEntity?.companyInfo ?? DEFAULT_COMPANY_INFO;
   const savedRecipients = activeEntity?.savedRecipients ?? [];
   const savedItems = activeEntity?.savedItems ?? [];
@@ -499,7 +661,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         renameEntity,
         deleteEntity,
         creds,
-        setCreds,
+        hasCredentials,
+        getCredentials,
+        setCredentials,
+        deleteCredentials,
         companyInfo,
         setCompanyInfo,
         recipient,
