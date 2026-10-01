@@ -46,7 +46,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 
 - Never test against live GİB during development: the production portal issues real documents and the test portal's shared demo accounts are locked by other people's sessions. Use the emulator: `pnpm emulate`, users `33333301`/`1` and `12345678`/`angaria`, SMS code `123456`. README: `packages/gib-emulator/README.md`.
 - SDK: `createClient({ baseUrl })`; TCMB: `fetchTCMBRates(date, { baseUrl })`. The SDK's tests start it in-process (`packages/earsiv-sdk/tests/emulator-setup.ts`); the smoke script takes `EARSIV_MODE=emulator`.
-- Desktop: Ayarlar › GİB hesabı › Emülatör (dev only) sends GİB and TCMB calls to `VITE_GIB_EMULATOR_URL` (`.env.development`, plain http: the Tauri http plugin does not trust portless's CA). `src-tauri/tauri.dev.conf.json` adds it to the http allowlist for `tauri dev` only; production builds contain neither the URL nor the switch. A plain browser reaches it too (browser fetch; the emulator allows CORS).
+- Desktop: Ayarlar › GİB hesabı › Emülatör (dev only) sends GİB and TCMB calls to `VITE_GIB_EMULATOR_URL` (`.env.development`, plain http: the Tauri http plugin does not trust portless's CA). `src-tauri/tauri.dev.conf.json` adds it, and the Polar sandbox of `.env.development`, to the allowlists for `tauri dev` only; production builds contain neither the URL nor the switch, and reach only production Polar. A plain browser reaches it too (browser fetch; the emulator allows CORS).
 - Faults (latency, 5xx, HTTP 200 with an error text, maintenance HTML, session locks) and state: the `/__emulator` API.
 
 ## Desktop shell (`apps/desktop`)
@@ -60,7 +60,8 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 - Styles: StyleX only, no Tailwind. `src/app.css` holds the few global rules (the element reset the screens are laid out against, no overscroll); anything else is a StyleX style next to its component.
 - Theme: the app follows the system. Ayarlar › Görünüm saves a choice in localStorage `angaria-theme` (`src/lib/theme.ts`); `main.tsx` re-applies it before render. The GİB preview stays on white paper in both themes.
 - PDF: `@react-pdf/renderer` is large, so `src/components/invoice-pdf.tsx` loads with a dynamic `import()` when a PDF is made. Keep it out of static imports (a type-only import is fine).
-- Updates: `useUpdateCheck` (`src/shell`) checks once per launch outside dev and offers the update in a toast; Ayarlar › Hakkında checks on demand. Both go through `src/lib/updater.ts` (`@tauri-apps/plugin-updater`, then `relaunch` from `@tauri-apps/plugin-process`).
+- License: the record (key, activation, check times) is one keychain item (`src/lib/license-vault.ts`). `LicenseProvider` checks with Polar at launch, every six hours and on focus, and recounts the offline grace period hourly (`src/lib/license-watch.ts`), so the app can lock mid-session. `StoreProvider` sits outside `LicenseGate`, so a lock keeps the invoice form.
+- Updates: `useUpdateCheck` (`src/shell`, called in `App` outside the license gate, so a locked app still updates) checks once per launch outside dev and offers the update in a toast; Ayarlar › Hakkında checks on demand. Both go through `src/lib/updater.ts` (`@tauri-apps/plugin-updater`, then `relaunch` from `@tauri-apps/plugin-process`).
 - Import `.stylex.ts` files (e.g. `shell.stylex.ts`) by relative path: the StyleX compiler does not resolve the `@/` alias and the build fails.
 
 ## UI (`packages/ui`)
