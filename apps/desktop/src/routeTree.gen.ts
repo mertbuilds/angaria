@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root.tsx'
 import { Route as IndexRouteImport } from './routes/index.tsx'
 import { Route as AyarlarRouteImport } from './routes/ayarlar.tsx'
+import { Route as FaturalarRouteImport } from './routes/faturalar.tsx'
 import { Route as MusterilerRouteImport } from './routes/musteriler.tsx'
 import { Route as SablonlarRouteImport } from './routes/sablonlar.tsx'
 import { Route as YeniRouteImport } from './routes/yeni.tsx'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const AyarlarRoute = AyarlarRouteImport.update({
   id: '/ayarlar',
   path: '/ayarlar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaturalarRoute = FaturalarRouteImport.update({
+  id: '/faturalar',
+  path: '/faturalar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MusterilerRoute = MusterilerRouteImport.update({
@@ -43,19 +49,20 @@ const YeniRoute = YeniRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaturalarIndexRoute = FaturalarIndexRouteImport.update({
-  id: '/faturalar/',
-  path: '/faturalar/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => FaturalarRoute,
 } as any)
 const FaturalarEttnRoute = FaturalarEttnRouteImport.update({
-  id: '/faturalar/$ettn',
-  path: '/faturalar/$ettn',
-  getParentRoute: () => rootRouteImport,
+  id: '/$ettn',
+  path: '/$ettn',
+  getParentRoute: () => FaturalarRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ayarlar': typeof AyarlarRoute
+  '/faturalar': typeof FaturalarRouteWithChildren
   '/musteriler': typeof MusterilerRoute
   '/sablonlar': typeof SablonlarRoute
   '/yeni': typeof YeniRoute
@@ -75,6 +82,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ayarlar': typeof AyarlarRoute
+  '/faturalar': typeof FaturalarRouteWithChildren
   '/musteriler': typeof MusterilerRoute
   '/sablonlar': typeof SablonlarRoute
   '/yeni': typeof YeniRoute
@@ -86,6 +94,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ayarlar'
+    | '/faturalar'
     | '/musteriler'
     | '/sablonlar'
     | '/yeni'
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ayarlar'
+    | '/faturalar'
     | '/musteriler'
     | '/sablonlar'
     | '/yeni'
@@ -114,11 +124,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AyarlarRoute: typeof AyarlarRoute
+  FaturalarRoute: typeof FaturalarRouteWithChildren
   MusterilerRoute: typeof MusterilerRoute
   SablonlarRoute: typeof SablonlarRoute
   YeniRoute: typeof YeniRoute
-  FaturalarEttnRoute: typeof FaturalarEttnRoute
-  FaturalarIndexRoute: typeof FaturalarIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -135,6 +144,13 @@ declare module '@tanstack/react-router' {
       path: '/ayarlar'
       fullPath: '/ayarlar'
       preLoaderRoute: typeof AyarlarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faturalar': {
+      id: '/faturalar'
+      path: '/faturalar'
+      fullPath: '/faturalar'
+      preLoaderRoute: typeof FaturalarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/musteriler': {
@@ -160,29 +176,42 @@ declare module '@tanstack/react-router' {
     }
     '/faturalar/': {
       id: '/faturalar/'
-      path: '/faturalar'
+      path: '/'
       fullPath: '/faturalar/'
       preLoaderRoute: typeof FaturalarIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FaturalarRoute
     }
     '/faturalar/$ettn': {
       id: '/faturalar/$ettn'
-      path: '/faturalar/$ettn'
+      path: '/$ettn'
       fullPath: '/faturalar/$ettn'
       preLoaderRoute: typeof FaturalarEttnRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FaturalarRoute
     }
   }
 }
 
+interface FaturalarRouteChildren {
+  FaturalarEttnRoute: typeof FaturalarEttnRoute
+  FaturalarIndexRoute: typeof FaturalarIndexRoute
+}
+
+const FaturalarRouteChildren: FaturalarRouteChildren = {
+  FaturalarEttnRoute: FaturalarEttnRoute,
+  FaturalarIndexRoute: FaturalarIndexRoute,
+}
+
+const FaturalarRouteWithChildren = FaturalarRoute._addFileChildren(
+  FaturalarRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AyarlarRoute: AyarlarRoute,
+  FaturalarRoute: FaturalarRouteWithChildren,
   MusterilerRoute: MusterilerRoute,
   SablonlarRoute: SablonlarRoute,
   YeniRoute: YeniRoute,
-  FaturalarEttnRoute: FaturalarEttnRoute,
-  FaturalarIndexRoute: FaturalarIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

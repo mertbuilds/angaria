@@ -4,7 +4,7 @@ import { create, props } from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
-import { getInvoiceDetail, login, logout } from '@/lib/angaria.ts';
+import { invoiceDetailQuery, useGIBAccount } from '@/lib/gib.ts';
 import { useStore } from '@/lib/store.tsx';
 import { CreateInvoicePage } from '@/pages/create-invoice.tsx';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
@@ -51,24 +51,15 @@ function useFormSource() {
   const { kaynak, sablon } = Route.useSearch();
   const navigate = Route.useNavigate();
   const requireCredentials = useRequireCredentials();
-  const { activeEntityId, getCredentials, hasCredentials, loadFromGIBInvoice, loadTemplate } =
-    useStore();
+  const { hasCredentials, loadFromGIBInvoice, loadTemplate } = useStore();
+  const account = useGIBAccount();
   const appliedTemplate = useRef<string | null>(null);
 
+  // Shares the Faturalar screen's cache: an invoice opened there loads at once.
   const source = useQuery({
+    ...invoiceDetailQuery(account, kaynak ?? ''),
     enabled: Boolean(kaynak) && hasCredentials,
-    gcTime: 0,
     meta: { onError: true },
-    queryFn: async () => {
-      const { password, testMode, username } = await getCredentials(activeEntityId);
-      const session = await login(username, password, testMode);
-      try {
-        return await getInvoiceDetail(session, kaynak ?? '');
-      } finally {
-        logout(session).catch(() => {});
-      }
-    },
-    queryKey: ['invoice-detail', activeEntityId, kaynak],
   });
 
   useEffect(() => {

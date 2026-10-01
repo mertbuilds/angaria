@@ -108,6 +108,53 @@ export interface EarsivClient {
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const norm = (s: string) => s.trim().toLocaleUpperCase('tr');
 
+/**
+ * Longest range one draft list request may cover, both ends included. GİB
+ * refuses ranges longer than seven days ("Seçilen tarih aralığı 7 günden
+ * fazla olamaz!").
+ */
+export const MAX_DRAFT_RANGE_DAYS = 7;
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+function parseGIBDate(value: string): Date | null {
+  const match = /^(\d{2})[/-](\d{2})[/-](\d{4})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+  const [, dd, mm, yyyy] = match.map(Number);
+  const date = new Date(yyyy, mm - 1, dd);
+  return date.getMonth() === mm - 1 ? date : null;
+}
+
+const formatGIBDate = (date: Date) =>
+  `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+
+/**
+ * Splits an inclusive range of GİB dates (dd/MM/yyyy or dd-MM-yyyy) into
+ * consecutive ranges of at most `days` days, oldest first. A range GİB would
+ * reject anyway (malformed, or start after end) comes back unchanged.
+ */
+export function splitDateRange(
+  startDate: string,
+  endDate: string,
+  days = MAX_DRAFT_RANGE_DAYS,
+): Array<{ endDate: string; startDate: string }> {
+  const start = parseGIBDate(startDate);
+  const end = parseGIBDate(endDate);
+  if (!start || !end || start > end) {
+    return [{ endDate, startDate }];
+  }
+  const ranges: Array<{ endDate: string; startDate: string }> = [];
+  for (let from = start; from <= end;) {
+    const last = new Date(from.getFullYear(), from.getMonth(), from.getDate() + days - 1);
+    const to = last < end ? last : end;
+    ranges.push({ endDate: formatGIBDate(to), startDate: formatGIBDate(from) });
+    from = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
+  }
+  return ranges;
+}
+
 export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
   const fetchFn: FetchFn = options?.fetch ?? globalThis.fetch;
 
@@ -374,18 +421,47 @@ export function createClient(options?: { fetch?: FetchFn }): EarsivClient {
     return result.data as string;
   }
 
+  /**
+   * Every document dated within the range. Ranges longer than GİB allows are
+   * fetched in chunks, one after the other on the same session, and merged
+   * oldest first; a row returned twice (same ETTN) is kept once.
+   */
   async function getDrafts(
     session: SessionInfo,
     startDate: string,
     endDate: string,
   ): Promise<Array<unknown>> {
-    const result = await dispatch(session, 'EARSIV_PORTAL_TASLAKLARI_GETIR', 'RG_BASITTASLAKLAR', {
-      baslangic: startDate,
-      bitis: endDate,
-      hangiTip: '5000/30000',
-      table: [],
-    });
-    return (result.data as Array<unknown>) ?? [];
+    const rows: Array<unknown> = [];
+    const seen = new Set<string>();
+    for (const range of splitDateRange(startDate, endDate)) {
+      const result = await dispatch(
+        session,
+        'EARSIV_PORTAL_TASLAKLARI_GETIR',
+        'RG_BASITTASLAKLAR',
+        {
+          baslangic: range.startDate,
+          bitis: range.endDate,
+          hangiTip: '5000/30000',
+          table: [],
+        },
+      );
+      for (const row of (result.data as Array<unknown>) ?? []) {
+        const record = (row ?? {}) as Record<string, unknown>;
+        // A refused query comes back as data, not as an error: [{ error: '...' }].
+        if (typeof record.error === 'string') {
+          throw new Error(record.error);
+        }
+        const ettn = str(record.ettn);
+        if (ettn) {
+          if (seen.has(ettn)) {
+            continue;
+          }
+          seen.add(ettn);
+        }
+        rows.push(row);
+      }
+    }
+    return rows;
   }
 
   async function signInvoiceHSM(

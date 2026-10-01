@@ -42,10 +42,10 @@ import { Screen } from '@/shell/screen.tsx';
 import {
   EmptyState,
   matchesQuery,
-  TemplateList,
+  SearchableList,
   useDialogTarget,
   useListSelection,
-} from './template-list.tsx';
+} from '@/shell/searchable-list.tsx';
 
 const styles = create({
   actions: {
@@ -401,7 +401,7 @@ export function CustomersPage() {
             )
           }
           list={
-            <TemplateList
+            <SearchableList
               label="Müşteriler"
               onDelete={deleting.show}
               onOpen={(customer) => {

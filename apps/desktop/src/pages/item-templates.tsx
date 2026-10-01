@@ -32,11 +32,11 @@ import {
   formatMoney,
   formatNumber,
   matchesQuery,
-  TemplateList,
+  SearchableList,
   unitLabel,
   useDialogTarget,
   useListSelection,
-} from './template-list.tsx';
+} from '@/shell/searchable-list.tsx';
 
 const styles = create({
   detail: {
@@ -317,7 +317,7 @@ export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
             )
           }
           list={
-            <TemplateList
+            <SearchableList
               label="Kalem şablonları"
               onDelete={deleting.show}
               onOpen={(item) => {

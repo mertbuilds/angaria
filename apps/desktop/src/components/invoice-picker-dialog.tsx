@@ -30,8 +30,8 @@ import {
 } from '@/components/ui/table';
 import * as angaria from '@/lib/angaria.ts';
 import { useStore } from '@/lib/store.tsx';
+import type { Invoice } from '@/lib/types.ts';
 import { parseGIB, toGIB, formatDateHuman } from '@/lib/utils.ts';
-import type { Invoice } from '@/pages/invoices.tsx';
 
 function SortableHeader({
   column,

@@ -14,6 +14,7 @@ import {
   LEGACY_CREDS_STORAGE_KEY,
   migrateCredentials,
 } from './credentials.ts';
+import { presetRange, type DateRange } from './invoices.ts';
 import { secretDelete, secretGet, secretSet } from './native.ts';
 import type {
   AdvancedInvoiceFields,
@@ -273,8 +274,8 @@ interface Store {
   getCredentials: (entityId: string) => Promise<Credentials>;
   /** true when the active entity has a username and a saved password */
   hasCredentials: boolean;
-  invoiceDateRange: { end: string; start: string };
-  invoicePageSize: number;
+  /** The Faturalar list's range, Bu ay at launch */
+  invoiceDateRange: DateRange;
   invoiceSettings: InvoiceSettings;
   /** true when the invoice form has been initialized (via template or scratch) */
   invoiceStarted: boolean;
@@ -300,8 +301,7 @@ interface Store {
    * is written to the keychain ('' removes it). Rejects if the keychain write fails.
    */
   setCredentials: (entityId: string, creds: Partial<Credentials>) => Promise<void>;
-  setInvoiceDateRange: React.Dispatch<React.SetStateAction<{ end: string; start: string }>>;
-  setInvoicePageSize: React.Dispatch<React.SetStateAction<number>>;
+  setInvoiceDateRange: React.Dispatch<React.SetStateAction<DateRange>>;
   setInvoiceSettings: React.Dispatch<React.SetStateAction<InvoiceSettings>>;
   setInvoiceTemplates: React.Dispatch<React.SetStateAction<Array<InvoiceTemplate>>>;
   setItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>>;
@@ -379,14 +379,7 @@ function LoadedStoreProvider({
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
   const [templateEditMode, setTemplateEditMode] = useState(false);
 
-  const [invoicePageSize, setInvoicePageSize] = useState(10);
-
-  const [invoiceDateRange, setInvoiceDateRange] = useState(() => {
-    const now = new Date();
-    const p = (n: number) => String(n).padStart(2, '0');
-    const today = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
-    return { start: today, end: today };
-  });
+  const [invoiceDateRange, setInvoiceDateRange] = useState(() => presetRange('bu-ay', new Date()));
 
   useEffect(() => {
     if (entities.some((entity) => entity.id === activeEntityId)) {
@@ -685,8 +678,6 @@ function LoadedStoreProvider({
         setAdvancedFields,
         invoiceDateRange,
         setInvoiceDateRange,
-        invoicePageSize,
-        setInvoicePageSize,
         invoiceStarted,
         resetInvoiceForm,
         loadTemplate,
