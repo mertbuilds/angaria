@@ -28,8 +28,8 @@
     "angaria-utils": "workspace:*",
     "date-fns": "catalog:",
     "lucide-react": "catalog:",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "uqr": "catalog:"
   },
   "devDependencies": {
@@ -37,8 +37,8 @@
     "@tanstack/router-plugin": "catalog:",
     "@tauri-apps/cli": "catalog:",
     "@types/node": "catalog:",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "react-grab": "catalog:",
     "typescript": "catalog:",

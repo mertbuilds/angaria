@@ -42,6 +42,7 @@ export default defineConfig(({ command, mode }) => {
       alias: {
         '@': resolve(import.meta.dirname, './src'),
       },
+      dedupe: ['react', 'react-dom'],
     },
     server: {
       hmr: {
