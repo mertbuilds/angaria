@@ -40,10 +40,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Without FONT_BUCKET_URL this warns and the site falls back to Inter.
+      # Suisse Intl from R2 (FONT_BUCKET, default suisse-font). On a failure this
+      # warns and the site falls back to Inter.
       - run: pnpm fonts
         env:
-          FONT_BUCKET_URL: ${{ secrets.FONT_BUCKET_URL }}
+          FONT_BUCKET: ${{ vars.FONT_BUCKET }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       # `run deploy`: a bare `pnpm deploy` is pnpm's own command, not the script.
       # The script refuses to build without VITE_CHECKOUT_URL in .env.production.
       - run: pnpm --filter web run deploy

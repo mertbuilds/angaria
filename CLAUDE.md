@@ -29,7 +29,7 @@ packages/
 | `pnpm lint`      | builds packages and web, then oxlint type-aware + TS errors (tsgolint)          |
 | `pnpm format`    | oxfmt (write mode); `pnpm format:check` to verify                               |
 | `pnpm test`      | vitest per package via turbo                                                    |
-| `pnpm fonts`     | fetch licensed Suisse Intl woff2 + ttf into packages/ui/fonts (FONT_BUCKET_URL) |
+| `pnpm fonts`     | fetch Suisse Intl woff2 from R2 into packages/ui/fonts and derive the PDF's ttf |
 | `cargo check`    | Rust check, run in `apps/desktop/src-tauri`                                     |
 
 Desktop: `pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json` (same as `pnpm dev`; the overlay lets the app reach the emulator), `pnpm --filter desktop tauri build` for a bundle.
@@ -64,6 +64,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 - Styles: StyleX only, no Tailwind. `src/app.css` holds the few global rules (the element reset the screens are laid out against, no overscroll); anything else is a StyleX style next to its component.
 - Theme: the app follows the system. Ayarlar › Görünüm saves a choice in localStorage `angaria-theme` (`src/lib/theme.ts`); `main.tsx` re-applies it before render. The GİB preview stays on white paper in both themes.
 - PDF: `@react-pdf/renderer` is large, so `src/components/invoice-pdf.tsx` loads with a dynamic `import()` when a PDF is made. Keep it out of static imports (a type-only import is fine).
+- Fonts: `pnpm fonts` (`scripts/fetch-fonts.sh`) gets the Suisse Intl woff2 files from the private R2 bucket `FONT_BUCKET` (default `suisse-font`) with `wrangler r2 object get` (wrangler login locally, `CLOUDFLARE_API_TOKEN` in CI) and decompresses them to the TrueType files the PDF embeds (`wawoff2`). It never fails: without the files the UI and the PDF use Inter. `scripts/release-mac.sh` refuses to build without them.
 - License: the record (key, activation, check times) is one keychain item (`src/lib/license-vault.ts`). `LicenseProvider` checks with Polar at launch, every six hours and on focus, and recounts the offline grace period hourly (`src/lib/license-watch.ts`), so the app can lock mid-session. `StoreProvider` sits outside `LicenseGate`, so a lock keeps the invoice form.
 - Updates: `useUpdateCheck` (`src/shell`, called in `App` outside the license gate, so a locked app still updates) checks once per launch outside dev and offers the update in a toast; Ayarlar › Hakkında checks on demand. Both go through `src/lib/updater.ts` (`@tauri-apps/plugin-updater`, then `relaunch` from `@tauri-apps/plugin-process`).
 - Import `.stylex.ts` files (e.g. `shell.stylex.ts`) by relative path: the StyleX compiler does not resolve the `@/` alias and the build fails.

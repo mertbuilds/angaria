@@ -111,6 +111,9 @@ catalogs:
     vitest:
       specifier: ^4.1.11
       version: 4.1.11
+    wawoff2:
+      specifier: ^2.0.1
+      version: 2.0.1
     zod:
       specifier: ^4.6.5
       version: 4.6.5
@@ -161,6 +164,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      wawoff2:
+        specifier: 'catalog:'
+        version: 2.0.1
 
   apps/desktop:
     dependencies:
@@ -5157,6 +5163,10 @@ packages:
     resolution: {integrity: sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==}
     engines: {node: '>=18'}
 
+  wawoff2@2.0.1:
+    resolution: {integrity: sha512-r0CEmvpH63r4T15ebFqeOjGqU4+EgTx4I510NtK35EMciSdcTxCw3Byy3JnBonz7iyIFZ0AbVo0bbFpEVuhCYA==}
+    hasBin: true
+
   web-vitals@6.2.1:
     resolution: {integrity: sha512-rLcLXA2sx6+9dE88NHFubwTtGxpK4yYBLj6qHPdFoCaLr0cXGb4efOqtKLlm4loGA4OEKHIQKMKzZkKyOh5ctw==}
 
@@ -9728,6 +9738,10 @@ snapshots:
   w3c-xmlserializer@5.0.0:
     dependencies:
       xml-name-validator: 5.0.0
+
+  wawoff2@2.0.1:
+    dependencies:
+      argparse: 2.0.1
 
   web-vitals@6.2.1: {}
 

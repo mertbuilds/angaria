@@ -29,7 +29,8 @@
     "oxlint-tsgolint": "^7.0.2001",
     "portless": "0.15.6",
     "turbo": "^2.10.12",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "wawoff2": "catalog:"
   },
   "engines": {
     "node": ">=24"
