@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   cleanItems,
   discountForRate,
+  formatDecimal,
   formatRate,
   gibToInputDate,
   inputDateToGIB,
@@ -72,6 +73,21 @@ describe('parseDecimal', () => {
     expect(parseDecimal('-5')).toBeNull();
     expect(parseDecimal('abc')).toBeNull();
     expect(parseDecimal('.')).toBeNull();
+  });
+});
+
+describe('formatDecimal', () => {
+  test('writes no thousands dots', () => {
+    expect(formatDecimal(5000)).toBe('5000');
+    expect(formatDecimal(1234.5)).toBe('1234,5');
+    expect(formatDecimal(1_000_000)).toBe('1000000');
+    expect(formatDecimal(1234.5678, 2)).toBe('1234,57');
+  });
+
+  test('reads back as the same number', () => {
+    for (const value of [5000, 1234.5, 0.5, 1_000_000, 0, 12.3456]) {
+      expect(parseDecimal(formatDecimal(value))).toBe(value);
+    }
   });
 });
 

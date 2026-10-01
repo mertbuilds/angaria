@@ -38,11 +38,14 @@ export function parseDecimal(text: string): number | null {
 
 const decimalFormats = new Map<number, Intl.NumberFormat>();
 
-/** A number as Turkish input text: 1250.5 is "1.250,5". */
+/**
+ * A number as Turkish input text: 1250.5 is "1250,5". No thousands dots:
+ * parseDecimal reads "5.000" as 5.
+ */
 export function formatDecimal(value: number, maximumFractionDigits = 4) {
   let format = decimalFormats.get(maximumFractionDigits);
   if (!format) {
-    format = new Intl.NumberFormat('tr-TR', { maximumFractionDigits });
+    format = new Intl.NumberFormat('tr-TR', { maximumFractionDigits, useGrouping: false });
     decimalFormats.set(maximumFractionDigits, format);
   }
   return format.format(value);
