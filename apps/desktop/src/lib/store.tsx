@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useLayoutEffect,
   useRef,
   type ReactNode,
 } from 'react';
@@ -414,7 +415,9 @@ function LoadedStoreProvider({
     }
   }
 
-  useEffect(() => {
+  // A layout effect, so the ref is current before any child's effect runs: Ayarlar
+  // reads a new company's password as soon as it is active.
+  useLayoutEffect(() => {
     entitiesRef.current = entities;
   }, [entities]);
 
