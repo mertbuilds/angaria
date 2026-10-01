@@ -10,7 +10,7 @@ Each app screen comes in eight files, `<screen>-<theme>[-framed]-<width>.webp`:
 
 - `light`, `dark`: the app's light and dark theme.
 - `2880` (2880×1800, retina) and `1440` (1440×900).
-- `-framed`: the same image as a macOS window: 12px corners (24px at 2880) on a transparent background, a 1px border and the three traffic lights in the site's gray (`#d4d4d4` light, `#3f3f3f` dark, as in `window-frame.tsx`). Without it: the window content edge to edge, as the app renders it.
+- `-framed`: the same image as a macOS window: 12px corners (24px at 2880) on a transparent background, a 1px border and the three traffic lights in the site's gray (`#d4d4d4` light, `#3f3f3f` dark, as in `components/screenshot.tsx`). Without it: the window content edge to edge, as the app renders it.
 
 | Screen             | What it shows                                                                                                                                                                                                                                                                                               |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
