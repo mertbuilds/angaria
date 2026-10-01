@@ -47,6 +47,20 @@ export interface InvoiceDetails {
   totalVAT: number;
 }
 
+/** One row of the document list (EARSIV_PORTAL_TASLAKLARI_GETIR), as GİB sends it. */
+export interface DraftRow {
+  [key: string]: unknown;
+  aliciUnvanAdSoyad?: string;
+  aliciVknTckn?: string;
+  belgeNumarasi?: string;
+  /** dd-MM-yyyy */
+  belgeTarihi?: string;
+  belgeTuru?: string;
+  ettn?: string;
+  /** Onaylanmadı, Onaylandı, Silinmiş */
+  onayDurumu?: string;
+}
+
 type FetchFn = typeof globalThis.fetch;
 
 function extractCookies(response: Response): Array<string> {
@@ -84,7 +98,12 @@ export interface EarsivClient {
     details: InvoiceDetails,
   ): Promise<{ date: string; response: Record<string, unknown>; uuid: string }>;
   forceLogout(username: string, password: string, testMode: boolean): Promise<void>;
-  getDrafts(session: SessionInfo, startDate: string, endDate: string): Promise<Array<unknown>>;
+  getDrafts(
+    session: SessionInfo,
+    startDate: string,
+    endDate: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<Array<DraftRow>>;
   getInvoiceDetail(session: SessionInfo, ettn: string): Promise<Record<string, unknown>>;
   getInvoiceHTML(session: SessionInfo, uuid: string, onayDurumu: string): Promise<string>;
   getSigningPhone(session: SessionInfo): Promise<string>;
@@ -107,6 +126,12 @@ export interface EarsivClient {
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const norm = (s: string) => s.trim().toLocaleUpperCase('tr');
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** A document list that is not a list of rows: a text in its place is GİB's own message. */
+const unreadableList = (value: unknown) =>
+  new Error(typeof value === 'string' && value ? value : 'GİB belge listesi okunamadı');
 
 /** GİB's error envelope ({ error: '1', messages: [{ text }] }) as an Error, else null. */
 function portalError(result: Record<string, unknown>, fallback: string): Error | null {
@@ -394,9 +419,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     details: InvoiceDetails,
   ): Promise<string> {
     try {
-      const drafts = (await getDrafts(session, details.date, details.date)) as Array<
-        Record<string, unknown>
-      >;
+      const drafts = await getDrafts(session, details.date, details.date);
       const dashDate = details.date.replaceAll('/', '-');
       let rows = drafts.filter(
         (d) =>
@@ -453,10 +476,12 @@ export function createClient(options?: ClientOptions): EarsivClient {
     session: SessionInfo,
     startDate: string,
     endDate: string,
-  ): Promise<Array<unknown>> {
-    const rows: Array<unknown> = [];
+    { signal }: { signal?: AbortSignal } = {},
+  ): Promise<Array<DraftRow>> {
+    const rows: Array<DraftRow> = [];
     const seen = new Set<string>();
     for (const range of splitDateRange(startDate, endDate)) {
+      signal?.throwIfAborted();
       const result = await dispatch(
         session,
         'EARSIV_PORTAL_TASLAKLARI_GETIR',
@@ -468,20 +493,25 @@ export function createClient(options?: ClientOptions): EarsivClient {
           table: [],
         },
       );
-      for (const row of (result.data as Array<unknown>) ?? []) {
-        const record = (row ?? {}) as Record<string, unknown>;
-        // A refused query comes back as data, not as an error: [{ error: '...' }].
-        if (typeof record.error === 'string') {
-          throw new Error(record.error);
+      if (!Array.isArray(result.data)) {
+        throw unreadableList(result.data);
+      }
+      for (const row of result.data as Array<unknown>) {
+        if (!isRecord(row)) {
+          throw unreadableList(row);
         }
-        const ettn = str(record.ettn);
+        // A refused query comes back as data, not as an error: [{ error: '...' }].
+        if (typeof row.error === 'string') {
+          throw new Error(row.error);
+        }
+        const ettn = str(row.ettn);
         if (ettn) {
           if (seen.has(ettn)) {
             continue;
           }
           seen.add(ettn);
         }
-        rows.push(row);
+        rows.push(row as DraftRow);
       }
     }
     return rows;

@@ -132,7 +132,7 @@ try {
 let createdRow: Record<string, unknown> | undefined;
 
 try {
-  const drafts = (await client.getDrafts(session, date, date)) as Array<Record<string, unknown>>;
+  const drafts = await client.getDrafts(session, date, date);
   console.log(`\nBugünkü belgeler (${drafts.length} adet, son 5):`);
   for (const d of drafts.slice(-5)) {
     console.log(

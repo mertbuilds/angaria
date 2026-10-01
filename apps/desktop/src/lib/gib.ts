@@ -32,8 +32,7 @@ export const invoiceListQuery = (account: GIBAccount, range: DateRange) =>
     queryFn: ({ signal }) =>
       gib.run(
         account,
-        async (session) =>
-          newestFirst((await getDrafts(session, range.start, range.end)) as Array<Invoice>),
+        async (session) => newestFirst(await getDrafts(session, range.start, range.end)),
         { signal },
       ),
     queryKey: ['invoices', account.key, range.start, range.end],

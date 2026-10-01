@@ -27,9 +27,7 @@ export function registerCancelInvoice(server: McpServer, { client, withSession }
       const { endDate, startDate } = draftSearchRange(date, new Date());
 
       const result = await withSession(async (session) => {
-        const drafts = (await client.getDrafts(session, startDate, endDate)) as Array<
-          Record<string, unknown>
-        >;
+        const drafts = await client.getDrafts(session, startDate, endDate);
         const invoice = drafts.find((d) => d.ettn === uuid || d.faturaUuid === uuid);
 
         if (!invoice) {
