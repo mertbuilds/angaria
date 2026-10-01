@@ -10,10 +10,13 @@ import { CreateInvoicePage } from '@/pages/create-invoice.tsx';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
 import { LegacyPage } from '@/shell/legacy-page.tsx';
 import { Screen } from '@/shell/screen.tsx';
+import { useCustomerParam } from '@/shell/use-customer-param.ts';
 
 interface NewInvoiceSearch {
   /** ETTN of a GİB invoice to copy into the form ("tekrar kes"). */
   kaynak?: string;
+  /** Id of a saved customer to start a blank invoice for (useCustomerParam). */
+  musteri?: string;
   /** Id of a saved invoice template to load into the form. */
   sablon?: string;
 }
@@ -26,6 +29,7 @@ export const Route = createFileRoute('/yeni')({
   component: NewInvoiceRoute,
   validateSearch: (search: Record<string, unknown>): NewInvoiceSearch => ({
     kaynak: searchId(search.kaynak),
+    musteri: searchId(search.musteri),
     sablon: searchId(search.sablon),
   }),
 });
@@ -116,6 +120,7 @@ function NewInvoiceRoute() {
   const requireCredentials = useRequireCredentials();
   const { templateEditMode } = useStore();
   const { loadingSource } = useFormSource();
+  useCustomerParam();
 
   return (
     <Screen title={templateEditMode ? 'Şablon düzenle' : 'Yeni fatura'}>
