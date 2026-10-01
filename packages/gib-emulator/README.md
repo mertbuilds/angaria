@@ -79,7 +79,7 @@ Start config comes from `GIB_EMULATOR_*` variables, a JSON file (`--config file.
 | `GIB_EMULATOR_TEXT_ERROR_RATE`  | `chaos.textErrorRate` (0-1, draft creation answers HTTP 200 with an error text) | `0`      |
 | `GIB_EMULATOR_MAINTENANCE=1`    | `chaos.maintenance` (portal answers its maintenance HTML page)                  | off      |
 
-`maxRangeDays` is the largest allowed difference between the two dates of a list request. Users and seed documents are `users` and `seedInvoices` in the config file.
+`maxRangeDays` is the longest allowed list range in days, both ends counted: with 7, 01/09 to 07/09 is accepted and 01/09 to 08/09 refused. Users and seed documents are `users` and `seedInvoices` in the config file.
 
 With `stateFile`, documents, numbering and edited profiles are written after every change and read on start; sessions and SMS codes are not kept.
 

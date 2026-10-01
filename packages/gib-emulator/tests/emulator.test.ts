@@ -278,17 +278,17 @@ describe('dispatch', () => {
     ]);
   });
 
-  test('refuses a list range over the limit as a data row', async () => {
+  test('refuses a list range over the limit, both ends counted, as a data row', async () => {
     const { token } = await login();
     const within = await dispatch(token, 'EARSIV_PORTAL_TASLAKLARI_GETIR', {
       baslangic: '01/09/2026',
-      bitis: '08/09/2026',
+      bitis: '07/09/2026',
     });
     expect(within.data).toEqual([]);
 
     const over = await dispatch(token, 'EARSIV_PORTAL_TASLAKLARI_GETIR', {
       baslangic: '01/09/2026',
-      bitis: '09/09/2026',
+      bitis: '08/09/2026',
     });
     expect(over.error).toBeUndefined();
     expect(over.data).toEqual([{ error: 'Seçilen tarih aralığı 7 günden fazla olamaz!' }]);

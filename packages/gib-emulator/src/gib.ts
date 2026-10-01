@@ -243,7 +243,8 @@ function listDrafts(ctx: CommandContext, data: Record<string, unknown>): Reply {
   if (dayNumber(start) > dayNumber(end)) {
     return ok(ctx, [{ error: messages.rangeReversed }]);
   }
-  if (dayNumber(end) - dayNumber(start) > ctx.config.maxRangeDays) {
+  // Both ends count: 01/09 to 07/09 is seven days.
+  if (dayNumber(end) - dayNumber(start) + 1 > ctx.config.maxRangeDays) {
     return ok(ctx, [{ error: messages.rangeTooLong(ctx.config.maxRangeDays) }]);
   }
   const rows = [...ctx.state.invoices.values()]
