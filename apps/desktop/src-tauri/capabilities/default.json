@@ -7,6 +7,11 @@
     "core:default",
     "core:window:allow-start-dragging",
     "core:window:allow-toggle-maximize",
+    "allow-secret-set",
+    "allow-secret-get",
+    "allow-secret-delete",
+    "updater:default",
+    "process:allow-restart",
     {
       "identifier": "http:default",
       "allow": [
@@ -18,6 +23,12 @@
         },
         {
           "url": "https://www.tcmb.gov.tr/kurlar/*"
+        },
+        {
+          "url": "https://api.polar.sh/*"
+        },
+        {
+          "url": "https://sandbox-api.polar.sh/*"
         }
       ]
     }
