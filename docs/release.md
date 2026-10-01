@@ -11,8 +11,8 @@ scripts/release-mac.sh [patch|minor|major|X.Y.Z] [--publish] [--skip-notarize] [
 ## What the script does
 
 1. Refuses a dirty working tree. With a version argument it bumps `apps/desktop/src-tauri/tauri.conf.json`, `Cargo.toml`, `Cargo.lock` and `apps/desktop/package.json`, and commits `chore(release): vX.Y.Z`. Otherwise it releases the version in `tauri.conf.json`.
-2. Sources `~/.config/angaria/release.env`, runs `pnpm install --frozen-lockfile` and makes sure both Rust targets are installed.
-3. `tauri build --target universal-apple-darwin --bundles app`. Tauri signs the app with `APPLE_SIGNING_IDENTITY` (hardened runtime). The script strips the Apple ID and API key variables for this step, so Tauri never notarizes on its own (it cannot use a notarytool keychain profile).
+2. Runs `pnpm install --frozen-lockfile` and makes sure both Rust targets are installed, then sources `~/.config/angaria/release.env`. The install runs first, so dependency install scripts never see the signing and notary secrets.
+3. `tauri build --target universal-apple-darwin --bundles app`. Tauri signs the app with `APPLE_SIGNING_IDENTITY` (hardened runtime). The script strips the Apple ID and API key variables for this step, so Tauri never notarizes on its own (it cannot use a notarytool keychain profile). It strips the `TAURI_SIGNING_PRIVATE_KEY*` variables too: `bundle.createUpdaterArtifacts` is off, so the build never needs the updater key.
 4. Notarizes the app with notarytool and staples it, then checks it with `stapler validate` and `spctl`.
 5. Packs `Angaria.app.tar.gz` from the stapled app and signs it with `tauri signer sign --app-version <version>`. The version binding is required by `plugins.updater.requireSignedVersion`.
 6. Builds the `.dmg` (app plus an Applications link), signs it, notarizes it, staples it, and checks it with `stapler validate` and `spctl`.
@@ -85,6 +85,11 @@ wrangler r2 bucket domain add angaria-downloads --domain dl.angaria.app --zone-i
 ```
 
 The dashboard path is R2, `angaria-downloads`, Settings, Custom Domains, Connect Domain. Keep the `r2.dev` public URL disabled. If the wrangler login sees more than one account, export `CLOUDFLARE_ACCOUNT_ID`. Check with `wrangler r2 bucket info angaria-downloads` and `wrangler r2 bucket domain list angaria-downloads`.
+
+## Go-live checklist
+
+- Fill `apps/desktop/.env.production` with the production Polar organization, checkout and portal. The production build fails while any of them is empty.
+- Release builds reach only `api.polar.sh`. The Polar sandbox hosts are allowed in `src-tauri/tauri.dev.conf.json` only, so a release build cannot check a sandbox license key. Test sandbox licensing with `pnpm dev`, and a release build with a production key.
 
 ## Release steps
 
