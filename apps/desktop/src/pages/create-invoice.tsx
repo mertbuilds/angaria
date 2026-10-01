@@ -24,7 +24,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { ChevronRightIcon, UserPlusIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
-import { downloadInvoicePDF } from '@/components/invoice-pdf.tsx';
 import { createDraftInvoice, fetchTCMBRateTable, getDrafts } from '@/lib/angaria.ts';
 import { customerName, nameError, taxIDError } from '@/lib/customer.ts';
 import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
@@ -735,14 +734,15 @@ export function CreateInvoicePage() {
 
   const downloadPDF = (source: InvoiceFormValues, invoiceNumber?: string) => {
     const id = toast.loading('PDF hazırlanıyor');
-    downloadInvoicePDF(
-      toPDFData(source, {
-        company: companyInfo,
-        entityName: activeEntity.name,
-        invoiceNumber,
-        language: pdfLanguage,
-      }),
-    )
+    const data = toPDFData(source, {
+      company: companyInfo,
+      entityName: activeEntity.name,
+      invoiceNumber,
+      language: pdfLanguage,
+    });
+    // react-pdf is large, so it loads with the first PDF.
+    import('@/components/invoice-pdf.tsx')
+      .then(({ downloadInvoicePDF }) => downloadInvoicePDF(data))
       .then(() => toast.success('PDF indirildi', { id }))
       .catch(() => toast.error('PDF oluşturulamadı', { id }));
   };

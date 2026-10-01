@@ -1,6 +1,6 @@
 // Dev-only gallery of every @angaria/ui component, served from ui-gallery.html
-// (or /?ui-gallery). It loads the theme without the pre-relaunch app.css, so
-// the components render exactly as the relaunch will see them.
+// (or /?ui-gallery). It loads only the @angaria/ui stylesheets, so the
+// components render exactly as the package ships them.
 import {
   AlertDialog,
   AlertDialogAction,

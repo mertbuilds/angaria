@@ -1,11 +1,5 @@
-import { clsx, type ClassValue } from 'clsx';
 import { format, parse } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { twMerge } from 'tailwind-merge';
-
-export function cn(...inputs: Array<ClassValue>) {
-  return twMerge(clsx(inputs));
-}
 
 const GIB_FORMAT = 'dd/MM/yyyy';
 const GIB_FORMAT_DASH = 'dd-MM-yyyy';

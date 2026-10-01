@@ -139,5 +139,3 @@ export function createPolarClient({
     },
   };
 }
-
-export type PolarClient = ReturnType<typeof createPolarClient>;
