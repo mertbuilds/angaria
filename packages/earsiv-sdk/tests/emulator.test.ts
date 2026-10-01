@@ -71,6 +71,20 @@ describe('session', () => {
     await client.logout(await client.login('33333301', '1', true));
   });
 
+  test('logs a production-mode session out with assoscmd=logout', async () => {
+    const session = await client.login('12345678', 'angaria', false);
+    await client.logout(session);
+    await expect(client.getUUID(session)).rejects.toThrow(messages.sessionExpired);
+    await client.logout(await client.login('12345678', 'angaria', false));
+  });
+
+  test('a logout the portal refuses throws its message', async () => {
+    const session = await client.login('33333301', '1', true);
+    await admin('POST', '/faults', { cmd: 'logout', kind: 'error', text: 'Çıkış yapılamadı' });
+    await expect(client.logout(session)).rejects.toThrow('Çıkış yapılamadı');
+    await client.logout(session);
+  });
+
   test('rejects a wrong password with the portal message', async () => {
     await expect(client.login('33333301', 'yanlis', true)).rejects.toThrow(
       messages.invalidCredentials,

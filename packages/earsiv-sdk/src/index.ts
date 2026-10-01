@@ -108,6 +108,15 @@ export interface EarsivClient {
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const norm = (s: string) => s.trim().toLocaleUpperCase('tr');
 
+/** GİB's error envelope ({ error: '1', messages: [{ text }] }) as an Error, else null. */
+function portalError(result: Record<string, unknown>, fallback: string): Error | null {
+  if (result.error !== '1' && result.error !== 1) {
+    return null;
+  }
+  const messages = result.messages as Array<{ text: string }> | undefined;
+  return new Error(messages?.[0]?.text ?? fallback);
+}
+
 /**
  * Longest range one draft list request may cover, both ends included. GİB
  * refuses ranges longer than seven days ("Seçilen tarih aralığı 7 günden
@@ -193,10 +202,9 @@ export function createClient(options?: ClientOptions): EarsivClient {
     session.cookies = mergeCookies(session.cookies, extractCookies(response));
     const result = (await response.json()) as Record<string, unknown>;
 
-    if (result.error === '1' || result.error === 1) {
-      const messages = result.messages as Array<{ text: string }> | undefined;
-      const msg = messages?.[0]?.text ?? 'GİB portaldan bilinmeyen hata';
-      throw new Error(msg);
+    const error = portalError(result, 'GİB portaldan bilinmeyen hata');
+    if (error) {
+      throw error;
     }
 
     return result;
@@ -231,17 +239,31 @@ export function createClient(options?: ClientOptions): EarsivClient {
     return { token: json.token as string, cookies, baseUrl };
   }
 
-  async function logout(session: SessionInfo): Promise<void> {
-    const cmd = session.baseUrl === TEST_URL ? 'logout' : 'anologin';
-    await fetchFn(`${session.baseUrl}/earsiv-services/assos-login`, {
+  /**
+   * assoscmd=logout on both portals: production's `anologin` is its login
+   * command and, without a userid, fails instead of ending the session.
+   */
+  async function sendLogout(baseUrl: string, cookies: Array<string>, token: string) {
+    const response = await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
       method: 'POST',
       headers: {
         'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        cookie: session.cookies.join('; '),
-        Referer: `${session.baseUrl}/intragiris.html`,
+        cookie: cookies.join('; '),
+        Referer: `${baseUrl}/intragiris.html`,
       },
-      body: `assoscmd=${cmd}&rtype=json&token=${session.token}&`,
+      body: `assoscmd=logout&rtype=json&token=${token}&`,
     });
+    const error = portalError(
+      (await response.json()) as Record<string, unknown>,
+      'Çıkış başarısız',
+    );
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function logout(session: SessionInfo): Promise<void> {
+    await sendLogout(session.baseUrl, session.cookies, session.token);
   }
 
   async function forceLogout(username: string, password: string, testMode: boolean): Promise<void> {
@@ -261,16 +283,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     const json = (await response.json()) as Record<string, unknown>;
     const token = (json.token as string) ?? '';
 
-    const logoutCmd = testMode ? 'logout' : 'anologin';
-    await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        cookie: cookies.join('; '),
-        Referer: `${baseUrl}/intragiris.html`,
-      },
-      body: `assoscmd=${logoutCmd}&rtype=json&token=${token}&`,
-    });
+    await sendLogout(baseUrl, cookies, token);
   }
 
   async function getUUID(session: SessionInfo): Promise<string> {

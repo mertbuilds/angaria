@@ -33,7 +33,7 @@ The SMS code is `123456` unless configured.
 
 ## Protocol
 
-POST `/earsiv-services/assos-login` (form): `assoscmd=login` (test portal) or `anologin` (production) with `userid`, `sifre` logs in and returns `{ token, redirectUrl }` plus a `JSESSIONID` cookie. `logout`, or `anologin` with only a token, logs out.
+POST `/earsiv-services/assos-login` (form): `assoscmd=login` (test portal) or `anologin` (production) with `userid`, `sifre` logs in and returns `{ token, redirectUrl }` plus a `JSESSIONID` cookie. `logout` with the token logs out on both portals. `anologin` without a `userid` is a login with missing fields: error type `5`, "Sisteme giriş için eksik bilgi verildi", and the session stays open.
 
 POST `/earsiv-services/dispatch` (form: `cmd`, `callid`, `pageName`, `token`, `jp` = JSON). Success is `{ data, metadata: { optime: 'yyyyMMddHHmmss' } }`, an error is `{ error: '1', messages: [{ type: '4', text }], metadata }`.
 
@@ -54,7 +54,7 @@ POST `/earsiv-services/dispatch` (form: `cmd`, `callid`, `pageName`, `token`, `j
 | `SICIL_VEYA_MERNISTEN_BILGILERI_GETIR`       | Name and tax office of a known VKN/TCKN, empty strings otherwise.                                                                                                                                                            |
 | anything else                                | Error envelope `Service Not Found`.                                                                                                                                                                                          |
 
-Sessions follow the portal's rules: one open session per user ("Sisteme aynı anda birden fazla giriş yapamazsınız..."), an idle timeout (`sessionTtlSeconds`, default 30 minutes) after which the token fails and the lock is released, and a force logout: the refused login sets a cookie, and a logout carrying it ends the open session (the SDK's `forceLogout`).
+Sessions follow the portal's rules: one open session per user ("Sisteme aynı anda birden fazla giriş yapamazsınız..."), an idle timeout (`sessionTtlSeconds`, default 30 minutes) after which the token fails and the lock is released, and a force logout: the refused login sets a cookie, and a logout carrying it ends the open session (the SDK's `forceLogout`). The force logout is a model, not verified against the live portal: nobody has confirmed that the real portal ends the open session for that cookie.
 
 GET `/kurlar/{yyyyMM}/{ddMMyyyy}.xml` and `/kurlar/today.xml`: TCMB's XML schema (`Tarih_Date` › `Currency[CurrencyCode]` › `Unit`, `ForexBuying`, ...), deterministic rates per day. Weekends, public holidays (fixed ones, Ramazan and Kurban Bayramı for 2025 to 2027, plus `tcmbHolidays`) and days after today answer 404 with an HTML page.
 

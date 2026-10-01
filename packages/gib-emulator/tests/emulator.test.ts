@@ -158,12 +158,26 @@ describe('login', () => {
 
     const response = await post(
       '/earsiv-services/assos-login',
-      { assoscmd: 'anologin', rtype: 'json', token: '' },
+      { assoscmd: 'logout', rtype: 'json', token: '' },
       refused.cookie,
     );
     expect(await response.json()).toEqual({ data: { redirectUrl: 'login.html' } });
     expect((await dispatch(first.token, 'EARSIV_PORTAL_UUID_GETIR')).error).toBe('1');
     expect((await login()).token).not.toBe('');
+  });
+
+  test('anologin without a userid is a login with missing fields, not a logout', async () => {
+    const { cookie, token } = await login();
+    const response = await post(
+      '/earsiv-services/assos-login',
+      { assoscmd: 'anologin', rtype: 'json', token },
+      cookie,
+    );
+    expect(await response.json()).toMatchObject({
+      error: '1',
+      messages: [{ text: messages.loginFieldsMissing, type: '5' }],
+    });
+    expect((await dispatch(token, 'EARSIV_PORTAL_UUID_GETIR')).error).toBeUndefined();
   });
 
   test('a session opened elsewhere locks the user', async () => {
