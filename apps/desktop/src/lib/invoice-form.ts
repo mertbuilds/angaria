@@ -298,7 +298,8 @@ export function unparsableItemFields(items: ReadonlyArray<InvoiceItem>) {
 
 /**
  * The PDF of the form as it is; `gibNumber`, `ettn` and `date` once GİB
- * assigned them. Unparsable numbers print as 0: check unparsableItemFields first.
+ * assigned them, `qrValue` once the invoice is signed. Unparsable numbers print
+ * as 0: check unparsableItemFields first.
  */
 export function toPDFData(
   values: InvoiceFormValues,
@@ -310,6 +311,7 @@ export function toPDFData(
     gibNumber,
     language,
     now = new Date(),
+    qrValue,
   }: {
     company: CompanyInfo;
     date?: string;
@@ -318,6 +320,7 @@ export function toPDFData(
     gibNumber?: string;
     language: PDFLanguage;
     now?: Date;
+    qrValue?: string;
   },
 ): InvoicePDFData {
   const totals = invoiceTotals(values.items);
@@ -333,6 +336,7 @@ export function toPDFData(
     language,
     note: values.note,
     paymentTotal: paymentTotal(values, totals.total),
+    qrValue,
     recipient: values.recipient,
     settings: values.invoiceSettings,
     total: totals.total,

@@ -434,12 +434,23 @@ describe('PDF data', () => {
     expect(toPDFData(values, { ...base, date: '30/09/2026' }).date).toBe('30/09/2026');
   });
 
-  test('toPDFData carries the GİB number and ETTN of the draft', () => {
+  test('toPDFData carries the GİB number, ETTN and QR code text', () => {
     const base = { company, entityName: 'Örnek', language: 'both' as const, now };
     expect(toPDFData(form(), base)).toMatchObject({ ettn: undefined, gibNumber: undefined });
+    expect(toPDFData(form(), base)).toMatchObject({ qrValue: undefined });
     expect(
-      toPDFData(form(), { ...base, ettn: 'e-t-t-n', gibNumber: 'GIB2026000000001' }),
-    ).toMatchObject({ ettn: 'e-t-t-n', gibNumber: 'GIB2026000000001', language: 'both' });
+      toPDFData(form(), {
+        ...base,
+        ettn: 'e-t-t-n',
+        gibNumber: 'GIB2026000000001',
+        qrValue: '{"no":"GIB2026000000001"}',
+      }),
+    ).toMatchObject({
+      ettn: 'e-t-t-n',
+      gibNumber: 'GIB2026000000001',
+      language: 'both',
+      qrValue: '{"no":"GIB2026000000001"}',
+    });
   });
 
   test('toPDFData carries the due date when there is one', () => {
