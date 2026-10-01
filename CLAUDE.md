@@ -2,6 +2,8 @@
 
 Tauri desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers. Read `docs/relaunch.md` first: it holds the product, repo layout, design, and go-live decisions for the relaunch.
 
+Architecture decisions and their reasons live in `docs/adr/` (tooling, Polar, hosting, downloads and updates, analytics, the GİB emulator); add an ADR when one changes.
+
 ## Layout
 
 ```
