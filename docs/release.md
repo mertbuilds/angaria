@@ -11,7 +11,7 @@ scripts/release-mac.sh [patch|minor|major|X.Y.Z] [--publish] [--skip-notarize] [
 ## What the script does
 
 1. Refuses a dirty working tree. With a version argument it bumps `apps/desktop/src-tauri/tauri.conf.json`, `Cargo.toml`, `Cargo.lock` and `apps/desktop/package.json`, and commits `chore(release): vX.Y.Z`. Otherwise it releases the version in `tauri.conf.json`.
-2. Runs `pnpm install --frozen-lockfile` and makes sure both Rust targets are installed, then sources `~/.config/angaria/release.env`. The install runs first, so dependency install scripts never see the signing and notary secrets.
+2. Runs `pnpm install --frozen-lockfile`, makes sure both Rust targets are installed, and fetches Suisse Intl with `scripts/fetch-fonts.sh` (see Fonts below). It stops when any of `packages/ui/fonts/SuisseIntl-{Regular,Medium}.{woff2,ttf}` is missing: the app's UI and its invoice PDFs ship Suisse Intl, never the Inter fallback. Then it sources `~/.config/angaria/release.env`. The install and the fetch run first, so dependency install scripts and wrangler never see the signing and notary secrets.
 3. `tauri build --target universal-apple-darwin --bundles app`. Tauri signs the app with `APPLE_SIGNING_IDENTITY` (hardened runtime). The script strips the Apple ID and API key variables for this step, so Tauri never notarizes on its own (it cannot use a notarytool keychain profile). It strips the `TAURI_SIGNING_PRIVATE_KEY*` variables too: `bundle.createUpdaterArtifacts` is off, so the build never needs the updater key.
 4. Notarizes the app with notarytool and staples it, then checks it with `stapler validate` and `spctl`.
 5. Packs `Angaria.app.tar.gz` from the stapled app and signs it with `tauri signer sign --app-version <version>`. The version binding is required by `plugins.updater.requireSignedVersion`.
@@ -57,6 +57,10 @@ Check it with `xcrun notarytool history --keychain-profile angaria-notary`. Set 
 ### Updater signing key
 
 The key pair already exists: the public key is `plugins.updater.pubkey` in `tauri.conf.json`, the private key is the file in `TAURI_SIGNING_PRIVATE_KEY_PATH`. Keep a backup of the private key and its password outside this Mac. If they are lost, installed apps reject every future update and users have to reinstall from the `.dmg` after a key rotation (`pnpm --filter desktop tauri signer generate -w <path>`, then replace the pubkey).
+
+### Fonts
+
+The licensed Suisse Intl woff2 files live in the private R2 bucket `suisse-font` (no public URL). `scripts/fetch-fonts.sh` reads them with the repo's wrangler (`wrangler r2 object get --remote`), so the wrangler login needs access to the account that holds the bucket (`FONT_BUCKET` overrides the bucket name). It decompresses the woff2 files to the TrueType files the PDF embeds. Check with `pnpm fonts`: it prints `fetched` or `have` for all four files.
 
 ### Environment file
 

@@ -88,6 +88,15 @@ step "install dependencies and rust targets"
 pnpm install --frozen-lockfile
 (cd "$TAURI_DIR" && rustup target add aarch64-apple-darwin x86_64-apple-darwin)
 
+# fetch-fonts.sh never fails, so a missing file is caught here: the app's UI
+# and its PDFs ship Suisse Intl, never the Inter fallback.
+step "fonts"
+bash "$ROOT/scripts/fetch-fonts.sh"
+for font in SuisseIntl-{Regular,Medium}.{woff2,ttf}; do
+  [[ -s $ROOT/packages/ui/fonts/$font ]] ||
+    die "packages/ui/fonts/$font is missing, a release needs Suisse Intl (wrangler login, see docs/release.md)"
+done
+
 set -a
 # shellcheck source=/dev/null
 . "$ENV_FILE"

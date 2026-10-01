@@ -273,6 +273,11 @@ describe('toDraftDetails', () => {
     expect(main.currencyRate).toBe('38.1230');
   });
 
+  test("sends GİB's country value, not the PDF's full name", () => {
+    const values = form({ recipient: { ...form().recipient, country: 'Amerika Birleşik Dev' } });
+    expect(toDraftDetails(values, now).country).toBe('Amerika Birleşik Dev');
+  });
+
   test('sends no rate for lira and fills in date and time', () => {
     const values = form();
     values.advancedFields.manualTime = '';

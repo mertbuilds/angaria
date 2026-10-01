@@ -17,6 +17,7 @@ import {
   BILINGUAL_SEPARATOR,
   buildInvoicePDFFilename,
   formatPDFAmount,
+  formatPDFCountry,
   formatPDFDate,
   formatPDFNumber,
   formatPDFPercent,
@@ -65,62 +66,6 @@ const MARGIN = 48;
 
 // ── Helpers ──
 
-const COUNTRY_TR_TO_EN: Record<string, string> = {
-  Türkiye: 'Turkey',
-  'Amerika Birleşik Dev': 'United States',
-  Almanya: 'Germany',
-  'Birleşik Krallik': 'United Kingdom',
-  Fransa: 'France',
-  Hollanda: 'Netherlands',
-  İtalya: 'Italy',
-  İspanya: 'Spain',
-  İsviçre: 'Switzerland',
-  Avusturya: 'Austria',
-  Belçika: 'Belgium',
-  Kanada: 'Canada',
-  Japonya: 'Japan',
-  Avustralya: 'Australia',
-  Brezilya: 'Brazil',
-  'Çin Halk Cumhuriyeti': 'China',
-  Hindistan: 'India',
-  'Rusya Federasyonu': 'Russia',
-  'Güney Kore Cumhuriye': 'South Korea',
-  Meksika: 'Mexico',
-  İrlanda: 'Ireland',
-  Danimarka: 'Denmark',
-  İsveç: 'Sweden',
-  Norveç: 'Norway',
-  Finlandiya: 'Finland',
-  Polonya: 'Poland',
-  Portekiz: 'Portugal',
-  Yunanistan: 'Greece',
-  'Çek Cumhuriyeti': 'Czech Republic',
-  Macaristan: 'Hungary',
-  Romanya: 'Romania',
-  Bulgaristan: 'Bulgaria',
-  Hirvatistan: 'Croatia',
-  Sirbistan: 'Serbia',
-  'Birleşik Arap Emirli': 'United Arab Emirates',
-  'Suudi Arabistan': 'Saudi Arabia',
-  İsrail: 'Israel',
-  Singapur: 'Singapore',
-  'Hong Kong': 'Hong Kong',
-  'Yeni Zelanda': 'New Zealand',
-  'Güney Afrika Cumhuri': 'South Africa',
-  Arjantin: 'Argentina',
-  Şili: 'Chile',
-  Kolombiya: 'Colombia',
-  Misir: 'Egypt',
-  Azerbaycan: 'Azerbaijan',
-  Gürcistan: 'Georgia',
-  Ukrayna: 'Ukraine',
-  Kazakistan: 'Kazakhstan',
-  'Kuzey Kibris Türk Cu': 'Northern Cyprus',
-};
-
-const countryName = (language: PDFLanguage, country: string) =>
-  language === 'en' ? (COUNTRY_TR_TO_EN[country] ?? country) : country;
-
 /** An address as typed, one PDF line per line */
 function addressLines(addr: string): Array<string> {
   return addr
@@ -164,7 +109,7 @@ function recipientLines(
     person && person !== recipient.title && { text: person },
     ...addressLines(recipient.fullAddress).map((text) => ({ text })),
     place && { text: place },
-    recipient.country && { text: countryName(language, recipient.country) },
+    recipient.country && { text: formatPDFCountry(language, recipient.country) },
     recipient.taxIDOrTRID && { figures: true, label: t.taxID, text: recipient.taxIDOrTRID },
     recipient.taxOffice && { label: t.taxOffice, text: recipient.taxOffice },
   ].filter(present);
@@ -834,21 +779,32 @@ const TABULAR = ['tnum'];
  * its text layer (copy, search). So every PDF loads the fonts fresh, and
  * renders run one at a time so a reload never lands mid-render.
  *
- * react-pdf lays text out without OpenType features, so FIGURES is loaded
- * here and its layout turns on tabular figures.
+ * react-pdf lays text out without OpenType features, so FIGURES's layout
+ * turns on tabular figures.
+ *
+ * react-pdf embeds one font per PostScript name, and Suisse Intl names both
+ * weights "Font": every weight would print with the glyphs of the first one
+ * used, laid out with its own widths. So each weight gets a name of its own.
  */
 async function loadFonts() {
   const families = Font.getRegisteredFonts();
   const figures = families[FIGURES]?.sources ?? [];
-  for (const source of [...(families[TEXT]?.sources ?? []), ...figures]) {
+  const sources = [...(families[TEXT]?.sources ?? []), ...figures];
+  for (const source of sources) {
     source.data = null;
     source.loadResultPromise = null;
   }
   await Promise.all(
-    figures.map(async (source) => {
+    sources.map(async (source) => {
       await source.load();
       const font = source.data;
-      if (font) {
+      if (!font) {
+        return;
+      }
+      Object.defineProperty(font, 'postscriptName', {
+        value: `${font.postscriptName}-${source.fontWeight}`,
+      });
+      if (figures.includes(source)) {
         const layout = font.layout.bind(font);
         font.layout = (text, features, ...rest) => layout(text, features ?? TABULAR, ...rest);
       }
