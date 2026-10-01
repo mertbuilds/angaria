@@ -8,6 +8,7 @@ import { AutocompleteInput } from '@/components/autocomplete-input.tsx';
 import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
 import { downloadInvoicePDF, type InvoicePDFData } from '@/components/invoice-pdf.tsx';
 import { InvoicePickerDialog } from '@/components/invoice-picker-dialog.tsx';
+import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -44,6 +45,7 @@ import {
   GIB_UNIT_TYPES,
   GIB_INVOICE_TYPES,
 } from '@/lib/gib-constants.ts';
+import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
 import { useStore } from '@/lib/store.tsx';
 import { parseGIB, toGIB } from '@/lib/utils.ts';
 
@@ -130,6 +132,14 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
     0,
   );
   const total = grandTotal + totalVAT;
+
+  // Per-invoice choice on the form recipient, else the saved customer's default
+  const pdfLanguage = resolvePDFLanguage(
+    recipient.pdfLanguage,
+    recipient.taxIDOrTRID
+      ? savedRecipients.find((r) => r.taxIDOrTRID === recipient.taxIDOrTRID)?.pdfLanguage
+      : undefined,
+  );
 
   function selectRecipient(id: string) {
     const found = savedRecipients.find((r) => r.id === id);
@@ -259,6 +269,7 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
       items,
       date,
       invoiceNumber,
+      language: pdfLanguage,
       note,
       grandTotal,
       totalVAT,
@@ -987,6 +998,10 @@ export function CreateInvoicePage({ requireCredentials }: { requireCredentials: 
           >
             {createMutation.isPending ? 'Oluşturuluyor...' : 'Taslak Fatura Oluştur'}
           </Button>
+          <PDFLanguageToggle
+            onChange={(language) => setRecipient((r) => ({ ...r, pdfLanguage: language }))}
+            value={pdfLanguage}
+          />
           <Button onClick={handleDownloadPDF} size="lg" variant="outline">
             <Download className="size-4" />
             PDF

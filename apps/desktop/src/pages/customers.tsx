@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { GIB_COUNTRIES } from '@/lib/gib-constants.ts';
+import { isPDFLanguage, resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Recipient } from '@/lib/types.ts';
 
@@ -150,6 +151,25 @@ export function CustomersPage() {
                         {c.label}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Varsayılan PDF Dili</Label>
+                <Select
+                  onValueChange={(v) =>
+                    isPDFLanguage(v) && setEditing((p) => p && { ...p, pdfLanguage: v })
+                  }
+                  value={resolvePDFLanguage(editing.pdfLanguage)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tr">Türkçe</SelectItem>
+                    <SelectItem value="en">İngilizce</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

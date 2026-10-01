@@ -1,3 +1,5 @@
+export type PDFLanguage = 'en' | 'tr';
+
 export interface Recipient {
   city: string;
   country: string;
@@ -5,6 +7,8 @@ export interface Recipient {
   fullAddress: string;
   id: string;
   name: string;
+  /** Default PDF language for this customer; missing means the app default */
+  pdfLanguage?: PDFLanguage;
   surname: string;
   taxIDOrTRID: string;
   taxOffice: string;

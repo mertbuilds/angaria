@@ -3,7 +3,21 @@ import interBold from '@/assets/fonts/Inter-Bold.ttf';
 import interRegular from '@/assets/fonts/Inter-Regular.ttf';
 import interSemiBold from '@/assets/fonts/Inter-SemiBold.ttf';
 import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
-import type { CompanyInfo, InvoiceItem, Recipient, InvoiceSettings } from '@/lib/types.ts';
+import {
+  buildInvoicePDFFilename,
+  formatPDFAmount,
+  formatPDFDate,
+  formatPDFQuantity,
+  PDF_LABELS,
+  pdfUpper,
+} from '@/lib/invoice-pdf-i18n.ts';
+import type {
+  CompanyInfo,
+  InvoiceItem,
+  PDFLanguage,
+  Recipient,
+  InvoiceSettings,
+} from '@/lib/types.ts';
 
 Font.register({
   family: 'Inter',
@@ -26,39 +40,7 @@ const RULE = '#D1D5DB';
 
 // ── Helpers ──
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-/** Parse "dd/MM/yyyy" or "dd-MM-yyyy" into "dd Month yyyy" */
-function formatDateHuman(raw: string): string {
-  if (!raw) {
-    return '';
-  }
-  const sep = raw.includes('/') ? '/' : '-';
-  const [dd, mm, yyyy] = raw.split(sep);
-  const monthIdx = Number(mm) - 1;
-  if (monthIdx < 0 || monthIdx > 11) {
-    return raw;
-  }
-  return `${dd} ${MONTHS[monthIdx]} ${yyyy}`;
-}
-
 const unitLabel = (code: string) => GIB_UNIT_TYPES.find((u) => u.value === code)?.label ?? code;
-
-const fmtAmount = (currency: string, n: number) =>
-  `${currency} ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const COUNTRY_TR_TO_EN: Record<string, string> = {
   Türkiye: 'Turkey',
@@ -384,6 +366,7 @@ export interface InvoicePDFData {
   grandTotal: number;
   invoiceNumber?: string;
   items: Array<InvoiceItem>;
+  language: PDFLanguage;
   note?: string;
   paymentTotal?: number;
   recipient: Recipient;
@@ -394,47 +377,16 @@ export interface InvoicePDFData {
   totalVAT: number;
 }
 
-function sanitizeFilenamePart(value: string | undefined, fallback: string) {
-  const withoutControlChars = Array.from(value ?? '')
-    .filter((char) => char >= ' ')
-    .join('');
-  const cleaned = withoutControlChars
-    .replaceAll(/[^\p{L}\p{N}]+/gu, '-')
-    .replaceAll(/-+/g, '-')
-    .replaceAll(/^-|-$/g, '')
-    .trim();
-  return cleaned || fallback;
-}
-
-function formatFilenameDate(date: string) {
-  if (!date) {
-    return 'tarihsiz';
-  }
-  const sep = date.includes('/') ? '/' : date.includes('-') ? '-' : null;
-  if (!sep) {
-    return sanitizeFilenamePart(date, 'tarihsiz');
-  }
-  const [dd, mm, yyyy] = date.split(sep);
-  if (!dd || !mm || !yyyy) {
-    return sanitizeFilenamePart(date, 'tarihsiz');
-  }
-  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-}
-
-function buildInvoicePDFFilename(data: InvoicePDFData) {
-  const recipientName = sanitizeFilenamePart(data.recipient.title, 'alici');
-  const entityName = sanitizeFilenamePart(data.entityName || data.company.name, 'varlik');
-  const date = formatFilenameDate(data.date);
-  return `${date}-${entityName}-${recipientName}.pdf`;
-}
-
 // ── Document ──
 
 function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
-  const { company, recipient, settings, items, date, invoiceNumber, note } = data;
+  const { company, recipient, settings, items, date, invoiceNumber, note, language } = data;
+  const t = PDF_LABELS[language];
+  const upper = (text: string) => pdfUpper(language, text);
+  const fmtAmount = (currency: string, n: number) => formatPDFAmount(language, currency, n);
   const cur = settings.currency;
   const hasBank = company.bankName || company.iban;
-  const displayDate = formatDateHuman(date);
+  const displayDate = formatPDFDate(language, date);
   const addrLines = addressLines(company.address);
   const recipientAddrLines = addressLines(recipient.fullAddress);
 
@@ -444,7 +396,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
         {/* ── Header ── */}
         <View style={s.header}>
           <View style={s.headerLeft}>
-            <Text style={s.senderName}>{company.name || 'Company Name'}</Text>
+            <Text style={s.senderName}>{company.name || t.companyNameFallback}</Text>
             <View style={s.senderInfo}>
               <View style={s.senderAddressCol}>
                 {addrLines.map((line, i) => (
@@ -462,7 +414,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
             </View>
           </View>
           <View style={s.headerRight}>
-            <Text style={s.dateLabel}>Invoice Date:</Text>
+            <Text style={s.dateLabel}>{t.invoiceDate}</Text>
             <Text style={s.dateValue}>{displayDate}</Text>
           </View>
         </View>
@@ -472,7 +424,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
 
         {/* ── Billed To ── */}
         <View style={{ marginBottom: 16 }}>
-          <Text style={s.sectionLabel}>Billed To</Text>
+          <Text style={s.sectionLabel}>{upper(t.billedTo)}</Text>
           <Text style={s.billedToName}>{recipient.title}</Text>
           {(recipient.name || recipient.surname) && (
             <Text style={s.billedToLine}>
@@ -485,7 +437,9 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
             </Text>
           ))}
           {recipient.country ? (
-            <Text style={s.billedToLine}>{countryEN(recipient.country)}</Text>
+            <Text style={s.billedToLine}>
+              {language === 'en' ? countryEN(recipient.country) : recipient.country}
+            </Text>
           ) : null}
         </View>
 
@@ -498,7 +452,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
           <View style={s.invoiceLeft}>
             {invoiceNumber && (
               <View>
-                <Text style={s.metaLabel}>Invoice Number</Text>
+                <Text style={s.metaLabel}>{upper(t.invoiceNumber)}</Text>
                 <Text style={s.metaValue}>{invoiceNumber}</Text>
               </View>
             )}
@@ -507,10 +461,14 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
           {/* Right column: items table + totals */}
           <View style={s.invoiceRight}>
             <View style={s.tableHeader}>
-              <Text style={[s.thText, s.colDesc]}>Description</Text>
-              <Text style={[s.thText, s.colUnitCost]}>Unit Cost {cur}</Text>
-              <Text style={[s.thText, s.colQty]}>Qty</Text>
-              <Text style={[s.thText, s.colAmount]}>Amount {cur}</Text>
+              <Text style={[s.thText, s.colDesc]}>{upper(t.description)}</Text>
+              <Text style={[s.thText, s.colUnitCost]}>
+                {upper(t.unitCost)} {cur}
+              </Text>
+              <Text style={[s.thText, s.colQty]}>{upper(t.quantity)}</Text>
+              <Text style={[s.thText, s.colAmount]}>
+                {upper(t.amount)} {cur}
+              </Text>
             </View>
 
             {items.map((item) => {
@@ -524,7 +482,9 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
                     )}
                   </View>
                   <Text style={[s.cellText, s.colUnitCost]}>{fmtAmount(cur, item.unitPrice)}</Text>
-                  <Text style={[s.cellText, s.colQty]}>{item.quantity}</Text>
+                  <Text style={[s.cellText, s.colQty]}>
+                    {formatPDFQuantity(language, item.quantity)}
+                  </Text>
                   <Text style={[s.cellText, s.colAmount]}>{fmtAmount(cur, lineTotal)}</Text>
                 </View>
               );
@@ -534,24 +494,24 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
             <View style={s.subtotalArea}>
               {(data.totalDiscount ?? 0) > 0 && (
                 <View style={s.subtotalRow}>
-                  <Text style={s.subtotalLabel}>Discount</Text>
+                  <Text style={s.subtotalLabel}>{upper(t.discount)}</Text>
                   <Text style={s.subtotalValue}>-{fmtAmount(cur, data.totalDiscount!)}</Text>
                 </View>
               )}
               <View style={s.subtotalRow}>
-                <Text style={s.subtotalLabel}>Subtotal</Text>
+                <Text style={s.subtotalLabel}>{upper(t.subtotal)}</Text>
                 <Text style={s.subtotalValue}>{fmtAmount(cur, data.grandTotal)}</Text>
               </View>
               {data.totalVAT > 0 && (
                 <View style={s.subtotalRow}>
-                  <Text style={s.subtotalLabel}>VAT</Text>
+                  <Text style={s.subtotalLabel}>{upper(t.vat)}</Text>
                   <Text style={s.subtotalValue}>{fmtAmount(cur, data.totalVAT)}</Text>
                 </View>
               )}
             </View>
 
             {/* Grand total */}
-            <Text style={s.totalLabel}>Invoice Total</Text>
+            <Text style={s.totalLabel}>{upper(t.invoiceTotal)}</Text>
             <Text style={s.totalValue}>{fmtAmount(cur, data.total)}</Text>
           </View>
         </View>
@@ -559,24 +519,24 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
         {/* ── Bank Account Details ── */}
         {hasBank && (
           <View style={s.bankSection}>
-            <Text style={s.bankTitle}>Bank Account Details</Text>
+            <Text style={s.bankTitle}>{t.bankAccountDetails}</Text>
             <View style={s.bankColumns}>
               <View style={s.bankCol}>
                 {company.bankName ? (
                   <View style={s.bankRow}>
-                    <Text style={s.bankLabel}>Bank Name</Text>
+                    <Text style={s.bankLabel}>{t.bankName}</Text>
                     <Text style={s.bankValue}>{company.bankName}</Text>
                   </View>
                 ) : null}
                 {company.accountHolder ? (
                   <View style={s.bankRow}>
-                    <Text style={s.bankLabel}>Account Holder</Text>
+                    <Text style={s.bankLabel}>{t.accountHolder}</Text>
                     <Text style={s.bankValue}>{company.accountHolder}</Text>
                   </View>
                 ) : null}
                 {company.iban ? (
                   <View style={s.bankRow}>
-                    <Text style={s.bankLabel}>IBAN</Text>
+                    <Text style={s.bankLabel}>{t.iban}</Text>
                     <Text style={s.bankValue}>{company.iban}</Text>
                   </View>
                 ) : null}
@@ -584,13 +544,13 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
               <View style={s.bankCol}>
                 {company.swiftCode ? (
                   <View style={s.bankRow}>
-                    <Text style={s.bankLabel}>Swift Code</Text>
+                    <Text style={s.bankLabel}>{t.swiftCode}</Text>
                     <Text style={s.bankValue}>{company.swiftCode}</Text>
                   </View>
                 ) : null}
                 {company.bankAddress ? (
                   <View style={s.bankRow}>
-                    <Text style={s.bankLabel}>Bank Address</Text>
+                    <Text style={s.bankLabel}>{t.bankAddress}</Text>
                     <Text style={s.bankValue}>{company.bankAddress}</Text>
                   </View>
                 ) : null}
@@ -602,7 +562,7 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
         {/* ── Note ── */}
         {note ? (
           <View style={s.noteSection}>
-            <Text style={s.noteLabel}>Note</Text>
+            <Text style={s.noteLabel}>{upper(t.note)}</Text>
             <Text style={s.noteText}>{note}</Text>
           </View>
         ) : null}
@@ -613,12 +573,45 @@ function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
 
 // ── Export ──
 
+/**
+ * fontkit caches glyphs per loaded font, and subsetting a finished PDF caches
+ * the parts of composite glyphs ("ı" in "i", "G" in "Ğ") without their
+ * characters. A later PDF on the same font then drops those characters from
+ * its text layer (copy, search). So every PDF loads the fonts fresh, and
+ * renders run one at a time so a reload never lands mid-render.
+ */
+function reloadFonts() {
+  for (const source of Font.getRegisteredFonts().Inter?.sources ?? []) {
+    source.data = null;
+    source.loadResultPromise = null;
+  }
+}
+
+let lastRender: Promise<unknown> = Promise.resolve();
+
+export function renderInvoicePDF(data: InvoicePDFData): Promise<Blob> {
+  const render = lastRender.then(() => {
+    reloadFonts();
+    return pdf(<InvoicePDFDocument data={data} />).toBlob();
+  });
+  lastRender = render.catch(() => {});
+  return render;
+}
+
 export async function downloadInvoicePDF(data: InvoicePDFData, filename?: string) {
-  const blob = await pdf(<InvoicePDFDocument data={data} />).toBlob();
+  const blob = await renderInvoicePDF(data);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename ?? buildInvoicePDFFilename(data);
+  a.download =
+    filename ??
+    buildInvoicePDFFilename({
+      companyName: data.company.name,
+      date: data.date,
+      entityName: data.entityName,
+      language: data.language,
+      recipientTitle: data.recipient.title,
+    });
   document.body.append(a);
   a.click();
   document.body.removeChild(a);
