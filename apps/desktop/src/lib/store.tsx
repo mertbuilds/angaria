@@ -375,7 +375,7 @@ function LoadedStoreProvider({
     () => loadLocal<string | null>(ACTIVE_ENTITY_STORAGE_KEY, null) ?? loadEntities()[0]?.id ?? '',
   );
 
-  // Invoice form state — not persisted, starts blank
+  // Invoice form state: not persisted, starts blank
   const [recipient, setRecipient] = useState<Recipient>({ ...BLANK_RECIPIENT, id: newId() });
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>({ ...DEFAULT_SETTINGS });
   const [items, setItems] = useState<Array<InvoiceItem>>(() => [makeBlankItem()]);

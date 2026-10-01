@@ -69,6 +69,9 @@ catalogs:
     date-fns:
       specifier: ^4.1.0
       version: 4.1.0
+    jsdom:
+      specifier: 30.0.1
+      version: 30.0.1
     lucide-react:
       specifier: ^1.39.0
       version: 1.49.0
@@ -247,7 +250,7 @@ importers:
         specifier: 'catalog:'
         version: 0.19.1
       '@tanstack/react-router':
-        specifier: ^1.170.32
+        specifier: 'catalog:'
         version: 1.170.40(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-start':
         specifier: ^1.168.49
@@ -371,6 +374,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@angaria/gib-emulator':
+        specifier: workspace:*
+        version: link:../gib-emulator
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.0
@@ -423,9 +429,15 @@ importers:
 
   packages/utils:
     devDependencies:
+      '@angaria/gib-emulator':
+        specifier: workspace:*
+        version: link:../gib-emulator
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.0
+      jsdom:
+        specifier: 'catalog:'
+        version: 30.0.1(@noble/hashes@1.8.0)
       tsdown:
         specifier: 'catalog:'
         version: 0.23.0(typescript@7.0.2)

@@ -8,8 +8,12 @@ export interface LicenseDetails {
   expiresAt: string | null;
 }
 
+// The whole record lives in one keychain item (license-vault.ts).
 export interface StoredLicense extends LicenseDetails {
   activationId: string;
+  key: string;
+  /** The latest time the app has seen. A clock behind it was set back. */
+  lastSeenAt: string;
   lastValidatedAt: string;
 }
 
@@ -52,17 +56,34 @@ export class LicenseError extends Error {
 const isPast = (iso: string | null, now: number) => iso !== null && Date.parse(iso) <= now;
 
 // Without a server answer the license stays usable for GRACE_PERIOD_MS after the
-// last successful check. A clock that reads earlier than that check cannot be
-// trusted, so it needs an online check too.
+// last successful check. A clock that reads earlier than that check, or earlier
+// than any time the app has seen since, was set back and cannot be trusted, so
+// it needs an online check too.
 export function offlineStatus(license: StoredLicense, now: number): LicenseStatus {
   if (isPast(license.expiresAt, now)) {
     return { kind: 'expired', reason: 'subscription' };
   }
   const elapsed = now - Date.parse(license.lastValidatedAt);
-  if (Number.isNaN(elapsed) || elapsed < 0 || elapsed > GRACE_PERIOD_MS) {
+  const seen = Date.parse(license.lastSeenAt);
+  if (
+    Number.isNaN(elapsed) ||
+    Number.isNaN(seen) ||
+    elapsed < 0 ||
+    now < seen ||
+    elapsed > GRACE_PERIOD_MS
+  ) {
     return { kind: 'expired', reason: 'offline' };
   }
   return { daysLeft: Math.ceil((GRACE_PERIOD_MS - elapsed) / DAY_MS), kind: 'grace' };
+}
+
+// Moves lastSeenAt forward to now, never back. An unreadable value stays as it
+// is, so offlineStatus keeps asking for an online check.
+function seenAt(license: StoredLicense, now: number): StoredLicense {
+  const seen = Date.parse(license.lastSeenAt);
+  return Number.isNaN(seen) || seen >= now
+    ? license
+    : { ...license, lastSeenAt: new Date(now).toISOString() };
 }
 
 export function resolveLicense(
@@ -71,31 +92,56 @@ export function resolveLicense(
   now: number,
 ): { license: StoredLicense; status: LicenseStatus } {
   switch (outcome.kind) {
-    case 'valid':
+    case 'valid': {
+      // Polar vouches for this moment, so it also resets the clock high-water mark.
+      const checkedAt = new Date(now).toISOString();
       return {
-        license: { ...license, ...outcome.details, lastValidatedAt: new Date(now).toISOString() },
+        license: {
+          ...license,
+          ...outcome.details,
+          lastSeenAt: checkedAt,
+          lastValidatedAt: checkedAt,
+        },
         status: { kind: 'valid' },
       };
+    }
     case 'inactive':
-      return { license, status: { kind: 'expired', reason: 'subscription' } };
+      return { license: seenAt(license, now), status: { kind: 'expired', reason: 'subscription' } };
     case 'invalid':
       return {
-        license,
+        license: seenAt(license, now),
         status: isPast(license.expiresAt, now)
           ? { kind: 'expired', reason: 'subscription' }
           : { kind: 'invalid' },
       };
     case 'offline':
-      return { license, status: offlineStatus(license, now) };
+      return { license: seenAt(license, now), status: offlineStatus(license, now) };
   }
 }
 
+/**
+ * The hourly recount between server checks, while the app is open: lastSeenAt
+ * moves forward, and a grace period counts down until it needs an online check.
+ */
+export function refreshLicense(
+  license: StoredLicense,
+  status: LicenseStatus,
+  now: number,
+): { license: StoredLicense; status: LicenseStatus } {
+  return {
+    license: seenAt(license, now),
+    status: status.kind === 'grace' ? offlineStatus(license, now) : status,
+  };
+}
+
 export function activatedLicense(
+  key: string,
   activationId: string,
   details: LicenseDetails,
   now: number,
 ): StoredLicense {
-  return { ...details, activationId, lastValidatedAt: new Date(now).toISOString() };
+  const checkedAt = new Date(now).toISOString();
+  return { ...details, activationId, key, lastSeenAt: checkedAt, lastValidatedAt: checkedAt };
 }
 
 const isNullableString = (value: unknown) => value === null || typeof value === 'string';
@@ -108,6 +154,9 @@ export function parseStoredLicense(value: unknown): StoredLicense | null {
   if (
     typeof license.activationId !== 'string' ||
     typeof license.displayKey !== 'string' ||
+    typeof license.key !== 'string' ||
+    !license.key ||
+    typeof license.lastSeenAt !== 'string' ||
     typeof license.lastValidatedAt !== 'string' ||
     !isNullableString(license.customerEmail) ||
     !isNullableString(license.expiresAt)
@@ -119,6 +168,8 @@ export function parseStoredLicense(value: unknown): StoredLicense | null {
     customerEmail: license.customerEmail as string | null,
     displayKey: license.displayKey,
     expiresAt: license.expiresAt as string | null,
+    key: license.key,
+    lastSeenAt: license.lastSeenAt,
     lastValidatedAt: license.lastValidatedAt,
   };
 }

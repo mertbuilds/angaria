@@ -126,7 +126,7 @@ const styles = create({
     cursor: 'pointer',
     inset: 0,
     outline: {
-      ':focus-visible': `2px solid ${colors.muted}`,
+      ':focus-visible': `1px solid ${colors.muted}`,
       default: 'none',
     },
     outlineOffset: '2px',

@@ -47,6 +47,20 @@ export interface InvoiceDetails {
   totalVAT: number;
 }
 
+/** One row of the document list (EARSIV_PORTAL_TASLAKLARI_GETIR), as GİB sends it. */
+export interface DraftRow {
+  [key: string]: unknown;
+  aliciUnvanAdSoyad?: string;
+  aliciVknTckn?: string;
+  belgeNumarasi?: string;
+  /** dd-MM-yyyy */
+  belgeTarihi?: string;
+  belgeTuru?: string;
+  ettn?: string;
+  /** Onaylanmadı, Onaylandı, Silinmiş */
+  onayDurumu?: string;
+}
+
 type FetchFn = typeof globalThis.fetch;
 
 function extractCookies(response: Response): Array<string> {
@@ -88,8 +102,8 @@ export interface EarsivClient {
     session: SessionInfo,
     startDate: string,
     endDate: string,
-    signal?: AbortSignal,
-  ): Promise<Array<unknown>>;
+    options?: { signal?: AbortSignal },
+  ): Promise<Array<DraftRow>>;
   getInvoiceDetail(session: SessionInfo, ettn: string): Promise<Record<string, unknown>>;
   getInvoiceHTML(session: SessionInfo, uuid: string, onayDurumu: string): Promise<string>;
   getSigningPhone(session: SessionInfo): Promise<string>;
@@ -112,6 +126,21 @@ export interface EarsivClient {
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const norm = (s: string) => s.trim().toLocaleUpperCase('tr');
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** A document list that is not a list of rows: a text in its place is GİB's own message. */
+const unreadableList = (value: unknown) =>
+  new Error(typeof value === 'string' && value ? value : 'GİB belge listesi okunamadı');
+
+/** GİB's error envelope ({ error: '1', messages: [{ text }] }) as an Error, else null. */
+function portalError(result: Record<string, unknown>, fallback: string): Error | null {
+  if (result.error !== '1' && result.error !== 1) {
+    return null;
+  }
+  const messages = result.messages as Array<{ text: string }> | undefined;
+  return new Error(messages?.[0]?.text ?? fallback);
+}
 
 /**
  * Longest range one draft list request may cover, both ends included. GİB
@@ -198,10 +227,9 @@ export function createClient(options?: ClientOptions): EarsivClient {
     session.cookies = mergeCookies(session.cookies, extractCookies(response));
     const result = (await response.json()) as Record<string, unknown>;
 
-    if (result.error === '1' || result.error === 1) {
-      const messages = result.messages as Array<{ text: string }> | undefined;
-      const msg = messages?.[0]?.text ?? 'GİB portaldan bilinmeyen hata';
-      throw new Error(msg);
+    const error = portalError(result, 'GİB portaldan bilinmeyen hata');
+    if (error) {
+      throw error;
     }
 
     return result;
@@ -236,17 +264,31 @@ export function createClient(options?: ClientOptions): EarsivClient {
     return { token: json.token as string, cookies, baseUrl };
   }
 
-  async function logout(session: SessionInfo): Promise<void> {
-    const cmd = session.baseUrl === TEST_URL ? 'logout' : 'anologin';
-    await fetchFn(`${session.baseUrl}/earsiv-services/assos-login`, {
+  /**
+   * assoscmd=logout on both portals: production's `anologin` is its login
+   * command and, without a userid, fails instead of ending the session.
+   */
+  async function sendLogout(baseUrl: string, cookies: Array<string>, token: string) {
+    const response = await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
       method: 'POST',
       headers: {
         'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        cookie: session.cookies.join('; '),
-        Referer: `${session.baseUrl}/intragiris.html`,
+        cookie: cookies.join('; '),
+        Referer: `${baseUrl}/intragiris.html`,
       },
-      body: `assoscmd=${cmd}&rtype=json&token=${session.token}&`,
+      body: `assoscmd=logout&rtype=json&token=${token}&`,
     });
+    const error = portalError(
+      (await response.json()) as Record<string, unknown>,
+      'Çıkış başarısız',
+    );
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function logout(session: SessionInfo): Promise<void> {
+    await sendLogout(session.baseUrl, session.cookies, session.token);
   }
 
   async function forceLogout(username: string, password: string, testMode: boolean): Promise<void> {
@@ -266,16 +308,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     const json = (await response.json()) as Record<string, unknown>;
     const token = (json.token as string) ?? '';
 
-    const logoutCmd = testMode ? 'logout' : 'anologin';
-    await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        cookie: cookies.join('; '),
-        Referer: `${baseUrl}/intragiris.html`,
-      },
-      body: `assoscmd=${logoutCmd}&rtype=json&token=${token}&`,
-    });
+    await sendLogout(baseUrl, cookies, token);
   }
 
   async function getUUID(session: SessionInfo): Promise<string> {
@@ -386,9 +419,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     details: InvoiceDetails,
   ): Promise<string> {
     try {
-      const drafts = (await getDrafts(session, details.date, details.date)) as Array<
-        Record<string, unknown>
-      >;
+      const drafts = await getDrafts(session, details.date, details.date);
       const dashDate = details.date.replaceAll('/', '-');
       let rows = drafts.filter(
         (d) =>
@@ -439,16 +470,15 @@ export function createClient(options?: ClientOptions): EarsivClient {
   /**
    * Every document dated within the range. Ranges longer than GİB allows are
    * fetched in chunks, one after the other on the same session, and merged
-   * oldest first; a row returned twice (same ETTN) is kept once. Once
-   * `signal` aborts, no further chunk is requested and the call rejects.
+   * oldest first; a row returned twice (same ETTN) is kept once.
    */
   async function getDrafts(
     session: SessionInfo,
     startDate: string,
     endDate: string,
-    signal?: AbortSignal,
-  ): Promise<Array<unknown>> {
-    const rows: Array<unknown> = [];
+    { signal }: { signal?: AbortSignal } = {},
+  ): Promise<Array<DraftRow>> {
+    const rows: Array<DraftRow> = [];
     const seen = new Set<string>();
     for (const range of splitDateRange(startDate, endDate)) {
       signal?.throwIfAborted();
@@ -463,20 +493,25 @@ export function createClient(options?: ClientOptions): EarsivClient {
           table: [],
         },
       );
-      for (const row of (result.data as Array<unknown>) ?? []) {
-        const record = (row ?? {}) as Record<string, unknown>;
-        // A refused query comes back as data, not as an error: [{ error: '...' }].
-        if (typeof record.error === 'string') {
-          throw new Error(record.error);
+      if (!Array.isArray(result.data)) {
+        throw unreadableList(result.data);
+      }
+      for (const row of result.data as Array<unknown>) {
+        if (!isRecord(row)) {
+          throw unreadableList(row);
         }
-        const ettn = str(record.ettn);
+        // A refused query comes back as data, not as an error: [{ error: '...' }].
+        if (typeof row.error === 'string') {
+          throw new Error(row.error);
+        }
+        const ettn = str(row.ettn);
         if (ettn) {
           if (seen.has(ettn)) {
             continue;
           }
           seen.add(ettn);
         }
-        rows.push(row);
+        rows.push(row as DraftRow);
       }
     }
     return rows;

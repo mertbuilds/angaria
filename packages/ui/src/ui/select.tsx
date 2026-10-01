@@ -120,7 +120,7 @@ const styles = create({
     borderStyle: 'solid',
     borderWidth: '1px',
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.ring} 50%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.ring}`,
       default: null,
     },
     boxSizing: 'border-box',
@@ -160,7 +160,7 @@ const styles = create({
   triggerAriaInvalid: {
     borderColor: colors.destructive,
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.destructive} 40%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.ring}`,
       default: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
     },
   },

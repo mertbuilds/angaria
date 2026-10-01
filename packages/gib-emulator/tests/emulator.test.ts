@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
@@ -157,12 +158,26 @@ describe('login', () => {
 
     const response = await post(
       '/earsiv-services/assos-login',
-      { assoscmd: 'anologin', rtype: 'json', token: '' },
+      { assoscmd: 'logout', rtype: 'json', token: '' },
       refused.cookie,
     );
     expect(await response.json()).toEqual({ data: { redirectUrl: 'login.html' } });
     expect((await dispatch(first.token, 'EARSIV_PORTAL_UUID_GETIR')).error).toBe('1');
     expect((await login()).token).not.toBe('');
+  });
+
+  test('anologin without a userid is a login with missing fields, not a logout', async () => {
+    const { cookie, token } = await login();
+    const response = await post(
+      '/earsiv-services/assos-login',
+      { assoscmd: 'anologin', rtype: 'json', token },
+      cookie,
+    );
+    expect(await response.json()).toMatchObject({
+      error: '1',
+      messages: [{ text: messages.loginFieldsMissing, type: '5' }],
+    });
+    expect((await dispatch(token, 'EARSIV_PORTAL_UUID_GETIR')).error).toBeUndefined();
   });
 
   test('a session opened elsewhere locks the user', async () => {
@@ -263,17 +278,17 @@ describe('dispatch', () => {
     ]);
   });
 
-  test('refuses a list range over the limit as a data row', async () => {
+  test('refuses a list range over the limit, both ends counted, as a data row', async () => {
     const { token } = await login();
     const within = await dispatch(token, 'EARSIV_PORTAL_TASLAKLARI_GETIR', {
       baslangic: '01/09/2026',
-      bitis: '08/09/2026',
+      bitis: '07/09/2026',
     });
     expect(within.data).toEqual([]);
 
     const over = await dispatch(token, 'EARSIV_PORTAL_TASLAKLARI_GETIR', {
       baslangic: '01/09/2026',
-      bitis: '09/09/2026',
+      bitis: '08/09/2026',
     });
     expect(over.error).toBeUndefined();
     expect(over.data).toEqual([{ error: 'Seçilen tarih aralığı 7 günden fazla olamaz!' }]);
@@ -447,15 +462,18 @@ describe('chaos', () => {
 
 describe('TCMB', () => {
   let tcmb: RunningEmulator;
+  let afternoon: RunningEmulator;
 
   beforeAll(async () => {
-    // Wednesday 30 September 2026, 12:00 in Istanbul.
+    // Wednesday 30 September 2026, 12:00 and 16:00 in Istanbul. TCMB publishes
+    // the day's bulletin at 15:30.
     tcmb = await startEmulator({ now: () => Date.UTC(2026, 8, 30, 9) });
+    afternoon = await startEmulator({ now: () => Date.UTC(2026, 8, 30, 13) });
   });
 
-  afterAll(() => tcmb.close());
+  afterAll(() => Promise.all([tcmb.close(), afternoon.close()]));
 
-  const get = (path: string) => fetch(`${tcmb.url}/kurlar/${path}`);
+  const get = (path: string, base = tcmb.url) => fetch(`${base}/kurlar/${path}`);
 
   test('serves a bulletin in the TCMB schema, the same every time', async () => {
     const response = await get('202609/29092026.xml');
@@ -469,17 +487,159 @@ describe('TCMB', () => {
     expect(await (await get('202609/29092026.xml')).text()).toBe(xml);
   });
 
-  test('has no bulletin on weekends, holidays, future days or under the wrong month', async () => {
+  test('lists the currencies of the 2026 feed', async () => {
+    const xml = await (await get('202609/29092026.xml')).text();
+    expect([...xml.matchAll(/CurrencyCode="(\w+)"/g)].map((match) => match[1])).toEqual([
+      'USD',
+      'AUD',
+      'DKK',
+      'EUR',
+      'GBP',
+      'CHF',
+      'SEK',
+      'CAD',
+      'KWD',
+      'NOK',
+      'SAR',
+      'JPY',
+      'RON',
+      'RUB',
+      'CNY',
+      'PKR',
+      'QAR',
+      'KRW',
+      'AZN',
+      'AED',
+      'KZT',
+      'XDR',
+    ]);
+    expect(xml).toMatch(
+      /CurrencyCode="XDR">[\s\S]*?<ForexBuying>\d+\.\d{4}<\/ForexBuying>\s*<ForexSelling\/>/,
+    );
+  });
+
+  test('has no bulletin on weekends, holidays, half days, future days or under the wrong month', async () => {
     expect((await get('202609/27092026.xml')).status).toBe(404);
     expect((await get('202510/29102025.xml')).status).toBe(404);
+    expect((await get('202510/28102025.xml')).status).toBe(404);
+    expect((await get('202603/19032026.xml')).status).toBe(404);
     expect((await get('202605/27052026.xml')).status).toBe(404);
     expect((await get('202610/01102026.xml')).status).toBe(404);
     expect((await get('202608/29092026.xml')).status).toBe(404);
-    expect((await get('202609/30092026.xml')).status).toBe(200);
+    expect((await get('202509/29092025.xml')).status).toBe(200);
   });
 
-  test('today.xml is the latest bulletin', async () => {
-    expect(await (await get('today.xml')).text()).toContain('Tarih="30.09.2026"');
+  test("today's bulletin appears at 15:30", async () => {
+    expect((await get('202609/30092026.xml')).status).toBe(404);
+    expect(await (await get('today.xml')).text()).toContain('Tarih="29.09.2026"');
+
+    expect((await get('202609/30092026.xml', afternoon.url)).status).toBe(200);
+    expect(await (await get('today.xml', afternoon.url)).text()).toContain('Tarih="30.09.2026"');
+  });
+});
+
+/** A raw request, so the test can send any Host header. */
+function raw(
+  path: string,
+  {
+    body,
+    headers = {},
+    method = 'GET',
+  }: {
+    body?: string;
+    headers?: Record<string, string>;
+    method?: string;
+  } = {},
+) {
+  return new Promise<{ body: string; headers: Record<string, unknown>; status: number }>(
+    (resolve, reject) => {
+      const outgoing = request(`${emulator.url}${path}`, { headers, method }, (response) => {
+        let text = '';
+        response.setEncoding('utf8');
+        response.on('data', (chunk: string) => (text += chunk));
+        response.on('end', () =>
+          resolve({ body: text, headers: response.headers, status: response.statusCode ?? 0 }),
+        );
+      });
+      outgoing.on('error', reject);
+      outgoing.end(body);
+    },
+  );
+}
+
+describe('access', () => {
+  test('refuses a Host other than loopback or *.angaria.localhost', async () => {
+    expect(
+      (await raw('/__emulator/state', { headers: { host: 'rebind.evil.example' } })).status,
+    ).toBe(403);
+    expect(
+      (await raw('/kurlar/today.xml', { headers: { host: 'evil.example:5180' } })).status,
+    ).toBe(403);
+    for (const host of ['127.0.0.1:5180', 'localhost', '[::1]:5180', 'gib.angaria.localhost']) {
+      expect((await raw('/__emulator/state', { headers: { host } })).status).toBe(200);
+    }
+  });
+
+  test('refuses /__emulator from a web page on another origin, and sends no CORS headers', async () => {
+    const preflight = await raw('/__emulator/config', {
+      headers: {
+        'access-control-request-method': 'PATCH',
+        origin: 'https://evil.example',
+      },
+      method: 'OPTIONS',
+    });
+    expect(preflight.status).toBe(403);
+    expect(preflight.headers['access-control-allow-origin']).toBeUndefined();
+
+    const seed = await raw('/__emulator/seed', {
+      body: JSON.stringify({ invoices: [{ userid: '33333301' }] }),
+      headers: { 'content-type': 'text/plain', origin: 'https://evil.example' },
+      method: 'POST',
+    });
+    expect(seed.status).toBe(403);
+    const state = (await (await admin('GET', '/state')).json()) as { invoices: Array<unknown> };
+    expect(state.invoices).toHaveLength(3);
+
+    const local = await raw('/__emulator/state', { headers: { origin: 'http://localhost:5173' } });
+    expect(local.status).toBe(200);
+    expect(local.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  test('PATCH /__emulator/config never takes a state file', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gib-emulator-'));
+    const stateFile = join(dir, 'written.json');
+    try {
+      const response = await admin('PATCH', '/config', { maxRangeDays: 3, stateFile });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: expect.stringContaining('Not patchable: stateFile'),
+      });
+      await admin('POST', '/seed', { invoices: [{ userid: '33333301' }] });
+      expect(existsSync(stateFile)).toBe(false);
+      expect(emulator.config.maxRangeDays).toBe(7);
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  });
+
+  test('portal routes allow CORS for the desktop dev origins only', async () => {
+    for (const origin of [
+      'http://localhost:5173',
+      'http://127.0.0.1:1420',
+      'tauri://localhost',
+      'http://tauri.localhost',
+    ]) {
+      const response = await raw('/kurlar/today.xml', { headers: { origin } });
+      expect(response.headers['access-control-allow-origin']).toBe(origin);
+      const preflight = await raw('/earsiv-services/dispatch', {
+        headers: { 'access-control-request-method': 'POST', origin },
+        method: 'OPTIONS',
+      });
+      expect(preflight.headers['access-control-allow-origin']).toBe(origin);
+    }
+    const foreign = await raw('/kurlar/today.xml', { headers: { origin: 'https://evil.example' } });
+    expect(foreign.status).toBe(200);
+    expect(foreign.headers['access-control-allow-origin']).toBeUndefined();
   });
 });
 

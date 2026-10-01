@@ -77,19 +77,26 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 [[ -f $ENV_FILE ]] || die "missing $ENV_FILE (see docs/release.md)"
-set -a
-# shellcheck source=/dev/null
-. "$ENV_FILE"
-set +a
 
 if [[ -d $HOME/.cargo/bin ]]; then
   PATH="$HOME/.cargo/bin:$PATH"
 fi
 
+# Before the release env is sourced, so dependency install scripts never see
+# the signing and notary secrets.
+step "install dependencies and rust targets"
+pnpm install --frozen-lockfile
+(cd "$TAURI_DIR" && rustup target add aarch64-apple-darwin x86_64-apple-darwin)
+
+set -a
+# shellcheck source=/dev/null
+. "$ENV_FILE"
+set +a
+
 [[ -n ${APPLE_SIGNING_IDENTITY:-} ]] || die "APPLE_SIGNING_IDENTITY is not set in $ENV_FILE"
 
-# `tauri build` takes the updater key as a path or a string, `tauri signer sign`
-# needs a path in TAURI_SIGNING_PRIVATE_KEY_PATH or the literal key, not both.
+# `tauri signer sign` needs a path in TAURI_SIGNING_PRIVATE_KEY_PATH or the
+# literal key, not both.
 key_path=${TAURI_SIGNING_PRIVATE_KEY_PATH:-}
 if [[ -z $key_path && -f ${TAURI_SIGNING_PRIVATE_KEY:-} ]]; then
   key_path=$TAURI_SIGNING_PRIVATE_KEY
@@ -175,15 +182,13 @@ rm -rf "$OUT"
 REL="$OUT/releases/$version"
 mkdir -p "$REL" "$OUT/updates"
 
-step "install dependencies and rust targets"
-pnpm install --frozen-lockfile
-(cd "$TAURI_DIR" && rustup target add aarch64-apple-darwin x86_64-apple-darwin)
-
 step "tauri build (universal-apple-darwin, app bundle)"
 # Tauri only signs here. Notarization runs below through notarytool, so the
-# credentials Tauri would use to notarize on its own are stripped.
+# credentials Tauri would use to notarize on its own are stripped. So is the
+# updater key: with bundle.createUpdaterArtifacts off the build never needs it,
+# the updater bundle is packed and signed below from the stapled app.
 env -u APPLE_ID -u APPLE_PASSWORD -u APPLE_API_ISSUER -u APPLE_API_KEY -u APPLE_API_KEY_PATH \
-  TAURI_SIGNING_PRIVATE_KEY="${TAURI_SIGNING_PRIVATE_KEY:-$key_path}" \
+  -u TAURI_SIGNING_PRIVATE_KEY -u TAURI_SIGNING_PRIVATE_KEY_PATH -u TAURI_SIGNING_PRIVATE_KEY_PASSWORD \
   pnpm --filter desktop tauri build --target universal-apple-darwin --bundles app
 
 APP="$TAURI_DIR/target/universal-apple-darwin/release/bundle/macos/$APP_NAME.app"

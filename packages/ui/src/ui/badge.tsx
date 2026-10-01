@@ -18,7 +18,7 @@ const styles = create({
     borderStyle: 'none',
     borderWidth: 0,
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.ring} 50%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.ring}`,
       default: null,
     },
     boxSizing: 'border-box',
@@ -51,10 +51,6 @@ const styles = create({
   },
   variantDestructive: {
     backgroundColor: `color-mix(in oklab, ${colors.destructive} 10%, transparent)`,
-    boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
-      default: null,
-    },
     color: colors.destructive,
   },
   variantGhost: {

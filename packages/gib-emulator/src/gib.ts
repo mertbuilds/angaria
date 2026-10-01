@@ -51,8 +51,8 @@ export const ok = (ctx: PortalContext, data: unknown) =>
   jsonReply({ data, metadata: metadata(ctx) });
 
 /** GİB's error envelope: the SDK reads `error` and `messages[0].text`. */
-export const fail = (ctx: PortalContext, text: string) =>
-  jsonReply({ error: '1', messages: [{ text, type: '4' }], metadata: metadata(ctx) });
+export const fail = (ctx: PortalContext, text: string, type = '4') =>
+  jsonReply({ error: '1', messages: [{ text, type }], metadata: metadata(ctx) });
 
 const sessionCookie = (value: string) => `JSESSIONID=${value}; Path=/; HttpOnly`;
 
@@ -149,7 +149,8 @@ function logout(ctx: PortalContext, form: URLSearchParams, cookies: Record<strin
 
 /**
  * assos-login: `login` (test portal) and `anologin` (production) with a
- * userid log in; `logout`, or `anologin` with only a token, logs out.
+ * userid log in; `logout` logs out on both portals. `anologin` without a
+ * userid is a login with missing fields, not a logout.
  */
 export function assosLogin(
   ctx: PortalContext,
@@ -160,7 +161,10 @@ export function assosLogin(
   if ((command === 'login' || command === 'anologin') && form.get('userid')) {
     return login(ctx, form);
   }
-  if (command === 'logout' || command === 'anologin') {
+  if (command === 'anologin') {
+    return fail(ctx, messages.loginFieldsMissing, '5');
+  }
+  if (command === 'logout') {
     return logout(ctx, form, cookies);
   }
   return fail(ctx, messages.invalidCommand);
@@ -239,7 +243,8 @@ function listDrafts(ctx: CommandContext, data: Record<string, unknown>): Reply {
   if (dayNumber(start) > dayNumber(end)) {
     return ok(ctx, [{ error: messages.rangeReversed }]);
   }
-  if (dayNumber(end) - dayNumber(start) > ctx.config.maxRangeDays) {
+  // Both ends count: 01/09 to 07/09 is seven days.
+  if (dayNumber(end) - dayNumber(start) + 1 > ctx.config.maxRangeDays) {
     return ok(ctx, [{ error: messages.rangeTooLong(ctx.config.maxRangeDays) }]);
   }
   const rows = [...ctx.state.invoices.values()]

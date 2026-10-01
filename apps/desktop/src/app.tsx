@@ -4,6 +4,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { LicenseGate } from '@/components/license-gate.tsx';
 import { LicenseProvider } from '@/lib/license-context.tsx';
 import { StoreProvider } from '@/lib/store.tsx';
+import { useUpdateCheck } from '@/shell/use-update-check.ts';
 import { router } from './router.tsx';
 
 const queryClient = new QueryClient({
@@ -27,6 +28,9 @@ const queryClient = new QueryClient({
 });
 
 export function App() {
+  // Outside the license gate: a locked app still gets fixes.
+  useUpdateCheck();
+
   return (
     <QueryClientProvider client={queryClient}>
       <LicenseProvider>

@@ -5,19 +5,24 @@ import {
   LicenseError,
   offlineStatus,
   parseStoredLicense,
+  refreshLicense,
   resolveLicense,
   type StoredLicense,
 } from '../src/lib/license.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
 const validatedAt = Date.parse('2026-10-01T09:00:00.000Z');
+const iso = (time: number) => new Date(time).toISOString();
 
 const stored: StoredLicense = {
   activationId: 'activation-1',
   customerEmail: 'mert@example.com',
   displayKey: '****-ABCD',
   expiresAt: null,
-  lastValidatedAt: new Date(validatedAt).toISOString(),
+  key: 'ANGARIA-KEY',
+  lastSeenAt: iso(validatedAt),
+  lastValidatedAt: iso(validatedAt),
 };
 
 describe('resolveLicense', () => {
@@ -36,7 +41,8 @@ describe('resolveLicense', () => {
       ...stored,
       customerEmail: 'new@example.com',
       displayKey: '****-WXYZ',
-      lastValidatedAt: new Date(now).toISOString(),
+      lastSeenAt: iso(now),
+      lastValidatedAt: iso(now),
     });
   });
 
@@ -50,14 +56,30 @@ describe('resolveLicense', () => {
     expect(result.status).toEqual({ kind: 'valid' });
   });
 
+  test('a valid answer resets a time seen ahead of a clock that was set back', () => {
+    const license = { ...stored, lastSeenAt: iso(validatedAt + 5 * DAY) };
+    const now = validatedAt + DAY;
+    const result = resolveLicense(
+      license,
+      { details: { customerEmail: null, displayKey: '****-ABCD', expiresAt: null }, kind: 'valid' },
+      now,
+    );
+    expect(result.license.lastSeenAt).toBe(iso(now));
+    expect(refreshLicense(result.license, result.status, now + HOUR).status).toEqual({
+      kind: 'valid',
+    });
+    expect(offlineStatus(result.license, now + HOUR)).toEqual({ daysLeft: 7, kind: 'grace' });
+  });
+
   test('an invalid answer locks the app and keeps the stored license', () => {
-    const result = resolveLicense(stored, { kind: 'invalid' }, validatedAt + DAY);
+    const now = validatedAt + DAY;
+    const result = resolveLicense(stored, { kind: 'invalid' }, now);
     expect(result.status).toEqual({ kind: 'invalid' });
-    expect(result.license).toBe(stored);
+    expect(result.license).toEqual({ ...stored, lastSeenAt: iso(now) });
   });
 
   test('an invalid answer after the expiry date reads as expired', () => {
-    const license = { ...stored, expiresAt: new Date(validatedAt + DAY).toISOString() };
+    const license = { ...stored, expiresAt: iso(validatedAt + DAY) };
     expect(resolveLicense(license, { kind: 'invalid' }, validatedAt + DAY).status).toEqual({
       kind: 'expired',
       reason: 'subscription',
@@ -71,10 +93,18 @@ describe('resolveLicense', () => {
     });
   });
 
-  test('offline uses the grace period and keeps the last check time', () => {
-    const result = resolveLicense(stored, { kind: 'offline' }, validatedAt + DAY);
+  test('offline uses the grace period, keeps the last check time and records the time seen', () => {
+    const now = validatedAt + DAY;
+    const result = resolveLicense(stored, { kind: 'offline' }, now);
     expect(result.status).toEqual({ daysLeft: 6, kind: 'grace' });
-    expect(result.license).toBe(stored);
+    expect(result.license).toEqual({ ...stored, lastSeenAt: iso(now) });
+  });
+
+  test('offline with a clock behind the time seen needs an online check', () => {
+    const license = { ...stored, lastSeenAt: iso(validatedAt + 5 * DAY) };
+    const result = resolveLicense(license, { kind: 'offline' }, validatedAt + DAY);
+    expect(result.status).toEqual({ kind: 'expired', reason: 'offline' });
+    expect(result.license.lastSeenAt).toBe(license.lastSeenAt);
   });
 });
 
@@ -110,6 +140,19 @@ describe('offlineStatus', () => {
     });
   });
 
+  test('a clock set back after the last check but before the time seen needs an online check', () => {
+    const license = { ...stored, lastSeenAt: iso(validatedAt + 6 * DAY) };
+    expect(offlineStatus(license, validatedAt + 6 * DAY)).toEqual({ daysLeft: 1, kind: 'grace' });
+    expect(offlineStatus(license, validatedAt + 6 * DAY - 1)).toEqual({
+      kind: 'expired',
+      reason: 'offline',
+    });
+    expect(offlineStatus(license, validatedAt + DAY)).toEqual({
+      kind: 'expired',
+      reason: 'offline',
+    });
+  });
+
   test('an unreadable last check time needs an online check', () => {
     expect(offlineStatus({ ...stored, lastValidatedAt: 'garbage' }, validatedAt)).toEqual({
       kind: 'expired',
@@ -117,8 +160,15 @@ describe('offlineStatus', () => {
     });
   });
 
+  test('an unreadable time seen needs an online check', () => {
+    expect(offlineStatus({ ...stored, lastSeenAt: 'garbage' }, validatedAt + DAY)).toEqual({
+      kind: 'expired',
+      reason: 'offline',
+    });
+  });
+
   test('a passed expiry date wins over the grace period', () => {
-    const expiresAt = new Date(validatedAt + DAY).toISOString();
+    const expiresAt = iso(validatedAt + DAY);
     const license = { ...stored, expiresAt };
     expect(offlineStatus(license, validatedAt + DAY - 1)).toEqual({ daysLeft: 7, kind: 'grace' });
     expect(offlineStatus(license, validatedAt + DAY)).toEqual({
@@ -128,11 +178,59 @@ describe('offlineStatus', () => {
   });
 });
 
+describe('refreshLicense', () => {
+  const grace = { daysLeft: 7, kind: 'grace' } as const;
+
+  test('counts the grace period down and records the time seen', () => {
+    const now = validatedAt + 2 * DAY + HOUR;
+    expect(refreshLicense(stored, grace, now)).toEqual({
+      license: { ...stored, lastSeenAt: iso(now) },
+      status: { daysLeft: 5, kind: 'grace' },
+    });
+  });
+
+  test('ends the grace period while the app stays open', () => {
+    expect(refreshLicense(stored, grace, validatedAt + GRACE_PERIOD_MS + HOUR).status).toEqual({
+      kind: 'expired',
+      reason: 'offline',
+    });
+  });
+
+  test('ends the grace period when the expiry date passes', () => {
+    const license = { ...stored, expiresAt: iso(validatedAt + DAY) };
+    expect(refreshLicense(license, grace, validatedAt + DAY).status).toEqual({
+      kind: 'expired',
+      reason: 'subscription',
+    });
+  });
+
+  test('keeps a valid license valid until the next server check', () => {
+    const now = validatedAt + 5 * HOUR;
+    expect(refreshLicense(stored, { kind: 'valid' }, now)).toEqual({
+      license: { ...stored, lastSeenAt: iso(now) },
+      status: { kind: 'valid' },
+    });
+  });
+
+  test('never moves the time seen back', () => {
+    const license = { ...stored, lastSeenAt: iso(validatedAt + 3 * DAY) };
+    const result = refreshLicense(license, grace, validatedAt + DAY);
+    expect(result.license).toBe(license);
+    expect(result.status).toEqual({ kind: 'expired', reason: 'offline' });
+  });
+
+  test('leaves an unreadable time seen for the next online check', () => {
+    const license = { ...stored, lastSeenAt: 'garbage' };
+    expect(refreshLicense(license, grace, validatedAt + DAY).license).toBe(license);
+  });
+});
+
 describe('activatedLicense', () => {
-  test('stores the activation and counts it as a successful check', () => {
+  test('stores the key and the activation and counts it as a successful check', () => {
     const now = validatedAt + 5;
     expect(
       activatedLicense(
+        'ANGARIA-KEY-2',
         'activation-2',
         { customerEmail: null, displayKey: '****-ABCD', expiresAt: null },
         now,
@@ -142,7 +240,9 @@ describe('activatedLicense', () => {
       customerEmail: null,
       displayKey: '****-ABCD',
       expiresAt: null,
-      lastValidatedAt: new Date(now).toISOString(),
+      key: 'ANGARIA-KEY-2',
+      lastSeenAt: iso(now),
+      lastValidatedAt: iso(now),
     });
   });
 });
@@ -157,8 +257,13 @@ describe('parseStoredLicense', () => {
     expect(parseStoredLicense('license')).toBeNull();
     expect(parseStoredLicense({ ...stored, activationId: 1 })).toBeNull();
     expect(parseStoredLicense({ ...stored, expiresAt: 5 })).toBeNull();
+    expect(parseStoredLicense({ ...stored, key: '' })).toBeNull();
     const { lastValidatedAt: _, ...withoutCheck } = stored;
     expect(parseStoredLicense(withoutCheck)).toBeNull();
+    const { key: _key, ...withoutKey } = stored;
+    expect(parseStoredLicense(withoutKey)).toBeNull();
+    const { lastSeenAt: _seen, ...withoutSeen } = stored;
+    expect(parseStoredLicense(withoutSeen)).toBeNull();
   });
 });
 

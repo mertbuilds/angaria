@@ -35,6 +35,12 @@ export function istanbulDay(date: Date): Day {
   return { day, month, year };
 }
 
+/** Minutes since midnight in Turkish time. */
+export function istanbulMinutes(date: Date): number {
+  const { hour, minute } = istanbulParts(date);
+  return hour * 60 + minute;
+}
+
 /** GİB's `metadata.optime`: yyyyMMddHHmmss in Turkish time. */
 export function optime(date: Date): string {
   const { day, hour, minute, month, second, year } = istanbulParts(date);

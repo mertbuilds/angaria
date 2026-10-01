@@ -23,7 +23,7 @@ const styles = create({
     borderStyle: 'solid',
     borderWidth: '2px',
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.ring} 50%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.ring}`,
       default: null,
     },
     boxSizing: 'border-box',

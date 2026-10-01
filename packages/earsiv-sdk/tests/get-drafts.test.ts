@@ -48,7 +48,7 @@ const session: SessionInfo = {
  * A fetch that answers the draft list command with `respond(start, end)` and
  * records each requested range in order.
  */
-function fakePortal(respond: (start: string, end: string) => Array<unknown>) {
+function fakePortal(respond: (start: string, end: string) => unknown) {
   const requests: Array<string> = [];
   const fetch = (async (_url: string, init?: RequestInit) => {
     const body = new URLSearchParams(String(init?.body));
@@ -99,7 +99,7 @@ describe('getDrafts', () => {
     });
 
     await expect(
-      client.getDrafts(session, '01/09/2026', '30/09/2026', controller.signal),
+      client.getDrafts(session, '01/09/2026', '30/09/2026', { signal: controller.signal }),
     ).rejects.toThrow('Aralık değişti');
     expect(requests).toEqual(['01/09/2026-07/09/2026']);
   });
@@ -112,5 +112,20 @@ describe('getDrafts', () => {
     await expect(client.getDrafts(session, '01/09/2026', '03/09/2026')).rejects.toThrow(
       'Seçilen tarih aralığı 7 günden fazla olamaz!',
     );
+  });
+
+  test('throws when data is not a list of rows', async () => {
+    await expect(
+      fakePortal(() => 'Kayıt bulunamadı').client.getDrafts(session, '01/09/2026', '01/09/2026'),
+    ).rejects.toThrow('Kayıt bulunamadı');
+    await expect(
+      fakePortal(() => ({ error: 'x' })).client.getDrafts(session, '01/09/2026', '01/09/2026'),
+    ).rejects.toThrow('GİB belge listesi okunamadı');
+    await expect(
+      fakePortal(() => undefined).client.getDrafts(session, '01/09/2026', '01/09/2026'),
+    ).rejects.toThrow('GİB belge listesi okunamadı');
+    await expect(
+      fakePortal(() => [{ ettn: 'a' }, null]).client.getDrafts(session, '01/09/2026', '01/09/2026'),
+    ).rejects.toThrow('GİB belge listesi okunamadı');
   });
 });
