@@ -102,24 +102,23 @@ export function registerCreateInvoice(server: McpServer, { client, withSession }
     },
     async (args) => {
       const details = toInvoiceDetails(args, new Date());
-      const { date, uuid } = await withSession((session) =>
-        client.createDraftInvoice(session, details),
-      );
-
-      return {
-        content: [
-          {
-            text: JSON.stringify({
-              date,
-              message: uuid
-                ? 'Invoice created successfully'
-                : 'Invoice created, but its UUID was not found in the drafts list. Use list_invoices for this date to find it.',
-              uuid: uuid || null,
-            }),
-            type: 'text',
-          },
-        ],
-      };
+      return withSession(async (session) => {
+        const { date, uuid } = await client.createDraftInvoice(session, details);
+        return {
+          content: [
+            {
+              text: JSON.stringify({
+                date,
+                message: uuid
+                  ? 'Invoice created successfully'
+                  : 'Invoice created, but its UUID was not found in the drafts list. Use list_invoices for this date to find it.',
+                uuid: uuid || null,
+              }),
+              type: 'text',
+            },
+          ],
+        };
+      });
     },
   );
 }

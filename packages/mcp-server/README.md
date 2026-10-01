@@ -9,7 +9,7 @@ MCP server (stdio) that exposes GİB e-Arşiv invoice tools through `angaria-ear
 - `cancel_invoice`: delete an unsigned draft by ETTN
 - `get_invoice_html`: HTML preview of an invoice
 
-Every tool call logs in, runs, and logs out. Nothing is signed: drafts still need SMS approval in the app or the portal.
+Every tool call logs in, runs, and logs out; calls sent at once run one after the other, because GİB refuses a second login while a session is open. A failed logout is written to stderr and added to the result as a `warning`. Nothing is signed: drafts still need SMS approval in the app or the portal.
 
 ## Build
 

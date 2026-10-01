@@ -14,9 +14,10 @@ export function registerListInvoices(server: McpServer, { client, withSession }:
         startDate: gibDate.describe("Start date in DD/MM/YYYY format (e.g. '01/03/2026')"),
       },
     },
-    async ({ endDate, startDate }) => {
-      const drafts = await withSession((session) => client.getDrafts(session, startDate, endDate));
-      return { content: [{ text: JSON.stringify(drafts, null, 2), type: 'text' }] };
-    },
+    async ({ endDate, startDate }) =>
+      withSession(async (session) => {
+        const drafts = await client.getDrafts(session, startDate, endDate);
+        return { content: [{ text: JSON.stringify(drafts, null, 2), type: 'text' }] };
+      }),
   );
 }

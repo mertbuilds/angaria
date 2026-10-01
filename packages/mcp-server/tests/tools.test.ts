@@ -227,6 +227,32 @@ test('list_invoices returns drafts as JSON and validates dates', async () => {
   expect(bad.isError).toBe(true);
 });
 
+test('a failed logout goes to stderr and into the result as a warning', async () => {
+  const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  try {
+    const client = fakeClient({
+      logout: vi.fn(async () => {
+        throw new Error('fetch failed');
+      }),
+    });
+    const mcp = await connect(client);
+    const result = await mcp.callTool({
+      arguments: { endDate: '01/03/2026', startDate: '01/03/2026' },
+      name: 'list_invoices',
+    });
+    const content = result.content as Array<{ text: string }>;
+
+    expect(result.isError).toBeFalsy();
+    expect(JSON.parse(content[0].text)).toEqual([]);
+    expect(JSON.parse(content[1].text)).toEqual({
+      warning: expect.stringContaining('GİB logout failed (fetch failed)'),
+    });
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('GİB logout failed'));
+  } finally {
+    stderr.mockRestore();
+  }
+});
+
 test('missing credentials fail the call before logging in', async () => {
   const client = fakeClient();
   const mcp = await connect(client, () => readCredentials({}));
