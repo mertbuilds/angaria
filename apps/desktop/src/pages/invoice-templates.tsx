@@ -29,7 +29,6 @@ import { create, props } from '@stylexjs/stylex';
 import { useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
-import { GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceItem, InvoiceTemplate } from '@/lib/types.ts';
 import { ListDetail } from '@/shell/list-detail.tsx';
@@ -39,6 +38,7 @@ import {
   EmptyState,
   formatMoney,
   formatNumber,
+  invoiceTypeLabel,
   matchesQuery,
   TemplateList,
   unitLabel,
@@ -154,14 +154,6 @@ function templateTotals(items: Array<InvoiceItem>) {
   const net = items.reduce((sum, item) => sum + lineNet(item), 0);
   const vat = items.reduce((sum, item) => sum + lineNet(item) * (item.VATRate / 100), 0);
   return { net, total: net + vat, vat };
-}
-
-// GİB lists invoice types in capitals ("TEVKİFAT İADE"); show "Tevkifat iade".
-function invoiceTypeLabel(code: string) {
-  const label = (
-    GIB_INVOICE_TYPES.find((type) => type.value === code)?.label ?? code
-  ).toLocaleLowerCase('tr');
-  return label.charAt(0).toLocaleUpperCase('tr') + label.slice(1);
 }
 
 const lastUsed = (template: InvoiceTemplate) => template.lastUsedAt ?? 0;

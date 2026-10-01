@@ -1,8 +1,9 @@
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { createClient } from 'angaria-earsiv-sdk';
-import { fetchTCMBRates as _fetchTCMBRates } from 'angaria-utils';
+import { fetchTCMBRateTable as _fetchTCMBRateTable } from 'angaria-utils';
 
 export type { SessionInfo, InvoiceItem, InvoiceDetails } from 'angaria-earsiv-sdk';
+export type { TCMBRateTable } from 'angaria-utils';
 
 const client = createClient({ fetch: tauriFetch });
 
@@ -32,4 +33,5 @@ export const startSMSSign = (...args: Parameters<typeof client.startSMSSign>) =>
 export const cancelInvoice = (...args: Parameters<typeof client.cancelInvoice>) =>
   client.cancelInvoice(...args);
 
-export const fetchTCMBRates = (baseDate?: Date) => _fetchTCMBRates(baseDate, { fetch: tauriFetch });
+export const fetchTCMBRateTable = (baseDate?: Date) =>
+  _fetchTCMBRateTable(baseDate, { fetch: tauriFetch });

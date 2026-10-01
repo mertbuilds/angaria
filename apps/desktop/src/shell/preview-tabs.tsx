@@ -36,7 +36,8 @@ const MAX_TABS = 5;
 
 const PreviewTabsContext = createContext<PreviewTabsValue | null>(null);
 
-const invoiceHtmlKey = (entityId: string, ettn: string) => ['invoice-html', entityId, ettn];
+/** Query key of an invoice's GİB HTML (useInvoicePreview). */
+export const invoiceHtmlKey = (entityId: string, ettn: string) => ['invoice-html', entityId, ettn];
 
 /** The invoice row for `ettn` from any cached invoice list, or null. */
 export function findCachedInvoice(queryClient: QueryClient, ettn: string): Invoice | null {

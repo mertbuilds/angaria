@@ -56,10 +56,8 @@ export default defineConfig({
       // store actions, not hooks, and namespace imports would need call-site
       // rewrites. Drop a file from this list when the relaunch rewrites it.
       files: [
-        'apps/desktop/src/components/invoice-picker-dialog.tsx',
         'apps/desktop/src/components/ui/**',
         'apps/desktop/src/lib/store.tsx',
-        'apps/desktop/src/pages/create-invoice.tsx',
         'apps/desktop/src/pages/invoices.tsx',
         'apps/desktop/src/pages/settings.tsx',
       ],

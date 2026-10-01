@@ -21,8 +21,10 @@ import type {
   Credentials,
   CredentialsInfo,
   Entity,
+  InvoiceFormValues,
   InvoiceItem,
   InvoiceSettings,
+  InvoiceSource,
   InvoiceTemplate,
   Recipient,
   StoredCredentials,
@@ -274,13 +276,20 @@ interface Store {
   /** true when the active entity has a username and a saved password */
   hasCredentials: boolean;
   invoiceDateRange: { end: string; start: string };
+  /**
+   * Changes whenever the invoice form is replaced as a whole (reset, template,
+   * GİB invoice, restore), so a mounted form can start over from the store.
+   */
+  invoiceFormRevision: number;
   invoicePageSize: number;
   invoiceSettings: InvoiceSettings;
+  /** What filled the invoice form; null for a blank form */
+  invoiceSource: InvoiceSource | null;
   /** true when the invoice form has been initialized (via template or scratch) */
   invoiceStarted: boolean;
   invoiceTemplates: Array<InvoiceTemplate>;
   items: Array<InvoiceItem>;
-  /** Load a GIB invoice into the form in template editing mode */
+  /** Load a GIB invoice into the form */
   loadFromGIBInvoice: (data: Record<string, unknown>) => void;
   /** Load a template into the invoice form and mark it as started */
   loadTemplate: (id: string) => string | null;
@@ -290,6 +299,8 @@ interface Store {
   renameEntity: (id: string, name: string) => void;
   /** Reset invoice form to blank state */
   resetInvoiceForm: () => void;
+  /** Put back a form saved before a reset or load (undo) */
+  restoreInvoiceDraft: (values: InvoiceFormValues, source: InvoiceSource | null) => void;
   savedItems: Array<InvoiceItem>;
   savedRecipients: Array<Recipient>;
   setActiveEntityId: React.Dispatch<React.SetStateAction<string>>;
@@ -309,12 +320,8 @@ interface Store {
   setRecipient: React.Dispatch<React.SetStateAction<Recipient>>;
   setSavedItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>>;
   setSavedRecipients: React.Dispatch<React.SetStateAction<Array<Recipient>>>;
-  /** ID of the template the invoice was started from, null if from scratch */
-  sourceTemplateId: string | null;
   /** Start a blank invoice form */
   startBlankInvoice: () => void;
-  /** true when in template editing mode (save as template instead of creating invoice) */
-  templateEditMode: boolean;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -376,8 +383,8 @@ function LoadedStoreProvider({
     ...DEFAULT_ADVANCED_FIELDS,
   });
   const [invoiceStarted, setInvoiceStarted] = useState(false);
-  const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
-  const [templateEditMode, setTemplateEditMode] = useState(false);
+  const [invoiceSource, setInvoiceSource] = useState<InvoiceSource | null>(null);
+  const [invoiceFormRevision, setInvoiceFormRevision] = useState(0);
 
   const [invoicePageSize, setInvoicePageSize] = useState(10);
 
@@ -571,8 +578,8 @@ function LoadedStoreProvider({
     setNote('');
     setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
     setInvoiceStarted(false);
-    setSourceTemplateId(null);
-    setTemplateEditMode(false);
+    setInvoiceSource(null);
+    setInvoiceFormRevision((revision) => revision + 1);
   }, []);
 
   const loadTemplate = useCallback(
@@ -587,7 +594,8 @@ function LoadedStoreProvider({
       setNote(t.note);
       setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
       setInvoiceStarted(true);
-      setSourceTemplateId(id);
+      setInvoiceSource({ kind: 'template', name: t.name, templateId: id });
+      setInvoiceFormRevision((revision) => revision + 1);
       // Update lastUsedAt
       setInvoiceTemplates((prev) =>
         prev.map((x) => (x.id === id ? { ...x, lastUsedAt: Date.now() } : x)),
@@ -641,8 +649,26 @@ function LoadedStoreProvider({
     setNote(str(data.not));
     setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
     setInvoiceStarted(true);
-    setTemplateEditMode(false);
+    setInvoiceSource({
+      kind: 'invoice',
+      label: str(data.belgeNumarasi) || str(data.aliciUnvan) || 'GİB faturası',
+    });
+    setInvoiceFormRevision((revision) => revision + 1);
   }, []);
+
+  const restoreInvoiceDraft = useCallback(
+    (values: InvoiceFormValues, source: InvoiceSource | null) => {
+      setRecipient(values.recipient);
+      setInvoiceSettings(values.invoiceSettings);
+      setItems(values.items);
+      setNote(values.note);
+      setAdvancedFields(values.advancedFields);
+      setInvoiceStarted(true);
+      setInvoiceSource(source);
+      setInvoiceFormRevision((revision) => revision + 1);
+    },
+    [],
+  );
 
   // Persist only data that should survive restarts
   useEffect(() => localStorage.setItem(ENTITIES_STORAGE_KEY, JSON.stringify(entities)), [entities]);
@@ -688,11 +714,12 @@ function LoadedStoreProvider({
         invoicePageSize,
         setInvoicePageSize,
         invoiceStarted,
+        invoiceFormRevision,
+        invoiceSource,
+        restoreInvoiceDraft,
         resetInvoiceForm,
         loadTemplate,
         startBlankInvoice,
-        sourceTemplateId,
-        templateEditMode,
         loadFromGIBInvoice,
         newId,
         defaultItemAdvanced: DEFAULT_ITEM_ADVANCED,

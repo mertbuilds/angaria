@@ -36,12 +36,28 @@ export interface InvoiceItem {
 }
 
 export interface AdvancedInvoiceFields {
+  /** true once the rate was typed in: the TCMB rate no longer fills it */
+  currencyRateManual?: boolean;
   irsaliyeNumarasi: string;
   irsaliyeTarihi: string;
   manualDate: string;
   manualTime: string;
   paymentTotal: string;
 }
+
+/** The invoice form: everything one GİB draft is made from. */
+export interface InvoiceFormValues {
+  advancedFields: AdvancedInvoiceFields;
+  invoiceSettings: InvoiceSettings;
+  items: Array<InvoiceItem>;
+  note: string;
+  recipient: Recipient;
+}
+
+/** What filled the invoice form; null for a blank form. */
+export type InvoiceSource =
+  | { kind: 'invoice'; label: string }
+  | { kind: 'template'; name: string; templateId: string };
 
 export interface Credentials {
   password: string;

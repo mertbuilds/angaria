@@ -2,7 +2,7 @@ import { Input, Kbd } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
+import { GIB_INVOICE_TYPES, GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
 
 const styles = create({
   empty: {
@@ -160,6 +160,14 @@ export function formatMoney(value: number, currency?: string) {
   } catch {
     return `${decimalFormat.format(value)} ${currency}`;
   }
+}
+
+// GİB lists invoice types in capitals ("TEVKİFAT İADE"); show "Tevkifat iade".
+export function invoiceTypeLabel(code: string) {
+  const label = (
+    GIB_INVOICE_TYPES.find((type) => type.value === code)?.label ?? code
+  ).toLocaleLowerCase('tr');
+  return label.charAt(0).toLocaleUpperCase('tr') + label.slice(1);
 }
 
 /** GİB unit code to its label: C62 is "Adet". */
