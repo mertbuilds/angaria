@@ -70,7 +70,7 @@ const styles = create({
     borderStyle: 'none',
     borderWidth: 0,
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.ring} 50%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.ring}`,
       default: null,
     },
     boxSizing: 'border-box',
@@ -104,7 +104,7 @@ const styles = create({
   triggerActiveDefault: {
     backgroundColor: colors.background,
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.ring} 50%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.ring}`,
       default: `inset 0 0 0 1px ${colors.border}`,
     },
     color: colors.foreground,

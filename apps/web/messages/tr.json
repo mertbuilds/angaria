@@ -33,7 +33,7 @@
   "feature_repeat_title": "Geçen ayın faturasını tekrar kes",
   "feature_repeat_body": "Eski bir faturayı seç, tarihi bugüne al ve kes. Her ay aynı faturayı kesen için tek tık.",
   "feature_customers_title": "Müşteri kayıtları",
-  "feature_customers_body": "Vergi numarası, adres ve e-posta bir kez girilir. Sonraki faturada müşterinin adını yazman yeter.",
+  "feature_customers_body": "Vergi numarası, vergi dairesi ve adres bir kez girilir. Sonraki faturada müşterinin adını yazman yeter.",
   "feature_companies_title": "Birden fazla şirket",
   "feature_companies_body": "Birden fazla şirketin ya da e-Arşiv hesabın varsa hepsini aynı uygulamadan yönet.",
   "feature_pdf_title": "Türkçe ve İngilizce PDF",

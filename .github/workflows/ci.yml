@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm version comes from packageManager in package.json.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      # Builds the packages and the web app first: the type-aware lint needs the
+      # generated routeTree.gen.ts and paraglide output.
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+        env:
+          # Turbo groups task output in CI, so a hang prints nothing at all.
+          TURBO_LOG_ORDER: stream
+      # No licensed fonts here: without the Suisse Intl files both builds fall
+      # back to Inter.
+      - run: pnpm exec turbo run build --filter=web
+      # Frontend only, no Rust. The production guard in apps/desktop/vite.config.ts
+      # needs the Polar values; these placeholders are CI-only and never shipped.
+      - run: pnpm exec turbo run build --filter=desktop
+        env:
+          VITE_POLAR_ORGANIZATION_ID: ci-placeholder-organization
+          VITE_POLAR_CHECKOUT_URL: https://example.invalid/ci-checkout
+          VITE_POLAR_PORTAL_URL: https://example.invalid/ci-portal

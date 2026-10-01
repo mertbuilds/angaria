@@ -4,6 +4,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["VITE_*"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*.local"],
       "outputs": ["dist/**"]
     },
     "dev": {
@@ -19,6 +21,7 @@
     "web#build": {
       "dependsOn": ["^build"],
       "env": ["VITE_*"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*.local"],
       "outputs": ["dist/**", "src/routeTree.gen.ts", "src/paraglide/**"]
     },
     "web#typecheck": {

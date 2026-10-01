@@ -13,11 +13,11 @@ Decisions from the grilling session with Mert. Every agent working on the relaun
 Monorepo in web-starter shape (`/Users/duzgundev/code/mertbuilds/web-starter` is the reference; copy its tooling, not its api/db/auth):
 
 - pnpm + Turborepo, oxlint (`@nkzw/oxlint-config`, type-aware) + oxfmt, lefthook, mprocs, portless
-- `apps/web` — landing page, TanStack Start on Cloudflare Workers, StyleX + shadcn-cssinjs components, Paraglide with base locale `tr`, PostHog EU (cookieless: `persistence: 'memory'`) — no Sentry, no api app, no db
-- `apps/desktop` — Tauri 2 app, React 19, StyleX, TanStack Router
-- `packages/ui` — shared tokens + components (Suisse fonts, theme.css, tokens.stylex.ts), consumed by web and desktop
-- `packages/earsiv-sdk`, `packages/utils` — existing, moved to new tooling
-- `packages/mcp-server` — ported from branch `origin/add-mcp-server`, not marketed
+- `apps/web`: landing page, TanStack Start on Cloudflare Workers, StyleX + shadcn-cssinjs components, Paraglide with base locale `tr`, PostHog EU (cookieless: `persistence: 'memory'`); no Sentry, no api app, no db
+- `apps/desktop`: Tauri 2 app, React 19, StyleX, TanStack Router
+- `packages/ui`: shared tokens + components (Suisse fonts, theme.css, tokens.stylex.ts), consumed by web and desktop
+- `packages/earsiv-sdk`, `packages/utils`: existing, moved to new tooling
+- `packages/mcp-server`: ported from branch `origin/add-mcp-server`, not marketed
 - Vite+ (`vp`) is removed. The empty `apps/website` stub is deleted.
 
 ## Design canon

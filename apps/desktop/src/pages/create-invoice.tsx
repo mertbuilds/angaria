@@ -185,7 +185,7 @@ const styles = create({
     gap: spacing.s2,
     listStyle: 'none',
     outline: {
-      ':focus-visible': `2px solid ${colors.muted}`,
+      ':focus-visible': `1px solid ${colors.muted}`,
       default: 'none',
     },
     outlineOffset: '4px',

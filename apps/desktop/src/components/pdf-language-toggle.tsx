@@ -13,7 +13,7 @@ const styles = create({
     borderRadius: radius.full,
     borderWidth: 0,
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.muted} 50%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.muted}`,
       default: null,
     },
     color: {
@@ -40,7 +40,7 @@ const styles = create({
   selected: {
     backgroundColor: colors.bg,
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.muted} 50%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.muted}`,
       default: `inset 0 0 0 1px ${colors.border}`,
     },
     color: colors.fg,
