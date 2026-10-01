@@ -8,13 +8,17 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import type { SecretStore } from './credentials.ts';
+import { clearLicense, loadLicense, saveLicense } from './license-vault.ts';
+import { watchLicense } from './license-watch.ts';
 import {
   activatedLicense,
   LicenseError,
-  parseStoredLicense,
+  refreshLicense,
   resolveLicense,
   type LicenseStatus,
   type StoredLicense,
@@ -22,8 +26,9 @@ import {
 import { secretDelete, secretGet, secretSet } from './native.ts';
 import { createPolarClient } from './polar.ts';
 
-const LICENSE_SECRET_KEY = 'license-key';
-const LICENSE_STORAGE_KEY = 'angaria-license';
+const secrets: SecretStore = { delete: secretDelete, get: secretGet, set: secretSet };
+
+const KEYCHAIN_ERROR = 'Lisans bilgilerine sistem anahtar zincirinde erişilemedi.';
 
 // import.meta.env.DEV is statically false in production builds, so the bypass
 // cannot ship even if VITE_LICENSE_BYPASS is set there.
@@ -42,20 +47,14 @@ function openExternal(url: string) {
 export const openCheckout = () => openExternal(import.meta.env.VITE_POLAR_CHECKOUT_URL);
 export const openCustomerPortal = () => openExternal(import.meta.env.VITE_POLAR_PORTAL_URL);
 
-function readStoredLicense(): StoredLicense | null {
-  try {
-    return parseStoredLicense(JSON.parse(localStorage.getItem(LICENSE_STORAGE_KEY) ?? 'null'));
-  } catch {
-    return null;
-  }
-}
+// One license operation at a time, so a check that ends after a deactivate
+// cannot write the license back.
+let queue: Promise<unknown> = Promise.resolve();
 
-function writeStoredLicense(license: StoredLicense | null) {
-  if (license) {
-    localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify(license));
-  } else {
-    localStorage.removeItem(LICENSE_STORAGE_KEY);
-  }
+function serially<T>(task: () => Promise<T>): Promise<T> {
+  const next = queue.then(task, task);
+  queue = next;
+  return next;
 }
 
 export type LicenseState = LicenseStatus | { kind: 'checking' };
@@ -74,18 +73,32 @@ const unlicensed = (error: string | null = null): LicenseSnapshot => ({
 
 async function checkLicense(): Promise<LicenseSnapshot> {
   try {
-    const stored = readStoredLicense();
-    const key = stored ? await secretGet(LICENSE_SECRET_KEY) : null;
-    if (!stored || !key) {
+    const stored = await loadLicense(secrets, localStorage);
+    if (!stored) {
       return unlicensed();
     }
-    const outcome = await polar.validate(key, stored.activationId);
+    const outcome = await polar.validate(stored.key, stored.activationId);
     const next = resolveLicense(stored, outcome, Date.now());
-    writeStoredLicense(next.license);
+    await saveLicense(secrets, next.license);
     return { error: null, ...next };
   } catch {
-    return unlicensed('Lisans anahtarı sistem anahtar zincirinden okunamadı.');
+    return unlicensed(KEYCHAIN_ERROR);
   }
+}
+
+// Between checks: recounts the grace period and records the time seen.
+async function refreshSnapshot(snapshot: LicenseSnapshot): Promise<LicenseSnapshot> {
+  const { license, status } = snapshot;
+  if (!license || (status.kind !== 'valid' && status.kind !== 'grace')) {
+    return snapshot;
+  }
+  const next = refreshLicense(license, status, Date.now());
+  try {
+    await saveLicense(secrets, next.license);
+  } catch {
+    return unlicensed(KEYCHAIN_ERROR);
+  }
+  return { error: null, ...next };
 }
 
 interface LicenseContextValue extends LicenseSnapshot {
@@ -111,55 +124,84 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     license: null,
     status: licenseBypassed ? { kind: 'valid' } : { kind: 'checking' },
   });
+  // The latest snapshot for queued tasks, which outlive the render they started in.
+  const latest = useRef(snapshot);
 
-  const check = useCallback(async () => setSnapshot(await checkLicense()), []);
-
-  const activate = useCallback(async (input: string) => {
-    const key = input.trim();
-    const label = (await hostname().catch(() => null)) || 'Angaria';
-    const result = await polar.activate(key, label);
-    if (result.kind !== 'activated') {
-      throw new LicenseError(result.kind);
-    }
-    try {
-      await secretSet(LICENSE_SECRET_KEY, key);
-    } catch {
-      await polar.deactivate(key, result.activationId);
-      throw new Error('Lisans anahtarı sistem anahtar zincirine kaydedilemedi.');
-    }
-    const license = activatedLicense(result.activationId, result.details, Date.now());
-    writeStoredLicense(license);
-    setSnapshot({ error: null, license, status: { kind: 'valid' } });
+  const update = useCallback((next: LicenseSnapshot) => {
+    latest.current = next;
+    setSnapshot(next);
   }, []);
 
-  const deactivate = useCallback(async () => {
-    const stored = readStoredLicense();
-    const key = await secretGet(LICENSE_SECRET_KEY);
-    if (stored && key) {
-      const result = await polar.deactivate(key, stored.activationId);
-      if (result.kind !== 'deactivated') {
-        throw new LicenseError(result.kind);
-      }
-    }
-    await secretDelete(LICENSE_SECRET_KEY);
-    writeStoredLicense(null);
-    setSnapshot(unlicensed());
-  }, []);
+  const check = useCallback(() => serially(async () => update(await checkLicense())), [update]);
+
+  const refresh = useCallback(
+    () => serially(async () => update(await refreshSnapshot(latest.current))),
+    [update],
+  );
+
+  const activate = useCallback(
+    (input: string) =>
+      serially(async () => {
+        const key = input.trim();
+        const label = (await hostname().catch(() => null)) || 'Angaria';
+        const result = await polar.activate(key, label);
+        if (result.kind !== 'activated') {
+          throw new LicenseError(result.kind);
+        }
+        const license = activatedLicense(key, result.activationId, result.details, Date.now());
+        try {
+          await saveLicense(secrets, license);
+        } catch {
+          await polar.deactivate(key, result.activationId);
+          throw new Error('Lisans anahtarı sistem anahtar zincirine kaydedilemedi.');
+        }
+        update({ error: null, license, status: { kind: 'valid' } });
+      }),
+    [update],
+  );
+
+  const deactivate = useCallback(
+    () =>
+      serially(async () => {
+        const stored = await loadLicense(secrets, localStorage);
+        if (stored) {
+          const result = await polar.deactivate(stored.key, stored.activationId);
+          if (result.kind !== 'deactivated') {
+            throw new LicenseError(result.kind);
+          }
+        }
+        await clearLicense(secrets);
+        update(unlicensed());
+      }),
+    [update],
+  );
 
   useEffect(() => {
     if (licenseBypassed) {
       return;
     }
     let current = true;
-    void checkLicense().then((next) => {
+    void serially(async () => {
+      const next = await checkLicense();
       if (current) {
-        setSnapshot(next);
+        update(next);
       }
     });
     return () => {
       current = false;
     };
-  }, []);
+  }, [update]);
+
+  // While the app is unlocked, check again every few hours and on focus, and
+  // count the grace period down, so it can lock mid-session. The store sits
+  // outside the gate, so a lock keeps the invoice form.
+  const unlocked = snapshot.status.kind === 'valid' || snapshot.status.kind === 'grace';
+  useEffect(() => {
+    if (licenseBypassed || !unlocked) {
+      return;
+    }
+    return watchLicense({ check: () => void check(), refresh: () => void refresh() });
+  }, [check, refresh, unlocked]);
 
   const value = useMemo(
     () => ({ ...snapshot, activate, bypassed: licenseBypassed, check, deactivate }),
