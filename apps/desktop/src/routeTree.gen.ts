@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index.tsx'
 import { Route as AyarlarRouteImport } from './routes/ayarlar.tsx'
 import { Route as FaturalarRouteImport } from './routes/faturalar.tsx'
 import { Route as MusterilerRouteImport } from './routes/musteriler.tsx'
-import { Route as SablonlarRouteImport } from './routes/sablonlar.tsx'
 import { Route as YeniRouteImport } from './routes/yeni.tsx'
 import { Route as FaturalarIndexRouteImport } from './routes/faturalar.index.tsx'
 import { Route as FaturalarEttnRouteImport } from './routes/faturalar.$ettn.tsx'
@@ -38,11 +37,6 @@ const MusterilerRoute = MusterilerRouteImport.update({
   path: '/musteriler',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SablonlarRoute = SablonlarRouteImport.update({
-  id: '/sablonlar',
-  path: '/sablonlar',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const YeniRoute = YeniRouteImport.update({
   id: '/yeni',
   path: '/yeni',
@@ -64,7 +58,6 @@ export interface FileRoutesByFullPath {
   '/ayarlar': typeof AyarlarRoute
   '/faturalar': typeof FaturalarRouteWithChildren
   '/musteriler': typeof MusterilerRoute
-  '/sablonlar': typeof SablonlarRoute
   '/yeni': typeof YeniRoute
   '/faturalar/$ettn': typeof FaturalarEttnRoute
   '/faturalar/': typeof FaturalarIndexRoute
@@ -73,7 +66,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ayarlar': typeof AyarlarRoute
   '/musteriler': typeof MusterilerRoute
-  '/sablonlar': typeof SablonlarRoute
   '/yeni': typeof YeniRoute
   '/faturalar/$ettn': typeof FaturalarEttnRoute
   '/faturalar': typeof FaturalarIndexRoute
@@ -84,7 +76,6 @@ export interface FileRoutesById {
   '/ayarlar': typeof AyarlarRoute
   '/faturalar': typeof FaturalarRouteWithChildren
   '/musteriler': typeof MusterilerRoute
-  '/sablonlar': typeof SablonlarRoute
   '/yeni': typeof YeniRoute
   '/faturalar/$ettn': typeof FaturalarEttnRoute
   '/faturalar/': typeof FaturalarIndexRoute
@@ -96,7 +87,6 @@ export interface FileRouteTypes {
     | '/ayarlar'
     | '/faturalar'
     | '/musteriler'
-    | '/sablonlar'
     | '/yeni'
     | '/faturalar/$ettn'
     | '/faturalar/'
@@ -105,7 +95,6 @@ export interface FileRouteTypes {
     | '/'
     | '/ayarlar'
     | '/musteriler'
-    | '/sablonlar'
     | '/yeni'
     | '/faturalar/$ettn'
     | '/faturalar'
@@ -115,7 +104,6 @@ export interface FileRouteTypes {
     | '/ayarlar'
     | '/faturalar'
     | '/musteriler'
-    | '/sablonlar'
     | '/yeni'
     | '/faturalar/$ettn'
     | '/faturalar/'
@@ -126,7 +114,6 @@ export interface RootRouteChildren {
   AyarlarRoute: typeof AyarlarRoute
   FaturalarRoute: typeof FaturalarRouteWithChildren
   MusterilerRoute: typeof MusterilerRoute
-  SablonlarRoute: typeof SablonlarRoute
   YeniRoute: typeof YeniRoute
 }
 
@@ -158,13 +145,6 @@ declare module '@tanstack/react-router' {
       path: '/musteriler'
       fullPath: '/musteriler'
       preLoaderRoute: typeof MusterilerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sablonlar': {
-      id: '/sablonlar'
-      path: '/sablonlar'
-      fullPath: '/sablonlar'
-      preLoaderRoute: typeof SablonlarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/yeni': {
@@ -210,7 +190,6 @@ const rootRouteChildren: RootRouteChildren = {
   AyarlarRoute: AyarlarRoute,
   FaturalarRoute: FaturalarRouteWithChildren,
   MusterilerRoute: MusterilerRoute,
-  SablonlarRoute: SablonlarRoute,
   YeniRoute: YeniRoute,
 }
 export const routeTree = rootRouteImport

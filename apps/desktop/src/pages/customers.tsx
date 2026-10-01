@@ -24,6 +24,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
   Textarea,
   toast,
 } from '@angaria/ui';
@@ -31,16 +32,25 @@ import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useId, useRef, useState, type RefObject } from 'react';
-import { customerName, nameError, taxIDError } from '@/lib/customer.ts';
-import { GIB_COUNTRIES } from '@/lib/gib-constants.ts';
-import { isPDFLanguage, resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
+import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import {
+  customerDefaults,
+  customerName,
+  DEFAULT_DUE_DAYS,
+  nameError,
+  taxIDError,
+} from '@/lib/customer.ts';
+import type { FieldOption } from '@/lib/form.tsx';
+import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
+import { CURRENCY_OPTIONS, parseDecimal } from '@/lib/invoice-form.ts';
+import { isPDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Recipient } from '@/lib/types.ts';
 import { ListDetail } from '@/shell/list-detail.tsx';
 import { Screen } from '@/shell/screen.tsx';
 import {
   EmptyState,
+  invoiceTypeLabel,
   matchesQuery,
   SearchableList,
   useDialogTarget,
@@ -53,6 +63,21 @@ const styles = create({
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s2,
+  },
+  days: {
+    fontVariantNumeric: 'tabular-nums',
+    textAlign: 'right',
+    width: '5rem',
+  },
+  dueRow: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s3,
+    minHeight: '2.5rem',
+  },
+  dueUnit: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
   },
   detail: {
     boxSizing: 'border-box',
@@ -76,6 +101,10 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
   },
+  number: {
+    fontVariantNumeric: 'tabular-nums',
+    textAlign: 'right',
+  },
   placeholder: {
     alignItems: 'center',
     color: colors.muted,
@@ -83,6 +112,17 @@ const styles = create({
     flex: 1,
     fontSize: font.sizeSm,
     justifyContent: 'center',
+  },
+  section: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s4,
+  },
+  sectionTitle: {
+    color: colors.fg,
+    fontSize: font.sizeMd,
+    fontWeight: font.weightMedium,
+    margin: 0,
   },
   subtitle: {
     color: colors.muted,
@@ -111,7 +151,13 @@ const COUNTRIES = [...new Set(GIB_COUNTRIES.map((country) => country.value))];
 const PDF_LANGUAGE_ITEMS = [
   { label: 'Türkçe', value: 'tr' },
   { label: 'İngilizce', value: 'en' },
+  { label: 'Türkçe ve İngilizce', value: 'both' },
 ];
+
+const INVOICE_TYPE_ITEMS = GIB_INVOICE_TYPES.map((type) => ({
+  label: invoiceTypeLabel(type.value),
+  value: type.value,
+}));
 
 const BLANK_CUSTOMER: Omit<Recipient, 'id'> = {
   city: '',
@@ -136,6 +182,203 @@ const matchesCustomer = (customer: Recipient, query: string) =>
     customer.taxIDOrTRID,
     customer.city,
   );
+
+/** A whole number of days, kept as typed while it is being edited. */
+function DaysInput({
+  id,
+  onValueChange,
+  value,
+}: {
+  id: string;
+  onValueChange: (days: number) => void;
+  value: number;
+}) {
+  const [text, setText] = useState(String(value));
+  return (
+    <Input
+      aria-invalid={!/^\d{1,3}$/.test(text)}
+      aria-label="Kaç gün sonra"
+      id={id}
+      inputMode="numeric"
+      maxLength={3}
+      onBlur={() => setText(String(value))}
+      onChange={(event) => {
+        setText(event.target.value);
+        if (/^\d{1,3}$/.test(event.target.value)) {
+          onValueChange(Number(event.target.value));
+        }
+      }}
+      style={styles.days}
+      value={text}
+    />
+  );
+}
+
+/** KDV oranı: empty means no default, so the rows keep their own rate. */
+function VATRateInput({
+  id,
+  onValueChange,
+  value,
+}: {
+  id: string;
+  onValueChange: (rate: number | undefined) => void;
+  value: number | undefined;
+}) {
+  const [text, setText] = useState(value === undefined ? '' : String(value).replace('.', ','));
+  const parsed = parseDecimal(text);
+  return (
+    <Input
+      aria-describedby={`${id}-hint`}
+      aria-invalid={parsed === null || parsed > 100}
+      id={id}
+      inputMode="decimal"
+      onChange={(event) => {
+        setText(event.target.value);
+        const rate = parseDecimal(event.target.value);
+        if (!event.target.value.trim()) {
+          onValueChange(undefined);
+        } else if (rate !== null && rate <= 100) {
+          onValueChange(rate);
+        }
+      }}
+      placeholder="Kalemlerdeki gibi"
+      style={styles.number}
+      value={text}
+    />
+  );
+}
+
+/**
+ * What an invoice for this customer starts with. The controls show the
+ * defaults in effect, saved or derived from where the customer is.
+ */
+function CustomerDefaultsSection({
+  customer,
+  onChange,
+}: {
+  customer: Recipient;
+  onChange: (patch: Partial<Recipient>) => void;
+}) {
+  const id = useId();
+  const defaults = customerDefaults(customer);
+  const currency = CURRENCY_OPTIONS.find((option) => option.value === defaults.currency) ?? null;
+
+  return (
+    <section {...props(styles.section)}>
+      <div {...props(styles.titleBlock)}>
+        <h3 {...props(styles.sectionTitle)}>Fatura varsayılanları</h3>
+        <p {...props(styles.subtitle)}>
+          Bu müşteriyi seçince fatura bunlarla başlar. Her faturadan sonra kendiliğinden
+          güncellenir.
+        </p>
+      </div>
+      <div {...props(styles.fields)}>
+        <Field>
+          <FieldLabel htmlFor={`${id}-currency`}>Para birimi</FieldLabel>
+          <Combobox
+            isItemEqualToValue={(item: FieldOption, value: FieldOption) =>
+              item.value === value.value
+            }
+            items={CURRENCY_OPTIONS}
+            locale="tr"
+            onValueChange={(option: FieldOption | null) => onChange({ currency: option?.value })}
+            value={currency}
+          >
+            <ComboboxInput
+              id={`${id}-currency`}
+              onFocus={(event) => event.currentTarget.select()}
+              placeholder="Faturadaki gibi"
+            />
+            <ComboboxContent>
+              <ComboboxEmpty>Para birimi bulunamadı</ComboboxEmpty>
+              <ComboboxList>
+                {(option: FieldOption) => (
+                  <ComboboxItem key={option.value} value={option}>
+                    {option.label}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${id}-type`}>Fatura tipi</FieldLabel>
+          <Select
+            items={INVOICE_TYPE_ITEMS}
+            onValueChange={(invoiceType) => invoiceType && onChange({ invoiceType })}
+            value={defaults.invoiceType}
+          >
+            <SelectTrigger id={`${id}-type`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {INVOICE_TYPE_ITEMS.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${id}-vat`}>KDV oranı (%)</FieldLabel>
+          <VATRateInput
+            id={`${id}-vat`}
+            onValueChange={(VATRate) => onChange({ VATRate })}
+            value={customer.VATRate}
+          />
+          <FieldDescription id={`${id}-vat-hint`}>Boşsa kalemlerin oranı değişmez</FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${id}-pdf-language`}>PDF dili</FieldLabel>
+          <Select
+            items={PDF_LANGUAGE_ITEMS}
+            onValueChange={(language) =>
+              isPDFLanguage(language) && onChange({ pdfLanguage: language })
+            }
+            value={defaults.pdfLanguage}
+          >
+            <SelectTrigger id={`${id}-pdf-language`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PDF_LANGUAGE_ITEMS.map((language) => (
+                <SelectItem key={language.value} value={language.value}>
+                  {language.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field style={styles.fullRow}>
+          <FieldLabel htmlFor={`${id}-due`}>Son ödeme tarihi</FieldLabel>
+          <div {...props(styles.dueRow)}>
+            <Switch
+              checked={customer.dueDays !== undefined}
+              id={`${id}-due`}
+              onCheckedChange={(checked) =>
+                onChange({ dueDays: checked ? DEFAULT_DUE_DAYS : undefined })
+              }
+            />
+            {customer.dueDays !== undefined && (
+              <>
+                <DaysInput
+                  id={`${id}-due-days`}
+                  onValueChange={(dueDays) => onChange({ dueDays })}
+                  value={customer.dueDays}
+                />
+                <span {...props(styles.dueUnit)}>gün sonra</span>
+              </>
+            )}
+          </div>
+          <FieldDescription>
+            Faturanın tarihinden bu kadar gün sonrası PDF’e yazılır. GİB’e gönderilmez.
+          </FieldDescription>
+        </Field>
+      </div>
+    </section>
+  );
+}
 
 function CustomerDetail({
   autoFocusTitle,
@@ -299,33 +542,14 @@ function CustomerDetail({
             </ComboboxContent>
           </Combobox>
         </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-pdf-language`}>Varsayılan PDF dili</FieldLabel>
-          <Select
-            items={PDF_LANGUAGE_ITEMS}
-            onValueChange={(language) =>
-              isPDFLanguage(language) && onChange({ pdfLanguage: language })
-            }
-            value={resolvePDFLanguage(customer.pdfLanguage)}
-          >
-            <SelectTrigger id={`${id}-pdf-language`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PDF_LANGUAGE_ITEMS.map((language) => (
-                <SelectItem key={language.value} value={language.value}>
-                  {language.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
       </div>
+
+      <CustomerDefaultsSection customer={customer} onChange={onChange} />
     </div>
   );
 }
 
-export function CustomersPage() {
+export function CustomersPage({ tabs }: { tabs: ReactNode }) {
   const navigate = useNavigate();
   const { newId, savedRecipients, setSavedRecipients } = useStore();
   const [query, setQuery] = useState('');
@@ -377,11 +601,12 @@ export function CustomersPage() {
       actions={savedRecipients.length > 0 && newCustomerButton('outline')}
       scroll={false}
       title="Müşteriler"
+      toolbar={tabs}
     >
       {savedRecipients.length === 0 ? (
         <EmptyState action={newCustomerButton('default')} title="Henüz müşteri yok">
-          Fatura kestiğiniz şirket ve kişileri bir kez kaydedin. Fatura keserken müşteriyi seçince
-          bilgileri hazır gelir.
+          Kestiğiniz her faturanın alıcısı burada kendiliğinden kaydedilir. Fatura keserken
+          müşteriyi seçince bilgileri ve varsayılanları hazır gelir.
         </EmptyState>
       ) : (
         <ListDetail
@@ -434,7 +659,7 @@ export function CustomersPage() {
             <AlertDialogTitle>Müşteri silinsin mi?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleting.target && displayName(deleting.target)} müşterilerden silinir. Kesilmiş
-              faturalar ve şablonlar etkilenmez. Bu işlem geri alınamaz.
+              faturalar etkilenmez. Bu işlem geri alınamaz.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

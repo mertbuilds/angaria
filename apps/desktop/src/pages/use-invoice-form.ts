@@ -5,19 +5,27 @@ import { isBlankForm, validateInvoice } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceFormValues } from '@/lib/types.ts';
 
+/** What a submit asks for: `form.handleSubmit({ sign: true })` signs the new draft by SMS. */
+export interface SubmitMeta {
+  sign: boolean;
+}
+
+const DRAFT_ONLY: SubmitMeta = { sign: false };
+
 export function useInvoiceForm({
   defaultValues,
   onSubmit,
   onSubmitInvalid,
 }: {
   defaultValues: InvoiceFormValues;
-  onSubmit: (values: InvoiceFormValues) => Promise<void>;
+  onSubmit: (values: InvoiceFormValues, meta: SubmitMeta) => Promise<void>;
   onSubmitInvalid: () => void;
 }) {
   return useAppForm({
     defaultValues,
-    onSubmit: ({ value }) => onSubmit(value),
+    onSubmit: ({ meta, value }) => onSubmit(value, meta),
     onSubmitInvalid,
+    onSubmitMeta: DRAFT_ONLY,
     // Also runs on submit. No onBlur validator: see lib/form.tsx.
     validators: { onChange: ({ value }) => validateInvoice(value) },
   });

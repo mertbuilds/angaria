@@ -1,10 +1,17 @@
 import { colors, font, radius } from '@angaria/ui/tokens.stylex';
 import { create, props, type StyleXStyles } from '@stylexjs/stylex';
 import { useRef, type KeyboardEvent } from 'react';
-import { PDF_LANGUAGES } from '@/lib/invoice-pdf-i18n.ts';
 import type { PDFLanguage } from '@/lib/types.ts';
 
-const LABELS: Record<PDFLanguage, string> = { en: 'İngilizce', tr: 'Türkçe' };
+const LANGUAGES: ReadonlyArray<PDFLanguage> = ['tr', 'en', 'both'];
+
+const LABELS: Record<PDFLanguage, string> = {
+  both: 'Türkçe ve İngilizce',
+  en: 'İngilizce',
+  tr: 'Türkçe',
+};
+
+const SHORT_LABELS: Record<PDFLanguage, string> = { both: 'TR+EN', en: 'EN', tr: 'TR' };
 
 const styles = create({
   option: {
@@ -55,7 +62,7 @@ const styles = create({
 });
 
 /**
- * TR/EN segmented control for an invoice's PDF language. A radio group: Tab
+ * TR/EN/TR+EN segmented control for an invoice's PDF language. A radio group: Tab
  * reaches the chosen language, the arrow keys move the choice.
  */
 export function PDFLanguageToggle({
@@ -80,8 +87,8 @@ export function PDFLanguageToggle({
       return;
     }
     event.preventDefault();
-    const index = PDF_LANGUAGES.indexOf(value);
-    const next = PDF_LANGUAGES[(index + step + PDF_LANGUAGES.length) % PDF_LANGUAGES.length];
+    const index = LANGUAGES.indexOf(value);
+    const next = LANGUAGES[(index + step + LANGUAGES.length) % LANGUAGES.length];
     onChange(next);
     refs.current.get(next)?.focus();
   };
@@ -93,7 +100,7 @@ export function PDFLanguageToggle({
       role="radiogroup"
       {...props(styles.track, style)}
     >
-      {PDF_LANGUAGES.map((language) => (
+      {LANGUAGES.map((language) => (
         <button
           aria-checked={value === language}
           aria-label={LABELS[language]}
@@ -111,7 +118,7 @@ export function PDFLanguageToggle({
           type="button"
           {...props(styles.option, value === language && styles.selected)}
         >
-          {language.toUpperCase()}
+          {SHORT_LABELS[language]}
         </button>
       ))}
     </div>

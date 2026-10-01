@@ -54,9 +54,11 @@ function SectionItem({ section }: { section: Section }) {
 
 /**
  * The app's source list: wordmark under the traffic lights, ⌘K search, the
- * sections, then Ayarlar and the entity switcher at the foot.
+ * sections, then Ayarlar at the foot, and the company switcher once there are
+ * two companies (Ayarlar › Şirketler adds them).
  */
 export function AppSidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
+  const { entities } = useStore();
   const settings = sections.find((section) => section.to === '/ayarlar');
 
   return (
@@ -89,9 +91,11 @@ export function AppSidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
       <SidebarFooter>
         <SidebarMenu>
           {settings && <SectionItem section={settings} />}
-          <SidebarMenuItem>
-            <EntitySwitcher />
-          </SidebarMenuItem>
+          {entities.length > 1 && (
+            <SidebarMenuItem>
+              <EntitySwitcher />
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>

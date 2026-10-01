@@ -92,6 +92,21 @@ export function newestFirst(invoices: ReadonlyArray<Invoice>): Array<Invoice> {
   );
 }
 
+/**
+ * The `count` newest invoices among `invoices` (lists of several ranges may
+ * repeat a row), for Yeni fatura's "Tekrar kes". Deleted ones and rows without
+ * an ETTN are left out.
+ */
+export function recentInvoices(invoices: Iterable<Invoice>, count: number): Array<Invoice> {
+  const byEttn = new Map<string, Invoice>();
+  for (const invoice of invoices) {
+    if (invoice.ettn && invoice.onayDurumu !== 'Silinmiş') {
+      byEttn.set(invoice.ettn, invoice);
+    }
+  }
+  return newestFirst([...byEttn.values()]).slice(0, count);
+}
+
 const str = (value: unknown, fallback = '') => (typeof value === 'string' ? value : fallback);
 const num = (value: unknown) => {
   const parsed = Number(value);

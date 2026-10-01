@@ -364,13 +364,18 @@ const s = StyleSheet.create({
 export interface InvoicePDFData {
   company: CompanyInfo;
   date: string;
+  /** Son ödeme tarihi, dd/MM/yyyy. */
+  dueDate?: string;
   entityName?: string;
+  ettn?: string;
+  gibNumber?: string;
   grandTotal: number;
   invoiceNumber?: string;
   items: Array<InvoiceItem>;
   language: PDFLanguage;
   note?: string;
   paymentTotal?: number;
+  qrValue?: string;
   recipient: Recipient;
   settings: InvoiceSettings;
   time?: string;
@@ -383,7 +388,7 @@ export interface InvoicePDFData {
 
 function InvoicePDFDocument({ data }: { data: InvoicePDFData }) {
   const { company, recipient, settings, items, date, invoiceNumber, note, language } = data;
-  const t = PDF_LABELS[language];
+  const t = PDF_LABELS[language === 'both' ? 'en' : language];
   const upper = (text: string) => pdfUpper(language, text);
   const fmtAmount = (currency: string, n: number) => formatPDFAmount(language, currency, n);
   const cur = settings.currency;

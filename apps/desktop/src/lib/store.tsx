@@ -1,4 +1,5 @@
 import { toast } from '@angaria/ui';
+import { addDays } from 'date-fns';
 import {
   createContext,
   useContext,
@@ -14,6 +15,8 @@ import {
   LEGACY_CREDS_STORAGE_KEY,
   migrateCredentials,
 } from './credentials.ts';
+import { customerName, findCustomer } from './customer.ts';
+import { applyCustomer } from './invoice-form.ts';
 import { parseGIBInvoice, presetRange, type DateRange } from './invoices.ts';
 import { secretDelete, secretGet, secretSet } from './native.ts';
 import type {
@@ -26,13 +29,13 @@ import type {
   InvoiceItem,
   InvoiceSettings,
   InvoiceSource,
-  InvoiceTemplate,
   Recipient,
   StoredCredentials,
 } from './types.ts';
+import { toGIB } from './utils.ts';
 
 const newId = () => crypto.randomUUID();
-const NO_TEMPLATES: Array<InvoiceTemplate> = [];
+const NO_RECIPIENTS: Array<Recipient> = [];
 const ACTIVE_ENTITY_STORAGE_KEY = 'fatura-active-entity-id';
 
 const secrets = { delete: secretDelete, get: secretGet, set: secretSet };
@@ -163,6 +166,7 @@ const DEFAULT_SETTINGS: InvoiceSettings = {
 };
 
 export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
+  dueDate: '',
   manualDate: '',
   manualTime: currentTime(),
   irsaliyeNumarasi: '',
@@ -189,6 +193,16 @@ function makeBlankItem(): InvoiceItem {
   };
 }
 
+function blankForm(): InvoiceFormValues {
+  return {
+    advancedFields: { ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() },
+    invoiceSettings: { ...DEFAULT_SETTINGS },
+    items: [makeBlankItem()],
+    note: '',
+    recipient: { ...BLANK_RECIPIENT, id: newId() },
+  };
+}
+
 function makeEntityName(index: number) {
   return index === 0 ? 'Ana şirket' : `Şirket ${index + 1}`;
 }
@@ -201,10 +215,14 @@ function makeDefaultEntity(index: number, seedData = true): Entity {
     companyInfo: { ...DEFAULT_COMPANY_INFO },
     savedRecipients: seedData ? SEED_RECIPIENTS : [],
     savedItems: seedData ? SEED_ITEMS : [],
-    invoiceTemplates: [],
   };
 }
 
+/**
+ * The stored companies, with only the fields the app knows. Invoice templates
+ * (removed 2026-10-01) are not among them: the startup save (prepareCredentials)
+ * writes the companies back without them, so stored ones go silently.
+ */
 function loadEntities(): Array<Entity> {
   const stored = loadLocal<Array<Entity> | null>(ENTITIES_STORAGE_KEY, null);
   if (Array.isArray(stored) && stored.length > 0) {
@@ -215,7 +233,6 @@ function loadEntities(): Array<Entity> {
       companyInfo: entity.companyInfo ?? { ...DEFAULT_COMPANY_INFO },
       savedRecipients: entity.savedRecipients ?? [],
       savedItems: entity.savedItems ?? [],
-      invoiceTemplates: entity.invoiceTemplates ?? [],
     }));
   }
 
@@ -226,7 +243,6 @@ function loadEntities(): Array<Entity> {
       companyInfo: loadLocal('fatura-company-info', { ...DEFAULT_COMPANY_INFO }),
       savedRecipients: loadLocal('fatura-saved-recipients', SEED_RECIPIENTS),
       savedItems: loadLocal('fatura-saved-items', SEED_ITEMS),
-      invoiceTemplates: loadLocal('fatura-templates', []),
     },
   ];
 }
@@ -280,21 +296,21 @@ interface Store {
   /** The Faturalar list's range, Bu ay at launch */
   invoiceDateRange: DateRange;
   /**
-   * Changes whenever the invoice form is replaced as a whole (reset, template,
-   * GİB invoice, restore), so a mounted form can start over from the store.
+   * Changes whenever the invoice form is replaced as a whole (reset, GİB
+   * invoice, customer, restore), so a mounted form can start over from the store.
    */
   invoiceFormRevision: number;
   invoiceSettings: InvoiceSettings;
   /** What filled the invoice form; null for a blank form */
   invoiceSource: InvoiceSource | null;
-  /** true when the invoice form has been initialized (via template or scratch) */
+  /**
+   * true once the invoice form was started: blank, from a GİB invoice or for a
+   * customer. A reset clears it, and /yeni offers the recent invoices again.
+   */
   invoiceStarted: boolean;
-  invoiceTemplates: Array<InvoiceTemplate>;
   items: Array<InvoiceItem>;
-  /** Load a GIB invoice into the form */
+  /** Load a GIB invoice into the form; a saved customer's due date applies */
   loadFromGIBInvoice: (data: Record<string, unknown>) => void;
-  /** Load a template into the invoice form and mark it as started */
-  loadTemplate: (id: string) => string | null;
   newId: () => string;
   note: string;
   recipient: Recipient;
@@ -315,7 +331,6 @@ interface Store {
   setCredentials: (entityId: string, creds: Partial<Credentials>) => Promise<void>;
   setInvoiceDateRange: React.Dispatch<React.SetStateAction<DateRange>>;
   setInvoiceSettings: React.Dispatch<React.SetStateAction<InvoiceSettings>>;
-  setInvoiceTemplates: React.Dispatch<React.SetStateAction<Array<InvoiceTemplate>>>;
   setItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>>;
   setNote: React.Dispatch<React.SetStateAction<string>>;
   setRecipient: React.Dispatch<React.SetStateAction<Recipient>>;
@@ -323,6 +338,8 @@ interface Store {
   setSavedRecipients: React.Dispatch<React.SetStateAction<Array<Recipient>>>;
   /** Start a blank invoice form */
   startBlankInvoice: () => void;
+  /** Start a blank invoice form for a saved customer, with its defaults */
+  startInvoiceFor: (customer: Recipient) => void;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -543,17 +560,6 @@ function LoadedStoreProvider({
     [updateActiveEntity],
   );
 
-  const setInvoiceTemplates: React.Dispatch<React.SetStateAction<Array<InvoiceTemplate>>> =
-    useCallback(
-      (value) => {
-        updateActiveEntity((entity) => ({
-          ...entity,
-          invoiceTemplates: typeof value === 'function' ? value(entity.invoiceTemplates) : value,
-        }));
-      },
-      [updateActiveEntity],
-    );
-
   const storedCreds = activeEntity?.creds ?? DEFAULT_CREDS;
   const creds: CredentialsInfo = {
     username: storedCreds.username,
@@ -562,78 +568,73 @@ function LoadedStoreProvider({
   };
   const hasCredentials = Boolean(creds.username && creds.hasPassword);
   const companyInfo = activeEntity?.companyInfo ?? DEFAULT_COMPANY_INFO;
-  const savedRecipients = activeEntity?.savedRecipients ?? [];
+  const savedRecipients = activeEntity?.savedRecipients ?? NO_RECIPIENTS;
   const savedItems = activeEntity?.savedItems ?? [];
-  const invoiceTemplates = activeEntity?.invoiceTemplates ?? NO_TEMPLATES;
 
-  const resetInvoiceForm = useCallback(() => {
-    setRecipient({ ...BLANK_RECIPIENT, id: newId() });
-    setInvoiceSettings({ ...DEFAULT_SETTINGS });
-    setItems([makeBlankItem()]);
-    setNote('');
-    setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
-    setInvoiceStarted(false);
-    setInvoiceSource(null);
-    setInvoiceFormRevision((revision) => revision + 1);
-  }, []);
-
-  const loadTemplate = useCallback(
-    (id: string): string | null => {
-      const t = invoiceTemplates.find((x) => x.id === id);
-      if (!t) {
-        return null;
-      }
-      setRecipient({ ...t.recipient, id: newId() });
-      setInvoiceSettings({ ...t.settings });
-      setItems(t.items.map((i) => ({ ...i, id: newId() })));
-      setNote(t.note);
-      setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
-      setInvoiceStarted(true);
-      setInvoiceSource({ kind: 'template', name: t.name, templateId: id });
-      setInvoiceFormRevision((revision) => revision + 1);
-      // Update lastUsedAt
-      setInvoiceTemplates((prev) =>
-        prev.map((x) => (x.id === id ? { ...x, lastUsedAt: Date.now() } : x)),
-      );
-      return t.name;
-    },
-    [invoiceTemplates, setInvoiceTemplates],
-  );
-
-  const startBlankInvoice = useCallback(() => {
-    resetInvoiceForm();
-    setInvoiceStarted(true);
-  }, [resetInvoiceForm]);
-
-  const loadFromGIBInvoice = useCallback((data: Record<string, unknown>) => {
-    const { items, note, recipient, settings } = parseGIBInvoice(data);
-    setRecipient({ ...recipient, id: newId() });
-    setInvoiceSettings(settings);
-    setItems(
-      items.length > 0 ? items.map((item) => ({ ...item, id: newId() })) : [makeBlankItem()],
-    );
-    setNote(note);
-    setAdvancedFields({ ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() });
-    setInvoiceStarted(true);
-    setInvoiceSource({
-      kind: 'invoice',
-      label: str(data.belgeNumarasi) || str(data.aliciUnvan) || 'GİB faturası',
-    });
-    setInvoiceFormRevision((revision) => revision + 1);
-  }, []);
-
-  const restoreInvoiceDraft = useCallback(
-    (values: InvoiceFormValues, source: InvoiceSource | null) => {
+  /** Replaces the whole invoice form; a mounted form starts over from it. */
+  const replaceInvoiceForm = useCallback(
+    (values: InvoiceFormValues, source: InvoiceSource | null, started: boolean) => {
       setRecipient(values.recipient);
       setInvoiceSettings(values.invoiceSettings);
       setItems(values.items);
       setNote(values.note);
       setAdvancedFields(values.advancedFields);
-      setInvoiceStarted(true);
+      setInvoiceStarted(started);
       setInvoiceSource(source);
       setInvoiceFormRevision((revision) => revision + 1);
     },
     [],
+  );
+
+  const resetInvoiceForm = useCallback(
+    () => replaceInvoiceForm(blankForm(), null, false),
+    [replaceInvoiceForm],
+  );
+
+  const startBlankInvoice = useCallback(
+    () => replaceInvoiceForm(blankForm(), null, true),
+    [replaceInvoiceForm],
+  );
+
+  const startInvoiceFor = useCallback(
+    (customer: Recipient) => replaceInvoiceForm(applyCustomer(blankForm(), customer), null, true),
+    [replaceInvoiceForm],
+  );
+
+  const loadFromGIBInvoice = useCallback(
+    (data: Record<string, unknown>) => {
+      const { items, note, recipient, settings } = parseGIBInvoice(data);
+      const blank = blankForm();
+      const dueDays = findCustomer(
+        savedRecipients,
+        recipient.taxIDOrTRID,
+        customerName(recipient),
+      )?.dueDays;
+      replaceInvoiceForm(
+        {
+          advancedFields: {
+            ...blank.advancedFields,
+            dueDate: dueDays === undefined ? '' : toGIB(addDays(new Date(), dueDays)),
+          },
+          invoiceSettings: settings,
+          items: items.length > 0 ? items.map((item) => ({ ...item, id: newId() })) : blank.items,
+          note,
+          recipient: { ...recipient, id: newId() },
+        },
+        {
+          kind: 'invoice',
+          label: str(data.belgeNumarasi) || str(data.aliciUnvan) || 'GİB faturası',
+        },
+        true,
+      );
+    },
+    [replaceInvoiceForm, savedRecipients],
+  );
+
+  const restoreInvoiceDraft = useCallback(
+    (values: InvoiceFormValues, source: InvoiceSource | null) =>
+      replaceInvoiceForm(values, source, true),
+    [replaceInvoiceForm],
   );
 
   // Persist only data that should survive restarts
@@ -671,8 +672,6 @@ function LoadedStoreProvider({
         setSavedRecipients,
         savedItems,
         setSavedItems,
-        invoiceTemplates,
-        setInvoiceTemplates,
         advancedFields,
         setAdvancedFields,
         invoiceDateRange,
@@ -682,8 +681,8 @@ function LoadedStoreProvider({
         invoiceSource,
         restoreInvoiceDraft,
         resetInvoiceForm,
-        loadTemplate,
         startBlankInvoice,
+        startInvoiceFor,
         loadFromGIBInvoice,
         newId,
         defaultItemAdvanced: DEFAULT_ITEM_ADVANCED,
