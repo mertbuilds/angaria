@@ -1,12 +1,11 @@
-import { ReloadIcon } from '@hugeicons/core-free-icons';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Button, Input, Wordmark } from '@angaria/ui';
+import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
+import { create, keyframes, props } from '@stylexjs/stylex';
+import { LoaderCircleIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { openCheckout, openCustomerPortal, useLicense } from '@/lib/license-context.tsx';
 import type { LicenseStatus } from '@/lib/license.ts';
+import { shell } from '../shell/shell.stylex.ts';
 
 type LockedStatus = Exclude<LicenseStatus, { kind: 'grace' } | { kind: 'valid' }>;
 
@@ -36,20 +35,152 @@ const lockedCopy: Record<
 const copyFor = (status: LockedStatus) =>
   lockedCopy[status.kind === 'expired' ? status.reason : status.kind];
 
+const spin = keyframes({
+  '0%': { transform: 'rotate(0deg)' },
+  '100%': { transform: 'rotate(360deg)' },
+});
+
+const styles = create({
+  banner: {
+    alignItems: 'center',
+    backgroundColor: `color-mix(in oklab, ${colors.warning} 10%, ${colors.bg})`,
+    borderColor: `color-mix(in oklab, ${colors.warning} 40%, transparent)`,
+    borderRadius: radius.full,
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    color: colors.fg,
+    display: 'flex',
+    fontFamily: font.family,
+    fontSize: font.sizeXs,
+    gap: spacing.s2,
+    lineHeight: 1.4,
+    margin: 0,
+    paddingBlock: spacing.s2,
+    paddingInline: spacing.s4,
+  },
+  bannerIcon: {
+    color: colors.warning,
+    flexShrink: 0,
+    height: '14px',
+    width: '14px',
+  },
+  bannerWrap: {
+    bottom: spacing.s4,
+    display: 'flex',
+    insetInline: 0,
+    justifyContent: 'center',
+    pointerEvents: 'none',
+    position: 'fixed',
+    zIndex: 50,
+  },
+  column: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s8,
+    maxWidth: '360px',
+    width: '100%',
+  },
+  copy: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    textAlign: 'center',
+  },
+  description: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textWrap: 'pretty',
+  },
+  drag: {
+    height: shell.toolbarHeight,
+    insetInline: 0,
+    position: 'absolute',
+    top: 0,
+  },
+  error: {
+    color: colors.error,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+    textAlign: 'center',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  header: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s6,
+  },
+  links: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+  },
+  screen: {
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    boxSizing: 'border-box',
+    color: colors.fg,
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: font.family,
+    height: '100vh',
+    justifyContent: 'center',
+    paddingInline: spacing.s6,
+    position: 'relative',
+  },
+  spinner: {
+    animationDuration: '1s',
+    animationIterationCount: 'infinite',
+    animationName: {
+      '@media (prefers-reduced-motion: reduce)': 'none',
+      default: spin,
+    },
+    animationTimingFunction: 'linear',
+    color: colors.muted,
+    height: '20px',
+    width: '20px',
+  },
+  splash: {
+    gap: spacing.s3,
+  },
+  splashText: {
+    color: colors.muted,
+    fontSize: font.sizeXs,
+    margin: 0,
+  },
+  title: {
+    fontSize: font.sizeLg,
+    fontWeight: font.weightMedium,
+    lineHeight: 1.3,
+    margin: 0,
+    textWrap: 'balance',
+  },
+  wide: {
+    width: '100%',
+  },
+  wordmark: {
+    fontSize: '28px',
+  },
+});
+
 function DragRegion() {
-  return <div className="absolute inset-x-0 top-0 h-11" data-tauri-drag-region />;
+  return <div data-tauri-drag-region {...props(styles.drag)} />;
 }
 
 function LicenseSplash() {
   return (
-    <div className="relative flex h-screen flex-col items-center justify-center gap-3">
+    <div {...props(styles.screen, styles.splash)}>
       <DragRegion />
-      <HugeiconsIcon
-        className="size-6 animate-spin text-muted-foreground"
-        icon={ReloadIcon}
-        strokeWidth={1.5}
-      />
-      <p className="text-xs text-muted-foreground">Lisans doğrulanıyor...</p>
+      <LoaderCircleIcon aria-hidden {...props(styles.spinner)} />
+      <p {...props(styles.splashText)}>Lisans doğrulanıyor...</p>
     </div>
   );
 }
@@ -90,58 +221,66 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
   const message = error ?? checkError;
 
   return (
-    <div className="relative flex h-screen items-center justify-center px-6">
+    <div {...props(styles.screen)}>
       <DragRegion />
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>{copy.title}</CardTitle>
-          <CardDescription>{copy.description}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {needsOnlineCheck ? (
-            <Button className="w-full" disabled={pending !== null} onClick={handleRetry}>
-              {pending === 'check' ? 'Doğrulanıyor...' : 'Tekrar dene'}
-            </Button>
-          ) : (
-            <form className="space-y-3" onSubmit={handleActivate}>
-              <div className="space-y-2">
-                <Label htmlFor="license-key">Lisans anahtarı</Label>
-                <Input
-                  autoComplete="off"
-                  autoFocus
-                  id="license-key"
-                  onChange={(event) => setKey(event.target.value)}
-                  placeholder="ANGARIA-..."
-                  spellCheck={false}
-                  value={key}
-                />
-              </div>
-              <Button className="w-full" disabled={pending !== null || !key.trim()} type="submit">
-                {pending === 'activate' ? 'Etkinleştiriliyor...' : 'Etkinleştir'}
-              </Button>
-            </form>
-          )}
-          {message && <p className="text-sm text-destructive">{message}</p>}
-          <div className="flex flex-col items-center">
-            <Button onClick={openCheckout} size="sm" variant="link">
-              Satın al / 14 gün ücretsiz dene
-            </Button>
-            {status.kind === 'expired' && status.reason === 'subscription' && (
-              <Button onClick={openCustomerPortal} size="sm" variant="link">
-                Aboneliği yönet
-              </Button>
-            )}
+      <div {...props(styles.column)}>
+        <div {...props(styles.header)}>
+          <Wordmark style={styles.wordmark} />
+          <div {...props(styles.copy)}>
+            <h1 {...props(styles.title)}>{copy.title}</h1>
+            <p {...props(styles.description)}>{copy.description}</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        {needsOnlineCheck ? (
+          <Button
+            disabled={pending !== null}
+            onClick={() => void handleRetry()}
+            style={styles.wide}
+          >
+            {pending === 'check' ? 'Doğrulanıyor...' : 'Tekrar dene'}
+          </Button>
+        ) : (
+          <form onSubmit={handleActivate} {...props(styles.form)}>
+            <Input
+              aria-label="Lisans anahtarı"
+              autoComplete="off"
+              autoFocus
+              id="license-key"
+              onChange={(event) => setKey(event.target.value)}
+              placeholder="ANGARIA-..."
+              spellCheck={false}
+              value={key}
+            />
+            <Button disabled={pending !== null || !key.trim()} style={styles.wide} type="submit">
+              {pending === 'activate' ? 'Etkinleştiriliyor...' : 'Etkinleştir'}
+            </Button>
+          </form>
+        )}
+        {message && (
+          <p role="alert" {...props(styles.error)}>
+            {message}
+          </p>
+        )}
+        <div {...props(styles.links)}>
+          <Button onClick={openCheckout} variant="link">
+            14 gün ücretsiz dene / Satın al
+          </Button>
+          {status.kind === 'expired' && status.reason === 'subscription' && (
+            <Button onClick={openCustomerPortal} variant="link">
+              Aboneliği yönet
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 function GraceBanner({ daysLeft }: { daysLeft: number }) {
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center">
-      <p className="rounded-full border bg-background px-4 py-1.5 text-xs text-muted-foreground">
+    <div {...props(styles.bannerWrap)}>
+      <p role="status" {...props(styles.banner)}>
+        <TriangleAlertIcon aria-hidden {...props(styles.bannerIcon)} />
         {daysLeft > 0
           ? `Polar'a bağlanılamadı. Lisansın ${daysLeft} gün içinde doğrulanması gerekiyor.`
           : "Polar'a bağlanılamadı. Lisansın bugün doğrulanması gerekiyor."}
