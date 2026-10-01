@@ -113,8 +113,8 @@ const draft = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-async function createDraft(token: string) {
-  await dispatch(token, 'EARSIV_PORTAL_FATURA_OLUSTUR', draft());
+async function createDraft(token: string, overrides: Record<string, unknown> = {}) {
+  await dispatch(token, 'EARSIV_PORTAL_FATURA_OLUSTUR', draft(overrides));
   const list = await dispatch(token, 'EARSIV_PORTAL_TASLAKLARI_GETIR', {
     baslangic: today(),
     bitis: today(),
@@ -327,6 +327,29 @@ describe('dispatch', () => {
       senaryo: 'EARSIVFATURA',
       vkntckn: '3333333301',
     });
+  });
+
+  test('names units in the preview HTML the way the portal does', async () => {
+    const { token } = await login();
+    const [line] = draft().malHizmetTable;
+    const row = await createDraft(token, {
+      malHizmetTable: [
+        { ...line, birim: 'HUR', miktar: 2 },
+        { ...line, birim: 'C62', miktar: 3 },
+        { ...line, birim: 'KGM', miktar: 4 },
+        { ...line, birim: 'XYZ', miktar: 5 },
+      ],
+    });
+
+    const page = await dispatch(token, 'EARSIV_PORTAL_FATURA_GOSTER', {
+      ettn: row.ettn,
+      onayDurumu: 'Onaylanmadı',
+    });
+    const quantities = Array.from(
+      String(page.data).matchAll(/<td class="lineTableTd" align="right">&nbsp;(\d+ [^<]*)<\/td>/g),
+      ([, quantity]) => quantity,
+    );
+    expect(quantities).toEqual(['2 Saat', '3 Adet', '4 kg', '5 XYZ']);
   });
 
   test('signs drafts with the SMS code', async () => {
