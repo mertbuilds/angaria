@@ -13,10 +13,12 @@ import {
   parseDecimal,
   sameInvoice,
   toDraftDetails,
+  toPDFData,
+  unparsableItemFields,
   upsertSavedItems,
   validateInvoice,
 } from '../src/lib/invoice-form.ts';
-import type { InvoiceFormValues, InvoiceItem } from '../src/lib/types.ts';
+import type { CompanyInfo, InvoiceFormValues, InvoiceItem } from '../src/lib/types.ts';
 
 const item = (fields: Partial<InvoiceItem> = {}): InvoiceItem => ({
   discountAmount: 0,
@@ -280,4 +282,30 @@ test('sameInvoice ignores the PDF language only', () => {
     false,
   );
   expect(sameInvoice({ ...values, note: 'Ekim' }, values)).toBe(false);
+});
+
+describe('PDF data', () => {
+  const company = { name: 'Örnek Yazılım' } as CompanyInfo;
+  const now = new Date(2026, 9, 1, 14, 30);
+
+  test('unparsableItemFields names every number that did not parse', () => {
+    expect(unparsableItemFields([item()])).toEqual([]);
+    expect(
+      unparsableItemFields([
+        item(),
+        item({ discountAmount: Number.NaN, unitPrice: Number.POSITIVE_INFINITY }),
+      ]),
+    ).toEqual(['items[1].unitPrice', 'items[1].discountAmount']);
+  });
+
+  test('toPDFData prints no NaN and takes the date GİB gave the draft', () => {
+    const values = form({ items: [item({ quantity: Number.NaN })] });
+    const base = { company, entityName: 'Örnek', language: 'tr' as const, now };
+
+    const data = toPDFData(values, base);
+    expect(data.items[0].quantity).toBe(0);
+    expect(data.date).toBe('01/10/2026');
+
+    expect(toPDFData(values, { ...base, date: '30/09/2026' }).date).toBe('30/09/2026');
+  });
 });

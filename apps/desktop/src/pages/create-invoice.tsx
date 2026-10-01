@@ -39,6 +39,7 @@ import {
   sameInvoice,
   toDraftDetails,
   toPDFData,
+  unparsableItemFields,
   upsertSavedItems,
 } from '@/lib/invoice-form.ts';
 import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
@@ -730,12 +731,24 @@ export function CreateInvoicePage() {
   const setPDFLanguage = (language: PDFLanguage) =>
     form.setFieldValue('recipient.pdfLanguage', language, { dontUpdateMeta: true });
 
-  const downloadPDF = (source: InvoiceFormValues, invoiceNumber?: string) => {
+  /** The PDF of `source`; `created` carries GİB's number and date once the draft exists. */
+  const downloadPDF = (source: InvoiceFormValues, created?: CreatedDraft) => {
+    // A number that does not parse would print as NaN: show its error instead.
+    const unparsable = unparsableItemFields(source.items);
+    if (unparsable.length > 0) {
+      for (const name of unparsable) {
+        form.setFieldMeta(name, (meta) => ({ ...meta, isTouched: true }));
+      }
+      void form.validate('change');
+      revealFirstError(rootRef.current);
+      return;
+    }
     const id = toast.loading('PDF hazırlanıyor');
     const data = toPDFData(source, {
       company: companyInfo,
+      date: created?.date,
       entityName: activeEntity.name,
-      invoiceNumber,
+      invoiceNumber: created?.number,
       language: pdfLanguage,
     });
     // react-pdf is large, so it loads with the first PDF.
@@ -838,7 +851,7 @@ export function CreateInvoicePage() {
             <SuccessPanel
               created={success.draft}
               offerTemplate={offerTemplate}
-              onDownloadPDF={() => downloadPDF(success.values, success.draft.number)}
+              onDownloadPDF={() => downloadPDF(success.values, success.draft)}
               onNewInvoice={resetInvoiceForm}
               onOpenInvoice={openCreated}
               onPDFLanguageChange={setPDFLanguage}

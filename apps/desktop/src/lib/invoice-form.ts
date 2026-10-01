@@ -254,17 +254,40 @@ export function toDraftDetails(values: InvoiceFormValues, now = new Date()): Inv
   };
 }
 
-/** The PDF of the form as it is; `invoiceNumber` once GİB assigned one. */
+const ITEM_NUMBERS = [
+  'quantity',
+  'unitPrice',
+  'VATRate',
+  'discountRate',
+  'discountAmount',
+] as const;
+
+/** Item fields whose text did not parse (NaN), as form field names: "items[0].unitPrice". */
+export function unparsableItemFields(items: ReadonlyArray<InvoiceItem>) {
+  return items.flatMap((item, index) =>
+    // Rows saved before discounts existed have none.
+    ITEM_NUMBERS.filter((key) => !Number.isFinite(item[key] ?? 0)).map(
+      (key) => `items[${index}].${key}` as const,
+    ),
+  );
+}
+
+/**
+ * The PDF of the form as it is; `invoiceNumber` and `date` once GİB assigned
+ * them. Unparsable numbers print as 0: check unparsableItemFields first.
+ */
 export function toPDFData(
   values: InvoiceFormValues,
   {
     company,
+    date,
     entityName,
     invoiceNumber,
     language,
     now = new Date(),
   }: {
     company: CompanyInfo;
+    date?: string;
     entityName: string;
     invoiceNumber?: string;
     language: PDFLanguage;
@@ -274,11 +297,11 @@ export function toPDFData(
   const totals = invoiceTotals(values.items);
   return {
     company,
-    date: values.advancedFields.manualDate || toGIB(now),
+    date: date || values.advancedFields.manualDate || toGIB(now),
     entityName,
     grandTotal: totals.net,
     invoiceNumber,
-    items: values.items,
+    items: cleanItems(values.items),
     language,
     note: values.note,
     paymentTotal: paymentTotal(values, totals.total),
