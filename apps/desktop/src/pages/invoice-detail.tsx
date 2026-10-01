@@ -41,6 +41,7 @@ import {
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { cancelInvoice, startSMSSign, verifyAndSign } from '@/lib/angaria.ts';
 import { findCustomer } from '@/lib/customer.ts';
+import { fetchForeground } from '@/lib/foreground-fetch.ts';
 import {
   cachedInvoices,
   gib,
@@ -399,8 +400,9 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
       ?.pdfLanguage,
   );
 
+  // The header's total may be fetching the same detail in the background.
   const readDetail = async () =>
-    parseGIBInvoice(await queryClient.fetchQuery(invoiceDetailQuery(account, ettn)));
+    parseGIBInvoice(await fetchForeground(queryClient, invoiceDetailQuery(account, ettn)));
   const refreshList = () => queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
 
   const pdf = useMutation({
