@@ -1,13 +1,13 @@
+import { toast } from '@angaria/ui';
 import { Delete01Icon, PlusSignIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { useState } from 'react';
-import { toast } from 'sonner';
-import type { Page } from '@/components/app-sidebar.tsx';
 import { ConfirmDialog } from '@/components/confirm-dialog.tsx';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useStore } from '@/lib/store.tsx';
+import type { Page } from '@/shell/legacy-page.tsx';
 
 export function InvoiceTemplatesPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const { invoiceTemplates, setInvoiceTemplates, loadTemplate } = useStore();
