@@ -50,7 +50,8 @@ import {
   invoiceListQuery,
   useGIBAccount,
 } from '@/lib/gib.ts';
-import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
+import { PDF_LANGUAGES, resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
+import { readQRValue } from '@/lib/invoice-preview.ts';
 import { invoiceStatus, parseGIBInvoice, type GIBInvoice } from '@/lib/invoices.ts';
 import type { SessionLease } from '@/lib/session-queue.ts';
 import { useStore } from '@/lib/store.tsx';
@@ -179,7 +180,11 @@ const styles = create({
   },
 });
 
-const PDF_LANGUAGE_NAMES: Record<PDFLanguage, string> = { en: 'İngilizce', tr: 'Türkçe' };
+const PDF_LANGUAGE_NAMES: Record<PDFLanguage, string> = {
+  both: 'Türkçe ve İngilizce',
+  en: 'İngilizce',
+  tr: 'Türkçe',
+};
 
 // GİB lays the invoice out 800px wide. A narrower pane shows the whole page
 // scaled down rather than cutting off the QR code and the totals.
@@ -260,7 +265,7 @@ function PDFButton({
           <ChevronDownIcon {...props(styles.icon)} />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {(['tr', 'en'] as const).map((language) => (
+          {PDF_LANGUAGES.map((language) => (
             <DropdownMenuItem key={language} onClick={() => onDownload(language)}>
               PDF indir ({PDF_LANGUAGE_NAMES[language]})
             </DropdownMenuItem>
@@ -409,17 +414,23 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     mutationFn: async (language: PDFLanguage) => {
       toast.loading('PDF hazırlanıyor...', { id: `pdf-${ettn}` });
       const { items, note, recipient, settings, subtotal, vat } = await readDetail();
+      // The QR code's text sits in GİB's preview, which the pane shows already.
+      const html = await queryClient.fetchQuery(
+        invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
+      );
       // react-pdf is large, so it loads with the first PDF.
       const { downloadInvoicePDF } = await import('@/components/invoice-pdf.tsx');
       await downloadInvoicePDF({
         company: companyInfo,
         date: invoice.belgeTarihi ?? '',
         entityName: activeEntity.name,
+        ettn,
+        gibNumber: invoice.belgeNumarasi,
         grandTotal: subtotal,
-        invoiceNumber: invoice.belgeNumarasi,
         items: items.map((item, index) => ({ ...item, id: String(index) })),
         language,
         note,
+        qrValue: readQRValue(html),
         recipient: { ...recipient, id: '' },
         settings,
         total: subtotal + vat,

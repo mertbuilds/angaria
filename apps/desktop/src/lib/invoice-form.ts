@@ -86,6 +86,16 @@ export function invoiceTotals(items: ReadonlyArray<InvoiceItem>) {
   return { discount, gross, net, total: net + vat, vat };
 }
 
+/** VAT per rate (0% included when a row has it), highest rate first. */
+export function vatByRate(items: ReadonlyArray<InvoiceItem>) {
+  const byRate = new Map<number, number>();
+  for (const item of items) {
+    const rate = finite(item.VATRate);
+    byRate.set(rate, (byRate.get(rate) ?? 0) + lineTotals(item).vat);
+  }
+  return [...byRate].map(([rate, vat]) => ({ rate, vat })).toSorted((a, b) => b.rate - a.rate);
+}
+
 /** Ödenecek tutar: the typed amount, or the invoice total when it is empty. */
 export function paymentTotal(values: InvoiceFormValues, total: number) {
   const typed = values.advancedFields.paymentTotal.trim();
@@ -274,8 +284,8 @@ export function unparsableItemFields(items: ReadonlyArray<InvoiceItem>) {
 }
 
 /**
- * The PDF of the form as it is; `invoiceNumber` and `date` once GİB assigned
- * them. Unparsable numbers print as 0: check unparsableItemFields first.
+ * The PDF of the form as it is; `gibNumber`, `ettn` and `date` once GİB
+ * assigned them. Unparsable numbers print as 0: check unparsableItemFields first.
  */
 export function toPDFData(
   values: InvoiceFormValues,
@@ -283,14 +293,16 @@ export function toPDFData(
     company,
     date,
     entityName,
-    invoiceNumber,
+    ettn,
+    gibNumber,
     language,
     now = new Date(),
   }: {
     company: CompanyInfo;
     date?: string;
     entityName: string;
-    invoiceNumber?: string;
+    ettn?: string;
+    gibNumber?: string;
     language: PDFLanguage;
     now?: Date;
   },
@@ -300,8 +312,9 @@ export function toPDFData(
     company,
     date: date || values.advancedFields.manualDate || toGIB(now),
     entityName,
+    ettn,
+    gibNumber,
     grandTotal: totals.net,
-    invoiceNumber,
     items: cleanItems(values.items),
     language,
     note: values.note,

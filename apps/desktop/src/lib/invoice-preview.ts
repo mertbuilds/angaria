@@ -32,6 +32,12 @@ function decodeEntities(text: string) {
   });
 }
 
+/** The text GİB's QR code encodes (the #qrvalue JSON), or undefined without one. */
+export function readQRValue(html: string): string | undefined {
+  const value = QR_VALUE.exec(html)?.[1];
+  return value?.trim() ? decodeEntities(value) : undefined;
+}
+
 /**
  * GİB's preview HTML with its QR code drawn as an SVG image (220px, error
  * correction H, as GİB draws it) and without scripts. HTML without a QR value
@@ -39,11 +45,11 @@ function decodeEntities(text: string) {
  */
 export function withQRCode(html: string): string {
   const withoutScripts = html.replaceAll(SCRIPT, '');
-  const value = QR_VALUE.exec(withoutScripts)?.[1];
-  if (!value?.trim()) {
+  const value = readQRValue(withoutScripts);
+  if (!value) {
     return withoutScripts;
   }
-  const svg = renderSVG(decodeEntities(value), { border: 0, ecc: 'H' });
+  const svg = renderSVG(value, { border: 0, ecc: 'H' });
   const image = `<img alt="Karekod" height="220" width="220" src="data:image/svg+xml;base64,${btoa(svg)}">`;
   return withoutScripts.replace(
     QR_TARGET,

@@ -748,7 +748,8 @@ export function CreateInvoicePage() {
       company: companyInfo,
       date: created?.date,
       entityName: activeEntity.name,
-      invoiceNumber: created?.number,
+      ettn: created?.uuid || undefined,
+      gibNumber: created?.number,
       language: pdfLanguage,
     });
     // react-pdf is large, so it loads with the first PDF.

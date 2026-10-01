@@ -4,7 +4,13 @@ import { useRef, type KeyboardEvent } from 'react';
 import { PDF_LANGUAGES } from '@/lib/invoice-pdf-i18n.ts';
 import type { PDFLanguage } from '@/lib/types.ts';
 
-const LABELS: Record<PDFLanguage, string> = { en: 'İngilizce', tr: 'Türkçe' };
+const LABELS: Record<PDFLanguage, string> = {
+  both: 'Türkçe ve İngilizce',
+  en: 'İngilizce',
+  tr: 'Türkçe',
+};
+
+const SHORT: Record<PDFLanguage, string> = { both: 'TR+EN', en: 'EN', tr: 'TR' };
 
 const styles = create({
   option: {
@@ -55,7 +61,7 @@ const styles = create({
 });
 
 /**
- * TR/EN segmented control for an invoice's PDF language. A radio group: Tab
+ * TR/EN/TR+EN segmented control for an invoice's PDF language. A radio group: Tab
  * reaches the chosen language, the arrow keys move the choice.
  */
 export function PDFLanguageToggle({
@@ -111,7 +117,7 @@ export function PDFLanguageToggle({
           type="button"
           {...props(styles.option, value === language && styles.selected)}
         >
-          {language.toUpperCase()}
+          {SHORT[language]}
         </button>
       ))}
     </div>
