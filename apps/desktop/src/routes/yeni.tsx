@@ -15,8 +15,8 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ChevronDownIcon, LoaderCircleIcon, RepeatIcon, XIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useRef } from 'react';
-import { getInvoiceDetail, login, logout } from '@/lib/angaria.ts';
 import { customerName } from '@/lib/customer.ts';
+import { invoiceDetailQuery, useGIBAccount } from '@/lib/gib.ts';
 import { isBlankForm } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
 import { CreateInvoicePage } from '@/pages/create-invoice.tsx';
@@ -151,15 +151,9 @@ function useFormSource() {
   const { kaynak, sablon } = Route.useSearch();
   const navigate = Route.useNavigate();
   const requireCredentials = useRequireCredentials();
-  const {
-    activeEntityId,
-    getCredentials,
-    hasCredentials,
-    invoiceSource,
-    loadFromGIBInvoice,
-    loadTemplate,
-    restoreInvoiceDraft,
-  } = useStore();
+  const { hasCredentials, invoiceSource, loadFromGIBInvoice, loadTemplate, restoreInvoiceDraft } =
+    useStore();
+  const account = useGIBAccount();
   const stored = useStoredInvoiceForm();
   // Toast options with an undo that puts back the form a load is about to
   // replace, or none when it is blank.
@@ -172,20 +166,11 @@ function useFormSource() {
   });
   const appliedTemplate = useRef<string | null>(null);
 
+  // Shares the Faturalar screen's cache: an invoice opened there loads at once.
   const source = useQuery({
+    ...invoiceDetailQuery(account, kaynak ?? ''),
     enabled: Boolean(kaynak) && hasCredentials,
-    gcTime: 0,
     meta: { onError: true },
-    queryFn: async () => {
-      const { password, testMode, username } = await getCredentials(activeEntityId);
-      const session = await login(username, password, testMode);
-      try {
-        return await getInvoiceDetail(session, kaynak ?? '');
-      } finally {
-        logout(session).catch(() => {});
-      }
-    },
-    queryKey: ['invoice-detail', activeEntityId, kaynak],
   });
 
   useEffect(() => {

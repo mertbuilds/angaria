@@ -33,18 +33,18 @@ import { useStore } from '@/lib/store.tsx';
 import type { InvoiceItem, InvoiceTemplate } from '@/lib/types.ts';
 import { ListDetail } from '@/shell/list-detail.tsx';
 import { Screen } from '@/shell/screen.tsx';
-import { useAppActions } from '@/shell/use-app-actions.ts';
 import {
   EmptyState,
   formatMoney,
   formatNumber,
   invoiceTypeLabel,
   matchesQuery,
-  TemplateList,
+  SearchableList,
   unitLabel,
   useDialogTarget,
   useListSelection,
-} from './template-list.tsx';
+} from '@/shell/searchable-list.tsx';
+import { useAppActions } from '@/shell/use-app-actions.ts';
 
 const styles = create({
   actions: {
@@ -403,7 +403,7 @@ export function InvoiceTemplatesPage({ tabs }: { tabs: ReactNode }) {
             )
           }
           list={
-            <TemplateList
+            <SearchableList
               label="Fatura şablonları"
               onDelete={deleting.show}
               onOpen={issue}

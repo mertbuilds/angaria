@@ -1,4 +1,4 @@
-import type { Invoice } from '@/pages/invoices.tsx';
+import type { Invoice } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
 
 /** First and last day of the month before `now`, as GİB dates (dd/MM/yyyy). */

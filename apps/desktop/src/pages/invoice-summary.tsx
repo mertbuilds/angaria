@@ -8,17 +8,14 @@ import {
   FilePlusIcon,
   LoaderCircleIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
 import { invoiceTotals, paymentTotal } from '@/lib/invoice-form.ts';
 import type { InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
-import { formatMoney, formatNumber } from './template-list.tsx';
+import { formatMoney, formatNumber } from '@/shell/searchable-list.tsx';
+import { InvoiceFrame } from './invoice-detail.tsx';
 import type { InvoiceForm } from './use-invoice-form.ts';
-
-/** GİB's invoice HTML is laid out for an A4 page about this wide (and high, 800 × √2). */
-const PAGE_WIDTH = 800;
-const PAGE_HEIGHT = 1131;
 
 const isMac = navigator.userAgent.includes('Mac');
 
@@ -115,16 +112,12 @@ const styles = create({
     },
     animationTimingFunction: 'linear',
   },
+  // The top of the page: seller, recipient and the first rows.
   thumbFrame: {
-    backgroundColor: '#ffffff',
-    borderWidth: 0,
-    height: `${PAGE_HEIGHT}px`,
-    left: 0,
+    aspectRatio: '4 / 3',
+    flex: 'none',
+    minHeight: 0,
     pointerEvents: 'none',
-    position: 'absolute',
-    top: 0,
-    transformOrigin: '0 0',
-    width: `${PAGE_WIDTH}px`,
   },
   thumbOpen: {
     backgroundColor: 'transparent',
@@ -140,13 +133,7 @@ const styles = create({
     padding: 0,
     position: 'absolute',
   },
-  thumbScale: (scale: number) => ({
-    transform: `scale(${scale})`,
-  }),
-  // The top of the page: seller, recipient and the first rows.
   thumbnail: {
-    aspectRatio: '4 / 3',
-    backgroundColor: '#ffffff',
     borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',
@@ -329,33 +316,11 @@ export function SummaryPanel({
   );
 }
 
-/** The first page of GİB's rendering, scaled to the column. */
+/** The top of GİB's rendering, scaled to the column; a click opens the invoice. */
 function InvoiceThumbnail({ html, onOpen }: { html: string; onOpen: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.4);
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) {
-      return;
-    }
-    const observer = new ResizeObserver(([entry]) =>
-      setScale(entry.contentRect.width / PAGE_WIDTH),
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <div ref={ref} {...props(styles.thumbnail)}>
-      {/* sandbox="": GİB's HTML renders with no scripts, forms or access to the app. */}
-      <iframe
-        sandbox=""
-        srcDoc={html}
-        tabIndex={-1}
-        title="Fatura önizleme"
-        {...props(styles.thumbFrame, styles.thumbScale(scale))}
-      />
+    <div {...props(styles.thumbnail)}>
+      <InvoiceFrame html={html} style={styles.thumbFrame} />
       <button
         aria-label="Faturayı aç"
         onClick={onOpen}

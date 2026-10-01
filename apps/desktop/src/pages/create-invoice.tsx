@@ -25,16 +25,10 @@ import { useNavigate } from '@tanstack/react-router';
 import { ChevronRightIcon, UserPlusIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 import { downloadInvoicePDF } from '@/components/invoice-pdf.tsx';
-import {
-  createDraftInvoice,
-  fetchTCMBRateTable,
-  getDrafts,
-  getInvoiceHTML,
-  login,
-  logout,
-} from '@/lib/angaria.ts';
+import { createDraftInvoice, fetchTCMBRateTable, getDrafts } from '@/lib/angaria.ts';
 import { customerName, nameError, taxIDError } from '@/lib/customer.ts';
 import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
+import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
 import {
   cleanItems,
   CURRENCY_OPTIONS,
@@ -50,15 +44,13 @@ import {
 } from '@/lib/invoice-form.ts';
 import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
 import { useStore } from '@/lib/store.tsx';
-import type { InvoiceFormValues, PDFLanguage, Recipient } from '@/lib/types.ts';
+import type { Invoice, InvoiceFormValues, PDFLanguage, Recipient } from '@/lib/types.ts';
 import { formatDateHuman, parseGIB, toGIB } from '@/lib/utils.ts';
-import type { Invoice } from '@/pages/invoices.tsx';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
-import { invoiceHtmlKey, usePreviewTabs } from '@/shell/preview-tabs.tsx';
+import { invoiceTypeLabel, matchesQuery } from '@/shell/searchable-list.tsx';
 import { shell } from '../shell/shell.stylex.ts';
 import { InvoiceItems } from './invoice-items.tsx';
 import { SuccessPanel, SummaryPanel, type CreatedDraft } from './invoice-summary.tsx';
-import { invoiceTypeLabel, matchesQuery } from './template-list.tsx';
 import {
   useClearInvoiceForm,
   useInvoiceForm,
@@ -566,9 +558,7 @@ function revealFirstError(root: HTMLElement | null) {
 export function CreateInvoicePage() {
   const {
     activeEntity,
-    activeEntityId,
     companyInfo,
-    getCredentials,
     invoiceSource,
     invoiceTemplates,
     newId,
@@ -586,7 +576,7 @@ export function CreateInvoicePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const requireCredentials = useRequireCredentials();
-  const { openPreview } = usePreviewTabs();
+  const account = useGIBAccount();
   const clearForm = useClearInvoiceForm();
   const stored = useStoredInvoiceForm();
   const [defaultValues] = useState(stored);
@@ -600,30 +590,30 @@ export function CreateInvoicePage() {
 
   const createDraft = useMutation({
     mutationFn: async (values: InvoiceFormValues) => {
-      const { password, testMode, username } = await getCredentials(activeEntity.id);
-      const session = await login(username, password, testMode);
-      try {
+      const draft = await gib.run(account, async (session): Promise<CreatedDraft> => {
         const result = await createDraftInvoice(session, toDraftDetails(values));
-        const draft: CreatedDraft = { date: result.date, uuid: result.uuid };
-        if (result.uuid) {
-          // Both are extras: the draft exists either way.
-          draft.html = await getInvoiceHTML(session, result.uuid, 'Onaylanmadı').catch(
-            () => undefined,
-          );
-          const drafts = (await getDrafts(session, result.date, result.date).catch(
-            () => [],
-          )) as Array<Invoice>;
-          draft.number = drafts.find((row) => row.ettn === result.uuid)?.belgeNumarasi;
+        if (!result.uuid) {
+          return { date: result.date, uuid: '' };
         }
-        return { draft, values };
-      } finally {
-        logout(session).catch(() => {});
+        // The number is an extra: the draft exists either way.
+        const drafts = (await getDrafts(session, result.date, result.date).catch(
+          () => [],
+        )) as Array<Invoice>;
+        const number = drafts.find((row) => row.ettn === result.uuid)?.belgeNumarasi;
+        return { date: result.date, number, uuid: result.uuid };
+      });
+      if (draft.uuid) {
+        // Cached for the invoice screen too. Optional: without it the draft
+        // still exists, only unverified.
+        draft.html = await queryClient
+          .fetchQuery(invoiceHTMLQuery(account, draft.uuid, 'Onaylanmadı'))
+          .catch(() => undefined);
       }
+      return { draft, values };
     },
     onSuccess: ({ draft, values }) => {
       if (draft.html) {
         toast.success('Taslak fatura oluşturuldu');
-        queryClient.setQueryData(invoiceHtmlKey(activeEntityId, draft.uuid), draft.html);
       } else {
         toast.warning(
           'Taslak fatura oluşturuldu ama GİB’den doğrulanamadı. Faturalar listesinden kontrol edin.',
@@ -632,7 +622,7 @@ export function CreateInvoicePage() {
 
       // Make the new draft visible in the invoices list: refetch it and
       // widen the date range to cover the invoice date if needed.
-      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
       const createdDate = parseGIB(draft.date);
       if (createdDate) {
         setInvoiceDateRange((prev) => {
@@ -791,14 +781,7 @@ export function CreateInvoicePage() {
       void navigate({ to: '/faturalar' });
       return;
     }
-    const { draft } = success;
-    void openPreview({
-      aliciUnvanAdSoyad: customerName(success.values.recipient),
-      belgeNumarasi: draft.number,
-      belgeTarihi: draft.date,
-      ettn: draft.uuid,
-      onayDurumu: 'Onaylanmadı',
-    });
+    void navigate({ params: { ettn: success.draft.uuid }, to: '/faturalar/$ettn' });
   };
 
   const submitShortcut = useEffectEvent((event: KeyboardEvent) => {

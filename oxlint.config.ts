@@ -58,7 +58,6 @@ export default defineConfig({
       files: [
         'apps/desktop/src/components/ui/**',
         'apps/desktop/src/lib/store.tsx',
-        'apps/desktop/src/pages/invoices.tsx',
         'apps/desktop/src/pages/settings.tsx',
       ],
       rules: {

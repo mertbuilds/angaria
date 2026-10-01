@@ -8,7 +8,7 @@ import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
 import { discountForRate, lineTotals } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceItem } from '@/lib/types.ts';
-import { formatMoney } from './template-list.tsx';
+import { formatMoney } from '@/shell/searchable-list.tsx';
 import type { InvoiceForm } from './use-invoice-form.ts';
 
 const styles = create({

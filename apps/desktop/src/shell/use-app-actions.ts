@@ -2,9 +2,9 @@ import { toast } from '@angaria/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
+import { cachedInvoices, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
 import { lastMonthInvoice, previousMonthRange } from '@/lib/reissue.ts';
 import { useStore } from '@/lib/store.tsx';
-import type { Invoice } from '@/pages/invoices.tsx';
 import { useRequireCredentials } from './credentials-guard.tsx';
 import type { SectionPath } from './nav.ts';
 
@@ -13,7 +13,8 @@ export function useAppActions() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const requireCredentials = useRequireCredentials();
-  const { creds, resetInvoiceForm, setInvoiceDateRange } = useStore();
+  const account = useGIBAccount();
+  const { resetInvoiceForm } = useStore();
 
   /** A blank invoice form, like the sidebar's Yeni fatura. */
   const newInvoice = useCallback(() => {
@@ -34,35 +35,41 @@ export function useAppActions() {
 
   /**
    * Loads last month's newest invoice into the form (/yeni?kaynak=). The
-   * invoice lists already fetched this session are searched first; when none
-   * covers last month, the list opens on last month so the user can pick one.
+   * invoice lists already fetched this session are searched first, then last
+   * month is fetched from GİB. Without one, the list opens to pick another.
    */
   const reissueLastMonth = useCallback(() => {
-    const cached = queryClient
-      .getQueriesData<Array<Invoice>>({ queryKey: ['invoices', creds.username, creds.testMode] })
-      .flatMap(([, invoices]) => invoices ?? []);
     const now = new Date();
-    const source = lastMonthInvoice(cached, now);
-    if (source?.ettn) {
-      void navigate({ search: { kaynak: source.ettn }, to: '/yeni' });
+    const reissue = (ettn: string) => void navigate({ search: { kaynak: ettn }, to: '/yeni' });
+    const cached = lastMonthInvoice(cachedInvoices(queryClient, account), now);
+    if (cached?.ettn) {
+      reissue(cached.ettn);
       return;
     }
     if (!requireCredentials()) {
       return;
     }
-    setInvoiceDateRange(previousMonthRange(now));
-    void navigate({ to: '/faturalar' });
-    toast('Geçen ayın faturaları listeleniyor', {
-      description: 'Tekrar kesmek istediğiniz faturanın menüsünden Şablon olarak kullan seçin.',
-    });
-  }, [
-    creds.testMode,
-    creds.username,
-    navigate,
-    queryClient,
-    requireCredentials,
-    setInvoiceDateRange,
-  ]);
+    const range = previousMonthRange(now);
+    const toastId = toast.loading('Geçen ayın faturaları GİB’den alınıyor...');
+    void queryClient.fetchQuery(invoiceListQuery(account, range)).then(
+      (invoices) => {
+        const source = lastMonthInvoice(invoices, now);
+        if (source?.ettn) {
+          toast.dismiss(toastId);
+          reissue(source.ettn);
+          return;
+        }
+        void navigate({ to: '/faturalar' });
+        toast('Geçen ay kesilmiş fatura yok', {
+          description: 'Tekrar kesmek istediğiniz faturayı listeden açıp Tekrar kes deyin.',
+          id: toastId,
+        });
+      },
+      (error: unknown) => {
+        toast.error(error instanceof Error ? error.message : 'Bilinmeyen hata', { id: toastId });
+      },
+    );
+  }, [account, navigate, queryClient, requireCredentials]);
 
   return { goTo, newInvoice, reissueLastMonth };
 }

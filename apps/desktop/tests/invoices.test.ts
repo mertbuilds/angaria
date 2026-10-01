@@ -1,0 +1,147 @@
+import { describe, expect, test } from 'vitest';
+import {
+  invoiceStatus,
+  matchesStatus,
+  newestFirst,
+  parseGIBInvoice,
+  presetRange,
+  rangePreset,
+} from '../src/lib/invoices.ts';
+
+const now = new Date(2026, 9, 15, 12);
+
+describe('presetRange', () => {
+  test('Bu ay runs from the first of the month to today', () => {
+    expect(presetRange('bu-ay', now)).toEqual({ end: '15/10/2026', start: '01/10/2026' });
+  });
+
+  test('Geçen ay is the whole previous month', () => {
+    expect(presetRange('gecen-ay', now)).toEqual({ end: '30/09/2026', start: '01/09/2026' });
+  });
+
+  test('Son 3 ay ends today and starts the day after the same date three months back', () => {
+    expect(presetRange('son-3-ay', now)).toEqual({ end: '15/10/2026', start: '16/07/2026' });
+    expect(presetRange('son-3-ay', new Date(2026, 1, 10))).toEqual({
+      end: '10/02/2026',
+      start: '11/11/2025',
+    });
+  });
+});
+
+describe('rangePreset', () => {
+  test('recognizes the presets and calls anything else custom', () => {
+    expect(rangePreset({ end: '15/10/2026', start: '01/10/2026' }, now)).toBe('bu-ay');
+    expect(rangePreset({ end: '30/09/2026', start: '01/09/2026' }, now)).toBe('gecen-ay');
+    expect(rangePreset({ end: '15/10/2026', start: '16/07/2026' }, now)).toBe('son-3-ay');
+    expect(rangePreset({ end: '14/10/2026', start: '01/10/2026' }, now)).toBeNull();
+  });
+});
+
+describe('invoiceStatus', () => {
+  test('maps GİB statuses to filters, labels and badge variants', () => {
+    expect(invoiceStatus('Onaylanmadı')).toEqual({
+      filter: 'onaylanmadi',
+      label: 'Onaylanmadı',
+      variant: 'outline',
+    });
+    expect(invoiceStatus('Onaylandı')).toEqual({
+      filter: 'onaylandi',
+      label: 'Onaylandı',
+      variant: 'default',
+    });
+    expect(invoiceStatus('Silinmiş')).toEqual({
+      filter: 'iptal',
+      label: 'Silindi',
+      variant: 'destructive',
+    });
+    expect(invoiceStatus('İptal Edildi').filter).toBe('iptal');
+  });
+
+  test('filters by status, Tümü keeps everything', () => {
+    const signed = { onayDurumu: 'Onaylandı' };
+    const deleted = { onayDurumu: 'Silinmiş' };
+    expect(matchesStatus(signed, 'tumu')).toBe(true);
+    expect(matchesStatus(signed, 'onaylandi')).toBe(true);
+    expect(matchesStatus(signed, 'onaylanmadi')).toBe(false);
+    expect(matchesStatus(deleted, 'iptal')).toBe(true);
+  });
+});
+
+test('newestFirst orders by date, then by document number', () => {
+  const sorted = newestFirst([
+    { belgeNumarasi: 'GIB2026000000001', belgeTarihi: '01-09-2026', ettn: 'a' },
+    { belgeNumarasi: 'GIB2026000000003', belgeTarihi: '30-09-2026', ettn: 'b' },
+    { belgeNumarasi: 'GIB2026000000004', belgeTarihi: '30-09-2026', ettn: 'c' },
+  ]);
+  expect(sorted.map((invoice) => invoice.ettn)).toEqual(['c', 'b', 'a']);
+});
+
+describe('parseGIBInvoice', () => {
+  const detail = {
+    aliciAdi: 'Ahmet',
+    aliciSoyadi: 'Yılmaz',
+    aliciUnvan: 'ÖRNEK TEKNOLOJİ A.Ş.',
+    bulvarcaddesokak: 'Bağdat Cad. No:123',
+    dovzTLkur: 0,
+    faturaTipi: 'SATIS',
+    mahalleSemtIlce: 'Kadıköy',
+    malHizmetTable: [
+      {
+        birim: 'C62',
+        birimFiyat: 300,
+        iskontoOrani: 0,
+        iskontoTutari: 100,
+        kdvOrani: 20,
+        malHizmet: 'Danışmanlık',
+        miktar: 10,
+      },
+    ],
+    not: 'Ekim',
+    odenecekTutar: 3480,
+    paraBirimi: 'USD',
+    sehir: 'İstanbul ',
+    ulke: 'Türkiye',
+    vergiDairesi: 'Kadıköy',
+    vknTckn: '1234567890',
+  };
+
+  test('reads the recipient, settings, items and totals', () => {
+    const invoice = parseGIBInvoice(detail);
+    expect(invoice.recipient).toEqual({
+      city: 'İstanbul',
+      country: 'Türkiye',
+      district: 'Kadıköy',
+      fullAddress: 'Bağdat Cad. No:123',
+      name: 'Ahmet',
+      surname: 'Yılmaz',
+      taxIDOrTRID: '1234567890',
+      taxOffice: 'Kadıköy',
+      title: 'ÖRNEK TEKNOLOJİ A.Ş.',
+    });
+    expect(invoice.settings).toEqual({ currency: 'USD', currencyRate: '', invoiceType: 'SATIS' });
+    expect(invoice.items).toEqual([
+      {
+        discountAmount: 100,
+        discountRate: 0,
+        discountReason: '',
+        gtip: '',
+        name: 'Danışmanlık',
+        quantity: 10,
+        unitPrice: 300,
+        unitType: 'C62',
+        VATRate: 20,
+      },
+    ]);
+    expect(invoice.subtotal).toBe(2900);
+    expect(invoice.vat).toBe(580);
+    expect(invoice.total).toBe(3480);
+    expect(invoice.note).toBe('Ekim');
+  });
+
+  test('falls back to subtotal plus VAT without a payable amount', () => {
+    const { odenecekTutar: _, ...withoutTotal } = detail;
+    expect(parseGIBInvoice(withoutTotal).total).toBe(3480);
+    expect(parseGIBInvoice({}).items).toEqual([]);
+    expect(parseGIBInvoice({ dovzTLkur: '32,5' }).settings.currencyRate).toBe('32,5');
+  });
+});

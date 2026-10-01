@@ -118,3 +118,16 @@ export interface InvoiceTemplate {
   recipient: Recipient;
   settings: InvoiceSettings;
 }
+
+/** A row of GİB's document list (EARSIV_PORTAL_TASLAKLARI_GETIR). */
+export interface Invoice {
+  aliciUnvanAdSoyad?: string;
+  aliciVknTckn?: string;
+  belgeNumarasi?: string;
+  /** dd-MM-yyyy */
+  belgeTarihi?: string;
+  belgeTuru?: string;
+  ettn?: string;
+  /** Onaylanmadı, Onaylandı, Silinmiş */
+  onayDurumu?: string;
+}

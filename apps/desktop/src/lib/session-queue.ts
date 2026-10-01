@@ -1,0 +1,140 @@
+// GİB allows one open session per user: a second login while the first is
+// open fails ("Sisteme aynı anda birden fazla giriş yapamazsınız"). Every GİB
+// call therefore goes through one queue that runs tasks one at a time on a
+// shared session, logs in when the first task arrives and logs out once the
+// queue is empty. No Tauri imports, so tests can inject a fake client.
+
+import type { SessionInfo } from 'angaria-earsiv-sdk';
+import type { Credentials } from './types.ts';
+
+export interface SessionClient {
+  login: (username: string, password: string, testMode: boolean) => Promise<SessionInfo>;
+  logout: (session: SessionInfo) => Promise<void>;
+}
+
+/** Whose session a task needs. Tasks with another key get a fresh login. */
+export interface GIBAccount {
+  /** Read only when the queue has to log in. */
+  credentials: () => Promise<Credentials>;
+  key: string;
+}
+
+export interface RunOptions {
+  /**
+   * Runs after every waiting foreground task, so prefetches (list totals)
+   * never hold up what the user just asked for.
+   */
+  background?: boolean;
+  /** A task still waiting when this aborts is dropped and rejects. */
+  signal?: AbortSignal;
+}
+
+export interface SessionLease {
+  /** Hands the session back. Pass the error that broke it to force a new login. */
+  release: (error?: unknown) => void;
+  session: SessionInfo;
+}
+
+interface Job {
+  account: GIBAccount;
+  background: boolean;
+  reject: (reason: unknown) => void;
+  run: (session: SessionInfo) => Promise<void>;
+  signal?: AbortSignal;
+}
+
+export function createSessionQueue(client: SessionClient) {
+  const jobs: Array<Job> = [];
+  let open: { key: string; session: SessionInfo } | null = null;
+  let draining = false;
+
+  async function close() {
+    const current = open;
+    open = null;
+    if (current) {
+      await client.logout(current.session).catch(() => {});
+    }
+  }
+
+  function take(): Job | undefined {
+    for (const job of jobs.filter((job) => job.signal?.aborted)) {
+      jobs.splice(jobs.indexOf(job), 1);
+      job.reject(job.signal?.reason);
+    }
+    const foreground = jobs.findIndex((job) => !job.background);
+    return jobs.splice(foreground === -1 ? 0 : foreground, 1)[0];
+  }
+
+  async function drain() {
+    if (draining) {
+      return;
+    }
+    draining = true;
+    while (jobs.length > 0) {
+      for (let job = take(); job; job = take()) {
+        try {
+          if (open && open.key !== job.account.key) {
+            await close();
+          }
+          if (!open) {
+            const { password, testMode, username } = await job.account.credentials();
+            open = {
+              key: job.account.key,
+              session: await client.login(username, password, testMode),
+            };
+          }
+          await job.run(open.session);
+        } catch (error) {
+          job.reject(error);
+          // The failure may have ended the session on GİB's side.
+          await close();
+        }
+      }
+      await close();
+    }
+    draining = false;
+  }
+
+  /** Runs `task` with a logged-in session, after the tasks queued before it. */
+  function run<T>(
+    account: GIBAccount,
+    task: (session: SessionInfo) => Promise<T>,
+    { background = false, signal }: RunOptions = {},
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      jobs.push({
+        account,
+        background,
+        reject,
+        run: async (session) => resolve(await task(session)),
+        signal,
+      });
+      void drain();
+    });
+  }
+
+  /**
+   * Holds the session until `release` is called, for flows that span user
+   * input (SMS signing). Other tasks wait meanwhile.
+   */
+  function lease(account: GIBAccount): Promise<SessionLease> {
+    return new Promise<SessionLease>((resolveLease, rejectLease) => {
+      run(
+        account,
+        (session) =>
+          new Promise<void>((done, fail) =>
+            resolveLease({
+              release: (error) => (error === undefined ? done() : fail(error)),
+              session,
+            }),
+          ),
+      ).catch(rejectLease);
+    });
+  }
+
+  return { lease, run };
+}

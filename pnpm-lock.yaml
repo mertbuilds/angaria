@@ -105,6 +105,9 @@ catalogs:
     typescript:
       specifier: ^7.0.2
       version: 7.0.2
+    uqr:
+      specifier: ^0.1.3
+      version: 0.1.3
     vite:
       specifier: ^8.2.2
       version: 8.3.1
@@ -251,6 +254,9 @@ importers:
       tw-animate-css:
         specifier: 'catalog:'
         version: 1.4.0
+      uqr:
+        specifier: 'catalog:'
+        version: 0.1.3
     devDependencies:
       '@stylexjs/unplugin':
         specifier: 'catalog:'
@@ -391,6 +397,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@24.12.0)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.12.13(@types/node@24.12.0)(typescript@7.0.2))(vite@8.3.1(@types/node@24.12.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.8.2))
 
   packages/mcp-server:
     dependencies:
@@ -6248,6 +6257,9 @@ packages:
     hasBin: true
     peerDependencies:
       browserslist: '>= 4.21.0'
+
+  uqr@0.1.3:
+    resolution: {integrity: sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==}
 
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
@@ -12246,6 +12258,8 @@ snapshots:
       browserslist: 4.28.1
       escalade: 3.2.0
       picocolors: 1.1.1
+
+  uqr@0.1.3: {}
 
   uri-js@4.4.1:
     dependencies:

@@ -90,6 +90,9 @@ const styles = create({
     justifyContent: 'space-between',
     minWidth: 0,
   },
+  rowLineCenter: {
+    alignItems: 'center',
+  },
   rowSelected: {
     backgroundColor: {
       ':hover': colors.subtle,
@@ -205,21 +208,26 @@ export function useDialogTarget<T>() {
 }
 
 export interface ListRow {
+  /** End of the subtitle line, e.g. a status badge. */
+  aside?: ReactNode;
   subtitle: string;
   title: string;
-  trailing?: string;
+  trailing?: ReactNode;
 }
 
-export interface TemplateListProps<T extends { id: string }> {
+export interface SearchableListProps<T extends { id: string }> {
   /** Accessible name of the list. */
   label: string;
-  onDelete: (item: T) => void;
-  /** Enter and double click. */
+  /** ⌫ on the selected row; without it the list has no delete key. */
+  onDelete?: (item: T) => void;
+  /** Enter and double click (a single click with `openOnClick`). */
   onOpen: (item: T) => void;
   onQueryChange: (query: string) => void;
   onSelect: (id: string) => void;
   /** Footer hint for Enter, e.g. "fatura kes". */
   openHint: string;
+  /** Open a row on a single click, for details that load on open. */
+  openOnClick?: boolean;
   query: string;
   row: (item: T) => ListRow;
   searchPlaceholder: string;
@@ -233,19 +241,20 @@ export interface TemplateListProps<T extends { id: string }> {
  * opens the selected row, ⌫ asks to delete it (not from the search field), Esc
  * clears the search.
  */
-export function TemplateList<T extends { id: string }>({
+export function SearchableList<T extends { id: string }>({
   label,
   onDelete,
   onOpen,
   onQueryChange,
   onSelect,
   openHint,
+  openOnClick = false,
   query,
   row,
   searchPlaceholder,
   selected,
   visible,
-}: TemplateListProps<T>) {
+}: SearchableListProps<T>) {
   const idPrefix = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -300,7 +309,7 @@ export function TemplateList<T extends { id: string }>({
           break;
         case 'Backspace':
         case 'Delete':
-          if (fromSearch || !selected) {
+          if (fromSearch || !selected || !onDelete) {
             return;
           }
           onDelete(selected);
@@ -341,14 +350,19 @@ export function TemplateList<T extends { id: string }>({
       >
         {visible.length === 0 && <p {...props(styles.noResults)}>Sonuç yok</p>}
         {visible.map((item) => {
-          const { subtitle, title, trailing } = row(item);
+          const { aside, subtitle, title, trailing } = row(item);
           return (
             <div
               aria-selected={item === selected}
               id={optionId(item.id)}
               key={item.id}
-              onClick={() => onSelect(item.id)}
-              onDoubleClick={() => onOpen(item)}
+              onClick={() => {
+                onSelect(item.id);
+                if (openOnClick) {
+                  onOpen(item);
+                }
+              }}
+              onDoubleClick={openOnClick ? undefined : () => onOpen(item)}
               role="option"
               {...props(styles.row, item === selected && styles.rowSelected)}
             >
@@ -356,7 +370,14 @@ export function TemplateList<T extends { id: string }>({
                 <span {...props(styles.rowTitle)}>{title}</span>
                 {trailing && <span {...props(styles.rowTrailing)}>{trailing}</span>}
               </div>
-              <span {...props(styles.rowSubtitle)}>{subtitle}</span>
+              {aside ? (
+                <div {...props(styles.rowLine, styles.rowLineCenter)}>
+                  <span {...props(styles.rowSubtitle)}>{subtitle}</span>
+                  {aside}
+                </div>
+              ) : (
+                <span {...props(styles.rowSubtitle)}>{subtitle}</span>
+              )}
             </div>
           );
         })}
@@ -371,10 +392,12 @@ export function TemplateList<T extends { id: string }>({
           <Kbd>↵</Kbd>
           {openHint}
         </span>
-        <span {...props(styles.hint)}>
-          <Kbd>⌫</Kbd>
-          sil
-        </span>
+        {onDelete && (
+          <span {...props(styles.hint)}>
+            <Kbd>⌫</Kbd>
+            sil
+          </span>
+        )}
       </div>
     </div>
   );
