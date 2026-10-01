@@ -186,7 +186,7 @@ function makeBlankItem(): InvoiceItem {
 }
 
 function makeEntityName(index: number) {
-  return index === 0 ? 'Ana Varlık' : `Varlık ${index + 1}`;
+  return index === 0 ? 'Ana şirket' : `Şirket ${index + 1}`;
 }
 
 function makeDefaultEntity(index: number, seedData = true): Entity {
@@ -439,7 +439,7 @@ function LoadedStoreProvider({
         void passwords
           .delete(id)
           .catch(() =>
-            toast.warning("Silinen varlığın GİB şifresi Anahtar Zinciri'nden kaldırılamadı."),
+            toast.warning("Silinen şirketin GİB şifresi Anahtar Zinciri'nden kaldırılamadı."),
           );
       }
       setEntities((prev) => {
@@ -473,7 +473,7 @@ function LoadedStoreProvider({
   const getCredentials = useCallback(async (entityId: string): Promise<Credentials> => {
     const entity = entitiesRef.current.find((e) => e.id === entityId);
     if (!entity) {
-      throw new Error('Varlık bulunamadı');
+      throw new Error('Şirket bulunamadı');
     }
     const { password: plaintext, ...creds } = entity.creds;
     let password: string | null = null;
