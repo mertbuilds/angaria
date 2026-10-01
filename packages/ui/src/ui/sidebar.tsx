@@ -73,7 +73,7 @@ const styles = create({
     borderRadius: radius.md,
     borderWidth: 0,
     boxShadow: {
-      ':focus-visible': `0 0 0 2px ${colors.sidebarRing}`,
+      ':focus-visible': `0 0 0 1px ${colors.sidebarRing}`,
       default: null,
     },
     boxSizing: 'border-box',

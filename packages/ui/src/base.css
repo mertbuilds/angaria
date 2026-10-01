@@ -16,4 +16,29 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /* One quiet focus ring: 1px in the ring color, keyboard focus only. StyleX
+     controls draw the same ring as a box-shadow and set outline: none. */
+  :where(a, button, [tabindex]):focus {
+    outline: none;
+  }
+
+  :where(a, button, [tabindex]):focus-visible {
+    outline: 1px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* The same ring on toasts. Sonner appends unlayered CSS with its own 2px black
+   focus shadows, so these rules stay unlayered and one attribute more specific
+   than sonner's. */
+[data-sonner-toaster] [data-sonner-toast]:focus-visible {
+  outline: 1px solid var(--ring);
+  outline-offset: 2px;
+}
+
+[data-sonner-toaster]
+  [data-sonner-toast][data-styled]
+  :is([data-button], [data-close-button]):focus-visible {
+  box-shadow: 0 0 0 1px var(--ring);
 }

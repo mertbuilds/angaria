@@ -45,7 +45,7 @@ const styles = create({
   viewport: {
     borderRadius: 'inherit',
     boxShadow: {
-      ':focus-visible': `0 0 0 3px color-mix(in oklab, ${colors.ring} 50%, transparent)`,
+      ':focus-visible': `0 0 0 1px ${colors.ring}`,
       default: 'none',
     },
     height: '100%',

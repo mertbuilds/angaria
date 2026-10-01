@@ -82,7 +82,7 @@ const styles = create({
     height: '1.25rem',
     justifyContent: 'center',
     outline: {
-      ':focus-visible': `2px solid ${colors.muted}`,
+      ':focus-visible': `1px solid ${colors.muted}`,
       default: 'none',
     },
     padding: 0,
