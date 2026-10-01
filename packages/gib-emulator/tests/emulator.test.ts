@@ -462,15 +462,18 @@ describe('chaos', () => {
 
 describe('TCMB', () => {
   let tcmb: RunningEmulator;
+  let afternoon: RunningEmulator;
 
   beforeAll(async () => {
-    // Wednesday 30 September 2026, 12:00 in Istanbul.
+    // Wednesday 30 September 2026, 12:00 and 16:00 in Istanbul. TCMB publishes
+    // the day's bulletin at 15:30.
     tcmb = await startEmulator({ now: () => Date.UTC(2026, 8, 30, 9) });
+    afternoon = await startEmulator({ now: () => Date.UTC(2026, 8, 30, 13) });
   });
 
-  afterAll(() => tcmb.close());
+  afterAll(() => Promise.all([tcmb.close(), afternoon.close()]));
 
-  const get = (path: string) => fetch(`${tcmb.url}/kurlar/${path}`);
+  const get = (path: string, base = tcmb.url) => fetch(`${base}/kurlar/${path}`);
 
   test('serves a bulletin in the TCMB schema, the same every time', async () => {
     const response = await get('202609/29092026.xml');
@@ -484,17 +487,54 @@ describe('TCMB', () => {
     expect(await (await get('202609/29092026.xml')).text()).toBe(xml);
   });
 
-  test('has no bulletin on weekends, holidays, future days or under the wrong month', async () => {
+  test('lists the currencies of the 2026 feed', async () => {
+    const xml = await (await get('202609/29092026.xml')).text();
+    expect([...xml.matchAll(/CurrencyCode="(\w+)"/g)].map((match) => match[1])).toEqual([
+      'USD',
+      'AUD',
+      'DKK',
+      'EUR',
+      'GBP',
+      'CHF',
+      'SEK',
+      'CAD',
+      'KWD',
+      'NOK',
+      'SAR',
+      'JPY',
+      'RON',
+      'RUB',
+      'CNY',
+      'PKR',
+      'QAR',
+      'KRW',
+      'AZN',
+      'AED',
+      'KZT',
+      'XDR',
+    ]);
+    expect(xml).toMatch(
+      /CurrencyCode="XDR">[\s\S]*?<ForexBuying>\d+\.\d{4}<\/ForexBuying>\s*<ForexSelling\/>/,
+    );
+  });
+
+  test('has no bulletin on weekends, holidays, half days, future days or under the wrong month', async () => {
     expect((await get('202609/27092026.xml')).status).toBe(404);
     expect((await get('202510/29102025.xml')).status).toBe(404);
+    expect((await get('202510/28102025.xml')).status).toBe(404);
+    expect((await get('202603/19032026.xml')).status).toBe(404);
     expect((await get('202605/27052026.xml')).status).toBe(404);
     expect((await get('202610/01102026.xml')).status).toBe(404);
     expect((await get('202608/29092026.xml')).status).toBe(404);
-    expect((await get('202609/30092026.xml')).status).toBe(200);
+    expect((await get('202509/29092025.xml')).status).toBe(200);
   });
 
-  test('today.xml is the latest bulletin', async () => {
-    expect(await (await get('today.xml')).text()).toContain('Tarih="30.09.2026"');
+  test("today's bulletin appears at 15:30", async () => {
+    expect((await get('202609/30092026.xml')).status).toBe(404);
+    expect(await (await get('today.xml')).text()).toContain('Tarih="29.09.2026"');
+
+    expect((await get('202609/30092026.xml', afternoon.url)).status).toBe(200);
+    expect(await (await get('today.xml', afternoon.url)).text()).toContain('Tarih="30.09.2026"');
   });
 });
 
