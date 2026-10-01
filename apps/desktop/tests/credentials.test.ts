@@ -93,7 +93,7 @@ describe('migrateCredentials', () => {
 
     const result = await migrateCredentials(storage, secrets);
 
-    expect(result).toEqual({ failed: 1, migrated: 1 });
+    expect(result).toEqual({ error: new Error('keychain unavailable'), failed: 1, migrated: 1 });
     expect(items.has(passwordKey('a'))).toBe(false);
     expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
       entity('a', { password: 'secret-a', testMode: true, username: 'user-a' }),

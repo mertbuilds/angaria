@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { SecretStore } from './credentials.ts';
+import { reportKeychainError } from './keychain-error.ts';
 import { clearLicense, loadLicense, saveLicense } from './license-vault.ts';
 import { watchLicense } from './license-watch.ts';
 import {
@@ -81,8 +82,8 @@ async function checkLicense(): Promise<LicenseSnapshot> {
     const next = resolveLicense(stored, outcome, Date.now());
     await saveLicense(secrets, next.license);
     return { error: null, ...next };
-  } catch {
-    return unlicensed(KEYCHAIN_ERROR);
+  } catch (error) {
+    return unlicensed(reportKeychainError(KEYCHAIN_ERROR, error));
   }
 }
 
@@ -95,8 +96,8 @@ async function refreshSnapshot(snapshot: LicenseSnapshot): Promise<LicenseSnapsh
   const next = refreshLicense(license, status, Date.now());
   try {
     await saveLicense(secrets, next.license);
-  } catch {
-    return unlicensed(KEYCHAIN_ERROR);
+  } catch (error) {
+    return unlicensed(reportKeychainError(KEYCHAIN_ERROR, error));
   }
   return { error: null, ...next };
 }
@@ -151,9 +152,12 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
         const license = activatedLicense(key, result.activationId, result.details, Date.now());
         try {
           await saveLicense(secrets, license);
-        } catch {
+        } catch (error) {
           await polar.deactivate(key, result.activationId);
-          throw new Error('Lisans anahtarı sistem anahtar zincirine kaydedilemedi.');
+          throw new Error(
+            reportKeychainError('Lisans anahtarı sistem anahtar zincirine kaydedilemedi.', error),
+            { cause: error },
+          );
         }
         update({ error: null, license, status: { kind: 'valid' } });
       }),

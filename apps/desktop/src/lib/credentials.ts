@@ -15,6 +15,8 @@ export interface SecretStore {
 export type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
 export interface MigrationResult {
+  /** The keychain error of the last failed write */
+  error?: unknown;
   failed: number;
   migrated: number;
 }
@@ -59,7 +61,8 @@ export async function migrateCredentials(
       if (typeof password === 'string' && password !== '') {
         try {
           await secrets.set(passwordKey(entity.id), password);
-        } catch {
+        } catch (error) {
+          result.error = error;
           result.failed++;
           continue;
         }
