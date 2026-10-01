@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="tr">
+<!-- data-theme="light" pins the pre-relaunch screens to light, the only theme
+     they have. Remove it once the screens move to @angaria/ui. -->
+<html lang="tr" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +9,10 @@
     <script type="module">
       if (import.meta.env.DEV) {
         import('react-grab');
+        // /?ui-gallery opens the component gallery (dev only).
+        if (new URLSearchParams(location.search).has('ui-gallery')) {
+          location.replace('/ui-gallery.html');
+        }
       }
     </script>
   </head>

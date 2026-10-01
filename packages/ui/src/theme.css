@@ -1,0 +1,174 @@
+/*
+ * shadcn-style CSS variables consumed by src/lib/tokens.stylex.ts (components)
+ * and src/tokens.stylex.ts (app layout). The single source of the color values.
+ * Black/white system: pure black-on-white, grays only for borders, muted text
+ * and subtle fills. The only chroma: destructive red and warning amber.
+ * Radius: 8px surfaces (cards, dialogs, popovers); pill controls use
+ * radius.full.
+ *
+ * Theme has three states. `data-theme` absent = follow the system; `light` or
+ * `dark` on <html> forces one. The same attribute on any element themes just
+ * that subtree (portaled popups still follow <html>). The light values are on
+ * `:root` and `[data-theme='light']`; the dark values are written twice, once
+ * behind the system preference (skipped when light is forced) and once behind
+ * the attribute. Both dark blocks must stay in sync: a var defined in one and
+ * not the other is how a half-dark page happens.
+ */
+:root,
+[data-theme='light'] {
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #000000;
+  --muted: #f5f5f5;
+  --muted-foreground: #8a8a8a;
+  --accent: #f5f5f5;
+  --accent-foreground: #000000;
+  --destructive: #dc2626;
+  --warning: #d97706;
+  --border: #d4d4d4;
+  --input: #d4d4d4;
+  --ring: #8a8a8a;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #000000;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #d4d4d4;
+  --sidebar-ring: #8a8a8a;
+  --radius: 8px;
+  --font-sans: 'Suisse Intl', 'Inter Variable', system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --background: #000000;
+    --foreground: #ffffff;
+    --card: #000000;
+    --card-foreground: #ffffff;
+    --popover: #000000;
+    --popover-foreground: #ffffff;
+    --primary: #ffffff;
+    --primary-foreground: #000000;
+    --secondary: #1a1a1a;
+    --secondary-foreground: #ffffff;
+    --muted: #1a1a1a;
+    --muted-foreground: #8a8a8a;
+    --accent: #1a1a1a;
+    --accent-foreground: #ffffff;
+    --destructive: #f87171;
+    --warning: #fbbf24;
+    --border: #3f3f3f;
+    --input: #3f3f3f;
+    --ring: #8a8a8a;
+    --sidebar: #000000;
+    --sidebar-foreground: #ffffff;
+    --sidebar-primary: #ffffff;
+    --sidebar-primary-foreground: #000000;
+    --sidebar-accent: #1a1a1a;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #3f3f3f;
+    --sidebar-ring: #8a8a8a;
+  }
+}
+
+/* Forced light. Comes after `:root` so it wins the color scheme on <html>. */
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+/* Forced dark. Same specificity as the light block, so it has to come after it. */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #000000;
+  --card-foreground: #ffffff;
+  --popover: #000000;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #8a8a8a;
+  --accent: #1a1a1a;
+  --accent-foreground: #ffffff;
+  --destructive: #f87171;
+  --warning: #fbbf24;
+  --border: #3f3f3f;
+  --input: #3f3f3f;
+  --ring: #8a8a8a;
+  --sidebar: #000000;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3f3f3f;
+  --sidebar-ring: #8a8a8a;
+}
+
+/* Links: foreground with underline, never browser blue/purple, and :visited
+   must not diverge. In @layer base because StyleX emits into @layer priorityN
+   and unlayered rules beat every layer: unlayered, this would underline and
+   recolor a Button rendered as a link. StyleX configs pass
+   useCSSLayers: { before: ['base'] } so base ranks lowest whatever order the
+   stylesheets load in. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+
+  a:visited {
+    color: inherit;
+  }
+
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  /* Icons inside controls. StyleX cannot select descendants, and lucide draws
+     24px through width/height attributes, which any CSS rule beats. :where()
+     plus this layer rank lowest, so a StyleX class on the icon still wins. */
+  :where(
+      [data-slot='button'],
+      [data-slot='combobox-item'],
+      [data-slot='command-item'],
+      [data-slot='dropdown-menu-checkbox-item'],
+      [data-slot='dropdown-menu-item'],
+      [data-slot='dropdown-menu-radio-item'],
+      [data-slot='dropdown-menu-sub-trigger'],
+      [data-slot='select-item'],
+      [data-slot='select-trigger'],
+      [data-slot='sidebar-menu-button'],
+      [data-slot='tabs-trigger']
+    )
+    svg {
+    flex-shrink: 0;
+    height: 1rem;
+    pointer-events: none;
+    width: 1rem;
+  }
+
+  :where([data-slot='badge']) svg {
+    flex-shrink: 0;
+    height: 0.75rem;
+    pointer-events: none;
+    width: 0.75rem;
+  }
+}
