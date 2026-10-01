@@ -137,7 +137,7 @@ function NumberInput({
   );
 }
 
-function ItemDetail({
+function ServiceDetail({
   autoFocusName,
   item,
   nameRef,
@@ -156,10 +156,10 @@ function ItemDetail({
     <div {...props(styles.detail)}>
       <header {...props(styles.header)}>
         <div {...props(styles.titleBlock)}>
-          <h2 {...props(styles.title)}>{item.name || 'Adsız kalem'}</h2>
+          <h2 {...props(styles.title)}>{item.name || 'Adsız hizmet'}</h2>
           <p {...props(styles.subtitle)}>
-            Değişiklikler kendiliğinden kaydedilir. Fatura keserken kalem adını seçince bu bilgiler
-            gelir.
+            Değişiklikler kendiliğinden kaydedilir. Fatura keserken hizmetin adını seçince bu
+            bilgiler gelir.
           </p>
         </div>
         <Button onClick={onDelete} variant="destructive">
@@ -170,7 +170,7 @@ function ItemDetail({
 
       <div {...props(styles.fields)}>
         <Field style={styles.fullRow}>
-          <FieldLabel htmlFor={`${id}-name`}>Kalem adı</FieldLabel>
+          <FieldLabel htmlFor={`${id}-name`}>Hizmet adı</FieldLabel>
           <Input
             autoFocus={autoFocusName}
             id={`${id}-name`}
@@ -232,7 +232,11 @@ function ItemDetail({
 
 const matchesItem = (item: InvoiceItem, query: string) => matchesQuery(query, item.name);
 
-export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
+/**
+ * Müşteriler › Hizmetler: the saved service lines. Every invoice adds or
+ * updates them; Yeni fatura suggests them by name.
+ */
+export function ServicesPage({ tabs }: { tabs: ReactNode }) {
   const { defaultItemAdvanced, newId, savedItems, setSavedItems } = useStore();
   const [query, setQuery] = useState('');
   const [createdId, setCreatedId] = useState<string | null>(null);
@@ -264,7 +268,7 @@ export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
     if (id) {
       select(neighborOf(id));
       setSavedItems((prev) => prev.filter((item) => item.id !== id));
-      toast.success('Kalem şablonu silindi');
+      toast.success('Hizmet silindi');
     }
     deleting.close();
   };
@@ -272,7 +276,7 @@ export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
   const newItemButton = (variant: 'default' | 'outline') => (
     <Button onClick={addItem} variant={variant}>
       <PlusIcon />
-      Yeni kalem
+      Yeni hizmet
     </Button>
   );
 
@@ -280,19 +284,19 @@ export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
     <Screen
       actions={savedItems.length > 0 && newItemButton('outline')}
       scroll={false}
-      title="Şablonlar"
+      title="Müşteriler"
       toolbar={tabs}
     >
       {savedItems.length === 0 ? (
-        <EmptyState action={newItemButton('default')} title="Henüz kalem şablonu yok">
-          Fatura keserken yazdığınız kalemler burada kendiliğinden birikir. Sık kullandığınız bir
+        <EmptyState action={newItemButton('default')} title="Henüz hizmet yok">
+          Kestiğiniz faturalardaki hizmetler burada kendiliğinden birikir. Sık kullandığınız bir
           hizmeti şimdiden de ekleyebilirsiniz.
         </EmptyState>
       ) : (
         <ListDetail
           detail={
             selected ? (
-              <ItemDetail
+              <ServiceDetail
                 autoFocusName={selected.id === createdId}
                 item={selected}
                 key={selected.id}
@@ -301,12 +305,12 @@ export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
                 onDelete={() => deleting.show(selected)}
               />
             ) : (
-              <p {...props(styles.placeholder)}>Aramayla eşleşen kalem yok</p>
+              <p {...props(styles.placeholder)}>Aramayla eşleşen hizmet yok</p>
             )
           }
           list={
             <SearchableList
-              label="Kalem şablonları"
+              label="Hizmetler"
               onDelete={deleting.show}
               onOpen={(item) => {
                 select(item.id);
@@ -318,25 +322,25 @@ export function ItemTemplatesPage({ tabs }: { tabs: ReactNode }) {
               query={query}
               row={(item) => ({
                 subtitle: `${formatNumber(item.quantity)} ${unitLabel(item.unitType)} · KDV %${formatNumber(item.VATRate)}`,
-                title: item.name || 'Adsız kalem',
+                title: item.name || 'Adsız hizmet',
                 trailing: formatMoney(item.unitPrice),
               })}
-              searchPlaceholder="Kalem ara"
+              searchPlaceholder="Hizmet ara"
               selected={selected}
               visible={visible}
             />
           }
-          storageKey="sablonlar-list-width"
+          storageKey="hizmetler-list-width"
         />
       )}
 
       <AlertDialog onOpenChange={(open) => !open && deleting.close()} open={deleting.open}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Kalem silinsin mi?</AlertDialogTitle>
+            <AlertDialogTitle>Hizmet silinsin mi?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleting.target?.name || 'Adsız kalem'} kalem şablonlarından silinir. Bu işlem geri
-              alınamaz.
+              {deleting.target?.name || 'Adsız hizmet'} hizmetlerden silinir. Kesilmiş faturalar
+              etkilenmez. Bu işlem geri alınamaz.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

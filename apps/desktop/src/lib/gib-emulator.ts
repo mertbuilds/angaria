@@ -1,4 +1,4 @@
-// Dev only: Ayarlar › GİB hesabı › Emülatör sends GİB and TCMB calls to the
+// Dev only: Ayarlar › Gelişmiş › Emülatör sends GİB and TCMB calls to the
 // local emulator (`pnpm emulate`, packages/gib-emulator). Its URL comes from
 // .env.development, and import.meta.env.DEV is statically false in production
 // builds, so neither the URL nor the switch ships.

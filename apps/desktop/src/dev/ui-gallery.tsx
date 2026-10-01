@@ -118,7 +118,7 @@ import {
   EllipsisIcon,
   FilePlusIcon,
   FileTextIcon,
-  LayoutTemplateIcon,
+  ListIcon,
   PlusIcon,
   RepeatIcon,
   SettingsIcon,
@@ -322,7 +322,7 @@ function Showcase() {
         <div {...props(styles.row)}>
           <Badge>Onaylandı</Badge>
           <Badge variant="secondary">Taslak</Badge>
-          <Badge variant="outline">Şablon</Badge>
+          <Badge variant="outline">Kayıtlı</Badge>
           <Badge variant="warning">İmza bekliyor</Badge>
           <Badge variant="destructive">İptal</Badge>
         </div>
@@ -492,7 +492,7 @@ function Showcase() {
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CopyIcon />
-                Şablon olarak kullan
+                ETTN’yi kopyala
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <DownloadIcon />
@@ -688,8 +688,8 @@ function Showcase() {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton>
-                      <LayoutTemplateIcon />
-                      Şablonlar
+                      <ListIcon />
+                      Hizmetler
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>

@@ -6,6 +6,7 @@ import {
   parseGIBInvoice,
   presetRange,
   rangePreset,
+  recentInvoices,
 } from '../src/lib/invoices.ts';
 
 const now = new Date(2026, 9, 15, 12);
@@ -81,6 +82,22 @@ test('newestFirst orders by date, then by document number', () => {
     { belgeNumarasi: 'GIB2026000000004', belgeTarihi: '30-09-2026', ettn: 'c' },
   ]);
   expect(sorted.map((invoice) => invoice.ettn)).toEqual(['c', 'b', 'a']);
+});
+
+test('recentInvoices keeps the newest of every list once, without deleted rows', () => {
+  const september = { belgeNumarasi: 'GIB2026000000001', belgeTarihi: '30-09-2026', ettn: 'a' };
+  const recent = recentInvoices(
+    [
+      september,
+      { belgeNumarasi: 'GIB2026000000002', belgeTarihi: '01-10-2026', ettn: 'b' },
+      { belgeNumarasi: 'GIB2026000000003', belgeTarihi: '01-10-2026', onayDurumu: 'Silinmiş' },
+      { belgeTarihi: '01-10-2026', ettn: 'c', onayDurumu: 'Silinmiş' },
+      { belgeNumarasi: 'GIB2026000000000', belgeTarihi: '01-08-2026', ettn: 'd' },
+      september,
+    ],
+    2,
+  );
+  expect(recent.map((invoice) => invoice.ettn)).toEqual(['b', 'a']);
 });
 
 describe('parseGIBInvoice', () => {

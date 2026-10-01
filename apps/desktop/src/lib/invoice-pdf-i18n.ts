@@ -1,16 +1,18 @@
 import type { PDFLanguage } from './types.ts';
 
-export const PDF_LANGUAGES: ReadonlyArray<PDFLanguage> = ['tr', 'en'];
+export const PDF_LANGUAGES: ReadonlyArray<Exclude<PDFLanguage, 'both'>> = ['tr', 'en'];
 
 export const DEFAULT_PDF_LANGUAGE: PDFLanguage = 'en';
 
 const LOCALES: Record<PDFLanguage, string> = {
+  // Until the bilingual layout lands, 'both' prints the English labels and formats.
+  both: 'en-US',
   en: 'en-US',
   tr: 'tr-TR',
 };
 
 export function isPDFLanguage(value: unknown): value is PDFLanguage {
-  return value === 'en' || value === 'tr';
+  return value === 'en' || value === 'tr' || value === 'both';
 }
 
 /** First valid candidate (invoice override, customer default), else the app default */
@@ -44,7 +46,7 @@ export interface PDFLabels {
   vat: string;
 }
 
-export const PDF_LABELS: Record<PDFLanguage, PDFLabels> = {
+export const PDF_LABELS: Record<Exclude<PDFLanguage, 'both'>, PDFLabels> = {
   en: {
     accountHolder: 'Account Holder',
     amount: 'Amount',
@@ -192,7 +194,7 @@ export function buildInvoicePDFFilename({
   language: PDFLanguage;
   recipientTitle: string;
 }) {
-  const t = PDF_LABELS[language];
+  const t = PDF_LABELS[language === 'both' ? 'en' : language];
   const recipientName = sanitizeFilenamePart(recipientTitle, t.recipientFallback);
   const entity = sanitizeFilenamePart(entityName || companyName, t.entityFallback);
   return `${t.filenamePrefix}-${formatFilenameDate(date, t.undated)}-${entity}-${recipientName}.pdf`;

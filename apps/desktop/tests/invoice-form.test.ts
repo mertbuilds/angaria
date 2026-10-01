@@ -1,14 +1,15 @@
 import { describe, expect, test } from 'vitest';
 import {
+  applyCustomer,
   cleanItems,
   discountForRate,
   formatDecimal,
   formatRate,
   gibToInputDate,
   inputDateToGIB,
+  invoiceDefaults,
   invoiceTotals,
   isBlankForm,
-  matchesTemplate,
   normalizeTime,
   parseDecimal,
   sameInvoice,
@@ -18,7 +19,7 @@ import {
   upsertSavedItems,
   validateInvoice,
 } from '../src/lib/invoice-form.ts';
-import type { CompanyInfo, InvoiceFormValues, InvoiceItem } from '../src/lib/types.ts';
+import type { CompanyInfo, InvoiceFormValues, InvoiceItem, Recipient } from '../src/lib/types.ts';
 
 const item = (fields: Partial<InvoiceItem> = {}): InvoiceItem => ({
   discountAmount: 0,
@@ -36,6 +37,7 @@ const item = (fields: Partial<InvoiceItem> = {}): InvoiceItem => ({
 
 const form = (fields: Partial<InvoiceFormValues> = {}): InvoiceFormValues => ({
   advancedFields: {
+    dueDate: '',
     irsaliyeNumarasi: '',
     irsaliyeTarihi: '',
     manualDate: '',
@@ -131,6 +133,13 @@ describe('dates and times', () => {
   });
 });
 
+/** validateInvoice's errors for a due date (and an invoice date, empty: today). */
+const due = (dueDate: string, manualDate = '') =>
+  validateInvoice(
+    form({ advancedFields: { ...form().advancedFields, dueDate, manualDate } }),
+    today,
+  )?.fields;
+
 describe('validateInvoice', () => {
   test('passes a complete invoice', () => {
     expect(validateInvoice(form(), today)).toBeUndefined();
@@ -165,6 +174,15 @@ describe('validateInvoice', () => {
       title: '',
     };
     expect(validateInvoice(form({ recipient }), today)).toBeUndefined();
+  });
+
+  test('refuses a due date before the invoice date', () => {
+    expect(due('15/10/2026')).toBeUndefined();
+    expect(due('01/10/2026')).toBeUndefined();
+    expect(due('30/09/2026')).toEqual({
+      'advancedFields.dueDate': 'Son ödeme tarihi fatura tarihinden önce olamaz',
+    });
+    expect(due('29/09/2026', '28/09/2026')).toBeUndefined();
   });
 
   test('refuses future dates and a bad rate, payment or discount', () => {
@@ -244,18 +262,87 @@ describe('toDraftDetails', () => {
   });
 });
 
-test('matchesTemplate notices an edited row', () => {
-  const values = form();
-  const template = {
-    id: 't',
-    items: values.items,
-    name: 'Aylık',
-    note: '',
-    recipient: values.recipient,
-    settings: values.invoiceSettings,
+describe('applyCustomer', () => {
+  const abroad: Recipient = {
+    ...form().recipient,
+    city: '',
+    country: 'Amerika Birleşik Dev',
+    fullAddress: '500 Westover Dr',
+    id: 'plastic',
+    taxIDOrTRID: '2222222222',
+    taxOffice: '',
+    title: 'PLASTIC SOFTWARE LLC',
   };
-  expect(matchesTemplate(values, template)).toBe(true);
-  expect(matchesTemplate({ ...values, items: [item({ unitPrice: 1200 })] }, template)).toBe(false);
+
+  test('fills the recipient and the defaults of a customer abroad', () => {
+    const values = form({
+      advancedFields: { ...form().advancedFields, currencyRateManual: true },
+      invoiceSettings: { currency: 'EUR', currencyRate: '48,1', invoiceType: 'SATIS' },
+    });
+    const next = applyCustomer(
+      values,
+      { ...abroad, currency: 'USD', dueDays: 14, VATRate: 0 },
+      today,
+    );
+    expect(next.recipient).toEqual({
+      ...abroad,
+      pdfLanguage: 'en',
+    });
+    expect(next.invoiceSettings).toEqual({
+      currency: 'USD',
+      currencyRate: '',
+      invoiceType: 'ISTISNA',
+    });
+    expect(next.advancedFields).toMatchObject({ currencyRateManual: false, dueDate: '15/10/2026' });
+    expect(next.items.map((row) => row.VATRate)).toEqual([0]);
+  });
+
+  test('keeps the currency when none is known abroad, and the rows without a VAT default', () => {
+    const values = form({
+      invoiceSettings: { currency: 'EUR', currencyRate: '48,1', invoiceType: 'SATIS' },
+    });
+    const next = applyCustomer(values, abroad, today);
+    expect(next.invoiceSettings).toEqual({
+      currency: 'EUR',
+      currencyRate: '48,1',
+      invoiceType: 'ISTISNA',
+    });
+    expect(next.items).toBe(values.items);
+    expect(next.advancedFields.dueDate).toBe('');
+  });
+
+  test('counts the due date from the invoice date', () => {
+    const values = form({ advancedFields: { ...form().advancedFields, manualDate: '20/09/2026' } });
+    const next = applyCustomer(values, { ...form().recipient, dueDays: 30 }, today);
+    expect(next.advancedFields.dueDate).toBe('20/10/2026');
+    expect(next.invoiceSettings).toMatchObject({ currency: 'TRY', invoiceType: 'SATIS' });
+    expect(next.recipient.pdfLanguage).toBe('tr');
+  });
+});
+
+describe('invoiceDefaults', () => {
+  test('learns the settings, a shared VAT rate and the days to the due date', () => {
+    const values = form({
+      advancedFields: { ...form().advancedFields, dueDate: '31/10/2026' },
+      invoiceSettings: { currency: 'USD', currencyRate: '41,5', invoiceType: 'ISTISNA' },
+      items: [item({ VATRate: 0 }), item({ VATRate: 0 })],
+    });
+    expect(invoiceDefaults(values, { date: '01/10/2026', pdfLanguage: 'both' })).toEqual({
+      currency: 'USD',
+      dueDays: 30,
+      invoiceType: 'ISTISNA',
+      pdfLanguage: 'both',
+      VATRate: 0,
+    });
+  });
+
+  test('learns no VAT rate from mixed rows and no days without a due date', () => {
+    const values = form({ items: [item({ VATRate: 20 }), item({ VATRate: 10 })] });
+    expect(invoiceDefaults(values, { date: '01/10/2026', pdfLanguage: 'tr' })).toMatchObject({
+      dueDays: undefined,
+      VATRate: undefined,
+    });
+  });
 });
 
 test('upsertSavedItems updates by name and adds new names', () => {
@@ -323,5 +410,12 @@ describe('PDF data', () => {
     expect(data.date).toBe('01/10/2026');
 
     expect(toPDFData(values, { ...base, date: '30/09/2026' }).date).toBe('30/09/2026');
+  });
+
+  test('toPDFData carries the due date when there is one', () => {
+    const base = { company, entityName: 'Örnek', language: 'tr' as const, now };
+    expect(toPDFData(form(), base).dueDate).toBeUndefined();
+    const values = form({ advancedFields: { ...form().advancedFields, dueDate: '15/10/2026' } });
+    expect(toPDFData(values, base).dueDate).toBe('15/10/2026');
   });
 });

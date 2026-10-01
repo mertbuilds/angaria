@@ -5,13 +5,13 @@ import { useStore } from '@/lib/store.tsx';
 
 /**
  * Applies /yeni?musteri=<id> once (Müşteriler › Bu müşteriye fatura kes): a
- * blank invoice form with that saved customer as the recipient. Then drops the
- * param from the URL.
+ * blank invoice form with that saved customer as the recipient and its
+ * defaults applied. Then drops the param from the URL.
  */
 export function useCustomerParam() {
   const { musteri } = useSearch({ from: '/yeni' });
   const navigate = useNavigate({ from: '/yeni' });
-  const { savedRecipients, setRecipient, startBlankInvoice } = useStore();
+  const { savedRecipients, startInvoiceFor } = useStore();
   const applied = useRef<string | null>(null);
 
   useEffect(() => {
@@ -25,11 +25,10 @@ export function useCustomerParam() {
     applied.current = musteri;
     const customer = savedRecipients.find((recipient) => recipient.id === musteri);
     if (customer) {
-      startBlankInvoice();
-      setRecipient({ ...customer });
+      startInvoiceFor(customer);
     } else {
       toast.error('Müşteri bulunamadı');
     }
     void navigate({ replace: true, search: (prev) => ({ ...prev, musteri: undefined }) });
-  }, [musteri, navigate, savedRecipients, setRecipient, startBlankInvoice]);
+  }, [musteri, navigate, savedRecipients, startInvoiceFor]);
 }

@@ -9,20 +9,10 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Field,
-  FieldLabel,
-  Input,
   toast,
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
@@ -30,7 +20,6 @@ import { create, keyframes, props, type StyleXStyles } from '@stylexjs/stylex';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
-  BookmarkPlusIcon,
   ChevronDownIcon,
   DownloadIcon,
   LoaderCircleIcon,
@@ -38,9 +27,9 @@ import {
   RepeatIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { cancelInvoice, startSMSSign, verifyAndSign } from '@/lib/angaria.ts';
-import { findCustomer } from '@/lib/customer.ts';
+import { useEffect, useRef, useState } from 'react';
+import { cancelInvoice } from '@/lib/angaria.ts';
+import { defaultPDFLanguage, findCustomer } from '@/lib/customer.ts';
 import { fetchForeground } from '@/lib/foreground-fetch.ts';
 import {
   cachedInvoices,
@@ -50,15 +39,15 @@ import {
   invoiceListQuery,
   useGIBAccount,
 } from '@/lib/gib.ts';
-import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
-import { invoiceStatus, parseGIBInvoice, type GIBInvoice } from '@/lib/invoices.ts';
-import type { SessionLease } from '@/lib/session-queue.ts';
+import { dueDateOf } from '@/lib/invoice-due-dates.ts';
+import { invoiceStatus, parseGIBInvoice } from '@/lib/invoices.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
 import { EmptyState, formatMoney } from '@/shell/searchable-list.tsx';
 import { errorMessage } from './invoices.tsx';
+import { useSMSSign } from './use-sms-sign.tsx';
 
 const spin = keyframes({
   '0%': { transform: 'rotate(0deg)' },
@@ -71,11 +60,6 @@ const styles = create({
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s2,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
   },
   frame: {
     borderWidth: 0,
@@ -179,7 +163,11 @@ const styles = create({
   },
 });
 
-const PDF_LANGUAGE_NAMES: Record<PDFLanguage, string> = { en: 'İngilizce', tr: 'Türkçe' };
+const PDF_LANGUAGE_NAMES: Record<PDFLanguage, string> = {
+  both: 'Türkçe ve İngilizce',
+  en: 'İngilizce',
+  tr: 'Türkçe',
+};
 
 // GİB lays the invoice out 800px wide. A narrower pane shows the whole page
 // scaled down rather than cutting off the QR code and the totals.
@@ -260,7 +248,7 @@ function PDFButton({
           <ChevronDownIcon {...props(styles.icon)} />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {(['tr', 'en'] as const).map((language) => (
+          {(['tr', 'en', 'both'] as const).map((language) => (
             <DropdownMenuItem key={language} onClick={() => onDownload(language)}>
               PDF indir ({PDF_LANGUAGE_NAMES[language]})
             </DropdownMenuItem>
@@ -271,107 +259,10 @@ function PDFButton({
   );
 }
 
-function TemplateNameForm({
-  initialName,
-  onSave,
-}: {
-  initialName: string;
-  onSave: (name: string) => void;
-}) {
-  const id = useId();
-  const [name, setName] = useState(initialName);
-  const trimmed = name.trim();
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (trimmed) {
-          onSave(trimmed);
-        }
-      }}
-      {...props(styles.form)}
-    >
-      <DialogHeader>
-        <DialogTitle>Şablon olarak kaydet</DialogTitle>
-        <DialogDescription>
-          Müşteri, kalemler ve not şablona kopyalanır. Şablonlar’dan tek adımda yeni fatura
-          kesersiniz.
-        </DialogDescription>
-      </DialogHeader>
-      <Field>
-        <FieldLabel htmlFor={`${id}-name`}>Şablon adı</FieldLabel>
-        <Input
-          autoFocus
-          id={`${id}-name`}
-          onChange={(event) => setName(event.target.value)}
-          onFocus={(event) => event.currentTarget.select()}
-          value={name}
-        />
-      </Field>
-      <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
-        <Button disabled={!trimmed} type="submit">
-          Kaydet
-        </Button>
-      </DialogFooter>
-    </form>
-  );
-}
-
-function SMSCodeForm({
-  onVerify,
-  pending,
-  phone,
-}: {
-  onVerify: (code: string) => void;
-  pending: boolean;
-  phone: string;
-}) {
-  const id = useId();
-  const [code, setCode] = useState('');
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (code.trim() && !pending) {
-      onVerify(code.trim());
-      setCode('');
-    }
-  };
-
-  return (
-    <form onSubmit={submit} {...props(styles.form)}>
-      <DialogHeader>
-        <DialogTitle>SMS ile onayla</DialogTitle>
-        <DialogDescription>
-          {phone} numarasına gönderilen kodu girin. Onaylanan fatura kesinleşir.
-        </DialogDescription>
-      </DialogHeader>
-      <Field>
-        <FieldLabel htmlFor={`${id}-code`}>SMS kodu</FieldLabel>
-        <Input
-          autoComplete="one-time-code"
-          autoFocus
-          id={`${id}-code`}
-          inputMode="numeric"
-          onChange={(event) => setCode(event.target.value)}
-          value={code}
-        />
-      </Field>
-      <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
-        <Button disabled={!code.trim() || pending} type="submit">
-          {pending ? 'Onaylanıyor...' : 'Onayla'}
-        </Button>
-      </DialogFooter>
-    </form>
-  );
-}
-
 /**
  * GİB's own rendering of the invoice (QR code drawn in), under its actions:
  * SMS ile onayla and Sil for drafts, PDF indir for signed invoices, Tekrar kes
- * and Şablon olarak kaydet for all.
+ * for all.
  */
 function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const { ettn } = invoice;
@@ -379,7 +270,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const queryClient = useQueryClient();
   const requireCredentials = useRequireCredentials();
   const account = useGIBAccount();
-  const { activeEntity, companyInfo, newId, savedRecipients, setInvoiceTemplates } = useStore();
+  const { activeEntity, companyInfo, savedRecipients } = useStore();
   const status = invoiceStatus(invoice.onayDurumu);
   const preview = useQuery(invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''));
   const total = useQuery({
@@ -387,17 +278,14 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     enabled: status.filter !== 'iptal',
     select: parseGIBInvoice,
   });
-  const [templateDraft, setTemplateDraft] = useState<GIBInvoice | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [smsPhone, setSmsPhone] = useState<string | null>(null);
-  const sms = useRef<{ lease: SessionLease; oid: string } | null>(null);
-  // Aborts when the pane closes: a signing flow still starting or waiting on
-  // the code hands the GİB session back (gib.leaseWith).
-  const open = useRef(new AbortController());
+  const sms = useSMSSign();
 
-  const defaultLanguage = resolvePDFLanguage(
-    findCustomer(savedRecipients, invoice.aliciVknTckn ?? '', invoice.aliciUnvanAdSoyad ?? '')
-      ?.pdfLanguage,
+  const defaultLanguage = defaultPDFLanguage(
+    findCustomer(savedRecipients, invoice.aliciVknTckn ?? '', invoice.aliciUnvanAdSoyad ?? '') ?? {
+      country: total.data?.recipient.country ?? '',
+      taxIDOrTRID: invoice.aliciVknTckn ?? '',
+    },
   );
 
   // The header's total may be fetching the same detail in the background.
@@ -414,6 +302,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
       await downloadInvoicePDF({
         company: companyInfo,
         date: invoice.belgeTarihi ?? '',
+        dueDate: dueDateOf(ettn),
         entityName: activeEntity.name,
         grandTotal: subtotal,
         invoiceNumber: invoice.belgeNumarasi,
@@ -431,11 +320,6 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     onSuccess: () => toast.success('PDF indirildi', { id: `pdf-${ettn}` }),
   });
 
-  const template = useMutation({
-    mutationFn: readDetail,
-    onSuccess: setTemplateDraft,
-  });
-
   const remove = useMutation({
     mutationFn: () =>
       gib.run(account, (session) =>
@@ -451,49 +335,16 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     },
   });
 
-  const releaseSMS = (error?: unknown) => {
-    sms.current?.lease.release(error);
-    sms.current = null;
-  };
-
+  // Pending until the SMS dialog closes. Null: the pane closed first.
   const startSign = useMutation({
-    mutationFn: async () => {
-      const started = await gib.leaseWith(account, startSMSSign, open.current.signal);
-      if (!started) {
-        return null;
-      }
-      sms.current = { lease: started.lease, oid: started.value.oid };
-      return started.value.phone;
-    },
-    // Null: the pane closed before the code was sent.
-    onSuccess: (phone) => {
-      if (phone !== null) {
-        setSmsPhone(phone);
+    mutationFn: () => sms.sign(async () => ({ ettns: [ettn], value: null })),
+    onSuccess: (result) => {
+      if (result?.signed) {
+        toast.success('Fatura onaylandı');
+        void refreshList();
       }
     },
   });
-
-  const verify = useMutation({
-    mutationFn: (code: string) => {
-      const current = sms.current;
-      if (!current) {
-        throw new Error('SMS oturumu kapandı, onayı yeniden başlatın.');
-      }
-      return verifyAndSign(current.lease.session, code, current.oid, [ettn]);
-    },
-    onSuccess: () => {
-      releaseSMS();
-      setSmsPhone(null);
-      toast.success('Fatura onaylandı');
-      void refreshList();
-    },
-  });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    open.current = controller;
-    return () => controller.abort();
-  }, []);
 
   const guarded = (action: () => void) => () => {
     if (requireCredentials()) {
@@ -501,7 +352,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     }
   };
 
-  const busy = pdf.isPending || template.isPending || remove.isPending || startSign.isPending;
+  const busy = pdf.isPending || remove.isPending || startSign.isPending;
 
   let body;
   if (preview.data) {
@@ -543,7 +394,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
           {status.filter === 'onaylanmadi' && (
             <Button disabled={busy} onClick={guarded(() => startSign.mutate())}>
               <MessageSquareIcon />
-              {startSign.isPending ? 'SMS gönderiliyor...' : 'SMS ile onayla'}
+              {sms.sending ? 'SMS gönderiliyor...' : 'SMS ile onayla'}
             </Button>
           )}
           {status.filter === 'onaylandi' && (
@@ -561,10 +412,6 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
             <RepeatIcon />
             Tekrar kes
           </Button>
-          <Button disabled={busy} onClick={guarded(() => template.mutate())} variant="outline">
-            <BookmarkPlusIcon />
-            Şablon olarak kaydet
-          </Button>
           {status.filter === 'onaylanmadi' && (
             <Button disabled={busy} onClick={() => setDeleteOpen(true)} variant="destructive">
               <Trash2Icon />
@@ -576,59 +423,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
 
       {body}
 
-      <Dialog
-        onOpenChange={(open) => {
-          if (!open) {
-            setSmsPhone(null);
-            releaseSMS();
-          }
-        }}
-        open={smsPhone !== null}
-      >
-        <DialogContent showCloseButton={false}>
-          {smsPhone !== null && (
-            <SMSCodeForm
-              onVerify={(code) => verify.mutate(code)}
-              pending={verify.isPending}
-              phone={smsPhone}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        onOpenChange={(open) => !open && setTemplateDraft(null)}
-        open={templateDraft !== null}
-      >
-        <DialogContent showCloseButton={false}>
-          {templateDraft && (
-            <TemplateNameForm
-              initialName={templateDraft.recipient.title || invoice.aliciUnvanAdSoyad || ''}
-              onSave={(name) => {
-                const { items, note, recipient, settings } = templateDraft;
-                setInvoiceTemplates((prev) => [
-                  ...prev,
-                  {
-                    id: newId(),
-                    items: items.map((item) => ({ ...item, id: newId() })),
-                    name,
-                    note,
-                    recipient: { ...recipient, id: newId() },
-                    settings,
-                  },
-                ]);
-                setTemplateDraft(null);
-                toast.success('Fatura şablonu kaydedildi', {
-                  action: {
-                    label: 'Şablonlara git',
-                    onClick: () => void navigate({ search: {}, to: '/sablonlar' }),
-                  },
-                });
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {sms.dialog}
 
       <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
         <AlertDialogContent>

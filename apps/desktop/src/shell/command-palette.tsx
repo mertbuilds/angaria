@@ -14,7 +14,7 @@ import { sections } from './nav.ts';
 import { useAppActions } from './use-app-actions.ts';
 
 // Every typed word must appear in the item's text or keywords, compared
-// without Turkish diacritics ("sablon" finds "Şablonlar"). cmdk's fuzzy
+// without Turkish diacritics ("musteri" finds "Müşteriler"). cmdk's fuzzy
 // default lets stray letters match, and its group sorting never reorders.
 const fold = (text: string) =>
   text.toLocaleLowerCase('tr').replaceAll('ı', 'i').normalize('NFD').replaceAll(/\p{M}/gu, '');
