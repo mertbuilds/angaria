@@ -11,6 +11,7 @@ apps/
 packages/
   earsiv-sdk/   GİB e-Arşiv portal client. tsdown build to dist/.
   gib-emulator/ Local GİB e-Arşiv portal and TCMB rates emulator. node:http, tsdown, vitest.
+  mcp-server/   Internal MCP server (stdio) with GİB invoice tools over the SDK. tsdown, vitest.
   ui/           @angaria/ui design system: StyleX + Base UI components, theme, fonts. Source-consumed, no build.
   utils/        Shared helpers (TCMB rates). tsdown build, vitest tests.
 ```
