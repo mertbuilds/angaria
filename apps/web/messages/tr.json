@@ -127,7 +127,7 @@
   "faq_company_q": "Abonelik faturasını şirketim adına alabilir miyim?",
   "faq_company_a": "Evet. Angaria'yı Polar satar, abonelik faturanı da Polar keser. Ödeme sayfasında şirket adını ve vergi numaranı girersen fatura şirketine kesilir. Vergi, ödeme sırasında ülkene ve şirket bilgine göre hesaplanır.",
   "faq_cancel_q": "İptal ve iade nasıl oluyor?",
-  "faq_cancel_a": "Deneme için kart bilgisi istenir ama ilk 14 gün ücret alınmaz. Deneme bitmeden iptal edersen hiç ödeme yapmazsın. Sonra da istediğin zaman iptal edebilirsin; ödediğin dönemin sonuna kadar kullanmaya devam edersin. İade için ya da bir sorun olursa mert@vinena.studio adresine yaz.",
+  "faq_cancel_a": "Deneme için kart bilgisi istenir ama ilk 14 gün ücret alınmaz. Deneme bitmeden iptal edersen hiç ödeme yapmazsın. Sonra da istediğin zaman iptal edebilirsin; ödediğin dönemin sonuna kadar kullanmaya devam edersin. İade için ya da bir sorun olursa destek@angaria.app adresine yaz.",
   "faq_windows_q": "Windows sürümü var mı?",
   "faq_windows_a": "Henüz yok, Angaria şimdilik yalnızca Mac'te çalışıyor. Windows sürümü planlarımızda; hazır olunca bu sayfada duyuracağız.",
 
@@ -161,7 +161,7 @@
   "privacy_page_title": "Gizlilik politikası",
   "privacy_page_intro": "Bu metin, Angaria Mac uygulamasının ve angaria.app sitesinin kişisel verilerini nasıl işlediğini anlatır. 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamındaki aydınlatma metnidir.",
   "privacy_page_controller_title": "Veri sorumlusu",
-  "privacy_page_controller_body": "Veri sorumlusu Vinena Studio'dur. Bize mert@vinena.studio adresinden ulaşabilirsin.",
+  "privacy_page_controller_body": "Veri sorumlusu Vinena Studio'dur. Bize destek@angaria.app adresinden ulaşabilirsin.",
   "privacy_page_app_title": "Mac uygulaması",
   "privacy_page_app_body": "Angaria'nın kendi sunucusu yok. Uygulama müşteri ve hizmet kayıtlarını, şirket bilgilerini ve ayarlarını yalnızca Mac'inde saklar; bunlar bize gönderilmez. GİB şifren ve lisans anahtarın macOS Anahtar Zinciri'nde (Keychain) tutulur. Uygulamada analitik, kullanım takibi ya da hata raporlama yoktur.",
   "privacy_page_app_gib": "GİB e-Arşiv portalı: faturalarını kesmek, listelemek ve onaylamak için kendi kullanıcı kodun ve şifrenle bağlanır. Bağlantı Mac'inden doğrudan GİB'e gider, bizden geçmez. Ayarlar'da test modunu açarsan uygulama aynı şekilde GİB'in test portalına bağlanır.",
@@ -182,7 +182,7 @@
   "privacy_page_retention_title": "Saklama süresi",
   "privacy_page_retention_body": "Kişisel verileri yalnızca işleme amacının gerektirdiği süre ve yasal saklama süreleri boyunca saklarız. Süre dolunca siler ya da anonim hale getiririz.",
   "privacy_page_rights_title": "Hakların",
-  "privacy_page_rights_body": "KVKK'nın 11. maddesine göre kişisel verilerinin işlenip işlenmediğini öğrenme, işlendiyse bilgi isteme, düzeltilmesini ya da silinmesini isteme ve işlemeye itiraz etme hakkın var. Başvurunu mert@vinena.studio adresine gönderebilirsin; en geç 30 gün içinde yanıt veririz.",
+  "privacy_page_rights_body": "KVKK'nın 11. maddesine göre kişisel verilerinin işlenip işlenmediğini öğrenme, işlendiyse bilgi isteme, düzeltilmesini ya da silinmesini isteme ve işlemeye itiraz etme hakkın var. Başvurunu destek@angaria.app adresine gönderebilirsin; en geç 30 gün içinde yanıt veririz.",
   "privacy_page_changes_title": "Değişiklikler",
   "privacy_page_changes_body": "Bu metni güncellediğimizde yukarıdaki tarihi değiştiririz. Önemli bir değişiklik olursa sitede duyururuz.",
 
@@ -197,7 +197,7 @@
   "terms_trial_title": "Ücretsiz deneme",
   "terms_trial_body": "İlk abonelikte 14 gün ücretsiz deneme vardır ve deneme için kart bilgisi istenir. Deneme bitmeden iptal edilirse ücret alınmaz. İptal edilmezse deneme sonunda seçilen planın ilk ödemesi alınır.",
   "terms_cancel_title": "İptal ve iade",
-  "terms_cancel_body": "Aboneliğini istediğin zaman iptal edebilirsin. İptal ettiğinde ödediğin dönemin sonuna kadar Angaria'yı kullanmaya devam edersin; sonraki dönem için ücret alınmaz. İade talebin için mert@vinena.studio adresine yaz.",
+  "terms_cancel_body": "Aboneliğini istediğin zaman iptal edebilirsin. İptal ettiğinde ödediğin dönemin sonuna kadar Angaria'yı kullanmaya devam edersin; sonraki dönem için ücret alınmaz. İade talebin için destek@angaria.app adresine yaz.",
   "terms_license_title": "Lisans",
   "terms_license_body": "Her abonelikle bir lisans anahtarı alırsın. Bu anahtarla Angaria'yı aynı anda en fazla 3 Mac'te kullanabilirsin. Lisans başkasına devredilemez ve satılamaz.",
   "terms_use_title": "Kullanım",
@@ -211,5 +211,5 @@
   "terms_law_title": "Uygulanacak hukuk",
   "terms_law_body": "Bu koşullara Türkiye Cumhuriyeti hukuku uygulanır. Tüketici olarak yasal hakların saklıdır.",
   "terms_contact_title": "İletişim",
-  "terms_contact_body": "Sorularını mert@vinena.studio adresine yazabilirsin."
+  "terms_contact_body": "Sorularını destek@angaria.app adresine yazabilirsin."
 }

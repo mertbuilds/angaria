@@ -5,7 +5,7 @@ import { brand } from '../lib/brand.stylex.ts';
 import { Sentence } from '../lib/slot.tsx';
 import { m } from '../paraglide/messages.js';
 
-export const CONTACT_EMAIL = 'mert@vinena.studio';
+export const CONTACT_EMAIL = 'destek@angaria.app';
 /** Every link to one of our own sites carries utm tags, so the visit is traced to this one. */
 const STUDIO_URL =
   'https://vinena.studio/?utm_source=angaria.app&utm_medium=referral&utm_campaign=footer';
