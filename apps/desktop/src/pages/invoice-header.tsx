@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
   type DatePreset,
 } from '@angaria/ui';
-import { colors, spacing } from '@angaria/ui/tokens.stylex';
+import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { addDays, differenceInCalendarDays, isSameDay } from 'date-fns';
 import { ChevronDownIcon } from 'lucide-react';
@@ -55,6 +55,18 @@ const styles = create({
     flexShrink: 0,
     height: '1rem',
     width: '1rem',
+  },
+  // Under the rate's error, where the caption that holds it is hidden.
+  rateReset: {
+    alignSelf: 'flex-start',
+    fontSize: font.sizeSm,
+    minHeight: '1.5rem',
+  },
+  rateStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    minWidth: 0,
   },
   otherCurrency: {
     flexBasis: '10rem',
@@ -131,6 +143,19 @@ const dayMonthYear = new Intl.DateTimeFormat('tr-TR', {
 const shortDate = (date: Date) =>
   (date.getFullYear() === new Date().getFullYear() ? dayMonth : dayMonthYear).format(date);
 
+/** Puts TCMB's rate back in place of a typed one. */
+function TCMBRateButton({ form, standalone }: { form: InvoiceForm; standalone?: boolean }) {
+  return (
+    <button
+      onClick={() => form.setFieldValue('advancedFields.currencyRateManual', false)}
+      type="button"
+      {...props(styles.inlineAction, standalone && styles.rateReset)}
+    >
+      TCMB kurunu kullan
+    </button>
+  );
+}
+
 /** The rate field's caption: where the rate comes from, or why it is missing. */
 function rateCaption(form: InvoiceForm, description: RateDescription | null): ReactNode {
   switch (description?.kind) {
@@ -141,13 +166,7 @@ function rateCaption(form: InvoiceForm, description: RateDescription | null): Re
           {description.tcmbAvailable && (
             <>
               {' · '}
-              <button
-                onClick={() => form.setFieldValue('advancedFields.currencyRateManual', false)}
-                type="button"
-                {...props(styles.inlineAction)}
-              >
-                TCMB kurunu kullan
-              </button>
+              <TCMBRateButton form={form} />
             </>
           )}
         </>
@@ -168,6 +187,34 @@ function rateCaption(form: InvoiceForm, description: RateDescription | null): Re
     case undefined:
       return null;
   }
+}
+
+/**
+ * Döviz kuru with its caption. The error hides the caption, so a typed rate's
+ * "TCMB kurunu kullan" then shows under the error instead.
+ */
+function CurrencyRateField({
+  form,
+  rateDescription,
+}: {
+  form: InvoiceForm;
+  rateDescription: RateDescription | null;
+}) {
+  const error = useFieldError();
+  const offerTCMB = rateDescription?.kind === 'manual' && rateDescription.tcmbAvailable;
+  return (
+    <div {...props(styles.rateStack)}>
+      <DecimalTextField
+        description={rateCaption(form, rateDescription)}
+        format={formatRate}
+        label="Döviz kuru"
+        placeholder="0,0000"
+        step={0.01}
+        suffix="₺"
+      />
+      {error && offerTCMB && <TCMBRateButton form={form} standalone />}
+    </div>
+  );
 }
 
 /**
@@ -448,16 +495,7 @@ export function InvoiceSection({
             }}
             name="invoiceSettings.currencyRate"
           >
-            {() => (
-              <DecimalTextField
-                description={rateCaption(form, rateDescription)}
-                format={formatRate}
-                label="Döviz kuru"
-                placeholder="0,0000"
-                step={0.01}
-                suffix="₺"
-              />
-            )}
+            {() => <CurrencyRateField form={form} rateDescription={rateDescription} />}
           </form.AppField>
         )}
       </div>
