@@ -146,13 +146,6 @@ function loadLocal<T>(key: string, fallback: T): T {
   }
 }
 
-const p = (n: number) => String(n).padStart(2, '0');
-
-function currentTime() {
-  const now = new Date();
-  return `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
-}
-
 const BLANK_RECIPIENT: Recipient = {
   id: '',
   taxIDOrTRID: '',
@@ -175,7 +168,8 @@ const DEFAULT_SETTINGS: InvoiceSettings = {
 export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
   dueDate: '',
   manualDate: '',
-  manualTime: currentTime(),
+  // Empty: the moment the invoice goes to GİB (toDraftDetails).
+  manualTime: '',
   irsaliyeNumarasi: '',
   irsaliyeTarihi: '',
   paymentTotal: '',
@@ -202,7 +196,7 @@ function makeBlankItem(): InvoiceItem {
 
 function blankForm(): InvoiceFormValues {
   return {
-    advancedFields: { ...DEFAULT_ADVANCED_FIELDS, manualTime: currentTime() },
+    advancedFields: { ...DEFAULT_ADVANCED_FIELDS },
     invoiceSettings: { ...DEFAULT_SETTINGS },
     items: [makeBlankItem()],
     note: '',
