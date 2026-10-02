@@ -1,4 +1,4 @@
-import { spacing } from '@angaria/ui/tokens.stylex';
+import { colors, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { useEffect, useRef } from 'react';
 import { brand, media, reveal } from '../lib/brand.stylex.ts';
@@ -7,7 +7,6 @@ import { prefersReducedMotion } from '../lib/motion.ts';
 import { SCREENS } from '../lib/screens.ts';
 import { m } from '../paraglide/messages.js';
 import { CheckoutButton, DownloadButton } from './cta.tsx';
-import { FlickeringGrid } from './flickering-grid.tsx';
 import { Screenshot } from './screenshot.tsx';
 
 const WIDE = '@media (min-width: 640px)';
@@ -89,20 +88,24 @@ const styles = create({
     flexWrap: 'wrap',
     gap: spacing.s3,
   },
-  // The pattern sits behind the header and the hero, across the whole
+  // A still grid of dots behind the header and the hero, across the whole
   // viewport: no ancestor is positioned, so it is placed against the page
-  // itself, and z-index -1 keeps it under every in-flow box.
+  // itself, and z-index -1 keeps it under every in-flow box. The dots are
+  // the text color, faint, so they follow the theme.
   backdrop: {
+    backgroundImage: `radial-gradient(circle, color-mix(in oklab, ${colors.fg} 24%, transparent) 1px, transparent 1.5px)`,
+    backgroundPosition: '50% 0',
+    backgroundSize: '22px 22px',
     height: {
       default: 560,
       [WIDE]: 760,
     },
     insetInline: 0,
-    // Fades out toward the screenshot, and dims behind the words so they
-    // stay easy to read.
+    // Fades out toward the screenshot and the side edges, and almost away
+    // behind the words so they stay easy to read.
     maskComposite: 'intersect',
     maskImage:
-      'linear-gradient(to bottom, #000 35%, transparent 95%), radial-gradient(50% 45% at 42% 30%, rgb(0 0 0 / 0.35), #000)',
+      'linear-gradient(to bottom, #000 30%, transparent 92%), linear-gradient(to right, transparent, #000 20%, #000 80%, transparent), radial-gradient(48% 42% at 42% 28%, rgb(0 0 0 / 0.12), #000)',
     pointerEvents: 'none',
     position: 'absolute',
     top: 0,
@@ -179,9 +182,7 @@ export function Hero() {
 
   return (
     <section {...props(styles.hero)}>
-      <div aria-hidden="true" {...props(styles.backdrop)}>
-        <FlickeringGrid />
-      </div>
+      <div aria-hidden="true" {...props(styles.backdrop)} />
       <div {...props(styles.copy)}>
         <h1 {...props(layout.title, styles.title, styles.enter, styles.enterAfter(0))}>
           {m.hero_title()}
