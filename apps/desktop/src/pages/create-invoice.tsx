@@ -343,14 +343,17 @@ export function CreateInvoicePage() {
   // ⌘↵ creates the draft, ⌘⇧↵ creates and signs it.
   const submitShortcut = useEffectEvent((event: KeyboardEvent) => {
     const mod = isMac ? event.metaKey : event.ctrlKey;
+    const target = event.target as Element | null;
     if (
       !mod ||
       event.key !== 'Enter' ||
       event.altKey ||
       event.isComposing ||
-      event.defaultPrevented ||
+      // A chip (Base UI radio) cancels every Enter, ⌘↵ too, only so that Enter
+      // never checks it: that one still submits.
+      (event.defaultPrevented && !target?.closest?.('[role="radio"]')) ||
       // A dialog's own Enter handling wins (the SMS code dialog).
-      (event.target as Element | null)?.closest?.('[role="dialog"], [role="alertdialog"]')
+      target?.closest?.('[role="dialog"], [role="alertdialog"]')
     ) {
       return;
     }
