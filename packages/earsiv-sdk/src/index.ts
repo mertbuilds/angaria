@@ -124,22 +124,128 @@ export interface EarsivClient {
   ): Promise<Record<string, unknown>>;
 }
 
+export const GIB_ERROR_CODES = [
+  'auth',
+  'maintenance',
+  'network',
+  'not-found',
+  'range-too-long',
+  'rate-limit',
+  'session-expired',
+  'session-locked',
+  'sms-code-wrong',
+  'sms-failed',
+  'unknown',
+  'validation',
+] as const;
+
+/** What went wrong in a GİB call, for the app to tell the user what to do. */
+export type GibErrorCode = (typeof GIB_ERROR_CODES)[number];
+
+/**
+ * Every failure of a portal call. `message` is GİB's own text when it sent
+ * one, else a short Turkish description; `gibMessage` is GİB's text alone.
+ */
+export class GibError extends Error {
+  readonly code: GibErrorCode;
+  readonly gibMessage?: string;
+  /** HTTP status of a reply that was not GİB's JSON. */
+  readonly status?: number;
+
+  constructor(
+    code: GibErrorCode,
+    message: string,
+    options: { cause?: unknown; gibMessage?: string; status?: number } = {},
+  ) {
+    super(message, { cause: options.cause });
+    this.name = 'GibError';
+    this.code = code;
+    this.gibMessage = options.gibMessage;
+    this.status = options.status;
+  }
+}
+
+// GİB's texts, lowercased with Turkish rules. Portal states win over the
+// caller's fallback; content refusals only apply without one.
+const PORTAL_TEXTS: Array<[RegExp, GibErrorCode]> = [
+  [/birden fazla giriş|açık (?:bir )?oturum|güvenli çıkış/, 'session-locked'],
+  [/bakım/, 'maintenance'],
+  [/tarih aralığı.*(?:fazla|uzun)/, 'range-too-long'],
+  [
+    /(?:çok fazla|fazla sayıda) (?:istek|işlem|deneme|sorgu)|kısa süre (?:içinde|içerisinde)/,
+    'rate-limit',
+  ],
+  [
+    /süresi dol|zaman ?aşımı|sona er|yeniden giriş|tekrar giriş|oturum geçersiz|token/,
+    'session-expired',
+  ],
+];
+const CONTENT_TEXTS: Array<[RegExp, GibErrorCode]> = [
+  [/bulunamadı|bulunmamaktadır/, 'not-found'],
+  [
+    /olamaz|olmalı|giriniz|girilmeli|zorunlu|eksik|uymuyor|uyuşmuyor|geçerli bir|geçersiz|hatalı|silinemez/,
+    'validation',
+  ],
+];
+
+/** The code of one of GİB's texts; `fallback` is what the call means otherwise. */
+function classifyGibMessage(text: string, fallback?: GibErrorCode): GibErrorCode {
+  const lower = text.toLocaleLowerCase('tr');
+  const match = (texts: Array<[RegExp, GibErrorCode]>) =>
+    texts.find(([pattern]) => pattern.test(lower))?.[1];
+  return match(PORTAL_TEXTS) ?? fallback ?? match(CONTENT_TEXTS) ?? 'unknown';
+}
+
+/** GİB's text as a GibError: `fallback` names the failure when GİB sent no text. */
+function gibError(text: unknown, fallback: string, code?: GibErrorCode): GibError {
+  const gibMessage = typeof text === 'string' && text.trim() ? text.trim() : undefined;
+  return gibMessage
+    ? new GibError(classifyGibMessage(gibMessage, code), gibMessage, { gibMessage })
+    : new GibError(code ?? 'unknown', fallback);
+}
+
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const norm = (s: string) => s.trim().toLocaleUpperCase('tr');
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** A document list that is not a list of rows: a text in its place is GİB's own message. */
-const unreadableList = (value: unknown) =>
-  new Error(typeof value === 'string' && value ? value : 'GİB belge listesi okunamadı');
+const unreadableList = (value: unknown) => gibError(value, 'GİB belge listesi okunamadı');
 
-/** GİB's error envelope ({ error: '1', messages: [{ text }] }) as an Error, else null. */
-function portalError(result: Record<string, unknown>, fallback: string): Error | null {
+/** GİB's error envelope ({ error: '1', messages: [{ text }] }) as a GibError, else null. */
+function portalError(
+  result: Record<string, unknown>,
+  fallback: string,
+  code?: GibErrorCode,
+): GibError | null {
   if (result.error !== '1' && result.error !== 1) {
     return null;
   }
-  const messages = result.messages as Array<{ text: string }> | undefined;
-  return new Error(messages?.[0]?.text ?? fallback);
+  const messages = result.messages as Array<{ text?: unknown }> | undefined;
+  return gibError(messages?.[0]?.text, fallback, code);
+}
+
+const isAbort = (error: unknown) => error instanceof Error && error.name === 'AbortError';
+
+/**
+ * A reply that is not GİB's JSON: its maintenance page, a proxy's error
+ * page, or anything else in place of the envelope.
+ */
+function replyError(response: Response, body: string): GibError {
+  const { status } = response;
+  if (body.toLocaleLowerCase('tr').includes('bakım')) {
+    return new GibError('maintenance', 'GİB e-Arşiv portalı bakımda', { status });
+  }
+  if (status === 429) {
+    return new GibError('rate-limit', 'GİB çok fazla istek aldı', { status });
+  }
+  return new GibError(
+    'unknown',
+    response.ok
+      ? 'GİB beklenmeyen bir yanıt verdi'
+      : `GİB beklenmeyen bir yanıt verdi (HTTP ${status})`,
+    { status },
+  );
 }
 
 /**
@@ -202,18 +308,52 @@ export function createClient(options?: ClientOptions): EarsivClient {
   const fetchFn: FetchFn = options?.fetch ?? globalThis.fetch;
   const portalUrl = (testMode: boolean) => options?.baseUrl ?? (testMode ? TEST_URL : PROD_URL);
 
+  /**
+   * POSTs a form and reads GİB's JSON. A request that fails (DNS, TLS,
+   * timeout, offline) is a `network` GibError, a reply that is not GİB's JSON
+   * is classified by replyError.
+   */
+  async function post(
+    url: string,
+    headers: Record<string, string>,
+    body: string,
+  ): Promise<{ json: Record<string, unknown>; response: Response }> {
+    let response: Response;
+    let text: string;
+    try {
+      response = await fetchFn(url, { method: 'POST', headers, body });
+      text = await response.text();
+    } catch (error) {
+      if (isAbort(error)) {
+        throw error;
+      }
+      throw new GibError('network', 'GİB’e ulaşılamadı', { cause: error });
+    }
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = undefined;
+    }
+    if (!isRecord(json) || (!response.ok && json.error !== '1' && json.error !== 1)) {
+      throw replyError(response, text);
+    }
+    return { json, response };
+  }
+
   async function dispatch(
     session: SessionInfo,
     cmd: string,
     pageName: string,
     data: Record<string, unknown> = {},
+    code?: GibErrorCode,
   ): Promise<Record<string, unknown>> {
     const callid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const body = `cmd=${cmd}&callid=${callid}&pageName=${pageName}&token=${session.token}&jp=${encodeURIComponent(JSON.stringify(data))}`;
 
-    const response = await fetchFn(`${session.baseUrl}/earsiv-services/dispatch`, {
-      method: 'POST',
-      headers: {
+    const { json: result, response } = await post(
+      `${session.baseUrl}/earsiv-services/dispatch`,
+      {
         accept: 'application/json, text/javascript, */*; q=0.01',
         'cache-control': 'no-cache',
         'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -222,12 +362,11 @@ export function createClient(options?: ClientOptions): EarsivClient {
         Referer: `${session.baseUrl}/index.jsp`,
       },
       body,
-    });
+    );
 
     session.cookies = mergeCookies(session.cookies, extractCookies(response));
-    const result = (await response.json()) as Record<string, unknown>;
 
-    const error = portalError(result, 'GİB portaldan bilinmeyen hata');
+    const error = portalError(result, 'GİB portaldan bilinmeyen hata', code);
     if (error) {
       throw error;
     }
@@ -235,30 +374,28 @@ export function createClient(options?: ClientOptions): EarsivClient {
     return result;
   }
 
+  const postLogin = (baseUrl: string, username: string, password: string, testMode: boolean) =>
+    post(
+      `${baseUrl}/earsiv-services/assos-login`,
+      {
+        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        Referer: `${baseUrl}/intragiris.html`,
+      },
+      `assoscmd=${testMode ? 'login' : 'anologin'}&rtype=json&userid=${encodeURIComponent(username)}&sifre=${encodeURIComponent(password)}&sifre2=${encodeURIComponent(password)}&parola=1&`,
+    );
+
   async function login(
     username: string,
     password: string,
     testMode: boolean,
   ): Promise<SessionInfo> {
     const baseUrl = portalUrl(testMode);
-    const cmd = testMode ? 'login' : 'anologin';
-
-    const response = await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        Referer: `${baseUrl}/intragiris.html`,
-      },
-      body: `assoscmd=${cmd}&rtype=json&userid=${encodeURIComponent(username)}&sifre=${encodeURIComponent(password)}&sifre2=${encodeURIComponent(password)}&parola=1&`,
-    });
-
+    const { json, response } = await postLogin(baseUrl, username, password, testMode);
     const cookies = extractCookies(response);
-    const json = (await response.json()) as Record<string, unknown>;
 
     if (!json.token) {
-      const messages = json.messages as Array<{ text: string }> | undefined;
-      const msg = messages?.[0]?.text ?? 'Giriş başarısız';
-      throw new Error(msg);
+      const messages = json.messages as Array<{ text?: unknown }> | undefined;
+      throw gibError(messages?.[0]?.text, 'Giriş başarısız', 'auth');
     }
 
     return { token: json.token as string, cookies, baseUrl };
@@ -269,19 +406,16 @@ export function createClient(options?: ClientOptions): EarsivClient {
    * command and, without a userid, fails instead of ending the session.
    */
   async function sendLogout(baseUrl: string, cookies: Array<string>, token: string) {
-    const response = await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
-      method: 'POST',
-      headers: {
+    const { json } = await post(
+      `${baseUrl}/earsiv-services/assos-login`,
+      {
         'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
         cookie: cookies.join('; '),
         Referer: `${baseUrl}/intragiris.html`,
       },
-      body: `assoscmd=logout&rtype=json&token=${token}&`,
-    });
-    const error = portalError(
-      (await response.json()) as Record<string, unknown>,
-      'Çıkış başarısız',
+      `assoscmd=logout&rtype=json&token=${token}&`,
     );
+    const error = portalError(json, 'Çıkış başarısız');
     if (error) {
       throw error;
     }
@@ -293,19 +427,8 @@ export function createClient(options?: ClientOptions): EarsivClient {
 
   async function forceLogout(username: string, password: string, testMode: boolean): Promise<void> {
     const baseUrl = portalUrl(testMode);
-    const cmd = testMode ? 'login' : 'anologin';
-
-    const response = await fetchFn(`${baseUrl}/earsiv-services/assos-login`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        Referer: `${baseUrl}/intragiris.html`,
-      },
-      body: `assoscmd=${cmd}&rtype=json&userid=${encodeURIComponent(username)}&sifre=${encodeURIComponent(password)}&sifre2=${encodeURIComponent(password)}&parola=1&`,
-    });
-
+    const { json, response } = await postLogin(baseUrl, username, password, testMode);
     const cookies = extractCookies(response);
-    const json = (await response.json()) as Record<string, unknown>;
     const token = (json.token as string) ?? '';
 
     await sendLogout(baseUrl, cookies, token);
@@ -404,7 +527,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     // known success message in `data` confirms the draft was created.
     const data = result.data;
     if (typeof data !== 'string' || !data.includes('başarıyla oluşturul')) {
-      throw new Error(typeof data === 'string' && data ? data : 'Fatura oluşturulamadı');
+      throw gibError(data, 'Fatura oluşturulamadı');
     }
 
     const uuid = await findCreatedDraftUUID(session, details);
@@ -502,7 +625,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
         }
         // A refused query comes back as data, not as an error: [{ error: '...' }].
         if (typeof row.error === 'string') {
-          throw new Error(row.error);
+          throw gibError(row.error, 'GİB belge listesi okunamadı');
         }
         const ettn = str(row.ettn);
         if (ettn) {
@@ -532,17 +655,20 @@ export function createClient(options?: ClientOptions): EarsivClient {
       'EARSIV_PORTAL_TELEFONNO_SORGULA',
       'RG_BASITTASLAKLAR',
       {},
+      'sms-failed',
     );
     const data = result.data as Record<string, string> | undefined;
     return data?.telefon ?? '';
   }
 
   async function requestSigningSMS(session: SessionInfo, phone: string): Promise<string> {
-    const result = await dispatch(session, 'EARSIV_PORTAL_SMSSIFRE_GONDER', 'RG_SMSONAY', {
-      CEPTEL: phone,
-      KCEPTEL: false,
-      TIP: '',
-    });
+    const result = await dispatch(
+      session,
+      'EARSIV_PORTAL_SMSSIFRE_GONDER',
+      'RG_SMSONAY',
+      { CEPTEL: phone, KCEPTEL: false, TIP: '' },
+      'sms-failed',
+    );
     const data = result.data as Record<string, string> | undefined;
     return data?.oid ?? '';
   }
@@ -561,8 +687,10 @@ export function createClient(options?: ClientOptions): EarsivClient {
     });
 
     const data = result.data as Record<string, string> | undefined;
+    // A wrong or expired code, or an unknown OID: a new SMS fixes all three.
     if (data?.sonuc === '0') {
-      throw new Error(data.msg || 'SMS kodu hatalı');
+      const gibMessage = data.msg?.trim() || undefined;
+      throw new GibError('sms-code-wrong', gibMessage ?? 'SMS şifresi hatalı', { gibMessage });
     }
 
     return result;
@@ -571,11 +699,11 @@ export function createClient(options?: ClientOptions): EarsivClient {
   async function startSMSSign(session: SessionInfo): Promise<{ oid: string; phone: string }> {
     const phone = await getSigningPhone(session);
     if (!phone) {
-      throw new Error('SMS onay için kayıtlı telefon numarası bulunamadı');
+      throw new GibError('sms-failed', 'SMS onay için kayıtlı telefon numarası bulunamadı');
     }
     const oid = await requestSigningSMS(session, phone);
     if (!oid) {
-      throw new Error('SMS gönderimi başarısız');
+      throw new GibError('sms-failed', 'SMS gönderimi başarısız');
     }
     return { phone, oid };
   }
