@@ -5,7 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
+import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
@@ -342,7 +342,7 @@ const SelectContent = ({
             stylexProps(
               popupStyles.surface,
               styles.content,
-              !alignItemWithTrigger && isHidden(state.transitionStatus) && popupStyles.hidden,
+              !alignItemWithTrigger && popupMotion(state.transitionStatus),
               customClassName(className),
               style,
             ).className

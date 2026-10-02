@@ -12,7 +12,7 @@ import {
   DateSegment,
 } from 'react-aria-components/DateField';
 import { I18nProvider } from 'react-aria-components/I18nProvider';
-import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
+import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { Calendar } from './calendar.tsx';
 import { Input } from './input.tsx';
@@ -69,18 +69,7 @@ const styles = create({
     flexDirection: 'column',
     gap: '0.75rem',
     padding: '0.75rem',
-    // A popover from a field opens quickly and settles in place: 150ms, no
-    // movement under reduced motion.
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0s',
-      default: '150ms',
-    },
-    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
     width: 'max-content',
-  },
-  popupHidden: {
-    opacity: 0,
-    transform: 'scale(0.97)',
   },
   preset: {
     backgroundColor: {
@@ -452,11 +441,8 @@ const DateField = ({
         >
           <Popover.Popup
             className={(state) =>
-              stylexProps(
-                popupStyles.surface,
-                styles.popup,
-                isHidden(state.transitionStatus) && styles.popupHidden,
-              ).className
+              stylexProps(popupStyles.surface, styles.popup, popupMotion(state.transitionStatus))
+                .className
             }
             initialFocus={() =>
               textRef.current ??

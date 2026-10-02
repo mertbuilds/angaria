@@ -1,12 +1,19 @@
 import type { Popover } from '@base-ui/react/popover';
 import { create } from '@stylexjs/stylex';
 import { useCallback, useState } from 'react';
-import { motion } from '../tokens.stylex.ts';
 import { colors, radius } from './tokens.stylex.ts';
 
 /** Base UI's transition status while a popup mounts or unmounts. */
 export const isHidden = (status: string | undefined) =>
   status === 'starting' || status === 'ending';
+
+// Whether the last input was a key: a popup opened from the keyboard (typing
+// in a combobox, Space on a select, Alt+↓) shows at once.
+let keyboardInput = false;
+if (typeof document !== 'undefined') {
+  document.addEventListener('keydown', () => (keyboardInput = true), true);
+  document.addEventListener('pointerdown', () => (keyboardInput = false), true);
+}
 
 type Side = NonNullable<Popover.Positioner.Props['side']>;
 type Align = NonNullable<Popover.Positioner.Props['align']>;
@@ -67,15 +74,18 @@ export function useHeldPlacement(side: Side, align: Align) {
 }
 
 /**
- * The floating surface shared by Select, Popover, Menu and Combobox: 8px
- * corners, a 1px border instead of a shadow, and the canon motion (opacity
- * fades in 200ms, the scale settles in 260ms). Reduced motion keeps the fade
- * and drops the scale.
+ * The floating surface shared by Select, Popover, Menu, Combobox and the date
+ * popover: 8px corners and a 1px border instead of a shadow. Its motion comes
+ * from popupMotion.
  */
 export const popupStyles = create({
   hidden: {
     opacity: 0,
-    transform: 'scale(0.96)',
+    transform: 'scale(0.97)',
+  },
+  // No motion: a keyboard open, every close.
+  instant: {
+    transitionDuration: '0s',
   },
   positioner: {
     isolation: 'isolate',
@@ -96,10 +106,21 @@ export const popupStyles = create({
     transform: 'scale(1)',
     transformOrigin: 'var(--transform-origin)',
     transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': `${motion.fade}, 0s`,
-      default: `${motion.fade}, ${motion.move}`,
+      '@media (prefers-reduced-motion: reduce)': '0s',
+      default: '150ms',
     },
     transitionProperty: 'opacity, transform',
-    transitionTimingFunction: motion.ease,
+    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
   },
 });
+
+/**
+ * A popup's motion for its Base UI transition `status`, after popupStyles.surface:
+ * opened by a pointer it fades in and settles from 97% in 150ms from its
+ * trigger; opened from the keyboard, under reduced motion and when it closes
+ * it shows or goes at once.
+ */
+export const popupMotion = (status: string | undefined) => [
+  isHidden(status) && popupStyles.hidden,
+  (status === 'ending' || keyboardInput) && popupStyles.instant,
+];

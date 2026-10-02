@@ -5,7 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
+import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 import { inputStyles } from './input.tsx';
@@ -317,7 +317,7 @@ const ComboboxContent = ({
             stylexProps(
               popupStyles.surface,
               styles.content,
-              isHidden(state.transitionStatus) && popupStyles.hidden,
+              popupMotion(state.transitionStatus),
               customClassName(className),
               style,
             ).className

@@ -4,7 +4,7 @@ import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import type { ComponentProps } from 'react';
-import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
+import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
@@ -76,7 +76,7 @@ const PopoverContent = ({
             stylexProps(
               popupStyles.surface,
               styles.popup,
-              isHidden(state.transitionStatus) && popupStyles.hidden,
+              popupMotion(state.transitionStatus),
               customClassName(className),
               style,
             ).className
