@@ -1,5 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { EarsivClient, SessionInfo } from 'angaria-earsiv-sdk';
+import { type EarsivClient, GibError, type SessionInfo } from 'angaria-earsiv-sdk';
 
 export interface Credentials {
   password: string;
@@ -28,6 +28,20 @@ export function readCredentials(env: NodeJS.ProcessEnv = process.env): Credentia
   }
   return { password, testMode: env.GIB_TEST_MODE === 'true', username };
 }
+
+/**
+ * A GİB failure as a tool error: the SDK's code (auth, session-locked,
+ * maintenance, ...) and its Turkish message, GİB's own text when it sent one.
+ */
+export const gibErrorResult = (error: GibError): CallToolResult => ({
+  content: [
+    {
+      text: JSON.stringify({ error: { code: error.code, message: error.message } }),
+      type: 'text',
+    },
+  ],
+  isError: true,
+});
 
 /**
  * Logs in for one tool call and always logs out after it, so sequential
@@ -75,7 +89,14 @@ export function createSessionRunner(
   }
 
   return (fn) => {
-    const next = queue.then(() => run(fn));
+    const next = queue
+      .then(() => run(fn))
+      .catch((error: unknown) => {
+        if (error instanceof GibError) {
+          return gibErrorResult(error);
+        }
+        throw error;
+      });
     queue = next.catch(() => {});
     return next;
   };

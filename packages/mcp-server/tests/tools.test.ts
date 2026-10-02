@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { EarsivClient, SessionInfo } from 'angaria-earsiv-sdk';
+import { type EarsivClient, GibError, type SessionInfo } from 'angaria-earsiv-sdk';
 import { expect, test, vi } from 'vitest';
 import { createServer } from '../src/server.ts';
 import { type Credentials, readCredentials } from '../src/session.ts';
@@ -299,6 +299,34 @@ test('a failed logout goes to stderr and into the result as a warning', async ()
   } finally {
     stderr.mockRestore();
   }
+});
+
+test('a GİB failure surfaces its code and Turkish message', async () => {
+  const text = 'Sisteme aynı anda birden fazla giriş yapamazsınız.';
+  const client = fakeClient({
+    login: vi.fn(async () => {
+      throw new GibError('session-locked', text, { gibMessage: text });
+    }),
+  });
+  const mcp = await connect(client);
+  const result = await call(mcp, 'list_invoices', {
+    endDate: '31/03/2026',
+    startDate: '01/03/2026',
+  });
+
+  expect(result.isError).toBe(true);
+  expect(JSON.parse(result.text)).toEqual({ error: { code: 'session-locked', message: text } });
+
+  vi.mocked(client.login).mockResolvedValue(session);
+  vi.mocked(client.getDrafts).mockRejectedValue(new GibError('network', 'GİB’e ulaşılamadı'));
+  const offline = await call(mcp, 'list_invoices', {
+    endDate: '31/03/2026',
+    startDate: '01/03/2026',
+  });
+  expect(JSON.parse(offline.text)).toEqual({
+    error: { code: 'network', message: 'GİB’e ulaşılamadı' },
+  });
+  expect(client.logout).toHaveBeenCalledWith(session);
 });
 
 test('missing credentials fail the call before logging in', async () => {

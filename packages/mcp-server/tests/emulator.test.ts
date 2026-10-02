@@ -1,4 +1,4 @@
-import { type RunningEmulator, startEmulator } from '@angaria/gib-emulator';
+import { messages, type RunningEmulator, startEmulator } from '@angaria/gib-emulator';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createClient } from 'angaria-earsiv-sdk';
@@ -51,4 +51,22 @@ test('parallel tool calls run one at a time on their own sessions', async () => 
     'login 33333301',
     'logout 33333301',
   ]);
+});
+
+test('a session open elsewhere is a tool error with its code and GİB’s Turkish text', async () => {
+  await fetch(`${emulator.url}/__emulator/lock`, {
+    body: JSON.stringify({ userid: '33333301' }),
+    method: 'POST',
+  });
+  const mcp = await connect();
+  const result = await mcp.callTool({
+    arguments: { endDate: '30/09/2026', startDate: '24/09/2026' },
+    name: 'list_invoices',
+  });
+  const [content] = result.content as Array<{ text: string }>;
+
+  expect(result.isError).toBe(true);
+  expect(JSON.parse(content.text)).toEqual({
+    error: { code: 'session-locked', message: messages.sessionLocked },
+  });
 });
