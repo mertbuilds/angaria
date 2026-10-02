@@ -14,12 +14,15 @@ export function TextField({
   inputMode,
   maxLength,
   placeholder,
+  spellCheck = false,
   ...frame
 }: FieldProps & {
   autoComplete?: string;
   inputMode?: 'decimal' | 'numeric' | 'text';
   maxLength?: number;
   placeholder?: string;
+  /** Off by default: names, numbers and codes are not words to check. */
+  spellCheck?: boolean;
 }) {
   const field = useFieldContext<string>();
   const error = useFieldError({ typed: true });
@@ -37,6 +40,7 @@ export function TextField({
           onBlur={field.handleBlur}
           onChange={(event) => field.handleChange(event.target.value)}
           placeholder={placeholder}
+          spellCheck={spellCheck}
           style={inputMode === 'decimal' ? styles.number : undefined}
           value={field.state.value}
         />

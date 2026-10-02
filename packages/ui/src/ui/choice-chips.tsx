@@ -128,12 +128,18 @@ export interface ChoiceChipsProps<T extends string | number> {
   /**
    * A last chip ("Diğer") that shows an input for a value outside `options`,
    * inline after the chips. Picking it by pointer, Space or digit focuses the
-   * input (`id`); the value stays until the input changes it.
+   * input (`id`); the value stays until the input changes it. The input takes
+   * the group's description and invalid state too.
    */
   other?:
     | {
         label: string;
-        render: (props: { autoFocus: boolean; id: string }) => ReactNode;
+        render: (props: {
+          'aria-describedby': string | undefined;
+          'aria-invalid': boolean | undefined;
+          autoFocus: boolean;
+          id: string;
+        }) => ReactNode;
       }
     | undefined;
   size?: 'sm' | 'md' | undefined;
@@ -272,7 +278,13 @@ const ChoiceChips = <T extends string | number>({
           </Radio.Root>
         )}
       </RadioGroup>
-      {showOther && other.render({ autoFocus: focusOther > 0, id: otherId })}
+      {showOther &&
+        other.render({
+          'aria-describedby': describedBy,
+          'aria-invalid': invalid || undefined,
+          autoFocus: focusOther > 0,
+          id: otherId,
+        })}
     </div>
   );
 };

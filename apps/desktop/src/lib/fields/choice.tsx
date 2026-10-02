@@ -45,15 +45,20 @@ export function SelectField({
   ...frame
 }: FieldProps & { items: ReadonlyArray<FieldOption> }) {
   const field = useFieldContext<string>();
+  const error = useFieldError();
   return (
-    <FieldFrame {...frame} id={field.name}>
+    <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
         <Select
           items={items}
           onValueChange={(value) => value && field.handleChange(value)}
           value={field.state.value}
         >
-          <SelectTrigger aria-describedby={describedBy} id={field.name}>
+          <SelectTrigger
+            aria-describedby={describedBy}
+            aria-invalid={error ? true : undefined}
+            id={field.name}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

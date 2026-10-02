@@ -546,22 +546,16 @@ function ItemRow({
                 options={VAT_OPTIONS}
                 other={{
                   label: 'Diğer',
-                  render: ({ autoFocus, id }) => {
-                    const error = field.state.meta.isTouched && field.state.meta.errors.length > 0;
-                    return (
-                      <VATRateInput
-                        aria-describedby={error ? `${field.name}-error` : undefined}
-                        aria-invalid={error || undefined}
-                        aria-labelledby={`${field.name}-label`}
-                        autoFocus={autoFocus}
-                        disabled={istisna}
-                        id={id}
-                        onBlur={field.handleBlur}
-                        onValueChange={field.handleChange}
-                        value={field.state.value}
-                      />
-                    );
-                  },
+                  render: (input) => (
+                    <VATRateInput
+                      {...input}
+                      aria-labelledby={`${field.name}-label`}
+                      disabled={istisna}
+                      onBlur={field.handleBlur}
+                      onValueChange={field.handleChange}
+                      value={field.state.value}
+                    />
+                  ),
                 }}
                 size="sm"
                 style={styles.vat}
