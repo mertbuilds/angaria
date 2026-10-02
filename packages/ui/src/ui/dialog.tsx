@@ -87,7 +87,9 @@ const styles = create({
     width: '100%',
     zIndex: 50,
   },
+  // A close gets out of the way: quicker than the open.
   contentClosed: {
+    animationDuration: '150ms',
     animationName: {
       '@media (prefers-reduced-motion: reduce)': fadeOut,
       default: zoomOut,
@@ -140,6 +142,7 @@ const styles = create({
     zIndex: 50,
   },
   overlayClosed: {
+    animationDuration: '150ms',
     animationName: fadeOut,
   },
   overlayOpen: {
