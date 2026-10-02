@@ -28,12 +28,13 @@ const screen = (
   { framed = false, height = 900, themed = true } = {},
 ): Screen => ({ alt, framed, height, name, themed, width: 1440 });
 
-/** Every screenshot the landing page shows, by where it shows. */
+/** Every screenshot the site shows, by where it shows. */
 export const SCREENS = {
   compare: screen('yeni-fatura', m.screen_compare_alt),
   customers: screen('musteriler', m.screen_customers_alt),
   gib: screen('gib-portal', m.screen_gib_alt, { themed: false }),
   hero: screen('faturalar-detail', m.screen_hero_alt, { framed: true }),
+  mcp: screen('mcp', m.screen_mcp_alt, { framed: true }),
   palette: screen('palette', m.screen_palette_alt),
   pdf: screen('pdf', m.screen_pdf_alt, { height: 2037, themed: false }),
   rates: screen('yeni-fatura', m.screen_rates_alt),
