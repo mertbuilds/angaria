@@ -22,8 +22,8 @@ describe('Pricing', () => {
     render(<Pricing />);
 
     expect(screen.getByRole('tab', { name: 'Yıllık' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveTextContent('1.499 ₺/ yıl');
-    expect(screen.getByText('Aylık plana göre yaklaşık yüzde 37 daha ucuz')).toBeVisible();
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('yıllık 1.499 TL');
+    expect(screen.getByText('Ayda yaklaşık 125 TL, aylık plandan %37 ucuz')).toBeVisible();
     expect(checkout()).toHaveAttribute('href', 'https://polar.test/yearly');
   });
 
@@ -33,8 +33,8 @@ describe('Pricing', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Aylık' }));
 
     expect(screen.getByRole('tab', { name: 'Aylık' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveTextContent('199 ₺/ ay');
-    expect(screen.queryByText('Aylık plana göre yaklaşık yüzde 37 daha ucuz')).not.toBeVisible();
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('aylık 199 TL');
+    expect(screen.queryByText('Ayda yaklaşık 125 TL, aylık plandan %37 ucuz')).not.toBeVisible();
     expect(checkout()).toHaveAttribute('href', 'https://polar.test/monthly');
 
     fireEvent.click(checkout());
@@ -59,5 +59,6 @@ describe('Pricing', () => {
   test('the yearly saving note matches the prices', () => {
     const saving = 1 - PRICES_TRY.yearly / (PRICES_TRY.monthly * 12);
     expect(Math.round(saving * 100)).toBe(37);
+    expect(Math.round(PRICES_TRY.yearly / 12)).toBe(125);
   });
 });

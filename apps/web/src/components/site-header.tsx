@@ -27,7 +27,7 @@ export function SiteHeader() {
       <Link aria-label={m.header_home()} to="/" {...props(styles.home)}>
         <Wordmark style={styles.wordmark} />
       </Link>
-      <CheckoutButton label={m.header_buy()} location="header" />
+      <CheckoutButton label={m.header_trial()} location="header" />
     </header>
   );
 }
