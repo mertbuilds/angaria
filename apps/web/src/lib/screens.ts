@@ -1,14 +1,15 @@
 import { m } from '../paraglide/messages.js';
 
-/** The widths every screenshot is exported at, in pixels (public/screens/README.md). */
+/** The widths every screenshot is exported at, in pixels (docs/screenshots.md). */
 const WIDTHS = [1440, 2880] as const;
 
 export type Theme = 'dark' | 'light';
 
 /**
- * One app screenshot in public/screens, exported at every width in WIDTHS as
+ * One screenshot in public/screens, exported at every width in WIDTHS as
  * `<name>-<theme>[-framed]-<width>.webp`, or `<name>-<width>.webp` when it
- * has one version for both themes (the PDF is paper).
+ * has one version for both themes (the PDF is paper, the GİB portal has no
+ * dark theme).
  */
 export interface Screen {
   alt: () => string;
@@ -31,6 +32,7 @@ const screen = (
 export const SCREENS = {
   compare: screen('yeni-fatura', m.screen_compare_alt),
   customers: screen('musteriler', m.screen_customers_alt),
+  gib: screen('gib-portal', m.screen_gib_alt, { themed: false }),
   hero: screen('faturalar-detail', m.screen_hero_alt, { framed: true }),
   invoices: screen('faturalar-detail', m.screen_invoices_alt),
   license: screen('license', m.screen_license_alt),

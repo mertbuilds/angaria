@@ -50,7 +50,7 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 Turkish. Sections:
 
 1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" / "14 gün ücretsiz dene" CTA.
-2. GİB vs Angaria side-by-side (placeholders until Mert sends GİB screenshots).
+2. GİB vs Angaria: a compare slider over the GİB portal's e-Arşiv fatura form and Angaria's Yeni fatura.
 3. Features: geçen faturadan başla, geçen ayın faturasını tekrar kes, müşteri ve hizmet kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers).
 4. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, Polar license check, update check); credentials in system keychain; data stays on device.
 5. Pricing: Yıllık / Aylık switch (default Yıllık): 1.499 ₺/yıl or 199 ₺/ay, 14 gün ücretsiz → that plan's Polar hosted checkout. Every other checkout button (header, hero) and the app's Satın al open the yearly checkout.
