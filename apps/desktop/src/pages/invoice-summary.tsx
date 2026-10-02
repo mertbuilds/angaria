@@ -207,7 +207,7 @@ function PDFRow({
   return (
     <div {...props(styles.pdfRow)}>
       <span {...props(styles.pdfLabel)}>PDF</span>
-      <PDFLanguageToggle onChange={onLanguageChange} value={language} />
+      <PDFLanguageToggle onChange={onLanguageChange} size="sm" value={language} />
       <Button onClick={onDownload} variant="ghost">
         <DownloadIcon />
         İndir

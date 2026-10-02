@@ -17,7 +17,7 @@ export function PDFLanguageToggle({
   'aria-labelledby': labelledBy,
   id,
   onChange,
-  size = 'sm',
+  size = 'md',
   style,
   value,
 }: {
