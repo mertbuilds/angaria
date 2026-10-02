@@ -352,6 +352,8 @@ const NumberInput = ({
               <button
                 aria-label={DECREMENT_LABEL}
                 disabled={disabled || readOnly}
+                // A click without a press (VoiceOver, Voice Control) steps once.
+                onClick={(event) => event.detail === 0 && stepBy(-step)}
                 onPointerCancel={stopRepeat}
                 onPointerDown={startRepeat(-1)}
                 onPointerLeave={stopRepeat}
@@ -365,6 +367,7 @@ const NumberInput = ({
               <button
                 aria-label={INCREMENT_LABEL}
                 disabled={disabled || readOnly}
+                onClick={(event) => event.detail === 0 && stepBy(step)}
                 onPointerCancel={stopRepeat}
                 onPointerDown={startRepeat(1)}
                 onPointerLeave={stopRepeat}

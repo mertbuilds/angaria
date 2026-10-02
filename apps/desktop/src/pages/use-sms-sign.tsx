@@ -168,9 +168,12 @@ function SMSCodeForm({
         </DialogDescription>
       </DialogHeader>
       <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor={codeId}>SMS şifresi</FieldLabel>
+        <FieldLabel htmlFor={codeId} id={`${codeId}-label`}>
+          SMS şifresi
+        </FieldLabel>
         <OTPInput
           aria-describedby={error ? errorId : undefined}
+          aria-labelledby={`${codeId}-label`}
           id={codeId}
           invalid={error !== null}
           length={CODE_LENGTH}
