@@ -1,16 +1,16 @@
-/** The color palettes in src/palettes.css, in the order the switch shows them. */
-export const paletteChoices = ['mist', 'paper', 'tide'] as const;
+import { useSyncExternalStore } from 'react';
+
+/** The color palettes in src/palettes.css, in the order Ayarlar shows them. */
+export const paletteChoices = ['mist', 'paper'] as const;
 
 export type PaletteChoice = (typeof paletteChoices)[number];
 
-/** Code names, shown only by the development switch. */
 export const paletteLabels: Record<PaletteChoice, string> = {
-  mist: 'Mist',
-  paper: 'Paper',
-  tide: 'Tide',
+  mist: 'Serin',
+  paper: 'Sıcak',
 };
 
-/** The palette index.html puts on <html>. Production builds always use it. */
+/** The palette index.html puts on <html>, until one is picked. */
 export const DEFAULT_PALETTE: PaletteChoice = 'mist';
 
 const PALETTE_STORAGE_KEY = 'angaria-palette';
@@ -20,7 +20,7 @@ export function readPalette(root: HTMLElement = document.documentElement): Palet
   return paletteChoices.find((choice) => choice === root.dataset['palette']) ?? DEFAULT_PALETTE;
 }
 
-/** Dev only: applies the palette and remembers it for the next launch. */
+/** Applies the palette and remembers it for the next launch. */
 export function setPalette(choice: PaletteChoice, root: HTMLElement = document.documentElement) {
   root.dataset['palette'] = choice;
   try {
@@ -30,11 +30,8 @@ export function setPalette(choice: PaletteChoice, root: HTMLElement = document.d
   }
 }
 
-/** Dev only: re-applies the palette picked under Ayarlar or ⌘K. Production keeps index.html's. */
+/** Re-applies the picked palette at startup. Without one, index.html's default stays. */
 export function restorePalette(root: HTMLElement = document.documentElement) {
-  if (!import.meta.env.DEV) {
-    return;
-  }
   try {
     const stored = localStorage.getItem(PALETTE_STORAGE_KEY);
     const choice = paletteChoices.find((item) => item === stored);
@@ -44,4 +41,15 @@ export function restorePalette(root: HTMLElement = document.documentElement) {
   } catch {
     // No storage: index.html's default stays.
   }
+}
+
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributeFilter: ['data-palette'] });
+  return () => observer.disconnect();
+}
+
+/** The current palette, kept in step when Ayarlar or ⌘K switch it. */
+export function usePalette(): PaletteChoice {
+  return useSyncExternalStore(subscribe, readPalette);
 }

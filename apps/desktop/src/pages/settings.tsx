@@ -36,13 +36,7 @@ import { LOGO_TYPES, readLogo } from '@/lib/company-logo.ts';
 import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
 import { toastError } from '@/lib/gib-errors.ts';
 import { isPDFStyle, PDF_STYLES, resolvePDFStyle } from '@/lib/invoice-pdf-i18n.ts';
-import {
-  paletteChoices,
-  paletteLabels,
-  readPalette,
-  setPalette,
-  type PaletteChoice,
-} from '@/lib/palette.ts';
+import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/palette.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import type { CompanyInfo, Entity, PDFStyle } from '@/lib/types.ts';
@@ -560,26 +554,24 @@ function AppearanceSection() {
           </TabsList>
         </Tabs>
       </SettingsRow>
-      {import.meta.env.DEV && <PaletteRow />}
+      <PaletteRow />
     </SettingsSection>
   );
 }
 
-/** Dev only: the color palette candidates in src/palettes.css. */
-function PaletteRow() {
-  const [palette, setPaletteChoice] = useState<PaletteChoice>(() => readPalette());
-
-  function handleChange(value: unknown) {
-    const choice = paletteChoices.find((item) => item === value);
-    if (choice) {
-      setPalette(choice);
-      setPaletteChoice(choice);
-    }
+function selectPalette(value: unknown) {
+  const choice = paletteChoices.find((item) => item === value);
+  if (choice) {
+    setPalette(choice);
   }
+}
+
+function PaletteRow() {
+  const palette = usePalette();
 
   return (
-    <SettingsRow hint="Geliştirme: renk paleti adayları" label="Palet">
-      <Tabs onValueChange={handleChange} value={palette}>
+    <SettingsRow hint="Serin mavi-gri, Sıcak krem tonlar kullanır" label="Renk paleti">
+      <Tabs onValueChange={selectPalette} value={palette}>
         <TabsList>
           {paletteChoices.map((choice) => (
             <TabsTrigger key={choice} value={choice}>

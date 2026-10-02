@@ -4,10 +4,9 @@
  * base.css: same variables, later in the cascade and more specific, so these
  * win.
  *
- * Three candidates while one is picked: mist (cool blue-gray), paper (warm
- * neutral) and tide (blue-tinted, brand-forward). `data-palette` on <html>
- * picks one: index.html sets the default, Ayarlar › Görünüm and ⌘K switch it
- * in development (src/lib/palette.ts).
+ * Two palettes the user picks from: mist (cool blue-gray, the default) and
+ * paper (warm neutral). `data-palette` on <html> picks one: index.html sets
+ * the default, Ayarlar › Görünüm and ⌘K switch it (src/lib/palette.ts).
  *
  * Each palette sets the kit's variables and these:
  *
@@ -22,12 +21,12 @@
  *   --paper-edge          the outline of GİB's white page on the canvas
  *   --paper-filter        dims that page in dark mode, so it does not glare
  *   --switch-thumb, --tooltip, --tooltip-foreground (the kit reads them)
- *   --shell-inset         0, or the gap that floats the content as a panel on
- *                         the sidebar's tone; --shell-radius rounds that panel
+ *   --panel-shadow        lifts the content panel off the window's tone
  *
- * Regions part by tone, not lines: the sidebar is one tone, the content
- * canvas another, cards and the GİB page sit on the canvas. The kit's
- * borders stay on controls only (outline buttons, fields, popups).
+ * Regions part by tone, not lines: the window is the sidebar's tone, the
+ * content floats on it as a rounded panel in the canvas tone (the shell's
+ * `main`), and cards and the GİB page sit on the canvas. The kit's borders
+ * stay on controls only (outline buttons, fields, popups).
  *
  * The primary fill is #0098f2 or a deeper blue. White text on #0098f2 is
  * 3.1:1 and fails AA, so that fill carries dark text, and a fill with white
@@ -45,8 +44,6 @@
 [data-palette] [data-theme] {
   --sidebar-border: transparent;
   --tab-active-edge: transparent;
-  --shell-inset: 0px;
-  --shell-radius: 0px;
 }
 
 /* Mist: cool blue-gray neutrals, blue for actions and selection. */
@@ -64,7 +61,7 @@
   --secondary: rgb(0 119 200 / 0.12);
   --secondary-foreground: #00609f;
   --muted: #e8edf2;
-  --muted-foreground: #5a6673;
+  --muted-foreground: #56616e;
   --accent: #edf1f5;
   --accent-foreground: #1a1f26;
   --destructive: #c41c1c;
@@ -72,17 +69,17 @@
   --border: #d6dde5;
   --input: #d2dae3;
   --ring: #0077c8;
-  --sidebar: #e9eef3;
+  --sidebar: #e1e7ed;
   --sidebar-foreground: #1a1f26;
   --sidebar-primary: #0077c8;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #dfe6ed;
+  --sidebar-accent: #d8dfe6;
   --sidebar-accent-foreground: #1a1f26;
   --sidebar-ring: #0077c8;
   --primary-ink: #0067ad;
   --selection: #e0ecf8;
   --selection-foreground: #1a1f26;
-  --nav-active: #d5e4f3;
+  --nav-active: #cbdcee;
   --nav-active-foreground: #1a1f26;
   --nav-active-icon: #0067ad;
   --tab-active: #ffffff;
@@ -94,6 +91,7 @@
   --switch-thumb: #ffffff;
   --tooltip: #1a1f26;
   --tooltip-foreground: #f4f7fa;
+  --panel-shadow: 0 1px 2px rgb(26 31 38 / 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -117,11 +115,11 @@
     --border: #2c343e;
     --input: #303943;
     --ring: #3aa8f4;
-    --sidebar: #0e1217;
+    --sidebar: #0a0d11;
     --sidebar-foreground: #e2e7ed;
     --sidebar-primary: #0098f2;
     --sidebar-primary-foreground: #04131f;
-    --sidebar-accent: #191f26;
+    --sidebar-accent: #161b21;
     --sidebar-accent-foreground: #e2e7ed;
     --sidebar-ring: #3aa8f4;
     --primary-ink: #5cb6f5;
@@ -139,6 +137,7 @@
     --switch-thumb: #f0f3f6;
     --tooltip: #e2e7ed;
     --tooltip-foreground: #12171d;
+    --panel-shadow: 0 0 0 1px rgb(255 255 255 / 0.05);
   }
 }
 
@@ -163,11 +162,11 @@
   --border: #2c343e;
   --input: #303943;
   --ring: #3aa8f4;
-  --sidebar: #0e1217;
+  --sidebar: #0a0d11;
   --sidebar-foreground: #e2e7ed;
   --sidebar-primary: #0098f2;
   --sidebar-primary-foreground: #04131f;
-  --sidebar-accent: #191f26;
+  --sidebar-accent: #161b21;
   --sidebar-accent-foreground: #e2e7ed;
   --sidebar-ring: #3aa8f4;
   --primary-ink: #5cb6f5;
@@ -185,6 +184,7 @@
   --switch-thumb: #f0f3f6;
   --tooltip: #e2e7ed;
   --tooltip-foreground: #12171d;
+  --panel-shadow: 0 0 0 1px rgb(255 255 255 / 0.05);
 }
 
 /* Paper: warm off-white and charcoal with cream text; blue only for actions,
@@ -203,7 +203,7 @@
   --secondary: rgb(0 119 200 / 0.1);
   --secondary-foreground: #00609f;
   --muted: #eeece7;
-  --muted-foreground: #67625a;
+  --muted-foreground: #625d55;
   --accent: #f2f0ec;
   --accent-foreground: #1f1d1a;
   --destructive: #c41c1c;
@@ -211,17 +211,17 @@
   --border: #dfdbd3;
   --input: #dad5cc;
   --ring: #0077c8;
-  --sidebar: #efede8;
+  --sidebar: #e8e5de;
   --sidebar-foreground: #1f1d1a;
   --sidebar-primary: #0077c8;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e6e3dc;
+  --sidebar-accent: #dfdbd3;
   --sidebar-accent-foreground: #1f1d1a;
   --sidebar-ring: #0077c8;
   --primary-ink: #0067ad;
   --selection: #ebe8e1;
   --selection-foreground: #1f1d1a;
-  --nav-active: #e2ded5;
+  --nav-active: #d9d4c9;
   --nav-active-foreground: #1f1d1a;
   --nav-active-icon: #0067ad;
   --tab-active: #ffffff;
@@ -233,6 +233,7 @@
   --switch-thumb: #ffffff;
   --tooltip: #1f1d1a;
   --tooltip-foreground: #f7f6f3;
+  --panel-shadow: 0 1px 2px rgb(31 29 26 / 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -256,11 +257,11 @@
     --border: #36332f;
     --input: #3a3732;
     --ring: #3aa8f4;
-    --sidebar: #121110;
+    --sidebar: #0d0c0b;
     --sidebar-foreground: #ebe6dc;
     --sidebar-primary: #0098f2;
     --sidebar-primary-foreground: #0d1013;
-    --sidebar-accent: #1e1d1b;
+    --sidebar-accent: #1a1917;
     --sidebar-accent-foreground: #ebe6dc;
     --sidebar-ring: #3aa8f4;
     --primary-ink: #5cb6f5;
@@ -278,6 +279,7 @@
     --switch-thumb: #f3efe8;
     --tooltip: #ebe6dc;
     --tooltip-foreground: #171615;
+    --panel-shadow: 0 0 0 1px rgb(255 255 255 / 0.05);
   }
 }
 
@@ -302,11 +304,11 @@
   --border: #36332f;
   --input: #3a3732;
   --ring: #3aa8f4;
-  --sidebar: #121110;
+  --sidebar: #0d0c0b;
   --sidebar-foreground: #ebe6dc;
   --sidebar-primary: #0098f2;
   --sidebar-primary-foreground: #0d1013;
-  --sidebar-accent: #1e1d1b;
+  --sidebar-accent: #1a1917;
   --sidebar-accent-foreground: #ebe6dc;
   --sidebar-ring: #3aa8f4;
   --primary-ink: #5cb6f5;
@@ -324,149 +326,5 @@
   --switch-thumb: #f3efe8;
   --tooltip: #ebe6dc;
   --tooltip-foreground: #171615;
-}
-
-/* Tide: the site's blue up front. The content floats as a rounded panel on
-   a deeper blue sidebar tone; the brand fill with dark text on buttons and,
-   in light mode, the current nav row; deep navy in dark mode. */
-
-:root[data-palette='tide'] {
-  --shell-inset: 8px;
-  --shell-radius: 12px;
-}
-
-:root[data-palette='tide'],
-[data-palette='tide'] [data-theme='light'] {
-  --background: #eef5fb;
-  --foreground: #0f1e2c;
-  --card: #ffffff;
-  --card-foreground: #0f1e2c;
-  --popover: #ffffff;
-  --popover-foreground: #0f1e2c;
-  --primary: #0098f2;
-  --primary-foreground: #04192b;
-  --secondary: rgb(0 152 242 / 0.16);
-  --secondary-foreground: #005b99;
-  --muted: #dfeaf5;
-  --muted-foreground: #4f6377;
-  --accent: #e9f2fa;
-  --accent-foreground: #0f1e2c;
-  --destructive: #c41c1c;
-  --warning: #a95209;
-  --border: #c9d9e9;
-  --input: #c5d6e7;
-  --ring: #0077c8;
-  --sidebar: #d8e7f5;
-  --sidebar-foreground: #0f1e2c;
-  --sidebar-primary: #0098f2;
-  --sidebar-primary-foreground: #04192b;
-  --sidebar-accent: #cadded;
-  --sidebar-accent-foreground: #0f1e2c;
-  --sidebar-ring: #0077c8;
-  --primary-ink: #005f9f;
-  --selection: #d4e7f8;
-  --selection-foreground: #0f1e2c;
-  --nav-active: #0098f2;
-  --nav-active-foreground: #04192b;
-  --nav-active-icon: #04192b;
-  --tab-active: #ffffff;
-  --tab-active-foreground: #005f9f;
-  --input-background: #ffffff;
-  --divider: #dbe7f2;
-  --paper-edge: rgb(15 30 44 / 0.08);
-  --paper-filter: none;
-  --switch-thumb: #ffffff;
-  --tooltip: #0f1e2c;
-  --tooltip-foreground: #eef5fb;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root[data-palette='tide']:not([data-theme='light']) {
-    --background: #0c1622;
-    --foreground: #e1e9f2;
-    --card: #112032;
-    --card-foreground: #e1e9f2;
-    --popover: #142538;
-    --popover-foreground: #e1e9f2;
-    --primary: #0098f2;
-    --primary-foreground: #03131f;
-    --secondary: rgb(0 152 242 / 0.26);
-    --secondary-foreground: #7cc5f8;
-    --muted: #15263a;
-    --muted-foreground: #8aa0b6;
-    --accent: #1b2f45;
-    --accent-foreground: #e1e9f2;
-    --destructive: #f87171;
-    --warning: #fbbf24;
-    --border: #213750;
-    --input: #253c55;
-    --ring: #3aa8f4;
-    --sidebar: #08111b;
-    --sidebar-foreground: #e1e9f2;
-    --sidebar-primary: #0098f2;
-    --sidebar-primary-foreground: #03131f;
-    --sidebar-accent: #102030;
-    --sidebar-accent-foreground: #e1e9f2;
-    --sidebar-ring: #3aa8f4;
-    --primary-ink: #5ebaf7;
-    --selection: #10304c;
-    --selection-foreground: #e1e9f2;
-    --nav-active: #123757;
-    --nav-active-foreground: #e1e9f2;
-    --nav-active-icon: #5ebaf7;
-    --tab-active: #22384f;
-    --tab-active-foreground: #e1e9f2;
-    --input-background: #0f1b29;
-    --divider: #15263a;
-    --paper-edge: transparent;
-    --paper-filter: brightness(0.9);
-    --switch-thumb: #eef4fa;
-    --tooltip: #e1e9f2;
-    --tooltip-foreground: #0c1622;
-  }
-}
-
-[data-palette='tide'][data-theme='dark'],
-[data-palette='tide'] [data-theme='dark'] {
-  --background: #0c1622;
-  --foreground: #e1e9f2;
-  --card: #112032;
-  --card-foreground: #e1e9f2;
-  --popover: #142538;
-  --popover-foreground: #e1e9f2;
-  --primary: #0098f2;
-  --primary-foreground: #03131f;
-  --secondary: rgb(0 152 242 / 0.26);
-  --secondary-foreground: #7cc5f8;
-  --muted: #15263a;
-  --muted-foreground: #8aa0b6;
-  --accent: #1b2f45;
-  --accent-foreground: #e1e9f2;
-  --destructive: #f87171;
-  --warning: #fbbf24;
-  --border: #213750;
-  --input: #253c55;
-  --ring: #3aa8f4;
-  --sidebar: #08111b;
-  --sidebar-foreground: #e1e9f2;
-  --sidebar-primary: #0098f2;
-  --sidebar-primary-foreground: #03131f;
-  --sidebar-accent: #102030;
-  --sidebar-accent-foreground: #e1e9f2;
-  --sidebar-ring: #3aa8f4;
-  --primary-ink: #5ebaf7;
-  --selection: #10304c;
-  --selection-foreground: #e1e9f2;
-  --nav-active: #123757;
-  --nav-active-foreground: #e1e9f2;
-  --nav-active-icon: #5ebaf7;
-  --tab-active: #22384f;
-  --tab-active-foreground: #e1e9f2;
-  --input-background: #0f1b29;
-  --divider: #15263a;
-  --paper-edge: transparent;
-  --paper-filter: brightness(0.9);
-  --switch-thumb: #eef4fa;
-  --tooltip: #e1e9f2;
-  --tooltip-foreground: #0c1622;
+  --panel-shadow: 0 0 0 1px rgb(255 255 255 / 0.05);
 }

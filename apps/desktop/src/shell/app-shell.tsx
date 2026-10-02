@@ -7,19 +7,21 @@ import { AppSidebar } from './app-sidebar.tsx';
 import { CommandPalette } from './command-palette.tsx';
 import { CredentialsGuard } from './credentials-guard.tsx';
 import { tones } from './palette.stylex.ts';
+import { shell } from './shell.stylex.ts';
 import { useShortcuts } from './use-shortcuts.ts';
 
 const styles = create({
-  // A palette with a shell inset floats the content as a rounded panel on the
-  // sidebar's tone.
+  // The content floats as a rounded panel on the sidebar's tone; the gaps
+  // around it are the root's, so they drag the window too.
   main: {
     backgroundColor: colors.bg,
-    borderRadius: tones.shellRadius,
+    borderRadius: shell.panelRadius,
+    boxShadow: tones.panelShadow,
     display: 'flex',
     flex: 1,
     flexDirection: 'column',
-    marginBlock: tones.shellInset,
-    marginInlineEnd: tones.shellInset,
+    marginBlock: shell.panelInset,
+    marginInlineEnd: shell.panelInset,
     minWidth: 0,
     overflow: 'hidden',
   },

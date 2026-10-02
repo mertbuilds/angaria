@@ -23,6 +23,11 @@ describe('palettes.css', () => {
     expect(read('../index.html')).toContain(`data-palette="${DEFAULT_PALETTE}"`);
   });
 
+  test('styles exactly the palettes the user picks from', () => {
+    const styled = new Set([...css.matchAll(/data-palette='([\w-]+)'/g)].map(([, name]) => name));
+    expect([...styled].toSorted()).toEqual([...paletteChoices].toSorted());
+  });
+
   test.each(paletteChoices)(
     '%s writes the same variables light and dark, both dark blocks alike',
     (palette) => {
