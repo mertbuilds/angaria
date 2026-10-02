@@ -3,7 +3,6 @@ import { type EarsivClient, GibError, type SessionInfo } from 'angaria-earsiv-sd
 
 export interface Credentials {
   password: string;
-  testMode: boolean;
   username: string;
 }
 
@@ -16,7 +15,7 @@ export interface ToolContext {
   withSession: WithSession;
 }
 
-/** GIB_TEST_MODE defaults to false: the production portal unless it is exactly "true". */
+/** The e-Arşiv login from GIB_USERNAME and GIB_PASSWORD. */
 export function readCredentials(env: NodeJS.ProcessEnv = process.env): Credentials {
   const username = env.GIB_USERNAME;
   const password = env.GIB_PASSWORD;
@@ -26,7 +25,7 @@ export function readCredentials(env: NodeJS.ProcessEnv = process.env): Credentia
         'Set them in your MCP client configuration.',
     );
   }
-  return { password, testMode: env.GIB_TEST_MODE === 'true', username };
+  return { password, username };
 }
 
 /**
@@ -70,8 +69,8 @@ export function createSessionRunner(
   async function run(
     fn: (session: SessionInfo) => Promise<CallToolResult>,
   ): Promise<CallToolResult> {
-    const { password, testMode, username } = credentials();
-    const session = await client.login(username, password, testMode);
+    const { password, username } = credentials();
+    const session = await client.login(username, password);
     let result: CallToolResult;
     try {
       result = await fn(session);

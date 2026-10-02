@@ -1,6 +1,6 @@
 # @angaria/gib-emulator
 
-A local stand-in for the GİB e-Arşiv portal (`earsivportal.efatura.gov.tr`, `earsivportaltest.efatura.gov.tr`) and the TCMB rates feed (`www.tcmb.gov.tr/kurlar`). Development, tests and manual QA run against it, never against live GİB: the production portal issues real documents, and the shared test portal's demo accounts are locked by other people's sessions most of the time.
+A local stand-in for the GİB e-Arşiv portal (`earsivportal.efatura.gov.tr`) and the TCMB rates feed (`www.tcmb.gov.tr/kurlar`). Development, tests and manual QA run against it, never against live GİB: the production portal issues real documents. It also replaces GİB's test portal, whose shared demo accounts are locked by other people's sessions most of the time; Angaria has no test portal mode (removed 2026-10-02).
 
 Plain `node:http`, no runtime dependencies. In-memory state by default, an optional JSON snapshot file for longer QA sessions.
 
@@ -16,7 +16,7 @@ Every SMS code, created draft, login and force logout is logged in the terminal.
 
 | User       | Password  | Notes                                                                    |
 | ---------- | --------- | ------------------------------------------------------------------------ |
-| `33333301` | `1`       | Like the test portal's demo account. Phone `5550000001`.                 |
+| `33333301` | `1`       | Like GİB's public demo account. Phone `5550000001`.                      |
 | `33333302` | `1`       | Second demo account, phone `5550000002`.                                 |
 | `33333303` | `1`       | No registered phone: SMS signing fails.                                  |
 | `12345678` | `angaria` | Production-like freelancer (TCKN), three documents issued in past weeks. |
@@ -25,15 +25,15 @@ The SMS code is `123456` unless configured.
 
 ### Clients
 
-- SDK: `createClient({ baseUrl: 'http://127.0.0.1:5180' })`. `baseUrl` replaces both the production and the test portal.
+- SDK: `createClient({ baseUrl: 'http://127.0.0.1:5180' })`. `baseUrl` replaces the production portal.
 - TCMB: `fetchTCMBRates(date, { baseUrl: 'http://127.0.0.1:5180' })` (angaria-utils).
-- Smoke script: `node packages/earsiv-sdk/scripts/smoke.ts` runs against `http://127.0.0.1:5180` by default (`EARSIV_EMULATOR_URL` for another address; for a portless alias add `NODE_EXTRA_CA_CERTS=~/.portless/ca.pem`, Node ignores the macOS trust store). The GİB portals only with `EARSIV_MODE=test` or `prod`.
+- Smoke script: `node packages/earsiv-sdk/scripts/smoke.ts` runs against `http://127.0.0.1:5180` by default (`EARSIV_EMULATOR_URL` for another address; for a portless alias add `NODE_EXTRA_CA_CERTS=~/.portless/ca.pem`, Node ignores the macOS trust store). The real portal only with `EARSIV_MODE=prod`.
 - Desktop app (dev only): Ayarlar › Gelişmiş › Emülatör. GİB and TCMB calls then go to `VITE_GIB_EMULATOR_URL` (`apps/desktop/.env.development`). The app uses plain http on loopback, not the portless alias: the Tauri http plugin (reqwest with rustls and bundled roots) does not trust portless's local CA. `tauri dev --config src-tauri/tauri.dev.conf.json` (the `desktop` pane of `pnpm dev`) adds that URL to the http allowlist; release builds never see it. In a plain browser (`pnpm --filter desktop dev`, `VITE_LICENSE_BYPASS=1`) the app reaches the emulator with the browser's fetch, which the emulator allows through CORS for the desktop dev origins (`http://localhost:<port>`, `http://127.0.0.1:<port>`, `tauri://localhost`, `http://tauri.localhost`) on the portal and TCMB routes.
 - Tests: `startEmulator({ port: 0 })` in-process. `packages/earsiv-sdk/tests/emulator-setup.ts` starts one per test run.
 
 ## Protocol
 
-POST `/earsiv-services/assos-login` (form): `assoscmd=login` (test portal) or `anologin` (production) with `userid`, `sifre` logs in and returns `{ token, redirectUrl }` plus a `JSESSIONID` cookie. `logout` with the token logs out on both portals. `anologin` without a `userid` is a login with missing fields: error type `5`, "Sisteme giriş için eksik bilgi verildi", and the session stays open.
+POST `/earsiv-services/assos-login` (form): `assoscmd=anologin` (production, what the SDK sends) or `login` (GİB's test portal) with `userid`, `sifre` logs in and returns `{ token, redirectUrl }` plus a `JSESSIONID` cookie. `logout` with the token logs out on both portals. `anologin` without a `userid` is a login with missing fields: error type `5`, "Sisteme giriş için eksik bilgi verildi", and the session stays open.
 
 POST `/earsiv-services/dispatch` (form: `cmd`, `callid`, `pageName`, `token`, `jp` = JSON). Success is `{ data, metadata: { optime: 'yyyyMMddHHmmss' } }`, an error is `{ error: '1', messages: [{ type: '4', text }], metadata }`.
 

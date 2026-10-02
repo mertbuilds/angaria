@@ -8,7 +8,7 @@ import type { SessionInfo } from 'angaria-earsiv-sdk';
 import type { Credentials } from './types.ts';
 
 export interface SessionClient {
-  login: (username: string, password: string, testMode: boolean) => Promise<SessionInfo>;
+  login: (username: string, password: string) => Promise<SessionInfo>;
   logout: (session: SessionInfo) => Promise<void>;
 }
 
@@ -80,10 +80,10 @@ export function createSessionQueue(client: SessionClient) {
             await close();
           }
           if (!open) {
-            const { password, testMode, username } = await job.account.credentials();
+            const { password, username } = await job.account.credentials();
             open = {
               key: job.account.key,
-              session: await client.login(username, password, testMode),
+              session: await client.login(username, password),
             };
           }
           await job.run(open.session);

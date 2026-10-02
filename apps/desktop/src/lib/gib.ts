@@ -12,17 +12,16 @@ export const gib = createSessionQueue({ login, logout });
 
 /**
  * The active company's GİB account. Its key also scopes the cached GİB data
- * (['invoices', key, ...]), so another user or the test portal never shows
- * stale rows.
+ * (['invoices', key, ...]), so another user never shows stale rows.
  */
 export function useGIBAccount(): GIBAccount {
   const { activeEntityId, creds, getCredentials } = useStore();
   return useMemo(
     () => ({
       credentials: () => getCredentials(activeEntityId),
-      key: `${creds.username}:${creds.testMode ? 'test' : 'canli'}`,
+      key: creds.username,
     }),
-    [activeEntityId, creds.testMode, creds.username, getCredentials],
+    [activeEntityId, creds.username, getCredentials],
   );
 }
 

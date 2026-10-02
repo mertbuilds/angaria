@@ -1,5 +1,4 @@
 const PROD_URL = 'https://earsivportal.efatura.gov.tr';
-const TEST_URL = 'https://earsivportaltest.efatura.gov.tr';
 
 export interface SessionInfo {
   baseUrl: string;
@@ -97,7 +96,7 @@ export interface EarsivClient {
     session: SessionInfo,
     details: InvoiceDetails,
   ): Promise<{ date: string; response: Record<string, unknown>; uuid: string }>;
-  forceLogout(username: string, password: string, testMode: boolean): Promise<void>;
+  forceLogout(username: string, password: string): Promise<void>;
   getDrafts(
     session: SessionInfo,
     startDate: string,
@@ -108,7 +107,7 @@ export interface EarsivClient {
   getInvoiceHTML(session: SessionInfo, uuid: string, onayDurumu: string): Promise<string>;
   getSigningPhone(session: SessionInfo): Promise<string>;
   getUUID(session: SessionInfo): Promise<string>;
-  login(username: string, password: string, testMode: boolean): Promise<SessionInfo>;
+  login(username: string, password: string): Promise<SessionInfo>;
   logout(session: SessionInfo): Promise<void>;
   requestSigningSMS(session: SessionInfo, phone: string): Promise<string>;
   signInvoiceHSM(
@@ -401,8 +400,8 @@ export function draftInvoicePayload(details: InvoiceDetails): Record<string, unk
 
 export interface ClientOptions {
   /**
-   * Portal origin for both modes, e.g. the local GİB emulator
-   * (packages/gib-emulator). Default: the real production and test portals.
+   * Portal origin, e.g. the local GİB emulator (packages/gib-emulator).
+   * Default: the production portal.
    */
   baseUrl?: string;
   fetch?: FetchFn;
@@ -410,7 +409,7 @@ export interface ClientOptions {
 
 export function createClient(options?: ClientOptions): EarsivClient {
   const fetchFn: FetchFn = options?.fetch ?? globalThis.fetch;
-  const portalUrl = (testMode: boolean) => options?.baseUrl ?? (testMode ? TEST_URL : PROD_URL);
+  const portalUrl = options?.baseUrl ?? PROD_URL;
 
   /**
    * POSTs a form and reads GİB's JSON. A request that fails (DNS, TLS,
@@ -478,23 +477,19 @@ export function createClient(options?: ClientOptions): EarsivClient {
     return result;
   }
 
-  const postLogin = (baseUrl: string, username: string, password: string, testMode: boolean) =>
+  const postLogin = (baseUrl: string, username: string, password: string) =>
     post(
       `${baseUrl}/earsiv-services/assos-login`,
       {
         'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
         Referer: `${baseUrl}/intragiris.html`,
       },
-      `assoscmd=${testMode ? 'login' : 'anologin'}&rtype=json&userid=${encodeURIComponent(username)}&sifre=${encodeURIComponent(password)}&sifre2=${encodeURIComponent(password)}&parola=1&`,
+      `assoscmd=anologin&rtype=json&userid=${encodeURIComponent(username)}&sifre=${encodeURIComponent(password)}&sifre2=${encodeURIComponent(password)}&parola=1&`,
     );
 
-  async function login(
-    username: string,
-    password: string,
-    testMode: boolean,
-  ): Promise<SessionInfo> {
-    const baseUrl = portalUrl(testMode);
-    const { json, response } = await postLogin(baseUrl, username, password, testMode);
+  async function login(username: string, password: string): Promise<SessionInfo> {
+    const baseUrl = portalUrl;
+    const { json, response } = await postLogin(baseUrl, username, password);
     const cookies = extractCookies(response);
 
     if (!json.token) {
@@ -506,8 +501,8 @@ export function createClient(options?: ClientOptions): EarsivClient {
   }
 
   /**
-   * assoscmd=logout on both portals: production's `anologin` is its login
-   * command and, without a userid, fails instead of ending the session.
+   * assoscmd=logout: `anologin` is the portal's login command and, without a
+   * userid, fails instead of ending the session.
    */
   async function sendLogout(baseUrl: string, cookies: Array<string>, token: string) {
     const { json } = await post(
@@ -529,9 +524,9 @@ export function createClient(options?: ClientOptions): EarsivClient {
     await sendLogout(session.baseUrl, session.cookies, session.token);
   }
 
-  async function forceLogout(username: string, password: string, testMode: boolean): Promise<void> {
-    const baseUrl = portalUrl(testMode);
-    const { json, response } = await postLogin(baseUrl, username, password, testMode);
+  async function forceLogout(username: string, password: string): Promise<void> {
+    const baseUrl = portalUrl;
+    const { json, response } = await postLogin(baseUrl, username, password);
     const cookies = extractCookies(response);
     const token = (json.token as string) ?? '';
 

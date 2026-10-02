@@ -47,8 +47,8 @@ describe('migrateCredentials', () => {
   test('moves every entity password to the vault in one write and strips it from localStorage', async () => {
     const storage = memoryStorage({
       [ENTITIES_STORAGE_KEY]: [
-        entity('a', { password: 'secret-a', testMode: false, username: 'user-a' }),
-        entity('b', { password: 'secret-b', testMode: true, username: 'user-b' }),
+        entity('a', { password: 'secret-a', username: 'user-a' }),
+        entity('b', { password: 'secret-b', username: 'user-b' }),
       ],
     });
     const { passwords, vault, writes } = memoryVault();
@@ -60,15 +60,15 @@ describe('migrateCredentials', () => {
     expect(passwords.get('a')).toBe('secret-a');
     expect(passwords.get('b')).toBe('secret-b');
     expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
-      entity('a', { testMode: false, username: 'user-a' }),
-      entity('b', { testMode: true, username: 'user-b' }),
+      entity('a', { username: 'user-a' }),
+      entity('b', { username: 'user-b' }),
     ]);
   });
 
   test('is idempotent', async () => {
     const storage = memoryStorage({
-      [ENTITIES_STORAGE_KEY]: [entity('a', { password: 'secret', testMode: true, username: 'u' })],
-      [LEGACY_CREDS_STORAGE_KEY]: { password: 'old', testMode: true, username: 'u' },
+      [ENTITIES_STORAGE_KEY]: [entity('a', { password: 'secret', username: 'u' })],
+      [LEGACY_CREDS_STORAGE_KEY]: { password: 'old', username: 'u' },
     });
     const { passwords, vault, writes } = memoryVault();
 
@@ -87,8 +87,8 @@ describe('migrateCredentials', () => {
   test('keeps the plaintext passwords when the vault write fails', async () => {
     const storage = memoryStorage({
       [ENTITIES_STORAGE_KEY]: [
-        entity('a', { password: 'secret-a', testMode: true, username: 'user-a' }),
-        entity('b', { password: '', testMode: true, username: 'user-b' }),
+        entity('a', { password: 'secret-a', username: 'user-a' }),
+        entity('b', { password: '', username: 'user-b' }),
       ],
     });
     const { passwords, vault } = memoryVault({ fail: true });
@@ -98,14 +98,14 @@ describe('migrateCredentials', () => {
     expect(result).toEqual({ error: new Error('keychain unavailable'), failed: 1, migrated: 0 });
     expect(passwords.size).toBe(0);
     expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
-      entity('a', { password: 'secret-a', testMode: true, username: 'user-a' }),
-      entity('b', { testMode: true, username: 'user-b' }),
+      entity('a', { password: 'secret-a', username: 'user-a' }),
+      entity('b', { username: 'user-b' }),
     ]);
   });
 
   test('retries on the next run', async () => {
     const storage = memoryStorage({
-      [ENTITIES_STORAGE_KEY]: [entity('a', { password: 'secret', testMode: true, username: 'u' })],
+      [ENTITIES_STORAGE_KEY]: [entity('a', { password: 'secret', username: 'u' })],
     });
 
     await migrateCredentials(storage, memoryVault({ fail: true }).vault);
@@ -114,14 +114,12 @@ describe('migrateCredentials', () => {
 
     expect(result).toEqual({ failed: 0, migrated: 1 });
     expect(passwords.get('a')).toBe('secret');
-    expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
-      entity('a', { testMode: true, username: 'u' }),
-    ]);
+    expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([entity('a', { username: 'u' })]);
   });
 
   test('strips an empty password without writing to the vault', async () => {
     const storage = memoryStorage({
-      [ENTITIES_STORAGE_KEY]: [entity('a', { password: '', testMode: true, username: '' })],
+      [ENTITIES_STORAGE_KEY]: [entity('a', { password: '', username: '' })],
     });
     const { vault, writes } = memoryVault();
 
@@ -129,26 +127,24 @@ describe('migrateCredentials', () => {
 
     expect(result).toEqual({ failed: 0, migrated: 0 });
     expect(writes).toHaveLength(0);
-    expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([
-      entity('a', { testMode: true, username: '' }),
-    ]);
+    expect(storage.read(ENTITIES_STORAGE_KEY)).toEqual([entity('a', { username: '' })]);
   });
 
   test('strips the stale legacy password once entities exist', async () => {
     const storage = memoryStorage({
-      [ENTITIES_STORAGE_KEY]: [entity('a', { testMode: true, username: 'u' })],
-      [LEGACY_CREDS_STORAGE_KEY]: { password: 'old', testMode: false, username: 'u' },
+      [ENTITIES_STORAGE_KEY]: [entity('a', { username: 'u' })],
+      [LEGACY_CREDS_STORAGE_KEY]: { password: 'old', username: 'u' },
     });
     const { vault, writes } = memoryVault();
 
     await migrateCredentials(storage, vault);
 
     expect(writes).toHaveLength(0);
-    expect(storage.read(LEGACY_CREDS_STORAGE_KEY)).toEqual({ testMode: false, username: 'u' });
+    expect(storage.read(LEGACY_CREDS_STORAGE_KEY)).toEqual({ username: 'u' });
   });
 
   test('leaves the legacy password alone when no entities exist', async () => {
-    const legacy = { password: 'only-copy', testMode: true, username: 'u' };
+    const legacy = { password: 'only-copy', username: 'u' };
     const storage = memoryStorage({ [LEGACY_CREDS_STORAGE_KEY]: legacy });
     const { vault } = memoryVault();
 

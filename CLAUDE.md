@@ -47,8 +47,8 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 
 ## GİB emulator (`packages/gib-emulator`)
 
-- Never test against live GİB during development: the production portal issues real documents and the test portal's shared demo accounts are locked by other people's sessions. Use the emulator: `pnpm emulate`, users `33333301`/`1` and `12345678`/`angaria`, SMS code `123456`. README: `packages/gib-emulator/README.md`.
-- SDK: `createClient({ baseUrl })`; TCMB: `fetchTCMBRates(date, { baseUrl })`. The SDK's tests start it in-process (`packages/earsiv-sdk/tests/emulator-setup.ts`); the smoke script takes `EARSIV_MODE=emulator`.
+- Never test against live GİB during development: the production portal issues real documents. The app has no GİB test portal mode (its shared demo accounts are locked by other people's sessions); the emulator replaces it. Use the emulator: `pnpm emulate`, users `33333301`/`1` and `12345678`/`angaria`, SMS code `123456`. README: `packages/gib-emulator/README.md`.
+- SDK: `createClient({ baseUrl })`; TCMB: `fetchTCMBRates(date, { baseUrl })`. The SDK's tests start it in-process (`packages/earsiv-sdk/tests/emulator-setup.ts`); the smoke script runs against it unless `EARSIV_MODE=prod`.
 - Desktop: Ayarlar › Gelişmiş › Emülatör (dev only) sends GİB and TCMB calls to `VITE_GIB_EMULATOR_URL` (`.env.development`, plain http: the Tauri http plugin does not trust portless's CA). `src-tauri/tauri.dev.conf.json` adds it, and the Polar sandbox of `.env.development`, to the allowlists for `tauri dev` only; production builds contain neither the URL nor the switch, and reach only production Polar. A plain browser reaches it too (browser fetch; the emulator allows CORS).
 - Faults (latency, 5xx, HTTP 200 with an error text, maintenance HTML, session locks) and state: the `/__emulator` API.
 
