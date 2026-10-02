@@ -1,4 +1,4 @@
-import { Button } from '@angaria/ui';
+import { Button, FieldWarning } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import {
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
-import { invoiceTotals, paymentTotal } from '@/lib/invoice-form.ts';
+import { invoiceTotals, paymentTotal, roundKurus } from '@/lib/invoice-form.ts';
 import type { InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
 import { formatMoney, formatNumber } from '@/shell/searchable-list.tsx';
@@ -171,6 +171,11 @@ const styles = create({
   warning: {
     color: colors.warning,
   },
+  warnings: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+  },
 });
 
 function TotalsRow({
@@ -236,6 +241,7 @@ export function SummaryPanel({
   rate,
   signing,
   values,
+  warnings,
 }: {
   form: InvoiceForm;
   onClear: () => void;
@@ -247,6 +253,8 @@ export function SummaryPanel({
   /** true while a submit creates and signs (Oluştur ve onayla). */
   signing: boolean;
   values: InvoiceFormValues;
+  /** Rules worth a second look (invoiceWarnings), each once; they never block. */
+  warnings: ReadonlyArray<string>;
 }) {
   const currency = values.invoiceSettings.currency;
   const totals = invoiceTotals(values.items);
@@ -266,9 +274,16 @@ export function SummaryPanel({
           {formatMoney(totals.total, currency)}
         </TotalsRow>
         {rate !== null && rate > 0 && (
-          <TotalsRow label="Türk lirası karşılığı">
-            {formatMoney(totals.total * rate, 'TRY')}
-          </TotalsRow>
+          <>
+            <TotalsRow label="TL karşılığı">
+              {formatMoney(roundKurus(totals.total * rate), 'TRY')}
+            </TotalsRow>
+            {totals.vat > 0 && (
+              <TotalsRow label="KDV TL karşılığı">
+                {formatMoney(roundKurus(totals.vat * rate), 'TRY')}
+              </TotalsRow>
+            )}
+          </>
         )}
         {payment !== totals.total && (
           <TotalsRow label="Ödenecek tutar">{formatMoney(payment, currency)}</TotalsRow>
@@ -279,6 +294,13 @@ export function SummaryPanel({
         onDownload={onDownloadPDF}
         onLanguageChange={onPDFLanguageChange}
       />
+      {warnings.length > 0 && (
+        <div {...props(styles.warnings)}>
+          {warnings.map((warning) => (
+            <FieldWarning key={warning}>{warning}</FieldWarning>
+          ))}
+        </div>
+      )}
       <div {...props(styles.actions)}>
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (

@@ -12,9 +12,9 @@ import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
 import { saveDueDate } from '@/lib/invoice-due-dates.ts';
 import {
   cleanItems,
-  formatDecimal,
   invoiceDefaults,
   invoiceTotals,
+  invoiceWarnings,
   parseDecimal,
   sameInvoice,
   toDraftDetails,
@@ -88,6 +88,22 @@ const styles = create({
 });
 
 /**
+ * What takes focus for an invalid control. A chip group (ChoiceChips) is not
+ * focusable itself: its Diğer input, else its chosen chip, else its first chip.
+ */
+function focusTarget(invalid: HTMLElement) {
+  if (invalid.getAttribute('role') !== 'radiogroup') {
+    return invalid;
+  }
+  return (
+    (invalid.id ? document.getElementById(`${invalid.id}-other`) : null) ??
+    invalid.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]') ??
+    invalid.querySelector<HTMLElement>('[role="radio"]:not([data-disabled])') ??
+    invalid
+  );
+}
+
+/**
  * Opens the first field with a visible error (inside a closed details
  * section too) and focuses it.
  */
@@ -101,8 +117,9 @@ function revealFirstError(root: HTMLElement | null) {
     if (details) {
       details.open = true;
     }
-    invalid.scrollIntoView({ block: 'center' });
-    invalid.focus({ preventScroll: true });
+    const target = focusTarget(invalid);
+    target.scrollIntoView({ block: 'center' });
+    target.focus({ preventScroll: true });
   });
 }
 
@@ -349,18 +366,21 @@ export function CreateInvoicePage() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const totalText = useMemo(
-    () => formatDecimal(invoiceTotals(values.items).total, 2),
-    [values.items],
-  );
+  const total = useMemo(() => invoiceTotals(values.items).total, [values.items]);
   const rate = foreign ? parseDecimal(values.invoiceSettings.currencyRate) : null;
+  const warnings = useMemo(() => invoiceWarnings(values), [values]);
 
   return (
     <div ref={rootRef} {...props(styles.page)}>
       <div {...props(styles.layout)}>
         <div {...props(styles.form)}>
           <RecipientSection form={form} recipient={values.recipient} />
-          <InvoiceSection form={form} rateDescription={rateDescription} values={values} />
+          <InvoiceSection
+            form={form}
+            rateDescription={rateDescription}
+            values={values}
+            warnings={warnings}
+          />
           <Section title="Hizmetler">
             <InvoiceItems form={form} />
           </Section>
@@ -371,7 +391,7 @@ export function CreateInvoicePage() {
               )}
             </form.AppField>
           </section>
-          <AdvancedSection form={form} total={totalText} />
+          <AdvancedSection currency={values.invoiceSettings.currency} form={form} total={total} />
         </div>
         <aside {...props(styles.aside)}>
           {success ? (
@@ -393,6 +413,7 @@ export function CreateInvoicePage() {
               rate={rate}
               signing={createDraft.isPending && createDraft.variables?.sign === true}
               values={values}
+              warnings={[...new Set(Object.values(warnings))]}
             />
           )}
         </aside>
