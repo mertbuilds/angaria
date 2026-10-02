@@ -392,7 +392,8 @@ export function InvoiceSection({
         >
           {() => <InvoiceTypeField description={typeDescription} />}
         </form.AppField>
-        {invoiceType === 'ISTISNA' && (
+        {/* Mounted once the reason is set, so the select is controlled from its first render. */}
+        {invoiceType === 'ISTISNA' && istisnaCode && (
           <form.AppField
             listeners={{
               onChange: ({ value }) =>
