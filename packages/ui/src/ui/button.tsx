@@ -6,7 +6,7 @@ import { useRender } from '@base-ui/react/use-render';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import type { MouseEvent } from 'react';
-import { colors, radius } from '../lib/tokens.stylex.ts';
+import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
 const styles = create({
@@ -104,7 +104,7 @@ const styles = create({
   },
   link: {
     backgroundColor: 'transparent',
-    color: colors.primary,
+    color: optional.primaryInk,
     textDecorationLine: {
       ':hover': 'underline',
       default: 'none',

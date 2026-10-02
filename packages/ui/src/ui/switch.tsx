@@ -3,7 +3,7 @@
 import { Switch as SwitchPrimitive } from '@base-ui/react/switch';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
-import { colors, radius } from '../lib/tokens.stylex.ts';
+import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 import { motion } from '../tokens.stylex.ts';
 
@@ -53,7 +53,7 @@ const styles = create({
     borderColor: colors.destructive,
   },
   thumb: {
-    backgroundColor: colors.background,
+    backgroundColor: optional.switchThumb,
     borderRadius: radius.full,
     display: 'block',
     height: '1rem',
