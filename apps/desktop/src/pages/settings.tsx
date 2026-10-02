@@ -414,7 +414,7 @@ function RateDayRow() {
 
   return (
     <SettingsRow
-      hint="Önceki iş günü önerilir: o gün açıklanan kur, fatura günü geçerlidir"
+      hint="Önceki iş günü önerilir: TCMB’nin bir gün önce açıkladığı kur, fatura gününün kurudur"
       id="rate-day"
       label="Kur günü"
     >
@@ -522,7 +522,7 @@ function CompaniesSection() {
 
   return (
     <SettingsSection
-      description="Her şirketin kendi GİB hesabı, firma bilgileri, müşterileri ve hizmetleri olur. Bu sayfadaki diğer ayarlar seçili şirket için geçerlidir."
+      description="Her şirketin kendi GİB hesabı, firma bilgileri, müşterileri ve hizmetleri olur. Bu sayfadaki diğer ayarlar yalnızca seçili şirketi etkiler."
       title="Şirketler"
     >
       {entities.map((entity) => (
