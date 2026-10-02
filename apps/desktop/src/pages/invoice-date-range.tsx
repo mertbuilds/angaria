@@ -67,14 +67,14 @@ function rangeLabel({ end, start }: DateRange) {
 
 function rangeProblem(start: string, end: string) {
   if (!start || !end) {
-    return 'Başlangıç ve bitiş tarihini seçin.';
+    return 'Başlangıç ve bitiş tarihini seç.';
   }
   const days = (Date.parse(end) - Date.parse(start)) / DAY + 1;
   if (days < 1) {
     return 'Bitiş tarihi başlangıçtan önce olamaz.';
   }
   if (days > MAX_RANGE_DAYS) {
-    return 'En fazla bir yıllık aralık seçebilirsiniz.';
+    return 'En fazla bir yıllık aralık seçebilirsin.';
   }
   return null;
 }
@@ -105,7 +105,7 @@ function CustomRangeForm({
       <DialogHeader>
         <DialogTitle>Özel tarih aralığı</DialogTitle>
         <DialogDescription>
-          GİB’deki belgeler bu iki tarih arasında, iki gün de dahil listelenir.
+          Bu iki tarih arasındaki faturalar listelenir, iki gün de dahil.
         </DialogDescription>
       </DialogHeader>
       <FieldGroup>

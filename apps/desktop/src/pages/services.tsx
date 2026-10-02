@@ -289,8 +289,8 @@ export function ServicesPage({ tabs }: { tabs: ReactNode }) {
     >
       {savedItems.length === 0 ? (
         <EmptyState action={newItemButton('default')} title="Henüz hizmet yok">
-          Kestiğiniz faturalardaki hizmetler burada kendiliğinden birikir. Sık kullandığınız bir
-          hizmeti şimdiden de ekleyebilirsiniz.
+          Kestiğin faturalardaki hizmetler burada kendiliğinden birikir. Sık kullandığın bir hizmeti
+          şimdiden de ekleyebilirsin.
         </EmptyState>
       ) : (
         <ListDetail
@@ -339,7 +339,7 @@ export function ServicesPage({ tabs }: { tabs: ReactNode }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Hizmet silinsin mi?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleting.target?.name || 'Adsız hizmet'} hizmetlerden silinir. Kesilmiş faturalar
+              {deleting.target?.name || 'Adsız hizmet'} hizmetlerinden silinir. Kestiğin faturalar
               etkilenmez. Bu işlem geri alınamaz.
             </AlertDialogDescription>
           </AlertDialogHeader>

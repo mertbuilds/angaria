@@ -31,8 +31,8 @@ describe('taxIDError', () => {
   });
 
   test('rejects empty, non-digit and wrong-length values', () => {
-    expect(taxIDError('  ')).toBe('VKN veya TCKN gerekli');
-    expect(taxIDError('12345abcde')).toBe('Yalnızca rakam girin');
+    expect(taxIDError('  ')).toBe('VKN ya da TCKN gerekli');
+    expect(taxIDError('12345abcde')).toBe('Yalnızca rakam gir');
     expect(taxIDError('123456789')).toBe('VKN 10, TCKN 11 hane olmalı');
     expect(taxIDError('123456789012')).toBe('VKN 10, TCKN 11 hane olmalı');
   });

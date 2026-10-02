@@ -199,7 +199,7 @@ function ItemRow({
           {(field) => (
             <field.SuggestField
               compact
-              label="Mal veya hizmet"
+              label="Hizmet adı"
               onPick={(suggestion) => {
                 const saved = savedItems.find((candidate) => candidate.id === suggestion.id);
                 if (saved) {
@@ -286,7 +286,7 @@ function ItemRow({
       </div>
       <div {...props(styles.gutter)}>
         <Button
-          aria-label={`${index + 1}. kalemi sil`}
+          aria-label={`${index + 1}. hizmeti sil`}
           disabled={!canRemove}
           onClick={onRemove}
           size="icon"
@@ -353,7 +353,7 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
 
         return (
           <>
-            <ol aria-label="Kalemler" {...props(styles.list)}>
+            <ol aria-label="Hizmetler" {...props(styles.list)}>
               {rows.map((item, index) => (
                 <li
                   key={item.id}
@@ -377,9 +377,9 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
             <div {...props(styles.addRow)}>
               <Button onClick={() => insertAfter(rows.length - 1)} variant="outline">
                 <PlusIcon />
-                Kalem ekle
+                Hizmet ekle
               </Button>
-              <span {...props(styles.hint)}>Satırda ↵ yeni kalem ekler</span>
+              <span {...props(styles.hint)}>Satırda ↵ yeni hizmet ekler</span>
             </div>
           </>
         );

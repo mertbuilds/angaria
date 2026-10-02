@@ -18,6 +18,7 @@ import type { SessionInfo } from 'angaria-earsiv-sdk';
 import { ChevronRightIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createDraftInvoice, fetchTCMBRateTable, getDrafts } from '@/lib/angaria.ts';
+import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { customerName, defaultPDFLanguage, findCustomer, learnCustomer } from '@/lib/customer.ts';
 import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
@@ -205,7 +206,7 @@ const INVOICE_TYPE_OPTIONS = GIB_INVOICE_TYPES.map((type) => ({
   value: type.value,
 }));
 
-const displayName = (customer: Recipient) => customerName(customer) || 'Adsız müşteri';
+const displayName = (customer: Recipient) => customerName(customer) || UNNAMED_CUSTOMER;
 
 function Section({ children, hint, title }: { children: ReactNode; hint?: string; title: string }) {
   return (
@@ -234,7 +235,7 @@ function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: R
   };
 
   return (
-    <Section title="Alıcı">
+    <Section title="Müşteri">
       {savedRecipients.length > 0 && (
         <Field>
           <FieldLabel htmlFor="customer-picker">Kayıtlı müşteri</FieldLabel>
@@ -326,7 +327,7 @@ function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: R
               emptyText="Ülke bulunamadı"
               items={COUNTRY_OPTIONS}
               label="Ülke"
-              placeholder="Ülke seçin"
+              placeholder="Ülke seç"
             />
           )}
         </form.AppField>
@@ -435,7 +436,7 @@ function AdvancedSection({ form, total }: { form: InvoiceForm; total: string }) 
           <form.AppField name="advancedFields.paymentTotal">
             {(field) => (
               <field.TextField
-                description="Boş bırakırsanız genel toplam ödenir"
+                description="Boş bırakırsan genel toplam kullanılır"
                 inputMode="decimal"
                 label="Ödenecek tutar"
                 placeholder={total}
@@ -555,11 +556,11 @@ export function CreateInvoicePage() {
         return;
       }
       const { draft, values } = result;
-      const done = draft.signed ? 'Fatura onaylandı' : 'Taslak fatura oluşturuldu';
+      const done = draft.signed ? 'Fatura onaylandı' : 'Taslak oluşturuldu';
       if (draft.html) {
         toast.success(done);
       } else {
-        toast.warning(`${done} ama GİB’den doğrulanamadı. Faturalar listesinden kontrol edin.`);
+        toast.warning(`${done} ama GİB’den doğrulanamadı. Faturalar’da kontrol et.`);
       }
 
       // Make the new draft visible in the invoices list: refetch it and
@@ -680,13 +681,13 @@ export function CreateInvoicePage() {
       </>
     );
   } else if (rates.isError) {
-    rateDescription = <span {...props(styles.warning)}>TCMB kuru alınamadı. Kuru elle girin.</span>;
+    rateDescription = <span {...props(styles.warning)}>TCMB kuru alınamadı. Kuru elle gir.</span>;
   } else if (rates.data && tcmbRate === undefined) {
-    rateDescription = 'TCMB bu para birimine kur yayınlamıyor. Kuru elle girin.';
+    rateDescription = 'TCMB bu para birimi için kur yayınlamıyor. Kuru elle gir.';
   } else if (rates.data) {
-    rateDescription = `TCMB alış, ${formatDateHuman(toGIB(rates.data.date))}`;
+    rateDescription = `TCMB döviz alış kuru, ${formatDateHuman(toGIB(rates.data.date))}`;
   } else if (foreign) {
-    rateDescription = 'TCMB kuru alınıyor';
+    rateDescription = 'TCMB kuru alınıyor…';
   }
 
   const pdfLanguage = pdfLanguageOf(values);
@@ -705,7 +706,7 @@ export function CreateInvoicePage() {
       revealFirstError(rootRef.current);
       return;
     }
-    const id = toast.loading('PDF hazırlanıyor');
+    const id = toast.loading('PDF hazırlanıyor…');
     const data = toPDFData(source, {
       company: companyInfo,
       date: created?.date,
@@ -720,7 +721,7 @@ export function CreateInvoicePage() {
     import('@/components/invoice-pdf.tsx')
       .then(({ downloadInvoicePDF }) => downloadInvoicePDF(data))
       .then(() => toast.success('PDF indirildi', { id }))
-      .catch(() => toast.error('PDF oluşturulamadı', { id }));
+      .catch(() => toast.error('PDF oluşturulamadı. Tekrar dene.', { id }));
   };
 
   // The success state lasts until the invoice is edited (the PDF language aside).
@@ -772,7 +773,7 @@ export function CreateInvoicePage() {
         <div {...props(styles.form)}>
           <RecipientSection form={form} recipient={values.recipient} />
           <InvoiceSection form={form} rateDescription={rateDescription} values={values} />
-          <Section title="Kalemler">
+          <Section title="Hizmetler">
             <InvoiceItems form={form} />
           </Section>
           <section {...props(styles.section)}>

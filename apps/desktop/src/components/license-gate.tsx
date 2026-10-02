@@ -3,6 +3,7 @@ import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { LoaderCircleIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { errorMessage } from '@/lib/copy.ts';
 import { openCheckout, openCustomerPortal, useLicense } from '@/lib/license-context.tsx';
 import type { LicenseStatus } from '@/lib/license.ts';
 import { shell } from '../shell/shell.stylex.ts';
@@ -14,21 +15,20 @@ const lockedCopy: Record<
   { description: string; title: string }
 > = {
   unlicensed: {
-    title: "Angaria'yı etkinleştirin",
-    description: 'Satın aldıktan sonra e-postanıza gelen lisans anahtarını girin.',
+    title: 'Angaria’yı etkinleştir',
+    description: 'Denemeyi ya da aboneliği başlatınca e-postana gelen lisans anahtarını gir.',
   },
   invalid: {
     title: 'Lisans geçerli değil',
-    description: 'Bu cihazın lisansı doğrulanamadı. Lisans anahtarınızı yeniden girin.',
+    description: 'Bu Mac’in lisansı doğrulanamadı. Lisans anahtarını yeniden gir.',
   },
   subscription: {
     title: 'Lisansın süresi doldu',
-    description: 'Aboneliğiniz sona erdi. Devam etmek için aboneliğinizi yenileyin.',
+    description: 'Devam etmek için aboneliğini yenile. Kestiğin faturalar GİB’de durur.',
   },
   offline: {
     title: 'Lisans doğrulanmalı',
-    description:
-      'Lisansınızın çevrimiçi doğrulanması gerekiyor. İnternete bağlanıp tekrar deneyin.',
+    description: 'Lisansını doğrulamak için internete bağlan ve tekrar dene.',
   },
 };
 
@@ -180,7 +180,7 @@ function LicenseSplash() {
     <div {...props(styles.screen, styles.splash)}>
       <DragRegion />
       <LoaderCircleIcon aria-hidden {...props(styles.spinner)} />
-      <p {...props(styles.splashText)}>Lisans doğrulanıyor...</p>
+      <p {...props(styles.splashText)}>Lisans doğrulanıyor…</p>
     </div>
   );
 }
@@ -203,7 +203,7 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
     try {
       await activate(key);
     } catch (activateError) {
-      setError(activateError instanceof Error ? activateError.message : 'Bilinmeyen hata');
+      setError(errorMessage(activateError));
     } finally {
       setPending(null);
     }
@@ -237,7 +237,7 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
             onClick={() => void handleRetry()}
             style={styles.wide}
           >
-            {pending === 'check' ? 'Doğrulanıyor...' : 'Tekrar dene'}
+            {pending === 'check' ? 'Doğrulanıyor…' : 'Tekrar dene'}
           </Button>
         ) : (
           <form onSubmit={handleActivate} {...props(styles.form)}>
@@ -252,7 +252,7 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
               value={key}
             />
             <Button disabled={pending !== null || !key.trim()} style={styles.wide} type="submit">
-              {pending === 'activate' ? 'Etkinleştiriliyor...' : 'Etkinleştir'}
+              {pending === 'activate' ? 'Etkinleştiriliyor…' : 'Etkinleştir'}
             </Button>
           </form>
         )}
@@ -263,7 +263,7 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
         )}
         <div {...props(styles.links)}>
           <Button onClick={openCheckout} variant="link">
-            14 gün ücretsiz dene / Satın al
+            {status.kind === 'unlicensed' ? '14 gün ücretsiz dene' : 'Abone ol'}
           </Button>
           {status.kind === 'expired' && status.reason === 'subscription' && (
             <Button onClick={openCustomerPortal} variant="link">
@@ -282,8 +282,8 @@ function GraceBanner({ daysLeft }: { daysLeft: number }) {
       <p role="status" {...props(styles.banner)}>
         <TriangleAlertIcon aria-hidden {...props(styles.bannerIcon)} />
         {daysLeft > 0
-          ? `Polar'a bağlanılamadı. Lisansın ${daysLeft} gün içinde doğrulanması gerekiyor.`
-          : "Polar'a bağlanılamadı. Lisansın bugün doğrulanması gerekiyor."}
+          ? `Lisans sunucusuna ulaşılamadı. ${daysLeft} gün içinde doğrulanmazsa Angaria kilitlenir.`
+          : 'Lisans sunucusuna ulaşılamadı. Bugün doğrulanmazsa Angaria kilitlenir.'}
       </p>
     </div>
   );

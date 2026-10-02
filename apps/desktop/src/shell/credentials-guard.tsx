@@ -46,20 +46,21 @@ export function CredentialsGuard({ children }: { children: ReactNode }) {
       <AlertDialog onOpenChange={setOpen} open={open}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>GİB kimlik bilgileri gerekli</AlertDialogTitle>
+            <AlertDialogTitle>GİB hesabını bağla</AlertDialogTitle>
             <AlertDialogDescription>
-              Bu işlemi gerçekleştirmek için GİB kullanıcı adı ve şifrenizi girmeniz gerekiyor.
+              Bunun için e-Arşiv portalı kullanıcı kodun ve şifren gerekiyor. Ayarlar’dan
+              ekleyebilirsin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setOpen(false);
                 void navigate({ to: '/ayarlar' });
               }}
             >
-              Ayarlara git
+              Ayarlar’a git
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

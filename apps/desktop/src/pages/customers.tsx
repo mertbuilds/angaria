@@ -33,6 +33,7 @@ import { create, props } from '@stylexjs/stylex';
 import { useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import {
   customerDefaults,
   customerName,
@@ -171,7 +172,7 @@ const BLANK_CUSTOMER: Omit<Recipient, 'id'> = {
   title: '',
 };
 
-const displayName = (customer: Recipient) => customerName(customer) || 'Adsız müşteri';
+const displayName = (customer: Recipient) => customerName(customer) || UNNAMED_CUSTOMER;
 
 const matchesCustomer = (customer: Recipient, query: string) =>
   matchesQuery(
@@ -241,7 +242,7 @@ function VATRateInput({
           onValueChange(rate);
         }
       }}
-      placeholder="Kalemlerdeki gibi"
+      placeholder="Hizmetlerdeki gibi"
       style={styles.number}
       value={text}
     />
@@ -327,7 +328,9 @@ function CustomerDefaultsSection({
             onValueChange={(VATRate) => onChange({ VATRate })}
             value={customer.VATRate}
           />
-          <FieldDescription id={`${id}-vat-hint`}>Boşsa kalemlerin oranı değişmez</FieldDescription>
+          <FieldDescription id={`${id}-vat-hint`}>
+            Boşsa hizmetlerin KDV oranı değişmez
+          </FieldDescription>
         </Field>
         <Field>
           <FieldLabel htmlFor={`${id}-pdf-language`}>PDF dili</FieldLabel>
@@ -372,7 +375,7 @@ function CustomerDefaultsSection({
             )}
           </div>
           <FieldDescription>
-            Faturanın tarihinden bu kadar gün sonrası PDF’e yazılır. GİB’e gönderilmez.
+            Fatura tarihinden bu kadar gün sonrası PDF’e yazılır. GİB’e gönderilmez.
           </FieldDescription>
         </Field>
       </div>
@@ -528,7 +531,7 @@ function CustomerDetail({
             <ComboboxInput
               id={`${id}-country`}
               onFocus={(event) => event.currentTarget.select()}
-              placeholder="Ülke seçin"
+              placeholder="Ülke seç"
             />
             <ComboboxContent>
               <ComboboxEmpty>Ülke bulunamadı</ComboboxEmpty>
@@ -605,8 +608,8 @@ export function CustomersPage({ tabs }: { tabs: ReactNode }) {
     >
       {savedRecipients.length === 0 ? (
         <EmptyState action={newCustomerButton('default')} title="Henüz müşteri yok">
-          Kestiğiniz her faturanın alıcısı burada kendiliğinden kaydedilir. Fatura keserken
-          müşteriyi seçince bilgileri ve varsayılanları hazır gelir.
+          Kestiğin her faturanın müşterisi buraya kendiliğinden kaydedilir. Sonraki faturada
+          müşteriyi seçmen yeter, bilgileri ve varsayılanları hazır gelir.
         </EmptyState>
       ) : (
         <ListDetail
@@ -658,7 +661,7 @@ export function CustomersPage({ tabs }: { tabs: ReactNode }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Müşteri silinsin mi?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleting.target && displayName(deleting.target)} müşterilerden silinir. Kesilmiş
+              {deleting.target && displayName(deleting.target)} müşterilerinden silinir. Kestiğin
               faturalar etkilenmez. Bu işlem geri alınamaz.
             </AlertDialogDescription>
           </AlertDialogHeader>

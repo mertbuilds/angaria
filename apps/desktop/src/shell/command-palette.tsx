@@ -48,11 +48,11 @@ export function CommandPalette({
 
   return (
     <CommandDialog commandProps={commandProps} onOpenChange={onOpenChange} open={open}>
-      <CommandInput placeholder="Ne yapmak istiyorsunuz?" />
+      <CommandInput placeholder="Ne yapmak istiyorsun?" />
       <CommandList>
-        <CommandEmpty>Sonuç yok.</CommandEmpty>
+        <CommandEmpty>Sonuç yok</CommandEmpty>
         <CommandGroup heading="Fatura">
-          <CommandItem keywords={['oluştur', 'taslak']} onSelect={run(newInvoice)}>
+          <CommandItem keywords={['kes', 'oluştur', 'taslak']} onSelect={run(newInvoice)}>
             <FilePlusIcon />
             Yeni fatura
             <CommandShortcut>⌘N</CommandShortcut>

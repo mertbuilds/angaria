@@ -5,12 +5,13 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, RepeatIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { errorMessage, UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { cachedInvoices, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
 import { presetRange, recentInvoices } from '@/lib/invoices.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
-import { errorMessage, InvoiceTotal } from './invoices.tsx';
+import { InvoiceTotal } from './invoices.tsx';
 
 const RECENT = 5;
 
@@ -181,7 +182,7 @@ function useRecentInvoices() {
 }
 
 function RecentRow({ invoice, onRepeat }: { invoice: Invoice; onRepeat: () => void }) {
-  const name = invoice.aliciUnvanAdSoyad || 'Alıcı belirtilmedi';
+  const name = invoice.aliciUnvanAdSoyad || UNNAMED_CUSTOMER;
   const details = [invoice.belgeNumarasi, formatDateHuman(invoice.belgeTarihi ?? '')]
     .filter(Boolean)
     .join(' · ');
@@ -268,9 +269,9 @@ export function InvoiceStart() {
   return (
     <div {...props(styles.page)}>
       <header {...props(styles.header)}>
-        <h2 {...props(styles.title)}>Geçen faturadan başlayın</h2>
+        <h2 {...props(styles.title)}>Geçen faturadan başla</h2>
         <p {...props(styles.lead)}>
-          Seçtiğiniz faturanın alıcısı, kalemleri ve notu forma gelir. Tarih bugün olur.
+          Seçtiğin faturanın müşterisi, hizmetleri ve notu forma gelir. Tarih bugün olur.
         </p>
       </header>
       {list}

@@ -23,9 +23,9 @@ function describe(status: LicenseState, bypassed: boolean) {
   }
   switch (status.kind) {
     case 'valid':
-      return 'Bu cihazda etkin';
+      return 'Bu Mac’te etkin';
     case 'grace':
-      return `Polar'a bağlanılamadı. ${status.daysLeft} gün içinde doğrulanmalı.`;
+      return `Sunucuya ulaşılamadı. ${status.daysLeft} gün içinde doğrulanmalı`;
     default:
       return 'Etkin değil';
   }
@@ -41,16 +41,16 @@ export function LicenseCard() {
     setRemoving(true);
     try {
       await deactivate();
-      toast.success('Bu cihaz lisanstan kaldırıldı');
+      toast.success('Bu Mac lisanstan kaldırıldı');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Cihaz kaldırılamadı');
+      toast.error(error instanceof Error ? error.message : 'Bu Mac kaldırılamadı. Tekrar dene.');
     } finally {
       setRemoving(false);
     }
   }
 
   return (
-    <SettingsSection description="Lisans en fazla üç cihazda etkin olabilir." title="Lisans">
+    <SettingsSection description="Bir lisans en fazla üç Mac’te etkin olur." title="Lisans">
       <SettingsRow label="Durum">
         <SettingsValue tone={status.kind === 'grace' ? 'warning' : 'default'}>
           {describe(status, bypassed)}
@@ -85,20 +85,20 @@ export function LicenseCard() {
           onClick={() => setConfirmOpen(true)}
           variant="outline"
         >
-          {removing ? 'Kaldırılıyor...' : 'Bu cihazı kaldır'}
+          {removing ? 'Kaldırılıyor…' : 'Bu Mac’i kaldır'}
         </Button>
       </SettingsRow>
       <AlertDialog onOpenChange={setConfirmOpen} open={confirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Bu cihazı kaldır</AlertDialogTitle>
+            <AlertDialogTitle>Bu Mac kaldırılsın mı?</AlertDialogTitle>
             <AlertDialogDescription>
-              Bu cihazın lisansı kaldırılır ve Angaria kilitlenir. Aynı anahtarla bu cihazı ya da
-              başka bir cihazı yeniden etkinleştirebilirsiniz.
+              Angaria bu Mac’te kilitlenir. Aynı anahtarla bu Mac’i ya da başka bir Mac’i sonra
+              yeniden etkinleştirebilirsin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
             <AlertDialogAction onClick={() => void handleDeactivate()} variant="destructive">
               Kaldır
             </AlertDialogAction>

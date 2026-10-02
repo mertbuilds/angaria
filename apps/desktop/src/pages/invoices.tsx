@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useNavigate, useParams } from '@tanstack/react-router';
 import { FilePlusIcon, RefreshCwIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { errorMessage, UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { invoiceDetailQuery, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
 import {
   invoiceStatus,
@@ -94,9 +95,6 @@ const styles = create({
     minWidth: '4rem',
   },
 });
-
-export const errorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : 'Bilinmeyen hata';
 
 /** True once the element has been on screen, so off-screen rows fetch nothing. */
 function useSeen(ref: RefObject<Element | null>) {
@@ -289,7 +287,7 @@ export function InvoicesScreen() {
         }
         title="Bu aralıkta fatura yok"
       >
-        Başka bir tarih aralığı seçin ya da yeni bir fatura kesin.
+        Başka bir tarih aralığı seç ya da yeni bir fatura kes.
       </EmptyState>
     );
   } else {
@@ -309,11 +307,11 @@ export function InvoicesScreen() {
             subtitle: [invoice.belgeNumarasi, formatDateHuman(invoice.belgeTarihi ?? '')]
               .filter(Boolean)
               .join(' · '),
-            title: invoice.aliciUnvanAdSoyad || 'Alıcı belirtilmedi',
+            title: invoice.aliciUnvanAdSoyad || UNNAMED_CUSTOMER,
             trailing: <InvoiceTotal invoice={invoice} />,
           };
         }}
-        searchPlaceholder="Alıcı, belge no veya VKN ara"
+        searchPlaceholder="Müşteri, fatura no ya da VKN ara"
         selected={selected}
         visible={visible}
       />
@@ -366,10 +364,10 @@ export function InvoicesScreen() {
         />
       ) : (
         <EmptyState
-          action={<Button render={<Link to="/ayarlar" />}>Ayarlara git</Button>}
+          action={<Button render={<Link to="/ayarlar" />}>Ayarlar’a git</Button>}
           title="GİB hesabı bağlı değil"
         >
-          Faturalarınızı görmek için GİB kullanıcı adınızı ve şifrenizi Ayarlar’da girin.
+          Faturalarını görmek için Ayarlar’da e-Arşiv portalı kullanıcı kodunu ve şifreni gir.
         </EmptyState>
       )}
     </Screen>

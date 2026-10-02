@@ -208,7 +208,7 @@ function NewInvoiceRoute() {
     content = (
       <div {...props(styles.loading)}>
         <LoaderCircleIcon aria-hidden {...props(styles.spinner)} />
-        <p>Fatura bilgileri GİB’den alınıyor</p>
+        <p>Fatura bilgileri GİB’den alınıyor…</p>
       </div>
     );
   } else if (!invoiceStarted && hasCredentials && isBlankForm(stored)) {

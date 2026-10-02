@@ -124,10 +124,10 @@ export function learnCustomer(
 export function taxIDError(value: string) {
   const digits = value.trim();
   if (!digits) {
-    return 'VKN veya TCKN gerekli';
+    return 'VKN ya da TCKN gerekli';
   }
   if (!/^\d+$/.test(digits)) {
-    return 'Yalnızca rakam girin';
+    return 'Yalnızca rakam gir';
   }
   if (digits.length !== 10 && digits.length !== 11) {
     return 'VKN 10, TCKN 11 hane olmalı';

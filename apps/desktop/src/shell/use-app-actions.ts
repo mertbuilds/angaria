@@ -2,6 +2,7 @@ import { toast } from '@angaria/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
+import { errorMessage } from '@/lib/copy.ts';
 import { invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
 import { fetchLastMonthInvoice } from '@/lib/reissue.ts';
 import { useStore } from '@/lib/store.tsx';
@@ -42,7 +43,7 @@ export function useAppActions() {
     if (!requireCredentials()) {
       return;
     }
-    const toastId = toast.loading('Geçen ayın faturaları GİB’den alınıyor...');
+    const toastId = toast.loading('Geçen ayın faturaları GİB’den alınıyor…');
     void fetchLastMonthInvoice(
       (range) => queryClient.fetchQuery(invoiceListQuery(account, range)),
       new Date(),
@@ -54,13 +55,13 @@ export function useAppActions() {
           return;
         }
         void navigate({ to: '/faturalar' });
-        toast('Geçen ay kesilmiş fatura yok', {
-          description: 'Tekrar kesmek istediğiniz faturayı listeden açıp Tekrar kes deyin.',
+        toast('Geçen ay kesilen fatura yok', {
+          description: 'Tekrar kesmek istediğin faturayı listeden aç ve Tekrar kes’e bas.',
           id: toastId,
         });
       },
       (error: unknown) => {
-        toast.error(error instanceof Error ? error.message : 'Bilinmeyen hata', { id: toastId });
+        toast.error(errorMessage(error), { id: toastId });
       },
     );
   }, [account, navigate, queryClient, requireCredentials]);

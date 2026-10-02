@@ -53,8 +53,8 @@ export type StatusFilter = 'tumu' | 'onaylanmadi' | 'onaylandi' | 'iptal';
 
 export const STATUS_FILTERS: ReadonlyArray<{ label: string; value: StatusFilter }> = [
   { label: 'Tümü', value: 'tumu' },
-  { label: 'Onaylanmadı', value: 'onaylanmadi' },
-  { label: 'Onaylandı', value: 'onaylandi' },
+  { label: 'Taslak', value: 'onaylanmadi' },
+  { label: 'Onaylı', value: 'onaylandi' },
   { label: 'İptal', value: 'iptal' },
 ];
 
@@ -68,9 +68,9 @@ export interface InvoiceStatus {
 export function invoiceStatus(onayDurumu: string | undefined): InvoiceStatus {
   switch (onayDurumu) {
     case 'Onaylanmadı':
-      return { filter: 'onaylanmadi', label: 'Onaylanmadı', variant: 'outline' };
+      return { filter: 'onaylanmadi', label: 'Taslak', variant: 'outline' };
     case 'Onaylandı':
-      return { filter: 'onaylandi', label: 'Onaylandı', variant: 'default' };
+      return { filter: 'onaylandi', label: 'Onaylı', variant: 'default' };
     case 'Silinmiş':
       return { filter: 'iptal', label: 'Silindi', variant: 'destructive' };
     default:

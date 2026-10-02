@@ -2,6 +2,7 @@ import { toast, Toaster } from '@angaria/ui';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { LicenseGate } from '@/components/license-gate.tsx';
+import { errorMessage } from '@/lib/copy.ts';
 import { LicenseProvider } from '@/lib/license-context.tsx';
 import { StoreProvider } from '@/lib/store.tsx';
 import { useUpdateCheck } from '@/shell/use-update-check.ts';
@@ -16,13 +17,13 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       if (query.meta?.onError) {
-        toast.error(error instanceof Error ? error.message : 'Bilinmeyen hata');
+        toast.error(errorMessage(error));
       }
     },
   }),
   mutationCache: new MutationCache({
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Bilinmeyen hata');
+      toast.error(errorMessage(error));
     },
   }),
 });
