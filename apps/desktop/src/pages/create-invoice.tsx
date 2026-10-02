@@ -1,35 +1,18 @@
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  Field,
-  FieldLabel,
-  toast,
-} from '@angaria/ui';
-import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
+import { toast } from '@angaria/ui';
+import { spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useStore as useFormState } from '@tanstack/react-form';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import type { SessionInfo } from 'angaria-earsiv-sdk';
-import { ChevronRightIcon } from 'lucide-react';
-import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
-import { createDraftInvoice, fetchTCMBRateTable, getDrafts } from '@/lib/angaria.ts';
-import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { createDraftInvoice, getDrafts } from '@/lib/angaria.ts';
 import { customerName, defaultPDFLanguage, findCustomer, learnCustomer } from '@/lib/customer.ts';
-import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
-import { TCMB_RATE_ERROR } from '@/lib/gib-errors.ts';
 import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
 import { saveDueDate } from '@/lib/invoice-due-dates.ts';
 import {
-  applyCustomer,
   cleanItems,
-  CURRENCY_OPTIONS,
   formatDecimal,
-  formatRate,
   invoiceDefaults,
   invoiceTotals,
   parseDecimal,
@@ -42,20 +25,18 @@ import {
 import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
 import { readQRValue } from '@/lib/invoice-preview.ts';
 import { useStore } from '@/lib/store.tsx';
-import type { Invoice, InvoiceFormValues, PDFLanguage, Recipient } from '@/lib/types.ts';
-import { formatDateHuman, parseGIB, toGIB } from '@/lib/utils.ts';
+import type { Invoice, InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
+import { parseGIB } from '@/lib/utils.ts';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
-import { invoiceTypeLabel, matchesQuery } from '@/shell/searchable-list.tsx';
-import { tones } from '../shell/palette.stylex.ts';
 import { shell } from '../shell/shell.stylex.ts';
+import { AdvancedSection } from './invoice-advanced.tsx';
+import { InvoiceSection } from './invoice-header.tsx';
 import { InvoiceItems } from './invoice-items.tsx';
+import { displayName, RecipientSection } from './invoice-recipient.tsx';
+import { Section, sectionStyles } from './invoice-section.tsx';
 import { SuccessPanel, SummaryPanel, type CreatedDraft } from './invoice-summary.tsx';
-import {
-  useClearInvoiceForm,
-  useInvoiceForm,
-  useStoredInvoiceForm,
-  type InvoiceForm,
-} from './use-invoice-form.ts';
+import { useCurrencyRate } from './use-currency-rate.ts';
+import { useClearInvoiceForm, useInvoiceForm, useStoredInvoiceForm } from './use-invoice-form.ts';
 import { useSMSSign } from './use-sms-sign.tsx';
 
 const isMac = navigator.userAgent.includes('Mac');
@@ -64,9 +45,6 @@ const isMac = navigator.userAgent.includes('Mac');
 const WIDE = '@media (min-width: 1080px)';
 
 const styles = create({
-  advancedFields: {
-    paddingTop: spacing.s4,
-  },
   aside: {
     alignSelf: 'start',
     // Sticky beside the form, and scrolls itself when the window is short.
@@ -84,39 +62,10 @@ const styles = create({
     },
     top: spacing.s6,
   },
-  customerOption: {
-    color: colors.muted,
-    flexShrink: 0,
-    fontSize: font.sizeXs,
-    fontVariantNumeric: 'tabular-nums',
-    marginInlineStart: 'auto',
-  },
-  fields: {
-    display: 'grid',
-    gap: spacing.s4,
-    gridTemplateColumns: {
-      '@media (min-width: 720px)': 'repeat(2, minmax(0, 1fr))',
-      default: 'minmax(0, 1fr)',
-    },
-  },
   form: {
     display: 'flex',
     flexDirection: 'column',
     minWidth: 0,
-  },
-  fullRow: {
-    gridColumn: '1 / -1',
-  },
-  inlineAction: {
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    color: colors.fg,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    fontSize: 'inherit',
-    padding: 0,
-    textDecorationLine: 'underline',
-    textUnderlineOffset: '2px',
   },
   layout: {
     alignItems: 'start',
@@ -136,320 +85,7 @@ const styles = create({
     paddingTop: spacing.s2,
     width: '100%',
   },
-  section: {
-    borderTopColor: tones.divider,
-    borderTopStyle: 'solid',
-    borderTopWidth: {
-      ':first-child': 0,
-      default: '1px',
-    },
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-    paddingBlock: spacing.s6,
-  },
-  sectionHeader: {
-    alignItems: 'baseline',
-    display: 'flex',
-    gap: spacing.s3,
-    justifyContent: 'space-between',
-  },
-  sectionHint: {
-    color: colors.muted,
-    fontSize: font.sizeXs,
-  },
-  sectionTitle: {
-    color: colors.fg,
-    fontSize: font.sizeMd,
-    fontWeight: font.weightMedium,
-    margin: 0,
-  },
-  summary: {
-    '::-webkit-details-marker': {
-      display: 'none',
-    },
-    alignItems: 'center',
-    borderRadius: radius.base,
-    cursor: 'pointer',
-    display: 'flex',
-    gap: spacing.s2,
-    listStyle: 'none',
-    outline: {
-      ':focus-visible': `1px solid ${tones.ring}`,
-      default: 'none',
-    },
-    outlineOffset: '4px',
-    userSelect: 'none',
-  },
-  summaryIcon: {
-    color: colors.muted,
-    height: '1rem',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0s',
-      default: '150ms',
-    },
-    transitionProperty: 'transform',
-    width: '1rem',
-  },
-  summaryIconOpen: {
-    transform: 'rotate(90deg)',
-  },
-  warning: {
-    color: colors.warning,
-  },
 });
-
-const COUNTRY_OPTIONS = [...new Set(GIB_COUNTRIES.map((country) => country.value))].map(
-  (country) => ({ label: country, value: country }),
-);
-
-const INVOICE_TYPE_OPTIONS = GIB_INVOICE_TYPES.map((type) => ({
-  label: invoiceTypeLabel(type.value),
-  value: type.value,
-}));
-
-const displayName = (customer: Recipient) => customerName(customer) || UNNAMED_CUSTOMER;
-
-function Section({ children, hint, title }: { children: ReactNode; hint?: string; title: string }) {
-  return (
-    <section {...props(styles.section)}>
-      <div {...props(styles.sectionHeader)}>
-        <h2 {...props(styles.sectionTitle)}>{title}</h2>
-        {hint && <span {...props(styles.sectionHint)}>{hint}</span>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: Recipient }) {
-  const { savedRecipients } = useStore();
-  const matched = findCustomer(savedRecipients, recipient.taxIDOrTRID, customerName(recipient));
-
-  // The customer's defaults set more than the recipient. Their listeners stay
-  // quiet: applyCustomer already resets a new currency's rate.
-  const pickCustomer = (customer: Recipient) => {
-    const next = applyCustomer(form.state.values, customer);
-    form.setFieldValue('recipient', next.recipient, { dontRunListeners: true });
-    form.setFieldValue('invoiceSettings', next.invoiceSettings, { dontRunListeners: true });
-    form.setFieldValue('items', next.items, { dontRunListeners: true });
-    form.setFieldValue('advancedFields', next.advancedFields, { dontRunListeners: true });
-  };
-
-  return (
-    <Section title="Müşteri">
-      {savedRecipients.length > 0 && (
-        <Field>
-          <FieldLabel htmlFor="customer-picker">Kayıtlı müşteri</FieldLabel>
-          <Combobox
-            filter={(customer: Recipient, query: string) =>
-              matchesQuery(
-                query,
-                customer.title,
-                customer.name,
-                customer.surname,
-                customer.taxIDOrTRID,
-              )
-            }
-            isItemEqualToValue={(item: Recipient, value: Recipient) => item.id === value.id}
-            items={savedRecipients}
-            itemToStringLabel={displayName}
-            onValueChange={(customer: Recipient | null) => customer && pickCustomer(customer)}
-            value={matched}
-          >
-            <ComboboxInput
-              id="customer-picker"
-              onFocus={(event) => event.currentTarget.select()}
-              placeholder="Müşteri ara"
-            />
-            <ComboboxContent>
-              <ComboboxEmpty>Müşteri bulunamadı</ComboboxEmpty>
-              <ComboboxList>
-                {(customer: Recipient) => (
-                  <ComboboxItem key={customer.id} value={customer}>
-                    {displayName(customer)}
-                    <span {...props(styles.customerOption)}>{customer.taxIDOrTRID}</span>
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        </Field>
-      )}
-      <div {...props(styles.fields)}>
-        <form.AppField name="recipient.title">
-          {(field) => (
-            <field.TextField
-              label="Unvan"
-              placeholder="Örnek Teknoloji A.Ş."
-              style={styles.fullRow}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="recipient.name">
-          {(field) => <field.TextField label="Ad" />}
-        </form.AppField>
-        <form.AppField name="recipient.surname">
-          {(field) => <field.TextField label="Soyad" />}
-        </form.AppField>
-        <form.AppField name="recipient.taxIDOrTRID">
-          {(field) => (
-            <field.TextField
-              description="Yurt dışındaki müşteri için 2222222222"
-              inputMode="numeric"
-              label="VKN / TCKN"
-              maxLength={11}
-              placeholder="1234567890"
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="recipient.taxOffice">
-          {(field) => <field.TextField label="Vergi dairesi" />}
-        </form.AppField>
-        <form.AppField name="recipient.fullAddress">
-          {(field) => (
-            <field.TextareaField
-              label="Adres"
-              placeholder="Cadde, sokak, bina ve kapı numarası"
-              rows={2}
-              style={styles.fullRow}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="recipient.district">
-          {(field) => <field.TextField label="İlçe" />}
-        </form.AppField>
-        <form.AppField name="recipient.city">
-          {(field) => <field.TextField label="Şehir" />}
-        </form.AppField>
-        <form.AppField name="recipient.country">
-          {(field) => (
-            <field.ComboboxField
-              clearable
-              emptyText="Ülke bulunamadı"
-              items={COUNTRY_OPTIONS}
-              label="Ülke"
-              placeholder="Ülke seç"
-            />
-          )}
-        </form.AppField>
-      </div>
-    </Section>
-  );
-}
-
-function InvoiceSection({
-  form,
-  rateDescription,
-  values,
-}: {
-  form: InvoiceForm;
-  rateDescription: ReactNode;
-  values: InvoiceFormValues;
-}) {
-  return (
-    <Section title="Fatura">
-      <div {...props(styles.fields)}>
-        <form.AppField name="advancedFields.manualDate">
-          {(field) => <field.DateField emptyIsToday label="Tarih" />}
-        </form.AppField>
-        <form.AppField name="advancedFields.manualTime">
-          {(field) => <field.TimeField label="Saat" />}
-        </form.AppField>
-        <form.AppField name="invoiceSettings.invoiceType">
-          {(field) => <field.SelectField items={INVOICE_TYPE_OPTIONS} label="Fatura tipi" />}
-        </form.AppField>
-        <form.AppField
-          listeners={{
-            // A new currency starts from its TCMB rate again.
-            onChange: () => {
-              form.setFieldValue('invoiceSettings.currencyRate', '', {
-                dontRunListeners: true,
-                dontUpdateMeta: true,
-              });
-              form.setFieldValue('advancedFields.currencyRateManual', false);
-            },
-          }}
-          name="invoiceSettings.currency"
-        >
-          {(field) => (
-            <field.ComboboxField
-              emptyText="Para birimi bulunamadı"
-              items={CURRENCY_OPTIONS}
-              label="Para birimi"
-            />
-          )}
-        </form.AppField>
-        {values.invoiceSettings.currency !== 'TRY' && (
-          <form.AppField
-            listeners={{
-              onChange: () => form.setFieldValue('advancedFields.currencyRateManual', true),
-            }}
-            name="invoiceSettings.currencyRate"
-          >
-            {(field) => (
-              <field.TextField
-                description={rateDescription}
-                inputMode="decimal"
-                label="Döviz kuru"
-                placeholder="0,0000"
-              />
-            )}
-          </form.AppField>
-        )}
-        <form.AppField name="advancedFields.dueDate">
-          {(field) => (
-            <field.DateField
-              allowFuture
-              description="Yalnızca PDF’te görünür, GİB’e gönderilmez"
-              label="Son ödeme tarihi"
-            />
-          )}
-        </form.AppField>
-      </div>
-    </Section>
-  );
-}
-
-function AdvancedSection({ form, total }: { form: InvoiceForm; total: string }) {
-  const advanced = form.state.values.advancedFields;
-  const [open, setOpen] = useState(() =>
-    Boolean(advanced.irsaliyeNumarasi || advanced.irsaliyeTarihi || advanced.paymentTotal),
-  );
-
-  return (
-    <section {...props(styles.section)}>
-      <details onToggle={(event) => setOpen(event.currentTarget.open)} open={open}>
-        <summary {...props(styles.summary)}>
-          <ChevronRightIcon
-            aria-hidden
-            {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
-          />
-          <h2 {...props(styles.sectionTitle)}>Gelişmiş</h2>
-          <span {...props(styles.sectionHint)}>İrsaliye, ödenecek tutar</span>
-        </summary>
-        <div {...props(styles.fields, styles.advancedFields)}>
-          <form.AppField name="advancedFields.irsaliyeNumarasi">
-            {(field) => <field.TextField label="İrsaliye numarası" />}
-          </form.AppField>
-          <form.AppField name="advancedFields.irsaliyeTarihi">
-            {(field) => <field.DateField label="İrsaliye tarihi" />}
-          </form.AppField>
-          <form.AppField name="advancedFields.paymentTotal">
-            {(field) => (
-              <field.TextField
-                description="Boş bırakırsan genel toplam kullanılır"
-                inputMode="decimal"
-                label="Ödenecek tutar"
-                placeholder={total}
-              />
-            )}
-          </form.AppField>
-        </div>
-      </details>
-    </section>
-  );
-}
 
 /**
  * Opens the first field with a visible error (inside a closed details
@@ -640,57 +276,7 @@ export function CreateInvoicePage() {
     }
   }, [setAdvancedFields, setInvoiceSettings, setItems, setNote, setRecipient, stored, values]);
 
-  // TCMB's buying rate fills the rate field until the user types one.
-  const currency = values.invoiceSettings.currency;
-  const foreign = currency !== 'TRY';
-  const rateDate = values.advancedFields.manualDate;
-  const rateManual = values.advancedFields.currencyRateManual === true;
-  const rates = useQuery({
-    enabled: foreign,
-    queryFn: () => fetchTCMBRateTable(parseGIB(rateDate)),
-    queryKey: ['tcmb-rates', rateDate],
-    staleTime: 5 * 60 * 1000,
-  });
-  const tcmbRate = foreign ? rates.data?.rates.get(currency) : undefined;
-
-  useEffect(() => {
-    if (rateManual || tcmbRate === undefined) {
-      return;
-    }
-    const text = formatRate(tcmbRate);
-    if (form.getFieldValue('invoiceSettings.currencyRate') !== text) {
-      form.setFieldValue('invoiceSettings.currencyRate', text, {
-        dontRunListeners: true,
-        dontUpdateMeta: true,
-      });
-    }
-  }, [form, rateManual, tcmbRate]);
-
-  let rateDescription: ReactNode = null;
-  if (rateManual) {
-    rateDescription = (
-      <>
-        Elle girildi.{' '}
-        {tcmbRate !== undefined && (
-          <button
-            onClick={() => form.setFieldValue('advancedFields.currencyRateManual', false)}
-            type="button"
-            {...props(styles.inlineAction)}
-          >
-            TCMB kurunu kullan
-          </button>
-        )}
-      </>
-    );
-  } else if (rates.isError) {
-    rateDescription = <span {...props(styles.warning)}>{TCMB_RATE_ERROR}</span>;
-  } else if (rates.data && tcmbRate === undefined) {
-    rateDescription = 'TCMB bu para birimi için kur yayınlamıyor. Kuru elle gir.';
-  } else if (rates.data) {
-    rateDescription = `TCMB döviz alış kuru, ${formatDateHuman(toGIB(rates.data.date))}`;
-  } else if (foreign) {
-    rateDescription = 'TCMB kuru alınıyor…';
-  }
+  const { foreign, rateDescription } = useCurrencyRate(form, values);
 
   const pdfLanguage = pdfLanguageOf(values);
   const setPDFLanguage = (language: PDFLanguage) =>
@@ -778,7 +364,7 @@ export function CreateInvoicePage() {
           <Section title="Hizmetler">
             <InvoiceItems form={form} />
           </Section>
-          <section {...props(styles.section)}>
+          <section {...props(sectionStyles.section)}>
             <form.AppField name="note">
               {(field) => (
                 <field.TextareaField label="Not" placeholder="Faturada görünecek not" rows={2} />

@@ -18,9 +18,15 @@
   "dependencies": {
     "@base-ui/react": "catalog:",
     "@fontsource-variable/inter": "catalog:",
+    "@internationalized/date": "catalog:",
+    "@internationalized/number": "catalog:",
+    "@maskito/core": "catalog:",
+    "@maskito/kit": "catalog:",
+    "@maskito/react": "catalog:",
     "@stylexjs/stylex": "catalog:",
     "cmdk": "catalog:",
     "lucide-react": "catalog:",
+    "react-aria-components": "catalog:",
     "sonner": "catalog:"
   },
   "devDependencies": {

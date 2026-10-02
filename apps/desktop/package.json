@@ -13,6 +13,9 @@
   },
   "dependencies": {
     "@angaria/ui": "workspace:*",
+    "@internationalized/date": "catalog:",
+    "@maskito/core": "catalog:",
+    "@maskito/kit": "catalog:",
     "@react-pdf/renderer": "catalog:",
     "@stylexjs/stylex": "catalog:",
     "@tanstack/react-form": "catalog:",

@@ -131,6 +131,7 @@ import { createRoot } from 'react-dom/client';
 import '@angaria/ui/fonts.css';
 import '@angaria/ui/theme.css';
 import '@angaria/ui/base.css';
+import { GalleryDates } from './gallery-dates.tsx';
 
 const styles = create({
   bar: {
@@ -349,6 +350,10 @@ function Showcase() {
             <Input defaultValue="Değiştirilemez" disabled id="gallery-disabled" />
           </Field>
         </FieldGroup>
+      </Section>
+
+      <Section title="DateField, Calendar">
+        <GalleryDates />
       </Section>
 
       <Section title="Select">

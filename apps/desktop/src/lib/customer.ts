@@ -10,7 +10,7 @@ export const DEFAULT_DUE_DAYS = 14;
 /** A saved customer's invoice defaults (missing: not known yet). */
 export type CustomerDefaults = Pick<
   Recipient,
-  'currency' | 'dueDays' | 'invoiceType' | 'pdfLanguage' | 'VATRate'
+  'currency' | 'dueDays' | 'invoiceType' | 'istisnaCode' | 'pdfLanguage' | 'VATRate'
 >;
 
 /** Unvan, else "Ad Soyad"; empty when neither is filled. */

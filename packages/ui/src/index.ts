@@ -14,6 +14,7 @@ export {
 } from './ui/alert-dialog.tsx';
 export { Badge, type BadgeProps, type BadgeVariant } from './ui/badge.tsx';
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './ui/button.tsx';
+export { Calendar, type CalendarProps } from './ui/calendar.tsx';
 export {
   Card,
   CardAction,
@@ -25,6 +26,7 @@ export {
   type CardProps,
 } from './ui/card.tsx';
 export { Checkbox, type CheckboxProps } from './ui/checkbox.tsx';
+export { ChoiceChips, type ChoiceChipsProps, type ChoiceOption } from './ui/choice-chips.tsx';
 export {
   Combobox,
   ComboboxChip,
@@ -54,6 +56,7 @@ export {
   CommandSeparator,
   CommandShortcut,
 } from './ui/command.tsx';
+export { DateField, type DateFieldProps, type DatePreset } from './ui/date-field.tsx';
 export {
   Dialog,
   DialogClose,
@@ -98,6 +101,9 @@ export {
 export { Input, type InputProps } from './ui/input.tsx';
 export { Kbd, KbdGroup } from './ui/kbd.tsx';
 export { Label, type LabelProps } from './ui/label.tsx';
+export { MaskedInput, type MaskedInputProps } from './ui/masked-input.tsx';
+export { NumberInput, type NumberInputProps } from './ui/number-input.tsx';
+export { OTPInput, type OTPInputProps } from './ui/otp-input.tsx';
 export {
   Popover,
   PopoverContent,

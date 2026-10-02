@@ -20,6 +20,10 @@ export interface Recipient {
   fullAddress: string;
   id: string;
   invoiceType?: string;
+  /** İstisna reason code (301, 302, 350) of the customer's İstisna invoices. */
+  istisnaCode?: string;
+  /** When the last invoice to this customer was created, ISO 8601. */
+  lastInvoicedAt?: string;
   name: string;
   pdfLanguage?: PDFLanguage;
   surname: string;
@@ -33,6 +37,8 @@ export interface InvoiceSettings {
   currency: string;
   currencyRate: string;
   invoiceType: string;
+  /** İstisna reason code (301, 302, 350) when the type is İstisna. */
+  istisnaCode?: string;
 }
 
 export interface InvoiceItem {
@@ -54,6 +60,8 @@ export interface AdvancedInvoiceFields {
   currencyRateManual?: boolean;
   /** Son ödeme tarihi, dd/MM/yyyy or empty. PDF only: GİB has no such field. */
   dueDate: string;
+  /** Set by a due-date preset: the due date follows the invoice date by this many days. */
+  dueDays?: number;
   irsaliyeNumarasi: string;
   irsaliyeTarihi: string;
   manualDate: string;

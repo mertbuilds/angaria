@@ -41,7 +41,7 @@ import {
   nameError,
   taxIDError,
 } from '@/lib/customer.ts';
-import type { FieldOption } from '@/lib/form.tsx';
+import type { FieldOption } from '@/lib/fields/choice.tsx';
 import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { CURRENCY_OPTIONS, parseDecimal } from '@/lib/invoice-form.ts';
 import { isPDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
