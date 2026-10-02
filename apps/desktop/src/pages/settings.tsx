@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
+  ChoiceChips,
   Dialog,
   DialogClose,
   DialogContent,
@@ -16,29 +17,64 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  MaskedInput,
   Switch,
-  Tabs,
-  TabsList,
-  TabsTrigger,
   Textarea,
   toast,
+  type ChoiceOption,
 } from '@angaria/ui';
 import { readTheme, themeChoices, type ThemeChoice } from '@angaria/ui/theme';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
+import type { MaskitoOptions } from '@maskito/core';
 import { create, props } from '@stylexjs/stylex';
+import { useQueryClient } from '@tanstack/react-query';
 import { getVersion } from '@tauri-apps/api/app';
-import { ChevronRightIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+  EyeIcon,
+  EyeOffIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LicenseCard } from '@/components/license-card.tsx';
-import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
+import {
+  SettingsField,
+  SettingsRow,
+  SettingsSection,
+  SettingsValue,
+} from '@/components/settings-section.tsx';
 import { forceLogout } from '@/lib/angaria.ts';
 import { LOGO_TYPES, readLogo } from '@/lib/company-logo.ts';
 import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
-import { toastError } from '@/lib/gib-errors.ts';
-import { isPDFStyle, PDF_STYLES, resolvePDFStyle } from '@/lib/invoice-pdf-i18n.ts';
+import { describeError, toastError } from '@/lib/gib-errors.ts';
+import { gib, useGIBAccount } from '@/lib/gib.ts';
+import { PDF_STYLES, resolvePDFStyle } from '@/lib/invoice-pdf-i18n.ts';
 import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/palette.ts';
+import {
+  DEFAULT_RATE_DAY,
+  rateDayChoices,
+  readRateDay,
+  setRateDay,
+  useRateDay,
+  type RateDay,
+} from '@/lib/rate-day.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
+import { ibanBankName } from '@/lib/tr-banks.ts';
+import {
+  IBAN_MASK,
+  isValidEmail,
+  isValidSWIFT,
+  isValidTCKN,
+  isValidTRIBAN,
+  isValidVKN,
+  normalizeIBAN,
+  TR_PHONE_MASK,
+} from '@/lib/tr-validators.ts';
 import type { CompanyInfo, Entity, PDFStyle } from '@/lib/types.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
 import { tones } from '../shell/palette.stylex.ts';
@@ -70,6 +106,54 @@ const styles = create({
   page: {
     paddingBlock: spacing.s8,
     paddingInline: spacing.s6,
+  },
+  password: {
+    flex: 1,
+    minWidth: 0,
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingInlineEnd: '2.75rem',
+  },
+  passwordToggle: {
+    insetInlineEnd: '6px',
+    position: 'absolute',
+    top: '6px',
+  },
+  // The note's link sits in its line of text.
+  noteLink: {
+    fontSize: font.sizeXs,
+    height: 'auto',
+    paddingInline: 0,
+  },
+  tabular: {
+    fontVariantNumeric: 'tabular-nums',
+  },
+  testColumn: {
+    alignItems: 'flex-end',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+    minWidth: 0,
+  },
+  testIcon: {
+    flexShrink: 0,
+    height: '0.875rem',
+    marginTop: '0.125rem',
+    width: '0.875rem',
+  },
+  testResult: {
+    color: colors.muted,
+    display: 'flex',
+    fontSize: font.sizeXs,
+    gap: spacing.s1,
+    lineHeight: 1.5,
+    margin: 0,
+    textAlign: 'end',
+    textWrap: 'pretty',
+  },
+  testResultError: {
+    color: colors.error,
   },
   summary: {
     '::-webkit-details-marker': {
@@ -115,6 +199,36 @@ const styles = create({
   },
 });
 
+type ConnectionTest =
+  | { detail?: string | undefined; kind: 'failed'; login: string; text: string }
+  | { kind: 'idle' }
+  | { kind: 'ok'; login: string }
+  | { kind: 'testing'; login: string };
+
+/** The connection test's outcome, in a live region that is always there. */
+function ConnectionTestResult({ test }: { test: ConnectionTest }) {
+  const failed = test.kind === 'failed';
+  return (
+    <p role="status" {...props(styles.testResult, failed && styles.testResultError)}>
+      {test.kind === 'ok' && (
+        <>
+          <CheckIcon aria-hidden {...props(styles.testIcon)} />
+          GİB girişi çalışıyor.
+        </>
+      )}
+      {failed && (
+        <>
+          <CircleAlertIcon aria-hidden {...props(styles.testIcon)} />
+          <span>
+            {test.text}
+            {test.detail && ` ${test.detail}`}
+          </span>
+        </>
+      )}
+    </p>
+  );
+}
+
 function GibAccountSection() {
   const {
     activeEntity,
@@ -125,11 +239,17 @@ function GibAccountSection() {
     hasCredentials,
     setCredentials,
   } = useStore();
+  const account = useGIBAccount();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [test, setTest] = useState<ConnectionTest>({ kind: 'idle' });
   // The password read from the keychain, tagged with its company
   const [loaded, setLoaded] = useState<{ entityId: string; password: string } | null>(null);
   // null while the keychain read for the active company is pending
   const password = loaded?.entityId === activeEntityId ? loaded.password : null;
+  // A result holds for the login it tried, so editing either field clears it.
+  const login = `${activeEntityId}\n${creds.username}\n${password ?? ''}`;
+  const testShown = test.kind === 'idle' || test.login === login ? test : { kind: 'idle' as const };
 
   useEffect(() => {
     let active = true;
@@ -160,6 +280,28 @@ function GibAccountSection() {
         id: 'password-save',
       });
     });
+  }
+
+  async function handleTest() {
+    if (!creds.username.trim() || !password) {
+      setTest({ kind: 'failed', login, text: 'Önce kullanıcı kodunu ve şifreni gir' });
+      return;
+    }
+    setTest({ kind: 'testing', login });
+    try {
+      // The queue logs in for the task and logs out once nothing else waits.
+      await gib.run(account, async () => {});
+      setTest({ kind: 'ok', login });
+    } catch (error) {
+      const { code, detail, text } = describeError(error);
+      setTest({
+        detail,
+        kind: 'failed',
+        login,
+        // Ayarlar is where the user is already.
+        text: code === 'auth' ? 'GİB kullanıcı kodunu ya da şifreyi kabul etmedi.' : text,
+      });
+    }
   }
 
   async function handleForceLogout() {
@@ -200,15 +342,44 @@ function GibAccountSection() {
         />
       </SettingsRow>
       <SettingsRow htmlFor="gib-password" label="Şifre">
-        <Input
-          disabled={password === null}
-          id="gib-password"
-          onBlur={() => void flushCredentials()}
-          onChange={(event) => handlePasswordChange(event.target.value)}
-          placeholder="e-Arşiv şifresi"
-          type="password"
-          value={password ?? ''}
-        />
+        <div {...props(styles.password)}>
+          <Input
+            autoComplete="off"
+            disabled={password === null}
+            id="gib-password"
+            onBlur={() => void flushCredentials()}
+            onChange={(event) => handlePasswordChange(event.target.value)}
+            placeholder="e-Arşiv şifresi"
+            spellCheck={false}
+            style={styles.passwordInput}
+            type={showPassword ? 'text' : 'password'}
+            value={password ?? ''}
+          />
+          <Button
+            aria-controls="gib-password"
+            aria-label="Şifreyi göster"
+            aria-pressed={showPassword}
+            disabled={password === null}
+            onClick={() => setShowPassword((shown) => !shown)}
+            size="icon"
+            style={styles.passwordToggle}
+            variant="ghost"
+          >
+            {showPassword ? <EyeOffIcon aria-hidden /> : <EyeIcon aria-hidden />}
+          </Button>
+        </div>
+      </SettingsRow>
+      <SettingsRow hint="Kullanıcı kodu ve şifreyle GİB’e girip çıkar" label="Bağlantı">
+        <div {...props(styles.testColumn)}>
+          <Button
+            disabled={testShown.kind === 'testing'}
+            onClick={() => void handleTest()}
+            variant="outline"
+          >
+            {testShown.kind === 'testing' ? 'Deneniyor…' : 'Bağlantıyı test et'}
+          </Button>
+          <ConnectionTestResult test={testShown} />
+        </div>
       </SettingsRow>
       <SettingsRow hint="e-Arşiv portalında açık kalan oturumu kapatır" label="Oturum">
         <Button
@@ -223,13 +394,59 @@ function GibAccountSection() {
   );
 }
 
+const rateDayCopy: Record<RateDay, { description: string; label: string }> = {
+  previous: {
+    description: 'TCMB’nin fatura tarihinden önceki iş günü açıkladığı kur',
+    label: 'Önceki iş günü',
+  },
+  same: {
+    description: 'TCMB’nin fatura tarihinde açıkladığı kur',
+    label: 'Fatura günü',
+  },
+};
+
+const rateDayOptions: ReadonlyArray<ChoiceOption<RateDay>> = rateDayChoices.map((choice) => ({
+  ...rateDayCopy[choice],
+  value: choice,
+}));
+
+function RateDayRow() {
+  const rateDay = useRateDay();
+  const queryClient = useQueryClient();
+
+  return (
+    <SettingsRow
+      hint="Önceki iş günü önerilir: o gün açıklanan kur, fatura günü geçerlidir"
+      id="rate-day"
+      label="Kur günü"
+    >
+      <ChoiceChips
+        aria-describedby="rate-day-hint"
+        aria-labelledby="rate-day-label"
+        onValueChange={(choice) => {
+          if (choice) {
+            setRateDay(choice);
+            // Rates fetched by the other rule are refetched on Yeni fatura.
+            void queryClient.invalidateQueries({ queryKey: ['tcmb-rates'] });
+          }
+        }}
+        options={rateDayOptions}
+        value={rateDay}
+      />
+    </SettingsRow>
+  );
+}
+
 /**
- * Settings few people need, folded away: GİB's test portal, and in
- * development the local emulator. Open while either is on, so it shows.
+ * Settings few people need, folded away: the TCMB rate day, GİB's test
+ * portal, and in development the local emulator. Open while any is changed,
+ * so it shows.
  */
 function AdvancedSection() {
   const { activeEntityId, creds, setCredentials } = useStore();
-  const [open, setOpen] = useState(() => creds.testMode || Boolean(activeGibEmulatorURL));
+  const [open, setOpen] = useState(
+    () => creds.testMode || Boolean(activeGibEmulatorURL) || readRateDay() !== DEFAULT_RATE_DAY,
+  );
 
   return (
     <details onToggle={(event) => setOpen(event.currentTarget.open)} open={open}>
@@ -239,9 +456,15 @@ function AdvancedSection() {
           {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
         />
         Gelişmiş
-        <span {...props(styles.summaryHint)}>Test modu</span>
+        <span {...props(styles.summaryHint)}>Kur günü, test modu</span>
       </summary>
-      <div {...props(styles.advancedBody)}>
+      <div {...props(styles.advancedBody, styles.column)}>
+        <SettingsSection
+          description="Döviz faturanın kuru, TCMB’nin döviz alış kurundan alınır."
+          title="Döviz kuru"
+        >
+          <RateDayRow />
+        </SettingsSection>
         <SettingsSection
           description="Test modunda faturalar GİB’in test portalında kesilir. Gerçek fatura kesilmez."
           title="GİB bağlantısı"
@@ -386,56 +609,198 @@ function CompaniesSection() {
   );
 }
 
+/** How a company field is typed and checked. */
+type CompanyFieldKind = 'email' | 'iban' | 'phone' | 'swift' | 'taxID' | 'text' | 'textarea';
+
 interface CompanyField {
   key: Exclude<keyof CompanyInfo, 'logo' | 'pdfStyle'>;
+  kind?: CompanyFieldKind;
   label: string;
-  multiline?: boolean;
   placeholder: string;
 }
 
 const companyFields: Array<CompanyField> = [
   { key: 'name', label: 'Firma adı ya da unvan', placeholder: 'Firma Adı A.Ş.' },
-  { key: 'taxID', label: 'VKN / TCKN', placeholder: '1234567890' },
+  { key: 'taxID', kind: 'taxID', label: 'VKN / TCKN', placeholder: '1234567890' },
   { key: 'taxOffice', label: 'Vergi dairesi', placeholder: 'Kadıköy' },
-  { key: 'address', label: 'Adres', multiline: true, placeholder: 'Tam adres' },
-  { key: 'phone', label: 'Telefon', placeholder: '+90 555 123 45 67' },
-  { key: 'email', label: 'E-posta', placeholder: 'info@firma.com' },
+  { key: 'address', kind: 'textarea', label: 'Adres', placeholder: 'Tam adres' },
+  { key: 'phone', kind: 'phone', label: 'Telefon', placeholder: '+90 532 123 45 67' },
+  { key: 'email', kind: 'email', label: 'E-posta', placeholder: 'info@firma.com' },
 ];
 
 const bankFields: Array<CompanyField> = [
   { key: 'bankName', label: 'Banka adı', placeholder: 'Ziraat Bankası' },
   { key: 'accountHolder', label: 'Hesap sahibi', placeholder: 'Ad Soyad' },
-  { key: 'iban', label: 'IBAN', placeholder: 'TR00 0000 0000 0000 0000 0000 00' },
-  { key: 'swiftCode', label: 'SWIFT kodu', placeholder: 'TCZBTR2AXXX' },
-  { key: 'bankAddress', label: 'Banka adresi', multiline: true, placeholder: 'Banka şube adresi' },
+  { key: 'iban', kind: 'iban', label: 'IBAN', placeholder: 'TR00 0000 0000 0000 0000 0000 00' },
+  { key: 'swiftCode', kind: 'swift', label: 'SWIFT kodu', placeholder: 'TCZBTR2AXXX' },
+  { key: 'bankAddress', kind: 'textarea', label: 'Banka adresi', placeholder: 'Banka şube adresi' },
 ];
 
-/** Text rows bound to the active company's PDF details. */
-function CompanyFields({ fields }: { fields: Array<CompanyField> }) {
-  const { companyInfo, setCompanyInfo } = useStore();
+/** Letters and digits only, up to 11, upper-cased as typed: a SWIFT/BIC code. */
+const SWIFT_MASK: MaskitoOptions = { mask: /^[0-9A-Z]{0,11}$/ };
 
-  return fields.map((field) => {
-    const id = `company-${field.key}`;
-    const control = {
-      id,
-      onChange: (event: { target: { value: string } }) => {
-        const { value } = event.target;
-        setCompanyInfo((info) => ({ ...info, [field.key]: value }));
-      },
-      placeholder: field.placeholder,
-      value: companyInfo[field.key],
-    };
-    return (
-      <SettingsRow
-        align={field.multiline ? 'top' : 'center'}
-        htmlFor={id}
-        key={field.key}
-        label={field.label}
-      >
-        {field.multiline ? <Textarea rows={2} {...control} /> : <Input {...control} />}
-      </SettingsRow>
+const masks: Partial<Record<CompanyFieldKind, MaskitoOptions>> = {
+  iban: IBAN_MASK,
+  phone: TR_PHONE_MASK,
+  swift: SWIFT_MASK,
+};
+
+const PHONE_SHAPE = /^\+90 \d{3} \d{3} \d{2} \d{2}$/;
+
+/** What is wrong with a company field's value, in the user's words. Empty is fine. */
+function companyFieldError(kind: CompanyFieldKind, value: string) {
+  const text = value.trim();
+  if (!text) {
+    return undefined;
+  }
+  switch (kind) {
+    case 'email':
+      return isValidEmail(text) ? undefined : 'E-postayı ad@firma.com biçiminde yaz';
+    case 'iban':
+      if (!/^TR\d{24}$/.test(normalizeIBAN(text))) {
+        return 'IBAN, TR ve 24 rakamdan oluşur. Eksik ya da fazla haneyi düzelt.';
+      }
+      return isValidTRIBAN(text)
+        ? undefined
+        : 'Bu IBAN’ın kontrol haneleri tutmuyor. Numarayı kontrol et.';
+    case 'phone':
+      return PHONE_SHAPE.test(text) ? undefined : 'Telefonu +90 532 123 45 67 biçiminde yaz';
+    case 'swift':
+      return isValidSWIFT(text)
+        ? undefined
+        : 'SWIFT kodu 8 ya da 11 harf ve rakamdan oluşur. Örnek: TCZBTR2AXXX';
+    case 'taxID': {
+      const id = text.replaceAll(/\s/g, '');
+      if (!/^\d{10,11}$/.test(id)) {
+        return 'VKN 10, TCKN 11 haneli olur. Yalnızca rakam yaz.';
+      }
+      if (id.length === 10) {
+        return isValidVKN(id)
+          ? undefined
+          : 'Bu VKN’nin kontrol hanesi tutmuyor. Numarayı kontrol et.';
+      }
+      return isValidTCKN(id)
+        ? undefined
+        : 'Bu TCKN’nin kontrol haneleri tutmuyor. Numarayı kontrol et.';
+    }
+    default:
+      return undefined;
+  }
+}
+
+/** The value a field keeps once it is left: spaces out of a tax ID, a bare +90 cleared. */
+function normalizeCompanyField(kind: CompanyFieldKind, value: string) {
+  switch (kind) {
+    case 'email':
+      return value.trim();
+    case 'phone':
+      return /^\+?9?0?\s*$/.test(value) ? '' : value;
+    case 'taxID':
+      return value.replaceAll(/\s/g, '');
+    default:
+      return value;
+  }
+}
+
+/** One company field: checked once it is left, then on every change, so a fix clears it. */
+function CompanyFieldRow({ field }: { field: CompanyField }) {
+  const { companyInfo, setCompanyInfo } = useStore();
+  const [left, setLeft] = useState(false);
+  const id = `company-${field.key}`;
+  const kind = field.kind ?? 'text';
+  const value = companyInfo[field.key];
+  const error = left ? companyFieldError(kind, value) : undefined;
+  const mask = masks[kind];
+
+  const setValue = (next: string) => setCompanyInfo((info) => ({ ...info, [field.key]: next }));
+
+  const handleBlur = () => {
+    setLeft(true);
+    const normal = normalizeCompanyField(kind, value);
+    if (normal !== value) {
+      setValue(normal);
+    }
+  };
+
+  let note;
+  const bank = kind === 'iban' ? ibanBankName(value) : null;
+  if (bank) {
+    note = (
+      <>
+        {bank}
+        {!companyInfo.bankName.trim() && (
+          <Button
+            onClick={() => setCompanyInfo((info) => ({ ...info, bankName: bank }))}
+            style={styles.noteLink}
+            variant="link"
+          >
+            Banka adını doldur
+          </Button>
+        )}
+      </>
     );
-  });
+  }
+
+  return (
+    <SettingsRow align={kind === 'text' ? 'center' : 'top'} htmlFor={id} label={field.label}>
+      <SettingsField error={error} id={id} note={note}>
+        {(describedBy) => {
+          const control = {
+            'aria-describedby': describedBy,
+            'aria-invalid': error ? true : undefined,
+            id,
+            onBlur: handleBlur,
+            placeholder: field.placeholder,
+          };
+          if (kind === 'textarea') {
+            return (
+              <Textarea
+                rows={2}
+                {...control}
+                onChange={(event) => setValue(event.target.value)}
+                value={value}
+              />
+            );
+          }
+          if (mask) {
+            return (
+              <MaskedInput
+                {...control}
+                autoComplete={kind === 'phone' ? 'tel' : 'off'}
+                inputMode={kind === 'phone' ? 'tel' : 'text'}
+                mask={mask}
+                onInput={(event) => setValue(event.currentTarget.value)}
+                style={styles.tabular}
+                type={kind === 'phone' ? 'tel' : 'text'}
+                value={value}
+              />
+            );
+          }
+          return (
+            <Input
+              {...control}
+              autoComplete={kind === 'email' ? 'email' : undefined}
+              inputMode={kind === 'taxID' ? 'numeric' : undefined}
+              onChange={(event) => setValue(event.target.value)}
+              spellCheck={kind === 'email' || kind === 'taxID' ? false : undefined}
+              style={kind === 'taxID' ? styles.tabular : undefined}
+              type={kind === 'email' ? 'email' : 'text'}
+              value={value}
+            />
+          );
+        }}
+      </SettingsField>
+    </SettingsRow>
+  );
+}
+
+/** Rows bound to the active company's PDF details. */
+function CompanyFields({ fields }: { fields: Array<CompanyField> }) {
+  const { activeEntityId } = useStore();
+  // Keyed by company too: another company's fields start unchecked.
+  return fields.map((field) => (
+    <CompanyFieldRow field={field} key={`${activeEntityId}-${field.key}`} />
+  ));
 }
 
 function CompanyLogoRow() {
@@ -496,30 +861,31 @@ const pdfStyleLabels: Record<PDFStyle, string> = {
   minimal: 'Sade',
 };
 
+const pdfStyleOptions: ReadonlyArray<ChoiceOption<PDFStyle>> = PDF_STYLES.map((style) => ({
+  label: pdfStyleLabels[style],
+  value: style,
+}));
+
 function PDFStyleRow() {
   const { companyInfo, setCompanyInfo } = useStore();
 
   return (
     <SettingsRow
       hint="Sade ince çizgilerle, Klasik çerçeveli tablolarla basılır"
+      id="pdf-style"
       label="PDF tasarımı"
     >
-      <Tabs
-        onValueChange={(value) => {
-          if (isPDFStyle(value)) {
-            setCompanyInfo((info) => ({ ...info, pdfStyle: value }));
+      <ChoiceChips
+        aria-describedby="pdf-style-hint"
+        aria-labelledby="pdf-style-label"
+        onValueChange={(style) => {
+          if (style) {
+            setCompanyInfo((info) => ({ ...info, pdfStyle: style }));
           }
         }}
+        options={pdfStyleOptions}
         value={resolvePDFStyle(companyInfo.pdfStyle)}
-      >
-        <TabsList>
-          {PDF_STYLES.map((style) => (
-            <TabsTrigger key={style} value={style}>
-              {pdfStyleLabels[style]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      />
     </SettingsRow>
   );
 }
@@ -530,56 +896,56 @@ const themeLabels: Record<ThemeChoice, string> = {
   system: 'Sistem',
 };
 
+const themeOptions: ReadonlyArray<ChoiceOption<ThemeChoice>> = themeChoices.map((choice) => ({
+  label: themeLabels[choice],
+  value: choice,
+}));
+
 function AppearanceSection() {
   const [theme, setThemeChoice] = useState<ThemeChoice>(() => readTheme());
 
-  function handleChange(value: unknown) {
-    const choice = themeChoices.find((item) => item === value);
-    if (choice) {
-      setTheme(choice);
-      setThemeChoice(choice);
-    }
-  }
-
   return (
     <SettingsSection title="Görünüm">
-      <SettingsRow hint="Sistem, macOS görünüm ayarını izler" label="Tema">
-        <Tabs onValueChange={handleChange} value={theme}>
-          <TabsList>
-            {themeChoices.map((choice) => (
-              <TabsTrigger key={choice} value={choice}>
-                {themeLabels[choice]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <SettingsRow hint="Sistem, macOS görünüm ayarını izler" id="theme" label="Tema">
+        <ChoiceChips
+          aria-describedby="theme-hint"
+          aria-labelledby="theme-label"
+          onValueChange={(choice) => {
+            if (choice) {
+              setTheme(choice);
+              setThemeChoice(choice);
+            }
+          }}
+          options={themeOptions}
+          value={theme}
+        />
       </SettingsRow>
       <PaletteRow />
     </SettingsSection>
   );
 }
 
-function selectPalette(value: unknown) {
-  const choice = paletteChoices.find((item) => item === value);
-  if (choice) {
-    setPalette(choice);
-  }
-}
+const paletteOptions = paletteChoices.map((choice) => ({
+  label: paletteLabels[choice],
+  value: choice,
+}));
 
 function PaletteRow() {
   const palette = usePalette();
 
   return (
-    <SettingsRow hint="Serin mavi-gri, Sıcak krem tonlar kullanır" label="Renk paleti">
-      <Tabs onValueChange={selectPalette} value={palette}>
-        <TabsList>
-          {paletteChoices.map((choice) => (
-            <TabsTrigger key={choice} value={choice}>
-              {paletteLabels[choice]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+    <SettingsRow hint="Serin mavi-gri, Sıcak krem tonlar kullanır" id="palette" label="Renk paleti">
+      <ChoiceChips
+        aria-describedby="palette-hint"
+        aria-labelledby="palette-label"
+        onValueChange={(choice) => {
+          if (choice) {
+            setPalette(choice);
+          }
+        }}
+        options={paletteOptions}
+        value={palette}
+      />
     </SettingsRow>
   );
 }
