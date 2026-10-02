@@ -336,8 +336,12 @@ export function useSMSSign() {
       return { signed: false, value: prepared.value };
     }
     return new Promise((resolve) => {
-      const finish = (signed: boolean) => resolve({ signed, value: prepared.value });
-      signal.addEventListener('abort', () => finish(false), { once: true });
+      const onAbort = () => finish(false);
+      const finish = (signed: boolean) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve({ signed, value: prepared.value });
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
       setSigning({ ettns: prepared.ettns, finish, lease, oid: sent.oid, phone: sent.phone });
     });
   }
