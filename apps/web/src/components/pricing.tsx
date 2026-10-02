@@ -192,12 +192,16 @@ export function Pricing() {
   );
 }
 
-/** "yıllık 1.499 TL": the period leads, as Turkish says a price, and the amount carries the weight. */
+/**
+ * "yıllık 1.499 TL + KDV": the period leads, as Turkish says a price, the
+ * amount carries the weight, and the tax trails: Polar adds it at checkout.
+ */
 function Price({ amount, period }: { amount: string; period: string }) {
   return (
     <p {...props(layout.text, styles.price)}>
       <span {...props(layout.muted)}>{period}</span>{' '}
-      <span {...props(styles.priceAmount)}>{amount}</span>
+      <span {...props(styles.priceAmount)}>{amount}</span>{' '}
+      <span {...props(layout.muted)}>{m.pricing_tax()}</span>
     </p>
   );
 }

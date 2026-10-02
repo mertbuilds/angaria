@@ -22,8 +22,8 @@ describe('Pricing', () => {
     render(<Pricing />);
 
     expect(screen.getByRole('tab', { name: 'Yıllık' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveTextContent('yıllık 1.499 TL');
-    expect(screen.getByText('Ayda yaklaşık 125 TL, aylık plandan %37 ucuz')).toBeVisible();
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('yıllık 1.499 TL + KDV');
+    expect(screen.getByText('Ayda yaklaşık 125 TL + KDV, aylık plandan %37 ucuz')).toBeVisible();
     expect(checkout()).toHaveAttribute('href', 'https://polar.test/yearly');
   });
 
@@ -33,8 +33,10 @@ describe('Pricing', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Aylık' }));
 
     expect(screen.getByRole('tab', { name: 'Aylık' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveTextContent('aylık 199 TL');
-    expect(screen.queryByText('Ayda yaklaşık 125 TL, aylık plandan %37 ucuz')).not.toBeVisible();
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('aylık 199 TL + KDV');
+    expect(
+      screen.queryByText('Ayda yaklaşık 125 TL + KDV, aylık plandan %37 ucuz'),
+    ).not.toBeVisible();
     expect(checkout()).toHaveAttribute('href', 'https://polar.test/monthly');
 
     fireEvent.click(checkout());
