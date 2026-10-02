@@ -58,6 +58,7 @@ import {
   useDialogTarget,
   useListSelection,
 } from '@/shell/searchable-list.tsx';
+import { VATRateInput } from './invoice-items.tsx';
 import {
   citySuggestions,
   CountryCombobox,
@@ -110,9 +111,6 @@ const styles = create({
   // The input a Diğer chip shows, beside the chips.
   otherCurrency: {
     width: '14rem',
-  },
-  otherRate: {
-    width: '6rem',
   },
   placeholder: {
     alignItems: 'center',
@@ -384,19 +382,12 @@ function CustomerDefaultsSection({
               other={{
                 label: 'Diğer',
                 render: ({ autoFocus, id: otherId }) => (
-                  <NumberInput
-                    allowExpressions={false}
+                  <VATRateInput
                     aria-describedby={describedBy}
                     aria-invalid={vatRate.error ? true : undefined}
                     aria-label="Diğer KDV oranı"
                     autoFocus={autoFocus}
-                    format={String}
                     id={otherId}
-                    max={100}
-                    min={0}
-                    parse={parseWhole}
-                    style={styles.otherRate}
-                    suffix="%"
                     {...vatRate.input}
                   />
                 ),
