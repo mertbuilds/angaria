@@ -2,9 +2,8 @@ import { MaskedInput } from '@angaria/ui';
 import { colors } from '@angaria/ui/tokens.stylex';
 import type { MaskitoOptions } from '@maskito/core';
 import { create, props } from '@stylexjs/stylex';
-import { useStore } from '@tanstack/react-form';
 import { CheckIcon } from 'lucide-react';
-import { FieldFrame, useFieldContext, type FieldProps } from '../form-field.tsx';
+import { FieldFrame, useFieldContext, useFieldError, type FieldProps } from '../form-field.tsx';
 
 const styles = create({
   check: {
@@ -29,21 +28,6 @@ const styles = create({
 });
 
 /**
- * The field's error once it was left or the form was submitted: a half-typed
- * IBAN is not wrong yet. After that it follows every keystroke, so a fix
- * clears it at once.
- */
-function useBlurredFieldError() {
-  const field = useFieldContext<string>();
-  const submitted = useStore(field.form.store, (state) => state.submissionAttempts > 0);
-  if (!field.state.meta.isBlurred && !submitted) {
-    return undefined;
-  }
-  const error = field.state.meta.errors.find((item) => typeof item === 'string');
-  return typeof error === 'string' ? error : undefined;
-}
-
-/**
  * A fixed-shape ID (IBAN, phone, GTİP) typed through a mask. Its error shows
  * on blur, not while typing; a value `isValid` accepts gets a quiet check.
  */
@@ -63,7 +47,7 @@ export function MaskedField({
   placeholder?: string;
 }) {
   const field = useFieldContext<string>();
-  const error = useBlurredFieldError();
+  const error = useFieldError({ typed: true });
   const valid = !error && isValid !== undefined && isValid(field.state.value);
   return (
     <FieldFrame {...frame} error={error} id={field.name}>

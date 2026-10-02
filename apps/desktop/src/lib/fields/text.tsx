@@ -22,7 +22,7 @@ export function TextField({
   placeholder?: string;
 }) {
   const field = useFieldContext<string>();
-  const error = useFieldError();
+  const error = useFieldError({ typed: true });
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
@@ -51,7 +51,7 @@ export function TextareaField({
   ...frame
 }: FieldProps & { placeholder?: string; rows?: number }) {
   const field = useFieldContext<string>();
-  const error = useFieldError();
+  const error = useFieldError({ typed: true });
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (

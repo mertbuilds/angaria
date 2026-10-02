@@ -47,13 +47,13 @@ export function SelectField({
   const field = useFieldContext<string>();
   return (
     <FieldFrame {...frame} id={field.name}>
-      {() => (
+      {(describedBy) => (
         <Select
           items={items}
           onValueChange={(value) => value && field.handleChange(value)}
           value={field.state.value}
         >
-          <SelectTrigger id={field.name}>
+          <SelectTrigger aria-describedby={describedBy} id={field.name}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -202,7 +202,7 @@ export function SuggestField({
   suggestions: ReadonlyArray<Suggestion>;
 }) {
   const field = useFieldContext<string>();
-  const error = useFieldError();
+  const error = useFieldError({ typed: true });
   const [open, setOpen] = useState(false);
   const highlighted = useRef(false);
   const text = field.state.value;

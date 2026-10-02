@@ -13,7 +13,6 @@ import {
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props, type StyleXStyles } from '@stylexjs/stylex';
-import { useStore as useFormStore } from '@tanstack/react-form';
 import { CheckIcon, PlusIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
@@ -415,7 +414,7 @@ function BoundSuggestField({
   suggestions: (value: string) => ReadonlyArray<TextSuggestion>;
 }) {
   const field = useFieldContext<string>();
-  const error = useFieldError();
+  const error = useFieldError({ typed: true });
   return (
     <FieldFrame error={error} id={field.name} label={label}>
       {(describedBy) => (
@@ -434,19 +433,13 @@ function BoundSuggestField({
   );
 }
 
-/**
- * VKN / TCKN bound to the form. A wrong number shows its error once the field
- * was left or the form submitted, not while it is typed; after that it follows
- * every keystroke, so a fix clears it at once.
- */
+/** VKN / TCKN bound to the form; its error shows as typed text's does (useFieldError). */
 function BoundTaxIDField({ children }: { children?: ReactNode }) {
   const field = useFieldContext<string>();
-  const submitted = useFormStore(field.form.store, (state) => state.submissionAttempts > 0);
-  const error = field.state.meta.errors.find((item) => typeof item === 'string');
-  const shown = field.state.meta.isBlurred || submitted;
+  const error = useFieldError({ typed: true });
   return (
     <TaxIDInput
-      error={shown && typeof error === 'string' ? error : undefined}
+      error={error}
       id={field.name}
       onBlur={field.handleBlur}
       onValueChange={field.handleChange}

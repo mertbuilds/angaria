@@ -258,6 +258,12 @@ const FieldSeparator = ({ children, className, style, ...props }: StyleXElementP
   );
 };
 
+/**
+ * A field's error: an icon and the text. Point the control's aria-describedby
+ * at its id. It is announced politely, never as an alert: show it once the
+ * value is complete (the field was left, a choice made, the form submitted),
+ * so a screen reader is not interrupted while the user types.
+ */
 const FieldError = ({
   children,
   className,
@@ -293,8 +299,8 @@ const FieldError = ({
   return (
     <div
       {...stylexProps(styles.error, customClassName(className), style)}
+      aria-live="polite"
       data-slot="field-error"
-      role="alert"
       {...props}
     >
       <CircleAlertIcon aria-hidden {...stylexProps(styles.icon)} />
