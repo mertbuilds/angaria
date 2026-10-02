@@ -191,7 +191,9 @@ function useRecentInvoices() {
   const fetched = lists.flatMap((list) => list.data ?? []);
   return {
     error: lists.find((list) => list.isError)?.error,
-    pending: lists.some((list) => list.isPending),
+    // A cached empty list that is being refetched (a draft was just created)
+    // does not count as no invoices yet.
+    pending: lists.some((list) => list.isPending || list.isFetching),
     refetch: () => lists.forEach((list) => void list.refetch()),
     rows: recentInvoices([...fetched, ...cachedInvoices(queryClient, account)], RECENT),
   };
