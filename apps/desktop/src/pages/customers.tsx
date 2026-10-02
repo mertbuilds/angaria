@@ -32,7 +32,7 @@ import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useId, useRef, useState, type RefObject } from 'react';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import {
   customerDefaults,
@@ -552,7 +552,7 @@ function CustomerDetail({
   );
 }
 
-export function CustomersPage({ tabs }: { tabs: ReactNode }) {
+export function CustomersPage() {
   const navigate = useNavigate();
   const { newId, savedRecipients, setSavedRecipients } = useStore();
   const [query, setQuery] = useState('');
@@ -604,7 +604,6 @@ export function CustomersPage({ tabs }: { tabs: ReactNode }) {
       actions={savedRecipients.length > 0 && newCustomerButton('outline')}
       scroll={false}
       title="Müşteriler"
-      toolbar={tabs}
     >
       {savedRecipients.length === 0 ? (
         <EmptyState action={newCustomerButton('default')} title="Henüz müşteri yok">

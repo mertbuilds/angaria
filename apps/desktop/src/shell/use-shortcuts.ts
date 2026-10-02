@@ -5,7 +5,7 @@ import { useAppActions } from './use-app-actions.ts';
 const isMac = navigator.userAgent.includes('Mac');
 
 /**
- * App-wide shortcuts: ⌘K palette, ⌘N new invoice, ⌘1-4 sections, ⌘, settings
+ * App-wide shortcuts: ⌘K palette, ⌘N new invoice, ⌘1-5 sections, ⌘, settings
  * (Ctrl instead of ⌘ off macOS).
  */
 export function useShortcuts(setPaletteOpen: Dispatch<SetStateAction<boolean>>) {
