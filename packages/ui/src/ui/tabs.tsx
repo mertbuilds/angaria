@@ -4,7 +4,7 @@ import { Tabs as TabsPrimitive } from '@base-ui/react/tabs';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createContext, useContext } from 'react';
-import { colors, radius } from '../lib/tokens.stylex.ts';
+import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
 export type TabsListVariant = 'default' | 'line';
@@ -102,12 +102,12 @@ const styles = create({
   },
   // The selected tab is marked by its surface and a 1px edge, never by weight.
   triggerActiveDefault: {
-    backgroundColor: colors.background,
+    backgroundColor: optional.tabActive,
     boxShadow: {
       ':focus-visible': `0 0 0 1px ${colors.ring}`,
-      default: `inset 0 0 0 1px ${colors.border}`,
+      default: `inset 0 0 0 1px ${optional.tabActiveEdge}`,
     },
-    color: colors.foreground,
+    color: optional.tabActiveForeground,
   },
   triggerActiveLine: {
     '::after': {

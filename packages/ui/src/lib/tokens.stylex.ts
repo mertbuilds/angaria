@@ -43,6 +43,25 @@ export const colors = defineConsts({
 });
 
 /**
+ * Optional theme variables. theme.css leaves them unset, so each falls back to
+ * the look the kit ships; an app's palette sets them to tune one part without
+ * changing what the shared variables mean.
+ */
+export const optional = defineConsts({
+  /** Fill of text fields and select triggers. */
+  inputBackground: 'var(--input-background, transparent)',
+  /** The primary color as text: the link button. */
+  primaryInk: 'var(--primary-ink, var(--primary))',
+  switchThumb: 'var(--switch-thumb, var(--background))',
+  /** The chosen tab of a segmented control: fill, text and 1px edge. */
+  tabActive: 'var(--tab-active, var(--background))',
+  tabActiveEdge: 'var(--tab-active-edge, var(--border))',
+  tabActiveForeground: 'var(--tab-active-foreground, var(--foreground))',
+  tooltip: 'var(--tooltip, var(--primary))',
+  tooltipForeground: 'var(--tooltip-foreground, var(--primary-foreground))',
+});
+
+/**
  * Radius scale, pinned: surfaces (cards/dialogs/popovers) use 8px
  * (`--radius: 8px`); controls (buttons/inputs/select triggers) use `full`
  * (pill). sm through 2xl all resolve to the surface radius so registry

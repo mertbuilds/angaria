@@ -1,6 +1,6 @@
-import { colors } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { tones } from './palette.stylex.ts';
 
 const KEYBOARD_STEP = 16;
 
@@ -21,8 +21,8 @@ const styles = create({
       position: 'absolute',
     },
     backgroundColor: {
-      ':focus-visible': colors.muted,
-      default: colors.border,
+      ':focus-visible': tones.ring,
+      default: tones.divider,
     },
     cursor: 'col-resize',
     flexShrink: 0,

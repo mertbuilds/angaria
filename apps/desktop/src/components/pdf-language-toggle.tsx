@@ -2,6 +2,7 @@ import { colors, font, radius } from '@angaria/ui/tokens.stylex';
 import { create, props, type StyleXStyles } from '@stylexjs/stylex';
 import { useRef, type KeyboardEvent } from 'react';
 import type { PDFLanguage } from '@/lib/types.ts';
+import { tones } from '../shell/palette.stylex.ts';
 
 const LANGUAGES: ReadonlyArray<PDFLanguage> = ['tr', 'en', 'both'];
 
@@ -20,7 +21,7 @@ const styles = create({
     borderRadius: radius.full,
     borderWidth: 0,
     boxShadow: {
-      ':focus-visible': `0 0 0 1px ${colors.muted}`,
+      ':focus-visible': `0 0 0 1px ${tones.ring}`,
       default: null,
     },
     color: {
@@ -43,14 +44,11 @@ const styles = create({
     },
     transitionProperty: 'background-color, color, box-shadow',
   },
-  // Selection shows as a surface and a 1px edge, never as a heavier weight.
+  // Selection shows as a raised segment, like the kit's Tabs, never as a
+  // heavier weight.
   selected: {
-    backgroundColor: colors.bg,
-    boxShadow: {
-      ':focus-visible': `0 0 0 1px ${colors.muted}`,
-      default: `inset 0 0 0 1px ${colors.border}`,
-    },
-    color: colors.fg,
+    backgroundColor: tones.tabActive,
+    color: tones.tabActiveForeground,
   },
   track: {
     backgroundColor: colors.subtle,

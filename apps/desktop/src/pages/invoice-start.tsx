@@ -12,6 +12,7 @@ import { presetRange, recentInvoices } from '@/lib/invoices.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
+import { tones } from '../shell/palette.stylex.ts';
 import { InvoiceTotal } from './invoices.tsx';
 
 const RECENT = 5;
@@ -48,10 +49,8 @@ const styles = create({
     fontSize: font.sizeXs,
   },
   list: {
-    borderColor: colors.border,
+    backgroundColor: tones.card,
     borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
     display: 'flex',
     flexDirection: 'column',
     listStyle: 'none',
@@ -71,7 +70,7 @@ const styles = create({
     width: '100%',
   },
   item: {
-    borderTopColor: colors.border,
+    borderTopColor: tones.divider,
     borderTopStyle: 'solid',
     borderTopWidth: {
       ':first-child': 0,

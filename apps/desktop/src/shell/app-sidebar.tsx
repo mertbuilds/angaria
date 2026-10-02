@@ -11,15 +11,23 @@ import {
   Wordmark,
 } from '@angaria/ui';
 import { font, spacing } from '@angaria/ui/tokens.stylex';
-import { create } from '@stylexjs/stylex';
+import { create, props } from '@stylexjs/stylex';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import { SearchIcon } from 'lucide-react';
 import { useStore } from '@/lib/store.tsx';
 import { EntitySwitcher } from './entity-switcher.tsx';
 import { sections, type Section } from './nav.ts';
+import { tones } from './palette.stylex.ts';
 import { shell } from './shell.stylex.ts';
 
 const styles = create({
+  active: {
+    backgroundColor: tones.navActive,
+    color: tones.navActiveForeground,
+  },
+  activeIcon: {
+    color: tones.navActiveIcon,
+  },
   header: {
     paddingBottom: spacing.s2,
     paddingInline: spacing.s4,
@@ -44,8 +52,9 @@ function SectionItem({ section }: { section: Section }) {
         // Yeni fatura always starts a blank form, as it did before the router.
         onClick={section.to === '/yeni' ? resetInvoiceForm : undefined}
         render={<Link to={section.to} />}
+        style={isActive ? styles.active : undefined}
       >
-        <section.icon />
+        <section.icon {...props(isActive && styles.activeIcon)} />
         {section.label}
       </SidebarMenuButton>
     </SidebarMenuItem>

@@ -3,7 +3,7 @@
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import type { ComponentProps } from 'react';
-import { colors, radius } from '../lib/tokens.stylex.ts';
+import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
 const styles = create({
@@ -18,7 +18,7 @@ const styles = create({
     appearance: 'none',
     backgroundColor: {
       ':disabled': `color-mix(in oklab, ${colors.input} 50%, transparent)`,
-      default: 'transparent',
+      default: optional.inputBackground,
     },
     borderColor: {
       ':focus-visible': colors.ring,

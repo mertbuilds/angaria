@@ -6,7 +6,7 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { isHidden, popupStyles } from '../lib/popup.ts';
-import { colors, radius } from '../lib/tokens.stylex.ts';
+import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 import { inputStyles } from './input.tsx';
 
@@ -38,6 +38,7 @@ const styles = create({
   },
   chips: {
     alignItems: 'center',
+    backgroundColor: optional.inputBackground,
     borderColor: {
       ':focus-within': colors.ring,
       default: colors.input,

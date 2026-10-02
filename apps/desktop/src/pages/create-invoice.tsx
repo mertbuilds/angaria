@@ -46,6 +46,7 @@ import type { Invoice, InvoiceFormValues, PDFLanguage, Recipient } from '@/lib/t
 import { formatDateHuman, parseGIB, toGIB } from '@/lib/utils.ts';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
 import { invoiceTypeLabel, matchesQuery } from '@/shell/searchable-list.tsx';
+import { tones } from '../shell/palette.stylex.ts';
 import { shell } from '../shell/shell.stylex.ts';
 import { InvoiceItems } from './invoice-items.tsx';
 import { SuccessPanel, SummaryPanel, type CreatedDraft } from './invoice-summary.tsx';
@@ -136,7 +137,7 @@ const styles = create({
     width: '100%',
   },
   section: {
-    borderTopColor: colors.border,
+    borderTopColor: tones.divider,
     borderTopStyle: 'solid',
     borderTopWidth: {
       ':first-child': 0,
@@ -174,7 +175,7 @@ const styles = create({
     gap: spacing.s2,
     listStyle: 'none',
     outline: {
-      ':focus-visible': `1px solid ${colors.muted}`,
+      ':focus-visible': `1px solid ${tones.ring}`,
       default: 'none',
     },
     outlineOffset: '4px',

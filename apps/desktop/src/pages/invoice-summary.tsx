@@ -15,6 +15,7 @@ import { invoiceTotals, paymentTotal } from '@/lib/invoice-form.ts';
 import type { InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
 import { formatMoney, formatNumber } from '@/shell/searchable-list.tsx';
+import { tones } from '../shell/palette.stylex.ts';
 import { InvoiceFrame } from './invoice-detail.tsx';
 import type { InvoiceForm } from './use-invoice-form.ts';
 
@@ -32,10 +33,8 @@ const styles = create({
     gap: spacing.s2,
   },
   card: {
-    borderColor: colors.border,
+    backgroundColor: tones.card,
     borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
@@ -43,7 +42,7 @@ const styles = create({
     padding: spacing.s4,
   },
   divider: {
-    borderTopColor: colors.border,
+    borderTopColor: tones.divider,
     borderTopStyle: 'solid',
     borderTopWidth: '1px',
     margin: 0,
@@ -119,7 +118,7 @@ const styles = create({
     cursor: 'pointer',
     inset: 0,
     outline: {
-      ':focus-visible': `1px solid ${colors.muted}`,
+      ':focus-visible': `1px solid ${tones.ring}`,
       default: 'none',
     },
     outlineOffset: '2px',
@@ -127,10 +126,8 @@ const styles = create({
     position: 'absolute',
   },
   thumbnail: {
-    borderColor: colors.border,
     borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
+    boxShadow: `0 0 0 1px ${tones.paperEdge}`,
     overflow: 'hidden',
     position: 'relative',
   },

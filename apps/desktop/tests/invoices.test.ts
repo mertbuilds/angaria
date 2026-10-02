@@ -55,7 +55,7 @@ describe('invoiceStatus', () => {
     expect(invoiceStatus('Onaylandı')).toEqual({
       filter: 'onaylandi',
       label: 'Onaylı',
-      variant: 'default',
+      variant: 'secondary',
     });
     expect(invoiceStatus('Silinmiş')).toEqual({
       filter: 'iptal',

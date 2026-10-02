@@ -1,6 +1,7 @@
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
+import { tones } from '../shell/palette.stylex.ts';
 
 const styles = create({
   control: {
@@ -22,10 +23,8 @@ const styles = create({
     color: colors.error,
   },
   group: {
-    borderColor: colors.border,
+    backgroundColor: tones.card,
     borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: '1px',
     display: 'flex',
     flexDirection: 'column',
   },
@@ -58,7 +57,7 @@ const styles = create({
   },
   row: {
     alignItems: 'center',
-    borderTopColor: colors.border,
+    borderTopColor: tones.divider,
     borderTopStyle: 'solid',
     borderTopWidth: {
       ':first-child': 0,

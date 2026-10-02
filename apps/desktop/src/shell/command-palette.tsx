@@ -8,7 +8,8 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@angaria/ui';
-import { Building2Icon, FilePlusIcon, RepeatIcon } from 'lucide-react';
+import { Building2Icon, FilePlusIcon, PaletteIcon, RepeatIcon } from 'lucide-react';
+import { paletteChoices, paletteLabels, setPalette } from '@/lib/palette.ts';
 import { useStore } from '@/lib/store.tsx';
 import { sections } from './nav.ts';
 import { useAppActions } from './use-app-actions.ts';
@@ -87,6 +88,23 @@ export function CommandPalette({
                 >
                   <Building2Icon />
                   {entity.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+        {import.meta.env.DEV && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Palet (geliştirme)">
+              {paletteChoices.map((choice) => (
+                <CommandItem
+                  key={choice}
+                  keywords={['palet', 'renk', 'tema']}
+                  onSelect={run(() => setPalette(choice))}
+                >
+                  <PaletteIcon />
+                  {paletteLabels[choice]}
                 </CommandItem>
               ))}
             </CommandGroup>

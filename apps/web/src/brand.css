@@ -1,6 +1,6 @@
 /*
  * The site's one color: a bright blue, layered on @angaria/ui's theme for the
- * website only (the desktop app keeps black and white). Import after
+ * website only (the desktop app layers its own palettes.css). Import after
  * theme.css: same selectors, later in the cascade, so these win.
  *
  * --brand       #0098f2, oklch(0.66 0.17 246). Button fills, the selected
