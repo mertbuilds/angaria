@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { invoiceUUID } from '../inputs.ts';
 import type { ToolContext } from '../session.ts';
 
 export function registerGetInvoiceHtml(server: McpServer, { client, withSession }: ToolContext) {
@@ -14,10 +15,7 @@ export function registerGetInvoiceHtml(server: McpServer, { client, withSession 
           .enum(['Onaylanmadı', 'Onaylandı'])
           .optional()
           .describe("Approval status: 'Onaylanmadı' (draft, default) or 'Onaylandı' (signed)"),
-        uuid: z
-          .string()
-          .min(1)
-          .describe('Invoice UUID (ettn) from list_invoices or create_invoice'),
+        uuid: invoiceUUID,
       },
     },
     async ({ onayDurumu = 'Onaylanmadı', uuid }) =>

@@ -1,49 +1,33 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
-import { draftSearchRange, gibDate } from '../dates.ts';
+import { cancelInvoiceTool, draftSearchRange, findDraftToCancel } from '../inputs.ts';
 import type { ToolContext } from '../session.ts';
 
 export function registerCancelInvoice(server: McpServer, { client, withSession }: ToolContext) {
+  const { annotations, description, inputSchema, name } = cancelInvoiceTool;
   server.registerTool(
-    'cancel_invoice',
-    {
-      annotations: { destructiveHint: true, openWorldHint: true },
-      description:
-        'Cancel (delete) a draft invoice on the GİB portal. Only works on unsigned draft invoices. Provide the invoice UUID from list_invoices or create_invoice.',
-      inputSchema: {
-        date: gibDate
-          .optional()
-          .describe(
-            'Invoice date DD/MM/YYYY to narrow the search. If omitted, searches the last 90 days.',
-          ),
-        reason: z.string().min(1).describe("Cancellation reason (e.g. 'Hatalı düzenlendi')"),
-        uuid: z
-          .string()
-          .min(1)
-          .describe('Invoice UUID (ettn) from list_invoices or create_invoice'),
-      },
-    },
+    name,
+    { annotations, description, inputSchema },
     async ({ date, reason, uuid }) => {
       const { endDate, startDate } = draftSearchRange(date, new Date());
 
       return withSession(async (session) => {
         const drafts = await client.getDrafts(session, startDate, endDate);
-        const invoice = drafts.find((d) => d.ettn === uuid || d.faturaUuid === uuid);
+        const found = findDraftToCancel(drafts, uuid);
 
-        if (!invoice) {
+        if (found.kind === 'missing') {
           throw new Error(
             `Invoice with UUID ${uuid} not found in date range ${startDate} - ${endDate}. ` +
               'Use list_invoices to verify the UUID exists and the invoice is in draft state.',
           );
         }
-        if (invoice.onayDurumu !== 'Onaylanmadı') {
+        if (found.kind === 'signed') {
           throw new Error(
-            `Invoice ${uuid} is not an unsigned draft (onayDurumu: ${String(invoice.onayDurumu)}). ` +
+            `Invoice ${uuid} is not an unsigned draft (onayDurumu: ${found.status}). ` +
               'Only unsigned drafts can be cancelled.',
           );
         }
 
-        const result = await client.cancelInvoice(session, reason, invoice);
+        const result = await client.cancelInvoice(session, reason, found.invoice);
         return {
           content: [
             {
