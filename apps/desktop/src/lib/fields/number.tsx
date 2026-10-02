@@ -1,75 +1,69 @@
-import { Input } from '@angaria/ui';
-import { create } from '@stylexjs/stylex';
-import { useState } from 'react';
+import { NumberInput } from '@angaria/ui';
+import type { ReactNode } from 'react';
 import { FieldFrame, useFieldContext, useFieldError, type FieldProps } from '../form-field.tsx';
 import { formatDecimal, parseDecimal } from '../invoice-form.ts';
 
-const styles = create({
-  number: {
-    fontVariantNumeric: 'tabular-nums',
-    textAlign: 'right',
-  },
-});
-
 /**
- * A number typed the Turkish way ("1.250,5"). Keeps the text as typed while it
- * stores the parsed value; text that does not parse stores NaN, which the
- * form's checks report. Tidies the text on blur.
+ * A number typed the Turkish way ("1.250,5") or as arithmetic ("3*1.500"),
+ * through NumberInput: the text stays as typed while the parsed value is
+ * stored; text that does not parse stores NaN, which the form's checks
+ * report. Tidies the text on blur and Enter; ↑/↓ step.
  */
 export function NumberField({
+  allowExpressions,
   blankZero = false,
+  format,
   fractionDigits = 4,
+  largeStep,
+  max,
+  min,
   placeholder,
+  step,
+  steppers,
+  suffix,
   ...frame
 }: FieldProps & {
+  /** `3*8`, `1200+15%` and the like. Default true. */
+  allowExpressions?: boolean;
   /** Shows 0 as an empty field with the placeholder. */
   blankZero?: boolean;
+  /** The text a value shows once the field is left. Default formatDecimal with `fractionDigits`. */
+  format?: (value: number) => string;
   fractionDigits?: number;
+  largeStep?: number;
+  max?: number;
+  min?: number;
   placeholder?: string;
+  step?: number;
+  /** Small − and + buttons inside the field. */
+  steppers?: boolean;
+  /** Inside the field's end, e.g. ₺ or %. */
+  suffix?: ReactNode;
 }) {
   const field = useFieldContext<number>();
   const error = useFieldError();
-  const value = field.state.value;
-  const show = (number: number) =>
-    Number.isNaN(number) || (blankZero && number === 0)
-      ? ''
-      : formatDecimal(number, fractionDigits);
-  const [text, setText] = useState(() => show(value));
-  const [shown, setShown] = useState(value);
-
-  // A value set elsewhere (a saved service filled the row) replaces the text.
-  if (!Object.is(shown, value)) {
-    setShown(value);
-    if (!Object.is(parseDecimal(text) ?? Number.NaN, value)) {
-      setText(show(value));
-    }
-  }
-
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
-        <Input
+        <NumberInput
+          allowExpressions={allowExpressions}
           aria-describedby={describedBy}
           aria-invalid={error ? true : undefined}
-          autoComplete="off"
+          blankZero={blankZero}
+          format={format ?? ((value) => formatDecimal(value, fractionDigits))}
           id={field.name}
-          inputMode="decimal"
+          largeStep={largeStep}
+          max={max}
+          min={min}
           name={field.name}
-          onBlur={() => {
-            field.handleBlur();
-            if (!Number.isNaN(value)) {
-              setText(show(value));
-            }
-          }}
-          onChange={(event) => {
-            setText(event.target.value);
-            const next = parseDecimal(event.target.value) ?? Number.NaN;
-            setShown(next);
-            field.handleChange(next);
-          }}
+          onBlur={field.handleBlur}
+          onValueChange={field.handleChange}
+          parse={parseDecimal}
           placeholder={placeholder}
-          style={styles.number}
-          value={text}
+          step={step}
+          steppers={steppers}
+          suffix={suffix}
+          value={field.state.value}
         />
       )}
     </FieldFrame>

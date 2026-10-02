@@ -1,33 +1,90 @@
 import { MaskedInput } from '@angaria/ui';
+import { colors } from '@angaria/ui/tokens.stylex';
 import type { MaskitoOptions } from '@maskito/core';
-import { FieldFrame, useFieldContext, useFieldError, type FieldProps } from '../form-field.tsx';
+import { create, props } from '@stylexjs/stylex';
+import { useStore } from '@tanstack/react-form';
+import { CheckIcon } from 'lucide-react';
+import { FieldFrame, useFieldContext, type FieldProps } from '../form-field.tsx';
+
+const styles = create({
+  check: {
+    color: colors.muted,
+    height: '1rem',
+    insetInlineEnd: '1rem',
+    pointerEvents: 'none',
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '1rem',
+  },
+  checked: {
+    paddingInlineEnd: '2.5rem',
+  },
+  tabular: {
+    fontVariantNumeric: 'tabular-nums',
+  },
+  wrap: {
+    position: 'relative',
+  },
+});
 
 /**
- * A fixed-shape ID (IBAN, phone, GTİP) typed through a mask. Not in the form
- * registry yet, and no check icon or blur-only checksum errors yet.
+ * The field's error once it was left or the form was submitted: a half-typed
+ * IBAN is not wrong yet. After that it follows every keystroke, so a fix
+ * clears it at once.
+ */
+function useBlurredFieldError() {
+  const field = useFieldContext<string>();
+  const submitted = useStore(field.form.store, (state) => state.submissionAttempts > 0);
+  if (!field.state.meta.isBlurred && !submitted) {
+    return undefined;
+  }
+  const error = field.state.meta.errors.find((item) => typeof item === 'string');
+  return typeof error === 'string' ? error : undefined;
+}
+
+/**
+ * A fixed-shape ID (IBAN, phone, GTİP) typed through a mask. Its error shows
+ * on blur, not while typing; a value `isValid` accepts gets a quiet check.
  */
 export function MaskedField({
+  autoComplete = 'off',
+  inputMode,
+  isValid,
   mask,
   placeholder,
   ...frame
-}: FieldProps & { mask: MaskitoOptions; placeholder?: string }) {
+}: FieldProps & {
+  autoComplete?: string;
+  inputMode?: 'numeric' | 'tel' | 'text';
+  /** Whether the value is complete and passes its check, e.g. isValidTRIBAN. */
+  isValid?: (value: string) => boolean;
+  mask: MaskitoOptions;
+  placeholder?: string;
+}) {
   const field = useFieldContext<string>();
-  const error = useFieldError();
+  const error = useBlurredFieldError();
+  const valid = !error && isValid !== undefined && isValid(field.state.value);
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
-        <MaskedInput
-          aria-describedby={describedBy}
-          aria-invalid={error ? true : undefined}
-          autoComplete="off"
-          id={field.name}
-          mask={mask}
-          name={field.name}
-          onBlur={field.handleBlur}
-          onInput={(event) => field.handleChange(event.currentTarget.value)}
-          placeholder={placeholder}
-          value={field.state.value}
-        />
+        <div {...props(styles.wrap)}>
+          <MaskedInput
+            aria-describedby={describedBy}
+            aria-invalid={error ? true : undefined}
+            autoComplete={autoComplete}
+            id={field.name}
+            inputMode={inputMode}
+            mask={mask}
+            name={field.name}
+            onBlur={field.handleBlur}
+            onInput={(event) => field.handleChange(event.currentTarget.value)}
+            placeholder={placeholder}
+            style={[styles.tabular, valid && styles.checked]}
+            value={field.state.value}
+          />
+          {valid && <CheckIcon aria-hidden {...props(styles.check)} />}
+        </div>
       )}
     </FieldFrame>
   );
