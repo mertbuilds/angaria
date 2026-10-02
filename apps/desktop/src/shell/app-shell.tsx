@@ -6,18 +6,25 @@ import { useStore } from '@/lib/store.tsx';
 import { AppSidebar } from './app-sidebar.tsx';
 import { CommandPalette } from './command-palette.tsx';
 import { CredentialsGuard } from './credentials-guard.tsx';
+import { tones } from './palette.stylex.ts';
 import { useShortcuts } from './use-shortcuts.ts';
 
 const styles = create({
+  // A palette with a shell inset floats the content as a rounded panel on the
+  // sidebar's tone.
   main: {
     backgroundColor: colors.bg,
+    borderRadius: tones.shellRadius,
     display: 'flex',
     flex: 1,
     flexDirection: 'column',
+    marginBlock: tones.shellInset,
+    marginInlineEnd: tones.shellInset,
     minWidth: 0,
+    overflow: 'hidden',
   },
   root: {
-    backgroundColor: colors.bg,
+    backgroundColor: tones.sidebar,
     color: colors.fg,
     display: 'flex',
     fontFamily: font.family,
@@ -51,7 +58,7 @@ function ShellLayout() {
   useResetOnEntityChange();
 
   return (
-    <div {...props(styles.root)}>
+    <div data-tauri-drag-region {...props(styles.root)}>
       <AppSidebar onOpenPalette={() => setPaletteOpen(true)} />
       <main {...props(styles.main)}>
         <Outlet />

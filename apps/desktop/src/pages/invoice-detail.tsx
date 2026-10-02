@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
   toast,
 } from '@angaria/ui';
-import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
+import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props, type StyleXStyles } from '@stylexjs/stylex';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -49,6 +49,7 @@ import { formatDateHuman } from '@/lib/utils.ts';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
 import { ErrorState } from '@/shell/error-state.tsx';
 import { EmptyState, formatMoney } from '@/shell/searchable-list.tsx';
+import { tones } from '../shell/palette.stylex.ts';
 import { useSMSSign } from './use-sms-sign.tsx';
 
 const spin = keyframes({
@@ -71,10 +72,12 @@ const styles = create({
     position: 'absolute',
     transformOrigin: '0 0',
   },
-  // GİB's page is paper: white, with light form controls, in both themes.
+  // GİB's page is paper: white, with light form controls, in both themes;
+  // dark palettes dim it a little so it does not glare.
   frameBox: {
     backgroundColor: '#ffffff',
     colorScheme: 'light',
+    filter: tones.paperFilter,
     flex: 1,
     minHeight: '32rem',
     overflow: 'hidden',
@@ -93,9 +96,6 @@ const styles = create({
     width: '1rem',
   },
   header: {
-    borderBottomColor: colors.border,
-    borderBottomStyle: 'solid',
-    borderBottomWidth: '1px',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
@@ -111,6 +111,14 @@ const styles = create({
     fontVariantNumeric: 'tabular-nums',
     gap: spacing.s2,
     margin: 0,
+  },
+  // The page lies on the canvas under the header, with a margin and rounded
+  // corners, instead of filling the pane edge to edge.
+  paper: {
+    borderRadius: radius.base,
+    boxShadow: `0 0 0 1px ${tones.paperEdge}`,
+    marginBottom: spacing.s6,
+    marginInline: spacing.s6,
   },
   root: {
     display: 'flex',
@@ -364,7 +372,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
 
   let body;
   if (preview.data) {
-    body = <InvoiceFrame html={preview.data} />;
+    body = <InvoiceFrame html={preview.data} style={styles.paper} />;
   } else if (preview.isError) {
     body = (
       <ErrorState

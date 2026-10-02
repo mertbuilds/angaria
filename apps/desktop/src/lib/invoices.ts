@@ -61,7 +61,7 @@ export const STATUS_FILTERS: ReadonlyArray<{ label: string; value: StatusFilter 
 export interface InvoiceStatus {
   filter: Exclude<StatusFilter, 'tumu'>;
   label: string;
-  variant: 'default' | 'destructive' | 'outline';
+  variant: 'destructive' | 'outline' | 'secondary';
 }
 
 /** GİB's onayDurumu: unsigned drafts, signed invoices, and the rest (deleted, cancelled). */
@@ -70,7 +70,7 @@ export function invoiceStatus(onayDurumu: string | undefined): InvoiceStatus {
     case 'Onaylanmadı':
       return { filter: 'onaylanmadi', label: 'Taslak', variant: 'outline' };
     case 'Onaylandı':
-      return { filter: 'onaylandi', label: 'Onaylı', variant: 'default' };
+      return { filter: 'onaylandi', label: 'Onaylı', variant: 'secondary' };
     case 'Silinmiş':
       return { filter: 'iptal', label: 'Silindi', variant: 'destructive' };
     default:

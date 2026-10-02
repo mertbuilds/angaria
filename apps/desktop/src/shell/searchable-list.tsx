@@ -4,6 +4,7 @@ import { create, props } from '@stylexjs/stylex';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { GIB_INVOICE_TYPES, GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
 import { listRows, type ListSelection } from './list-selection.ts';
+import { tones } from './palette.stylex.ts';
 
 const styles = create({
   empty: {
@@ -35,9 +36,6 @@ const styles = create({
   footer: {
     alignItems: 'center',
     backgroundColor: colors.bg,
-    borderTopColor: colors.border,
-    borderTopStyle: 'solid',
-    borderTopWidth: '1px',
     bottom: 0,
     color: colors.muted,
     display: 'flex',
@@ -99,8 +97,8 @@ const styles = create({
   },
   rowSelected: {
     backgroundColor: {
-      ':hover': colors.subtle,
-      default: colors.subtle,
+      ':hover': tones.selection,
+      default: tones.selection,
     },
   },
   rowSubtitle: {

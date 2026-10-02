@@ -36,10 +36,18 @@ import { LOGO_TYPES, readLogo } from '@/lib/company-logo.ts';
 import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
 import { toastError } from '@/lib/gib-errors.ts';
 import { isPDFStyle, PDF_STYLES, resolvePDFStyle } from '@/lib/invoice-pdf-i18n.ts';
+import {
+  paletteChoices,
+  paletteLabels,
+  readPalette,
+  setPalette,
+  type PaletteChoice,
+} from '@/lib/palette.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import type { CompanyInfo, Entity, PDFStyle } from '@/lib/types.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
+import { tones } from '../shell/palette.stylex.ts';
 
 const styles = create({
   column: {
@@ -83,7 +91,7 @@ const styles = create({
     gap: spacing.s2,
     listStyle: 'none',
     outline: {
-      ':focus-visible': `1px solid ${colors.muted}`,
+      ':focus-visible': `1px solid ${tones.ring}`,
       default: 'none',
     },
     outlineOffset: '4px',
@@ -552,7 +560,35 @@ function AppearanceSection() {
           </TabsList>
         </Tabs>
       </SettingsRow>
+      {import.meta.env.DEV && <PaletteRow />}
     </SettingsSection>
+  );
+}
+
+/** Dev only: the color palette candidates in src/palettes.css. */
+function PaletteRow() {
+  const [palette, setPaletteChoice] = useState<PaletteChoice>(() => readPalette());
+
+  function handleChange(value: unknown) {
+    const choice = paletteChoices.find((item) => item === value);
+    if (choice) {
+      setPalette(choice);
+      setPaletteChoice(choice);
+    }
+  }
+
+  return (
+    <SettingsRow hint="Geliştirme: renk paleti adayları" label="Palet">
+      <Tabs onValueChange={handleChange} value={palette}>
+        <TabsList>
+          {paletteChoices.map((choice) => (
+            <TabsTrigger key={choice} value={choice}>
+              {paletteLabels[choice]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    </SettingsRow>
   );
 }
 

@@ -9,6 +9,7 @@ import { discountForRate, lineTotals } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceItem } from '@/lib/types.ts';
 import { formatMoney } from '@/shell/searchable-list.tsx';
+import { tones } from '../shell/palette.stylex.ts';
 import type { InvoiceForm } from './use-invoice-form.ts';
 
 const styles = create({
@@ -97,7 +98,7 @@ const styles = create({
       'minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1.2fr) minmax(0, 0.7fr) minmax(6.5rem, 1fr)',
   },
   row: {
-    borderTopColor: colors.border,
+    borderTopColor: tones.divider,
     borderTopStyle: 'solid',
     borderTopWidth: {
       ':first-child': 0,
@@ -123,7 +124,7 @@ const styles = create({
     gap: spacing.s1,
     listStyle: 'none',
     outline: {
-      ':focus-visible': `1px solid ${colors.muted}`,
+      ':focus-visible': `1px solid ${tones.ring}`,
       default: 'none',
     },
     outlineOffset: '2px',
