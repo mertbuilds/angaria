@@ -95,10 +95,30 @@ describe('createSessionQueue', () => {
 
     const first = queue.run(user, async () => tick());
     const second = queue.run(user, skipped, { signal: controller.signal });
+    // It rejects as the signal aborts, before the first task is done.
+    const dropped = expect(second).rejects.toThrow('cancelled');
     controller.abort(new Error('cancelled'));
 
     await first;
-    await expect(second).rejects.toThrow('cancelled');
+    await dropped;
+    expect(skipped).not.toHaveBeenCalled();
+  });
+
+  test('a waiting task rejects as soon as it aborts, while a lease still holds the session', async () => {
+    const { client } = fakeClient();
+    const queue = createSessionQueue(client);
+    const user = account('33333301');
+    const controller = new AbortController();
+    const skipped = vi.fn(async () => 'skipped');
+
+    const lease = await queue.lease(user);
+    const waiting = queue.run(user, skipped, { signal: controller.signal });
+    await tick();
+    controller.abort(new Error('gave up'));
+
+    await expect(waiting).rejects.toThrow('gave up');
+    lease.release();
+    await tick();
     expect(skipped).not.toHaveBeenCalled();
   });
 

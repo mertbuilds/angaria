@@ -24,9 +24,9 @@ import {
 } from '@/lib/invoice-form.ts';
 import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
 import { readQRValue } from '@/lib/invoice-preview.ts';
+import { rangeCovering } from '@/lib/invoices.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice, InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
-import { parseGIB } from '@/lib/utils.ts';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
 import { shell } from '../shell/shell.stylex.ts';
 import { AdvancedSection } from './invoice-advanced.tsx';
@@ -221,17 +221,7 @@ export function CreateInvoicePage() {
       // Make the new draft visible in the invoices list: refetch it and
       // widen the date range to cover the invoice date if needed.
       void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
-      const createdDate = parseGIB(draft.date);
-      if (createdDate) {
-        setInvoiceDateRange((prev) => {
-          const start = parseGIB(prev.start);
-          const end = parseGIB(prev.end);
-          return {
-            start: start && start <= createdDate ? prev.start : draft.date,
-            end: end && end >= createdDate ? prev.end : draft.date,
-          };
-        });
-      }
+      setInvoiceDateRange((prev) => rangeCovering(prev, draft.date));
 
       if (draft.uuid && values.advancedFields.dueDate) {
         saveDueDate(draft.uuid, values.advancedFields.dueDate);
