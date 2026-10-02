@@ -20,7 +20,7 @@ import { m } from '../paraglide/messages.js';
 /** UN/CEFACT codes for the unit each plan's price is per. */
 const BILLING_UNITS: Record<Plan, 'ANN' | 'MON'> = { monthly: 'MON', yearly: 'ANN' };
 
-/** One plan as an offer: its price, billed once per year or month. */
+/** One plan as an offer: its price before tax, billed once per year or month. */
 const offer = (plan: Plan, name: string) => ({
   '@type': 'Offer',
   name,
@@ -32,6 +32,7 @@ const offer = (plan: Plan, name: string) => ({
     price: PRICES_TRY[plan],
     priceCurrency: 'TRY',
     unitCode: BILLING_UNITS[plan],
+    valueAddedTaxIncluded: false,
   },
   url: `${SITE_URL}/#fiyat`,
 });
@@ -451,8 +452,9 @@ function Landing() {
           <Question body={m.faq_pdf_a()} index={7} title={m.faq_pdf_q()} />
           <Question body={m.faq_accountant_a()} index={8} title={m.faq_accountant_q()} />
           <Question body={m.faq_price_a()} index={9} title={m.faq_price_q()} />
-          <Question body={m.faq_cancel_a()} index={10} title={m.faq_cancel_q()} />
-          <Question body={m.faq_windows_a()} index={11} title={m.faq_windows_q()} />
+          <Question body={m.faq_company_a()} index={10} title={m.faq_company_q()} />
+          <Question body={m.faq_cancel_a()} index={11} title={m.faq_cancel_q()} />
+          <Question body={m.faq_windows_a()} index={12} title={m.faq_windows_q()} />
         </dl>
       </RevealSection>
     </>
