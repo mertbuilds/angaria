@@ -54,11 +54,11 @@ function SMSCodeForm({
       <DialogHeader>
         <DialogTitle>SMS ile onayla</DialogTitle>
         <DialogDescription>
-          {phone} numarasına gelen onay kodunu gir. Onaylanan fatura kesinleşir.
+          {phone} numarasına gelen SMS şifresini gir. Onaylanan fatura kesinleşir.
         </DialogDescription>
       </DialogHeader>
       <Field>
-        <FieldLabel htmlFor={`${id}-code`}>Onay kodu</FieldLabel>
+        <FieldLabel htmlFor={`${id}-code`}>SMS şifresi</FieldLabel>
         <Input
           autoComplete="one-time-code"
           autoFocus

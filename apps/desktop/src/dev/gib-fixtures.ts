@@ -224,7 +224,7 @@ function dispatch(cmd: string, data: Record<string, unknown>) {
       return { data: { oid: 'fixture-oid' } };
     case '0lhozfib5410mp': {
       if (data.SIFRE !== '123456') {
-        return { data: { msg: 'SMS kodu hatalı', sonuc: '0' } };
+        return { data: { msg: 'SMS şifresi hatalı', sonuc: '0' } };
       }
       for (const { ettn } of data.DATA as Array<{ ettn: string }>) {
         const invoice = find(ettn);
