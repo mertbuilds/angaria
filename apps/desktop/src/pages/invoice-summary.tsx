@@ -9,7 +9,7 @@ import {
   LoaderCircleIcon,
   MessageSquareIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
 import { invoiceTotals, paymentTotal, roundKurus } from '@/lib/invoice-form.ts';
 import type { InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
@@ -58,6 +58,8 @@ const styles = create({
     fontWeight: font.weightMedium,
     gap: spacing.s2,
     margin: 0,
+    // Focused by script only, to carry focus over from the summary.
+    outline: 'none',
   },
   headingIcon: {
     flexShrink: 0,
@@ -394,10 +396,24 @@ export function SuccessPanel({
   pdfLanguage: PDFLanguage;
 }) {
   const verified = Boolean(created.html);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // The summary and its button went away with the focus: the result takes it,
+  // unless the user is already somewhere else.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body) {
+        headingRef.current?.focus();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   return (
     <section aria-live="polite" {...props(styles.card)}>
       <div>
-        <h2 {...props(styles.heading)}>
+        <h2 ref={headingRef} tabIndex={-1} {...props(styles.heading)}>
           {verified ? (
             <CircleCheckIcon aria-hidden {...props(styles.headingIcon)} />
           ) : (
