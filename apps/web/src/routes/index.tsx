@@ -1,5 +1,5 @@
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
-import { create, defaultMarker, props, type StyleXStyles } from '@stylexjs/stylex';
+import { create, defaultMarker, props } from '@stylexjs/stylex';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { LinkHTMLAttributes, ReactNode } from 'react';
 import { AppHosts } from '../components/app-hosts.tsx';
@@ -8,6 +8,7 @@ import { Hero, HERO_SIZES } from '../components/hero.tsx';
 import { PRICES_TRY, Pricing } from '../components/pricing.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
 import { Screenshot, type Crop } from '../components/screenshot.tsx';
+import { SectionHeading } from '../components/section-heading.tsx';
 import { ConnectScene, InstallScene, SignScene } from '../components/step-scenes.tsx';
 import { brand, reveal } from '../lib/brand.stylex.ts';
 import { SITE_URL } from '../lib/canonical.ts';
@@ -79,8 +80,6 @@ export const Route = createFileRoute('/')({
 });
 
 const WIDE = '@media (min-width: 640px)';
-/** Where the gutter has room for a heading's marker to hang outside the column. */
-const HANG = '@media (min-width: 800px)';
 /** Where the wide blocks have room for three columns. */
 const ROOMY = '@media (min-width: 960px)';
 const HOVER = '@media (hover: hover)';
@@ -194,31 +193,6 @@ const styles = create({
     listStyle: 'none',
     margin: 0,
     padding: 0,
-  },
-  heading: {
-    '::before': {
-      backgroundColor: brand.fill,
-      borderRadius: 2,
-      content: '',
-      flexShrink: 0,
-      height: 8,
-      width: 8,
-    },
-    alignItems: 'center',
-    display: 'flex',
-    fontSize: 'clamp(22px, 3.2vw, 28px)',
-    gap: spacing.s3,
-    letterSpacing: '-0.02em',
-    // The marker hangs in the gutter, so the words line up with the column.
-    marginInlineStart: {
-      default: null,
-      [HANG]: `calc(-8px - ${spacing.s3})`,
-    },
-  },
-  // Over a centered block, the marker and the words center together.
-  headingCentered: {
-    justifyContent: 'center',
-    marginInlineStart: null,
   },
   item: {
     display: 'flex',
@@ -426,7 +400,7 @@ function Landing() {
 
       <RevealSection aria-labelledby="fiyat" style={[layout.section, styles.section]}>
         <Reveal index={0}>
-          <SectionHeading id="fiyat" style={styles.headingCentered}>
+          <SectionHeading centered id="fiyat">
             {m.pricing_title()}
           </SectionHeading>
         </Reveal>
@@ -458,23 +432,6 @@ function Landing() {
         </dl>
       </RevealSection>
     </>
-  );
-}
-
-/** A section's title, led by the blue square the page repeats as its marker. */
-function SectionHeading({
-  children,
-  id,
-  style,
-}: {
-  children: ReactNode;
-  id: string;
-  style?: StyleXStyles | undefined;
-}) {
-  return (
-    <h2 id={id} {...props(layout.heading, styles.heading, style)}>
-      {children}
-    </h2>
   );
 }
 
