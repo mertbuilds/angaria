@@ -66,7 +66,7 @@ const SEED_RECIPIENTS: Array<Recipient> = [
   },
   {
     id: newId(),
-    taxIDOrTRID: '9876543210',
+    taxIDOrTRID: '2222222222',
     taxOffice: '',
     title: 'ACME GMBH',
     name: 'Hans',
