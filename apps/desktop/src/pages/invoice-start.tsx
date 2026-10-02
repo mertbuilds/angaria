@@ -109,7 +109,17 @@ const styles = create({
       ':hover': colors.subtle,
       default: 'transparent',
     },
+    // Rounded like the list while focused, so its ring is never cut at a corner.
+    borderRadius: {
+      ':focus-visible': radius.base,
+      default: 0,
+    },
     borderWidth: 0,
+    // ↑/↓ move focus through the rows: a ring marks the one ↵ repeats.
+    boxShadow: {
+      ':focus-visible': `inset 0 0 0 1px ${tones.ring}`,
+      default: null,
+    },
     boxSizing: 'border-box',
     color: 'inherit',
     cursor: 'pointer',
