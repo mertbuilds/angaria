@@ -10,7 +10,14 @@ import { CheckoutButton, DownloadButton } from './cta.tsx';
 import { Screenshot } from './screenshot.tsx';
 
 const WIDE = '@media (min-width: 640px)';
+const DESKTOP = '@media (min-width: 1024px)';
+/** WIDE up to DESKTOP: apart from it, so the two never compete whatever their order. */
+const TABLET = '@media (min-width: 640px) and (max-width: 1023.98px)';
 const MOTION = '@media (prefers-reduced-motion: no-preference)';
+
+/** The dots fade toward the screenshot and the side edges. */
+const DOTS_FADE =
+  'linear-gradient(to bottom, #000 30%, transparent 92%), linear-gradient(to right, transparent, #000 20%, #000 80%, transparent)';
 
 /** How the hero screenshot is laid out, for the browser's choice of export. */
 export const HERO_SIZES = '(min-width: 1112px) 1080px, calc(100vw - 32px)';
@@ -97,16 +104,22 @@ const styles = create({
     backgroundImage: `radial-gradient(circle, color-mix(in oklab, ${colors.fg} 24%, transparent) 1px, transparent 1.5px)`,
     backgroundPosition: '50% 0',
     backgroundSize: '22px 22px',
+    // Taller by the hero's top padding, so the dots still reach the screenshot.
     height: {
-      default: 560,
-      [WIDE]: 760,
+      default: 592,
+      [DESKTOP]: 840,
+      [TABLET]: 792,
     },
     insetInline: 0,
     // Fades out toward the screenshot and the side edges, and almost away
-    // behind the words so they stay easy to read.
+    // behind the words so they stay easy to read: the faint middle sits on
+    // the words wherever the padding moves them.
     maskComposite: 'intersect',
-    maskImage:
-      'linear-gradient(to bottom, #000 30%, transparent 92%), linear-gradient(to right, transparent, #000 20%, #000 80%, transparent), radial-gradient(48% 42% at 50% 28%, rgb(0 0 0 / 0.12), #000)',
+    maskImage: {
+      default: `${DOTS_FADE}, radial-gradient(48% 42% at 50% 32%, rgb(0 0 0 / 0.12), #000)`,
+      [DESKTOP]: `${DOTS_FADE}, radial-gradient(48% 42% at 50% 35%, rgb(0 0 0 / 0.12), #000)`,
+      [TABLET]: `${DOTS_FADE}, radial-gradient(48% 42% at 50% 31%, rgb(0 0 0 / 0.12), #000)`,
+    },
     pointerEvents: 'none',
     position: 'absolute',
     top: 0,
@@ -137,6 +150,12 @@ const styles = create({
     gap: {
       default: spacing.s8,
       [WIDE]: spacing.s12,
+    },
+    // Air between the header row and the headline, on top of main's own
+    // padding: about 48px on a phone, 64px on a tablet, 112px on a desktop.
+    paddingBlockStart: {
+      default: spacing.s8,
+      [DESKTOP]: `calc(${spacing.s16} + ${spacing.s4})`,
     },
   },
   lead: {

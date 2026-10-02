@@ -31,7 +31,7 @@ const SQUIRCLE_EXPONENT = 5;
 /** Points per quarter of the squircle outline. */
 const SQUIRCLE_STEPS = 24;
 
-const OG_TAGLINE = 'GİB ekranı yerine, faturanı bir dakikada kes.';
+const OG_TAGLINE = "GİB portalıyla uğraşma. Faturanı Mac'inden kes.";
 const OG_DOMAIN = 'angaria.app';
 
 const round = (value: number) => Math.round(value * 100) / 100;
