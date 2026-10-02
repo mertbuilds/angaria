@@ -209,7 +209,11 @@ export function TaxIDInput({
       </FieldFrame>
       {!value && (
         <button
-          onClick={() => onValueChange(UNDISCLOSED_TCKN)}
+          onClick={() => {
+            onValueChange(UNDISCLOSED_TCKN);
+            // The link goes once the field has a value; the focus stays on the field.
+            document.getElementById(id)?.focus();
+          }}
           type="button"
           {...props(styles.textAction)}
         >
@@ -622,7 +626,10 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
                     Kayıtlı müşteri: <span {...props(styles.statusName)}>{displayName(known)}</span>
                     {' · '}
                     <button
-                      onClick={() => pickCustomer(known)}
+                      onClick={() => {
+                        pickCustomer(known);
+                        document.getElementById('recipient.taxIDOrTRID')?.focus();
+                      }}
                       type="button"
                       {...props(styles.textAction, styles.textActionInline)}
                     >

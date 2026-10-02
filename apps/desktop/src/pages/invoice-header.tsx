@@ -353,7 +353,13 @@ export function InvoiceSection({
   const typeDescription =
     invoiceType === 'SATIS' && sentenceInNote ? (
       <button
-        onClick={() => form.setFieldValue('note', istisnaNote(null, form.state.values.note))}
+        onClick={() => {
+          form.setFieldValue('note', istisnaNote(null, form.state.values.note));
+          // The button goes with the sentence; the focus goes back to the type.
+          document
+            .querySelector<HTMLElement>('[id="invoiceSettings.invoiceType"] [aria-checked="true"]')
+            ?.focus();
+        }}
         type="button"
         {...props(styles.inlineAction)}
       >
