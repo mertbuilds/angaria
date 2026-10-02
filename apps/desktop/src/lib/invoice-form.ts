@@ -462,7 +462,8 @@ export function istisnaNote(code: string | null | undefined, note: string): stri
  * The form for an invoice to `customer`: its details as the recipient, and its
  * defaults (lib/customer.ts customerDefaults) for the currency, invoice type,
  * every row's VAT rate, the PDF language and the due date, counted from the
- * invoice date (empty: `today`). A new currency starts from its TCMB rate. An
+ * invoice date (empty: `today`) and following it when that date changes
+ * (`dueDays`). A new currency starts from its TCMB rate. An
  * İstisna invoice takes the customer's İstisna reason and writes its sentence
  * into the note.
  */
@@ -486,6 +487,7 @@ export function applyCustomer(
       currencyRateManual: newCurrency ? false : advancedFields.currencyRateManual,
       dueDate:
         dueDays === undefined ? advancedFields.dueDate : toGIB(addDays(invoiceDate, dueDays)),
+      dueDays: dueDays ?? advancedFields.dueDays,
     },
     invoiceSettings: {
       currency,

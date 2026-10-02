@@ -668,7 +668,7 @@ describe('applyCustomer', () => {
   test('counts the due date from the invoice date', () => {
     const values = form({ advancedFields: { ...form().advancedFields, manualDate: '20/09/2026' } });
     const next = applyCustomer(values, { ...form().recipient, dueDays: 30 }, today);
-    expect(next.advancedFields.dueDate).toBe('20/10/2026');
+    expect(next.advancedFields).toMatchObject({ dueDate: '20/10/2026', dueDays: 30 });
     expect(next.invoiceSettings).toMatchObject({ currency: 'TRY', invoiceType: 'SATIS' });
     expect(next.recipient.pdfLanguage).toBe('tr');
   });

@@ -652,6 +652,7 @@ function LoadedStoreProvider({
           advancedFields: {
             ...blank.advancedFields,
             dueDate: dueDays === undefined ? '' : toGIB(addDays(new Date(), dueDays)),
+            dueDays,
           },
           invoiceSettings: settings,
           items: items.length > 0 ? items.map((item) => ({ ...item, id: newId() })) : blank.items,
