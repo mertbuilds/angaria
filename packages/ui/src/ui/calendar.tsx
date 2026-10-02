@@ -16,6 +16,9 @@ import {
 import { I18nProvider } from 'react-aria-components/I18nProvider';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 
+const cellSize = '2.25rem';
+const weekdayHeight = '1.75rem';
+
 // No transitions anywhere here: arrow keys move the focus a day at a time and
 // must feel instant.
 const styles = create({
@@ -52,10 +55,10 @@ const styles = create({
     display: 'flex',
     fontSize: '0.875rem',
     fontVariantNumeric: 'tabular-nums',
-    height: '2.25rem',
+    height: cellSize,
     justifyContent: 'center',
     outline: 'none',
-    width: '2.25rem',
+    width: cellSize,
   },
   cellDisabled: {
     color: colors.mutedForeground,
@@ -97,8 +100,13 @@ const styles = create({
     color: colors.mutedForeground,
     fontSize: '0.75rem',
     fontWeight: 400,
-    height: '1.75rem',
+    height: weekdayHeight,
     padding: 0,
+  },
+  // Room for six weeks in every month, so moving between months of four, five
+  // and six weeks never changes the calendar's height.
+  weeks: {
+    minHeight: `calc(${weekdayHeight} + 6 * ${cellSize})`,
   },
 });
 
@@ -140,41 +148,43 @@ const Calendar = ({ maxValue, minValue, onChange, value }: CalendarProps) => (
           <ChevronRightIcon aria-hidden size={16} />
         </Button>
       </header>
-      <CalendarGrid className={stylexProps(styles.grid).className ?? ''} weekdayStyle="short">
-        <CalendarGridHeader>
-          {(day) => (
-            <CalendarHeaderCell className={stylexProps(styles.weekday).className ?? ''}>
-              {day}
-            </CalendarHeaderCell>
-          )}
-        </CalendarGridHeader>
-        <CalendarGridBody>
-          {(date) => (
-            <CalendarCell
-              className={({
-                isDisabled,
-                isFocusVisible,
-                isHovered,
-                isOutsideMonth,
-                isSelected,
-                isToday,
-                isUnavailable,
-              }) =>
-                stylexProps(
-                  styles.cell,
-                  isToday && styles.cellToday,
-                  isHovered && !isSelected && styles.cellHovered,
-                  isSelected && styles.cellSelected,
-                  isFocusVisible && styles.cellFocused,
-                  (isDisabled || isUnavailable) && styles.cellDisabled,
-                  isOutsideMonth && styles.cellOutside,
-                ).className ?? ''
-              }
-              date={date}
-            />
-          )}
-        </CalendarGridBody>
-      </CalendarGrid>
+      <div {...stylexProps(styles.weeks)}>
+        <CalendarGrid className={stylexProps(styles.grid).className ?? ''} weekdayStyle="short">
+          <CalendarGridHeader>
+            {(day) => (
+              <CalendarHeaderCell className={stylexProps(styles.weekday).className ?? ''}>
+                {day}
+              </CalendarHeaderCell>
+            )}
+          </CalendarGridHeader>
+          <CalendarGridBody>
+            {(date) => (
+              <CalendarCell
+                className={({
+                  isDisabled,
+                  isFocusVisible,
+                  isHovered,
+                  isOutsideMonth,
+                  isSelected,
+                  isToday,
+                  isUnavailable,
+                }) =>
+                  stylexProps(
+                    styles.cell,
+                    isToday && styles.cellToday,
+                    isHovered && !isSelected && styles.cellHovered,
+                    isSelected && styles.cellSelected,
+                    isFocusVisible && styles.cellFocused,
+                    (isDisabled || isUnavailable) && styles.cellDisabled,
+                    isOutsideMonth && styles.cellOutside,
+                  ).className ?? ''
+                }
+                date={date}
+              />
+            )}
+          </CalendarGridBody>
+        </CalendarGrid>
+      </div>
     </CalendarPrimitive>
   </I18nProvider>
 );

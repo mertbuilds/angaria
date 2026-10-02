@@ -5,7 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import { isHidden, popupStyles } from '../lib/popup.ts';
+import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
@@ -326,37 +326,39 @@ const SelectContent = ({
   sideOffset = 4,
   style,
   ...props
-}: SelectContentProps) => (
-  <SelectPrimitive.Portal>
-    <SelectPrimitive.Positioner
-      align={align}
-      alignItemWithTrigger={alignItemWithTrigger}
-      alignOffset={alignOffset}
-      side={side}
-      sideOffset={sideOffset}
-      {...stylexProps(popupStyles.positioner)}
-    >
-      <SelectPrimitive.Popup
-        className={(state) =>
-          stylexProps(
-            popupStyles.surface,
-            styles.content,
-            !alignItemWithTrigger && isHidden(state.transitionStatus) && popupStyles.hidden,
-            customClassName(className),
-            style,
-          ).className
-        }
-        data-align-trigger={alignItemWithTrigger}
-        data-slot="select-content"
-        {...props}
+}: SelectContentProps) => {
+  const placement = useHeldPlacement(side, align);
+  return (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Positioner
+        alignItemWithTrigger={alignItemWithTrigger}
+        alignOffset={alignOffset}
+        sideOffset={sideOffset}
+        {...placement}
+        {...stylexProps(popupStyles.positioner)}
       >
-        <SelectScrollUpButton />
-        <SelectPrimitive.List {...stylexProps(styles.list)}>{children}</SelectPrimitive.List>
-        <SelectScrollDownButton />
-      </SelectPrimitive.Popup>
-    </SelectPrimitive.Positioner>
-  </SelectPrimitive.Portal>
-);
+        <SelectPrimitive.Popup
+          className={(state) =>
+            stylexProps(
+              popupStyles.surface,
+              styles.content,
+              !alignItemWithTrigger && isHidden(state.transitionStatus) && popupStyles.hidden,
+              customClassName(className),
+              style,
+            ).className
+          }
+          data-align-trigger={alignItemWithTrigger}
+          data-slot="select-content"
+          {...props}
+        >
+          <SelectScrollUpButton />
+          <SelectPrimitive.List {...stylexProps(styles.list)}>{children}</SelectPrimitive.List>
+          <SelectScrollDownButton />
+        </SelectPrimitive.Popup>
+      </SelectPrimitive.Positioner>
+    </SelectPrimitive.Portal>
+  );
+};
 
 type SelectLabelProps = Omit<SelectPrimitive.GroupLabel.Props, 'className' | 'style'> & {
   className?: string | undefined;

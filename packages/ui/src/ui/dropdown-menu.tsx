@@ -5,7 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronRightIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import { isHidden, popupStyles } from '../lib/popup.ts';
+import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
@@ -136,32 +136,34 @@ const DropdownMenuContent = ({
   sideOffset = 4,
   style,
   ...props
-}: DropdownMenuContentProps) => (
-  <MenuPrimitive.Portal>
-    <MenuPrimitive.Positioner
-      align={align}
-      alignOffset={alignOffset}
-      collisionPadding={collisionPadding}
-      side={side}
-      sideOffset={sideOffset}
-      {...stylexProps(popupStyles.positioner)}
-    >
-      <MenuPrimitive.Popup
-        className={(state) =>
-          stylexProps(
-            popupStyles.surface,
-            styles.popup,
-            isHidden(state.transitionStatus) && popupStyles.hidden,
-            customClassName(className),
-            style,
-          ).className
-        }
-        data-slot="dropdown-menu-content"
-        {...props}
-      />
-    </MenuPrimitive.Positioner>
-  </MenuPrimitive.Portal>
-);
+}: DropdownMenuContentProps) => {
+  const placement = useHeldPlacement(side, align);
+  return (
+    <MenuPrimitive.Portal>
+      <MenuPrimitive.Positioner
+        alignOffset={alignOffset}
+        collisionPadding={collisionPadding}
+        sideOffset={sideOffset}
+        {...placement}
+        {...stylexProps(popupStyles.positioner)}
+      >
+        <MenuPrimitive.Popup
+          className={(state) =>
+            stylexProps(
+              popupStyles.surface,
+              styles.popup,
+              isHidden(state.transitionStatus) && popupStyles.hidden,
+              customClassName(className),
+              style,
+            ).className
+          }
+          data-slot="dropdown-menu-content"
+          {...props}
+        />
+      </MenuPrimitive.Positioner>
+    </MenuPrimitive.Portal>
+  );
+};
 
 type DropdownMenuItemProps = Omit<MenuPrimitive.Item.Props, 'className' | 'style'> &
   StyleXOverrides & {
