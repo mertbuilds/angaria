@@ -27,7 +27,6 @@ import { readTheme, themeChoices, type ThemeChoice } from '@angaria/ui/theme';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import type { MaskitoOptions } from '@maskito/core';
 import { create, props } from '@stylexjs/stylex';
-import { useQueryClient } from '@tanstack/react-query';
 import { getVersion } from '@tauri-apps/api/app';
 import {
   CheckIcon,
@@ -412,7 +411,6 @@ const rateDayOptions: ReadonlyArray<ChoiceOption<RateDay>> = rateDayChoices.map(
 
 function RateDayRow() {
   const rateDay = useRateDay();
-  const queryClient = useQueryClient();
 
   return (
     <SettingsRow
@@ -423,13 +421,7 @@ function RateDayRow() {
       <ChoiceChips
         aria-describedby="rate-day-hint"
         aria-labelledby="rate-day-label"
-        onValueChange={(choice) => {
-          if (choice) {
-            setRateDay(choice);
-            // Rates fetched by the other rule are refetched on Yeni fatura.
-            void queryClient.invalidateQueries({ queryKey: ['tcmb-rates'] });
-          }
-        }}
+        onValueChange={(choice) => choice && setRateDay(choice)}
         options={rateDayOptions}
         value={rateDay}
       />
