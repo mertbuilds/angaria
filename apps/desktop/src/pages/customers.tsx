@@ -8,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
+  ChoiceChips,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -15,36 +16,36 @@ import {
   ComboboxItem,
   ComboboxList,
   Field,
-  FieldDescription,
   FieldError,
   FieldLabel,
+  FieldTitle,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  NumberInput,
   Switch,
   Textarea,
   toast,
+  type ChoiceOption,
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState, type RefObject } from 'react';
-import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
+import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
 import {
+  countryError,
+  countryLabel,
   customerDefaults,
   customerName,
   DEFAULT_DUE_DAYS,
+  FOREIGN_TAX_ID,
   nameError,
   taxIDError,
 } from '@/lib/customer.ts';
 import type { FieldOption } from '@/lib/fields/choice.tsx';
-import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
-import { CURRENCY_OPTIONS, parseDecimal } from '@/lib/invoice-form.ts';
-import { isPDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
+import { FieldFrame } from '@/lib/form-field.tsx';
+import { CURRENCY_OPTIONS } from '@/lib/invoice-form.ts';
+import { SUPPORTED_INVOICE_TYPES, VAT_RATE_PRESETS } from '@/lib/regulated.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Recipient } from '@/lib/types.ts';
 import { ListDetail } from '@/shell/list-detail.tsx';
@@ -57,6 +58,15 @@ import {
   useDialogTarget,
   useListSelection,
 } from '@/shell/searchable-list.tsx';
+import {
+  citySuggestions,
+  CountryCombobox,
+  displayName,
+  ForeignCustomerSwitch,
+  SuggestInput,
+  TaxIDInput,
+  taxOfficeSuggestions,
+} from './invoice-recipient.tsx';
 
 const styles = create({
   actions: {
@@ -65,20 +75,15 @@ const styles = create({
     flexWrap: 'wrap',
     gap: spacing.s2,
   },
+  // Wide enough for three digits and the "gün" suffix.
   days: {
-    fontVariantNumeric: 'tabular-nums',
-    textAlign: 'right',
-    width: '5rem',
+    width: '7rem',
   },
   dueRow: {
     alignItems: 'center',
     display: 'flex',
     gap: spacing.s3,
     minHeight: '2.5rem',
-  },
-  dueUnit: {
-    color: colors.muted,
-    fontSize: font.sizeSm,
   },
   detail: {
     boxSizing: 'border-box',
@@ -102,9 +107,12 @@ const styles = create({
     flexDirection: 'column',
     gap: spacing.s4,
   },
-  number: {
-    fontVariantNumeric: 'tabular-nums',
-    textAlign: 'right',
+  // The input a Diğer chip shows, beside the chips.
+  otherCurrency: {
+    width: '14rem',
+  },
+  otherRate: {
+    width: '6rem',
   },
   placeholder: {
     alignItems: 'center',
@@ -144,21 +152,33 @@ const styles = create({
     gap: spacing.s1,
     minWidth: 0,
   },
+  toggle: {
+    alignSelf: 'flex-start',
+  },
 });
 
-// GİB's list carries Faroe Adaları twice.
-const COUNTRIES = [...new Set(GIB_COUNTRIES.map((country) => country.value))];
+const COMMON_CURRENCIES = ['TRY', 'USD', 'EUR', 'GBP'];
 
-const PDF_LANGUAGE_ITEMS = [
-  { label: 'Türkçe', value: 'tr' },
-  { label: 'İngilizce', value: 'en' },
-  { label: 'Türkçe ve İngilizce', value: 'both' },
-];
-
-const INVOICE_TYPE_ITEMS = GIB_INVOICE_TYPES.map((type) => ({
-  label: invoiceTypeLabel(type.value),
-  value: type.value,
+const CURRENCY_CHOICES: ReadonlyArray<ChoiceOption<string>> = COMMON_CURRENCIES.map((code) => ({
+  label: code,
+  value: code,
 }));
+
+const OTHER_CURRENCIES = CURRENCY_OPTIONS.filter(
+  (option) => !COMMON_CURRENCIES.includes(option.value),
+);
+
+const INVOICE_TYPE_CHOICES: ReadonlyArray<ChoiceOption<string>> = SUPPORTED_INVOICE_TYPES.map(
+  (type) => ({ label: invoiceTypeLabel(type), value: type }),
+);
+
+/** The KDV choice for "no default": the rows keep their services' own rate. */
+const SERVICE_RATE = 'service';
+
+const VAT_CHOICES: ReadonlyArray<ChoiceOption<number | typeof SERVICE_RATE>> = [
+  { label: 'Hizmetteki', value: SERVICE_RATE },
+  ...VAT_RATE_PRESETS.map((rate) => ({ label: `%${rate}`, value: rate })),
+];
 
 const BLANK_CUSTOMER: Omit<Recipient, 'id'> = {
   city: '',
@@ -172,8 +192,6 @@ const BLANK_CUSTOMER: Omit<Recipient, 'id'> = {
   title: '',
 };
 
-const displayName = (customer: Recipient) => customerName(customer) || UNNAMED_CUSTOMER;
-
 const matchesCustomer = (customer: Recipient, query: string) =>
   matchesQuery(
     query,
@@ -184,69 +202,43 @@ const matchesCustomer = (customer: Recipient, query: string) =>
     customer.city,
   );
 
-/** A whole number of days, kept as typed while it is being edited. */
-function DaysInput({
-  id,
-  onValueChange,
-  value,
-}: {
-  id: string;
-  onValueChange: (days: number) => void;
-  value: number;
-}) {
-  const [text, setText] = useState(String(value));
-  return (
-    <Input
-      aria-invalid={!/^\d{1,3}$/.test(text)}
-      aria-label="Kaç gün sonra"
-      id={id}
-      inputMode="numeric"
-      maxLength={3}
-      onBlur={() => setText(String(value))}
-      onChange={(event) => {
-        setText(event.target.value);
-        if (/^\d{1,3}$/.test(event.target.value)) {
-          onValueChange(Number(event.target.value));
-        }
-      }}
-      style={styles.days}
-      value={text}
-    />
-  );
-}
+/** A whole number as typed ("14"), else null. */
+const parseWhole = (text: string) => (/^\d{1,3}$/.test(text.trim()) ? Number(text.trim()) : null);
 
-/** KDV oranı: empty means no default, so the rows keep their own rate. */
-function VATRateInput({
-  id,
-  onValueChange,
-  value,
-}: {
-  id: string;
-  onValueChange: (rate: number | undefined) => void;
-  value: number | undefined;
-}) {
-  const [text, setText] = useState(value === undefined ? '' : String(value).replace('.', ','));
-  const parsed = parseDecimal(text);
-  return (
-    <Input
-      aria-describedby={`${id}-hint`}
-      aria-invalid={parsed === null || parsed > 100}
-      id={id}
-      inputMode="decimal"
-      onChange={(event) => {
-        setText(event.target.value);
-        const rate = parseDecimal(event.target.value);
-        if (!event.target.value.trim()) {
-          onValueChange(undefined);
-        } else if (rate !== null && rate <= 100) {
-          onValueChange(rate);
+/**
+ * A whole-number default (KDV oranı, days to pay) typed into a NumberInput.
+ * A number in 0..`max` is saved as it is typed; anything else stays in the
+ * field and shows `message` once the field was left, until it is fixed.
+ */
+function useWholeNumberInput(
+  saved: number | undefined,
+  max: number,
+  message: string,
+  save: (value: number) => void,
+) {
+  // What is typed while it cannot be saved; null shows the saved value.
+  const [draft, setDraft] = useState<number | null>(null);
+  const [blurred, setBlurred] = useState(false);
+  const error = draft !== null && blurred ? message : null;
+  return {
+    error,
+    reset: () => {
+      setDraft(null);
+      setBlurred(false);
+    },
+    input: {
+      onBlur: () => setBlurred(true),
+      onValueChange: (value: number) => {
+        if (Number.isInteger(value) && value >= 0 && value <= max) {
+          setDraft(null);
+          save(value);
+        } else {
+          setDraft(value);
         }
-      }}
-      placeholder="Hizmetlerdeki gibi"
-      style={styles.number}
-      value={text}
-    />
-  );
+      },
+      value: draft ?? saved ?? Number.NaN,
+    },
+  };
 }
 
 /**
@@ -262,7 +254,18 @@ function CustomerDefaultsSection({
 }) {
   const id = useId();
   const defaults = customerDefaults(customer);
-  const currency = CURRENCY_OPTIONS.find((option) => option.value === defaults.currency) ?? null;
+  const vatRate = useWholeNumberInput(
+    customer.VATRate,
+    100,
+    'KDV oranını 0 ile 100 arasında tam sayı olarak yaz',
+    (VATRate) => onChange({ VATRate }),
+  );
+  const dueDays = useWholeNumberInput(
+    customer.dueDays,
+    365,
+    'Gün sayısını 0 ile 365 arasında tam sayı olarak yaz',
+    (days) => onChange({ dueDays: days }),
+  );
 
   return (
     <section {...props(styles.section)}>
@@ -274,110 +277,171 @@ function CustomerDefaultsSection({
         </p>
       </div>
       <div {...props(styles.fields)}>
-        <Field>
-          <FieldLabel htmlFor={`${id}-currency`}>Para birimi</FieldLabel>
-          <Combobox
-            isItemEqualToValue={(item: FieldOption, value: FieldOption) =>
-              item.value === value.value
-            }
-            items={CURRENCY_OPTIONS}
-            locale="tr"
-            onValueChange={(option: FieldOption | null) => onChange({ currency: option?.value })}
-            value={currency}
-          >
-            <ComboboxInput
+        <FieldFrame
+          description={defaults.currency ? undefined : 'Seçilmezse faturanın para birimi kalır'}
+          id={`${id}-currency`}
+          label="Para birimi"
+          style={styles.fullRow}
+        >
+          {(describedBy) => (
+            <ChoiceChips
+              aria-describedby={describedBy}
+              aria-labelledby={`${id}-currency-label`}
               id={`${id}-currency`}
-              onFocus={(event) => event.currentTarget.select()}
-              placeholder="Faturadaki gibi"
+              onValueChange={(currency) => currency && onChange({ currency })}
+              options={CURRENCY_CHOICES}
+              other={{
+                label: 'Diğer',
+                render: ({ autoFocus, id: otherId }) => (
+                  <div {...props(styles.otherCurrency)}>
+                    <Combobox
+                      isItemEqualToValue={(item: FieldOption, value: FieldOption) =>
+                        item.value === value.value
+                      }
+                      items={OTHER_CURRENCIES}
+                      locale="tr"
+                      onValueChange={(option: FieldOption | null) =>
+                        option && onChange({ currency: option.value })
+                      }
+                      value={
+                        OTHER_CURRENCIES.find((option) => option.value === defaults.currency) ??
+                        null
+                      }
+                    >
+                      <ComboboxInput
+                        aria-label="Diğer para birimi"
+                        autoFocus={autoFocus}
+                        id={otherId}
+                        onFocus={(event) => event.currentTarget.select()}
+                        placeholder="Para birimi ara"
+                      />
+                      <ComboboxContent>
+                        <ComboboxEmpty>Para birimi bulunamadı</ComboboxEmpty>
+                        <ComboboxList>
+                          {(option: FieldOption) => (
+                            <ComboboxItem key={option.value} value={option}>
+                              {option.label}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
+                  </div>
+                ),
+              }}
+              value={defaults.currency ?? null}
             />
-            <ComboboxContent>
-              <ComboboxEmpty>Para birimi bulunamadı</ComboboxEmpty>
-              <ComboboxList>
-                {(option: FieldOption) => (
-                  <ComboboxItem key={option.value} value={option}>
-                    {option.label}
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        </Field>
+          )}
+        </FieldFrame>
+        <FieldFrame
+          description={
+            SUPPORTED_INVOICE_TYPES.includes(defaults.invoiceType)
+              ? undefined
+              : `Kayıtlı tip ${invoiceTypeLabel(defaults.invoiceType)}: Angaria bu tipi desteklemiyor`
+          }
+          id={`${id}-type`}
+          label="Fatura tipi"
+        >
+          {(describedBy) => (
+            <ChoiceChips
+              aria-describedby={describedBy}
+              aria-labelledby={`${id}-type-label`}
+              id={`${id}-type`}
+              onValueChange={(invoiceType) => invoiceType && onChange({ invoiceType })}
+              options={INVOICE_TYPE_CHOICES}
+              value={defaults.invoiceType}
+            />
+          )}
+        </FieldFrame>
         <Field>
-          <FieldLabel htmlFor={`${id}-type`}>Fatura tipi</FieldLabel>
-          <Select
-            items={INVOICE_TYPE_ITEMS}
-            onValueChange={(invoiceType) => invoiceType && onChange({ invoiceType })}
-            value={defaults.invoiceType}
-          >
-            <SelectTrigger id={`${id}-type`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {INVOICE_TYPE_ITEMS.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-vat`}>KDV oranı (%)</FieldLabel>
-          <VATRateInput
-            id={`${id}-vat`}
-            onValueChange={(VATRate) => onChange({ VATRate })}
-            value={customer.VATRate}
-          />
-          <FieldDescription id={`${id}-vat-hint`}>
-            Boşsa hizmetlerin KDV oranı değişmez
-          </FieldDescription>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-pdf-language`}>PDF dili</FieldLabel>
-          <Select
-            items={PDF_LANGUAGE_ITEMS}
-            onValueChange={(language) =>
-              isPDFLanguage(language) && onChange({ pdfLanguage: language })
-            }
+          <FieldTitle>PDF dili</FieldTitle>
+          <PDFLanguageToggle
+            onChange={(pdfLanguage) => onChange({ pdfLanguage })}
+            style={styles.toggle}
             value={defaults.pdfLanguage}
-          >
-            <SelectTrigger id={`${id}-pdf-language`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PDF_LANGUAGE_ITEMS.map((language) => (
-                <SelectItem key={language.value} value={language.value}>
-                  {language.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </Field>
-        <Field style={styles.fullRow}>
-          <FieldLabel htmlFor={`${id}-due`}>Son ödeme tarihi</FieldLabel>
-          <div {...props(styles.dueRow)}>
-            <Switch
-              checked={customer.dueDays !== undefined}
-              id={`${id}-due`}
-              onCheckedChange={(checked) =>
-                onChange({ dueDays: checked ? DEFAULT_DUE_DAYS : undefined })
-              }
+        <FieldFrame
+          description="Hizmetteki: satırlar hizmetin kendi KDV oranıyla gelir"
+          error={vatRate.error ?? undefined}
+          id={`${id}-vat`}
+          label="KDV oranı"
+          style={styles.fullRow}
+        >
+          {(describedBy) => (
+            <ChoiceChips
+              aria-describedby={describedBy}
+              aria-invalid={vatRate.error ? true : undefined}
+              aria-labelledby={`${id}-vat-label`}
+              id={`${id}-vat`}
+              onValueChange={(rate) => {
+                if (rate !== null) {
+                  vatRate.reset();
+                  onChange({ VATRate: rate === SERVICE_RATE ? undefined : rate });
+                }
+              }}
+              options={VAT_CHOICES}
+              other={{
+                label: 'Diğer',
+                render: ({ autoFocus, id: otherId }) => (
+                  <NumberInput
+                    allowExpressions={false}
+                    aria-describedby={describedBy}
+                    aria-invalid={vatRate.error ? true : undefined}
+                    aria-label="Diğer KDV oranı"
+                    autoFocus={autoFocus}
+                    format={String}
+                    id={otherId}
+                    max={100}
+                    min={0}
+                    parse={parseWhole}
+                    style={styles.otherRate}
+                    suffix="%"
+                    {...vatRate.input}
+                  />
+                ),
+              }}
+              value={customer.VATRate ?? SERVICE_RATE}
             />
-            {customer.dueDays !== undefined && (
-              <>
-                <DaysInput
+          )}
+        </FieldFrame>
+        <FieldFrame
+          description="Fatura tarihinden bu kadar gün sonrası PDF’e yazılır. GİB’e gönderilmez."
+          error={dueDays.error ?? undefined}
+          id={`${id}-due`}
+          label="Son ödeme tarihi"
+          style={styles.fullRow}
+        >
+          {(describedBy) => (
+            <div {...props(styles.dueRow)}>
+              <Switch
+                aria-describedby={describedBy}
+                checked={customer.dueDays !== undefined}
+                id={`${id}-due`}
+                onCheckedChange={(checked) => {
+                  dueDays.reset();
+                  onChange({ dueDays: checked ? DEFAULT_DUE_DAYS : undefined });
+                }}
+              />
+              {customer.dueDays !== undefined && (
+                <NumberInput
+                  allowExpressions={false}
+                  aria-describedby={describedBy}
+                  aria-invalid={dueDays.error ? true : undefined}
+                  aria-label="Kaç gün sonra"
+                  format={String}
                   id={`${id}-due-days`}
-                  onValueChange={(dueDays) => onChange({ dueDays })}
-                  value={customer.dueDays}
+                  max={365}
+                  min={0}
+                  parse={parseWhole}
+                  style={styles.days}
+                  suffix="gün"
+                  {...dueDays.input}
                 />
-                <span {...props(styles.dueUnit)}>gün sonra</span>
-              </>
-            )}
-          </div>
-          <FieldDescription>
-            Fatura tarihinden bu kadar gün sonrası PDF’e yazılır. GİB’e gönderilmez.
-          </FieldDescription>
-        </Field>
+              )}
+            </div>
+          )}
+        </FieldFrame>
       </div>
     </section>
   );
@@ -409,6 +473,19 @@ function CustomerDetail({
     setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
   const taxIDProblem = touched.taxID ? taxIDError(customer.taxIDOrTRID) : null;
   const nameProblem = touched.name ? nameError(customer) : null;
+  const countryProblem = countryError(customer);
+  const foreign = customer.taxIDOrTRID.trim() === FOREIGN_TAX_ID;
+
+  const setForeign = (checked: boolean) =>
+    onChange(
+      checked
+        ? {
+            country: customer.country === 'Türkiye' ? '' : customer.country,
+            taxIDOrTRID: FOREIGN_TAX_ID,
+            taxOffice: '',
+          }
+        : { taxIDOrTRID: '' },
+    );
 
   return (
     <div {...props(styles.detail)}>
@@ -433,6 +510,12 @@ function CustomerDetail({
       </header>
 
       <div {...props(styles.fields)}>
+        <ForeignCustomerSwitch
+          checked={foreign}
+          id={`${id}-foreign`}
+          onCheckedChange={setForeign}
+          style={styles.fullRow}
+        />
         <Field style={styles.fullRow}>
           <FieldLabel htmlFor={`${id}-title`}>Unvan</FieldLabel>
           <Input
@@ -466,35 +549,26 @@ function CustomerDetail({
             value={customer.surname}
           />
         </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-tax-id`}>VKN / TCKN</FieldLabel>
-          <Input
-            aria-describedby={`${id}-tax-id-hint`}
-            aria-invalid={taxIDProblem !== null}
-            id={`${id}-tax-id`}
-            inputMode="numeric"
-            maxLength={11}
-            onBlur={() => touch('taxID')}
-            onChange={(event) => onChange({ taxIDOrTRID: event.target.value })}
-            placeholder="1234567890"
-            value={customer.taxIDOrTRID}
-          />
-          {taxIDProblem ? (
-            <FieldError id={`${id}-tax-id-hint`}>{taxIDProblem}</FieldError>
-          ) : (
-            <FieldDescription id={`${id}-tax-id-hint`}>
-              Yurt dışındaki müşteri için 2222222222
-            </FieldDescription>
-          )}
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-tax-office`}>Vergi dairesi</FieldLabel>
-          <Input
-            id={`${id}-tax-office`}
-            onChange={(event) => onChange({ taxOffice: event.target.value })}
-            value={customer.taxOffice}
-          />
-        </Field>
+        <TaxIDInput
+          error={taxIDProblem}
+          id={`${id}-tax-id`}
+          onBlur={() => touch('taxID')}
+          onValueChange={(taxIDOrTRID) => onChange({ taxIDOrTRID })}
+          value={customer.taxIDOrTRID}
+        />
+        {!foreign && (
+          <FieldFrame id={`${id}-tax-office`} label="Vergi dairesi">
+            {(describedBy) => (
+              <SuggestInput
+                describedBy={describedBy}
+                id={`${id}-tax-office`}
+                onValueChange={(taxOffice) => onChange({ taxOffice })}
+                suggestions={taxOfficeSuggestions(customer.taxOffice, customer.city)}
+                value={customer.taxOffice}
+              />
+            )}
+          </FieldFrame>
+        )}
         <Field style={styles.fullRow}>
           <FieldLabel htmlFor={`${id}-address`}>Adres</FieldLabel>
           <Textarea
@@ -513,38 +587,28 @@ function CustomerDetail({
             value={customer.district}
           />
         </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-city`}>Şehir</FieldLabel>
-          <Input
-            id={`${id}-city`}
-            onChange={(event) => onChange({ city: event.target.value })}
-            value={customer.city}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-country`}>Ülke</FieldLabel>
-          <Combobox
-            items={COUNTRIES}
-            onValueChange={(country: string | null) => onChange({ country: country ?? '' })}
-            value={customer.country || null}
-          >
-            <ComboboxInput
-              id={`${id}-country`}
-              onFocus={(event) => event.currentTarget.select()}
-              placeholder="Ülke seç"
+        <FieldFrame id={`${id}-city`} label="Şehir">
+          {(describedBy) => (
+            <SuggestInput
+              describedBy={describedBy}
+              id={`${id}-city`}
+              onValueChange={(city) => onChange({ city })}
+              suggestions={citySuggestions(customer.city, customer)}
+              value={customer.city}
             />
-            <ComboboxContent>
-              <ComboboxEmpty>Ülke bulunamadı</ComboboxEmpty>
-              <ComboboxList>
-                {(country: string) => (
-                  <ComboboxItem key={country} value={country}>
-                    {country}
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        </Field>
+          )}
+        </FieldFrame>
+        <FieldFrame error={countryProblem ?? undefined} id={`${id}-country`} label="Ülke">
+          {(describedBy) => (
+            <CountryCombobox
+              describedBy={describedBy}
+              id={`${id}-country`}
+              invalid={countryProblem !== null}
+              onValueChange={(country) => onChange({ country })}
+              value={customer.country}
+            />
+          )}
+        </FieldFrame>
       </div>
 
       <CustomerDefaultsSection customer={customer} onChange={onChange} />
@@ -641,7 +705,7 @@ export function CustomersPage() {
               query={query}
               row={(customer) => ({
                 subtitle:
-                  [customer.taxIDOrTRID, customer.city || customer.country]
+                  [customer.taxIDOrTRID, customer.city || countryLabel(customer.country)]
                     .filter(Boolean)
                     .join(' · ') || 'VKN / TCKN eklenmedi',
                 title: displayName(customer),
