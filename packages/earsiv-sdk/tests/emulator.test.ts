@@ -1,6 +1,6 @@
 import { messages } from '@angaria/gib-emulator';
 import { beforeEach, describe, expect, inject, test } from 'vitest';
-import { createClient, GibError, type InvoiceDetails } from '../src/index.ts';
+import { createClient, draftInvoicePayload, GibError, type InvoiceDetails } from '../src/index.ts';
 
 // The SDK end to end against the GİB emulator (started by tests/emulator-setup.ts).
 
@@ -144,6 +144,51 @@ describe('invoices', () => {
       messages.notDeletable,
     );
     await client.logout(session);
+  });
+
+  test('the invoice page shows the totals the payload sent, its VAT summed from the lines', async () => {
+    // The .005 fixture of tests/payload.test.ts: VAT 1.005 on each line, 1.01 rounded.
+    const details = invoice({
+      grandTotal: 120.6,
+      grandTotalInclVAT: 123.63,
+      items: [
+        { name: 'A', price: 10.05, quantity: 1, unitPrice: 10.05, VATAmount: 1.01, VATRate: 10 },
+        { name: 'B', price: 100.5, quantity: 1, unitPrice: 100.5, VATAmount: 1.01, VATRate: 1 },
+        { name: 'C', price: 10.05, quantity: 4, unitPrice: 2.5125, VATAmount: 1.01, VATRate: 10 },
+      ],
+      paymentTotal: 123.63,
+      totalVAT: 3.03,
+    });
+    const sent = draftInvoicePayload(details);
+    const session = await client.login('33333301', '1', true);
+    const { uuid } = await client.createDraftInvoice(session, details);
+    const html = await client.getInvoiceHTML(session, uuid, 'Onaylanmadı');
+    await client.logout(session);
+
+    // "1.234,56 TL" as GİB's payload writes it: "1234.56".
+    const shown = (label: string) => {
+      const escaped = label.replaceAll(/[()]/g, (char) => `\\${char}`);
+      const match = new RegExp(`${escaped}</span></td>\\s*<td[^>]*>([^<]+)</td>`).exec(html);
+      return match?.[1].replace(' TL', '').replaceAll('.', '').replace(',', '.');
+    };
+    expect(shown('Mal Hizmet Toplam Tutarı')).toBe(sent.malhizmetToplamTutari);
+    expect(shown('Vergiler Dahil Toplam Tutar')).toBe(sent.vergilerDahilToplamTutar);
+    expect(shown('Ödenecek Tutar')).toBe(sent.odenecekTutar);
+    const vat = [shown('Hesaplanan KDV(%10)'), shown('Hesaplanan KDV(%1)')];
+    expect(vat).toEqual(['2.02', '1.01']);
+    expect((Number(vat[0]) + Number(vat[1])).toFixed(2)).toBe(sent.hesaplanankdv);
+
+    const qr = JSON.parse(/id="qrvalue"[^>]*>([^<]*)</.exec(html)?.[1] ?? '{}') as Record<
+      string,
+      string
+    >;
+    expect(qr).toMatchObject({
+      'hesaplanankdv(1)': '1.01',
+      'hesaplanankdv(10)': '2.02',
+      malhizmettoplam: sent.malhizmetToplamTutari,
+      odenecek: sent.odenecekTutar,
+      vergidahil: sent.vergilerDahilToplamTutar,
+    });
   });
 
   test('deletes a draft', async () => {

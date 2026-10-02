@@ -1,4 +1,4 @@
-import type { InvoiceItem } from 'angaria-earsiv-sdk';
+import { type InvoiceItem, roundKurus } from 'angaria-earsiv-sdk';
 
 export interface RawItem {
   discountAmount?: number;
@@ -20,16 +20,14 @@ export interface Totals {
   totalVAT: number;
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 /** A discount rate without an amount derives the amount from the line price,
  * as the desktop invoice form does. */
 export function computeItemFields(raw: RawItem): InvoiceItem {
-  const price = round2(raw.quantity * raw.unitPrice);
+  const price = roundKurus(raw.quantity * raw.unitPrice);
   const discountRate = raw.discountRate ?? 0;
-  const discountAmount = raw.discountAmount ?? round2((price * discountRate) / 100);
-  const taxableAmount = round2(price - discountAmount);
-  const VATAmount = round2((taxableAmount * raw.VATRate) / 100);
+  const discountAmount = raw.discountAmount ?? roundKurus((price * discountRate) / 100);
+  const taxableAmount = roundKurus(price - discountAmount);
+  const VATAmount = roundKurus((taxableAmount * raw.VATRate) / 100);
 
   return {
     discountAmount,
@@ -53,18 +51,18 @@ export function computeTotals(items: Array<InvoiceItem>): Totals {
 
   for (const item of items) {
     const discount = item.discountAmount ?? 0;
-    grandTotal += round2(item.price - discount);
+    grandTotal += roundKurus(item.price - discount);
     totalVAT += item.VATAmount;
     totalDiscount += discount;
   }
 
-  const grandTotalInclVAT = round2(round2(grandTotal) + round2(totalVAT));
+  const grandTotalInclVAT = roundKurus(roundKurus(grandTotal) + roundKurus(totalVAT));
 
   return {
-    grandTotal: round2(grandTotal),
+    grandTotal: roundKurus(grandTotal),
     grandTotalInclVAT,
     paymentTotal: grandTotalInclVAT,
-    totalDiscount: round2(totalDiscount),
-    totalVAT: round2(totalVAT),
+    totalDiscount: roundKurus(totalDiscount),
+    totalVAT: roundKurus(totalVAT),
   };
 }

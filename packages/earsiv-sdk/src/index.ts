@@ -295,6 +295,110 @@ export function splitDateRange(
   return ranges;
 }
 
+/**
+ * An amount rounded to kuruş, half away from zero. Reads the value at 15
+ * significant digits first, so binary noise (1.005 is 1.00499999...) rounds the
+ * way the decimal reads.
+ */
+export function roundKurus(value: number): number {
+  const kurus = Math.round(Number((Math.abs(value) * 100).toPrecision(15)));
+  return value < 0 && kurus !== 0 ? -kurus / 100 : kurus / 100;
+}
+
+/** An amount as GİB stores it: "1250.50". */
+const money = (value: number) => roundKurus(value).toFixed(2);
+
+/**
+ * A unit price as GİB stores it: two decimals ("1250.50"), more when the price
+ * has them, up to eight ("33.3333").
+ */
+const unitPrice = (value: number) => value.toFixed(8).replace(/(\.\d{2}\d*?)0+$/, '$1');
+
+/**
+ * The EARSIV_PORTAL_FATURA_OLUSTUR payload for `details`. Amounts go as sent,
+ * rounded to kuruş: the caller rounds each line and sums the rounded lines.
+ */
+export function draftInvoicePayload(details: InvoiceDetails): Record<string, unknown> {
+  for (const item of details.items) {
+    // kdvOrani goes as a whole number: a fraction would be rounded away silently.
+    if (!Number.isInteger(item.VATRate)) {
+      throw new RangeError(`KDV oranı tam sayı olmalı: ${item.VATRate}`);
+    }
+  }
+  return {
+    // Must be empty: GİB now assigns the ETTN server-side and rejects
+    // client-generated UUIDs with "Ettn ya eksik ya boş..." errors.
+    faturaUuid: '',
+    belgeNumarasi: '',
+    faturaTarihi: details.date,
+    saat: details.time,
+    paraBirimi: details.currency ?? 'TRY',
+    dovzTLkur: details.currencyRate ?? '0',
+    faturaTipi: details.invoiceType ?? 'ISTISNA',
+    hangiTip: '5000/30000',
+    vknTckn: details.taxIDOrTRID,
+    aliciUnvan: details.title,
+    aliciAdi: details.name ?? '',
+    aliciSoyadi: details.surname ?? '',
+    binaAdi: '',
+    binaNo: '',
+    kapiNo: '',
+    kasabaKoy: '',
+    vergiDairesi: details.taxOffice ?? '',
+    ulke: details.country ?? '',
+    bulvarcaddesokak: details.fullAddress,
+    irsaliyeNumarasi: details.irsaliyeNumarasi ?? '',
+    irsaliyeTarihi: details.irsaliyeTarihi ?? '',
+    mahalleSemtIlce: details.district ?? '',
+    sehir: details.city ?? ' ',
+    postaKodu: '',
+    tel: '',
+    fax: '',
+    eposta: '',
+    websitesi: '',
+    iadeTable: [],
+    ihracKayitliKarsiBelgeNo: '',
+    yatirimTesvikNumarasi: '',
+    yatirimTesvikTarihi: details.date,
+    vergiCesidi: ' ',
+    malHizmetTable: details.items.map((item) => ({
+      malHizmet: item.name,
+      miktar: item.quantity,
+      birim: item.unitType ?? 'C62',
+      birimFiyat: unitPrice(item.unitPrice),
+      fiyat: money(item.price),
+      iskontoOrani: item.discountRate ?? 0,
+      iskontoTutari: money(item.discountAmount ?? 0),
+      iskontoNedeni: item.discountReason ?? '',
+      malHizmetTutari: money(item.price),
+      kdvOrani: String(item.VATRate),
+      vergiOrani: 0,
+      kdvTutari: money(item.VATAmount),
+      vergininKdvTutari: '0',
+      ozelMatrahTutari: '0',
+      hesaplananotvtevkifatakatkisi: '0',
+      gtip: item.gtip ?? '',
+    })),
+    tip: 'İskonto',
+    matrah: money(details.grandTotal),
+    malhizmetToplamTutari: money(details.grandTotal),
+    toplamIskonto: money(details.totalDiscount ?? 0),
+    hesaplanankdv: money(details.totalVAT),
+    vergilerToplami: money(details.totalVAT),
+    vergilerDahilToplamTutar: money(details.grandTotalInclVAT),
+    odenecekTutar: money(details.paymentTotal),
+    not: details.note ?? '',
+    siparisNumarasi: '',
+    siparisTarihi: '',
+    fisNo: '',
+    fisTarihi: '',
+    fisSaati: ' ',
+    fisTipi: ' ',
+    zRaporNo: '',
+    okcSeriNo: '',
+  };
+}
+
 export interface ClientOptions {
   /**
    * Portal origin for both modes, e.g. the local GİB emulator
@@ -443,78 +547,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     session: SessionInfo,
     details: InvoiceDetails,
   ): Promise<{ date: string; response: Record<string, unknown>; uuid: string }> {
-    const invoiceData: Record<string, unknown> = {
-      // Must be empty: GİB now assigns the ETTN server-side and rejects
-      // client-generated UUIDs with "Ettn ya eksik ya boş..." errors.
-      faturaUuid: '',
-      belgeNumarasi: '',
-      faturaTarihi: details.date,
-      saat: details.time,
-      paraBirimi: details.currency ?? 'TRY',
-      dovzTLkur: details.currencyRate ?? '0',
-      faturaTipi: details.invoiceType ?? 'ISTISNA',
-      hangiTip: '5000/30000',
-      vknTckn: details.taxIDOrTRID,
-      aliciUnvan: details.title,
-      aliciAdi: details.name ?? '',
-      aliciSoyadi: details.surname ?? '',
-      binaAdi: '',
-      binaNo: '',
-      kapiNo: '',
-      kasabaKoy: '',
-      vergiDairesi: details.taxOffice ?? '',
-      ulke: details.country ?? '',
-      bulvarcaddesokak: details.fullAddress,
-      irsaliyeNumarasi: details.irsaliyeNumarasi ?? '',
-      irsaliyeTarihi: details.irsaliyeTarihi ?? '',
-      mahalleSemtIlce: details.district ?? '',
-      sehir: details.city ?? ' ',
-      postaKodu: '',
-      tel: '',
-      fax: '',
-      eposta: '',
-      websitesi: '',
-      iadeTable: [],
-      ihracKayitliKarsiBelgeNo: '',
-      yatirimTesvikNumarasi: '',
-      yatirimTesvikTarihi: details.date,
-      vergiCesidi: ' ',
-      malHizmetTable: details.items.map((item) => ({
-        malHizmet: item.name,
-        miktar: item.quantity,
-        birim: item.unitType ?? 'C62',
-        birimFiyat: item.unitPrice.toFixed(2),
-        fiyat: item.price.toFixed(2),
-        iskontoOrani: item.discountRate ?? 0,
-        iskontoTutari: (item.discountAmount ?? 0).toFixed(2),
-        iskontoNedeni: item.discountReason ?? '',
-        malHizmetTutari: (item.quantity * item.unitPrice).toFixed(2),
-        kdvOrani: item.VATRate.toFixed(0),
-        vergiOrani: 0,
-        kdvTutari: item.VATAmount.toFixed(2),
-        vergininKdvTutari: '0',
-        ozelMatrahTutari: '0',
-        hesaplananotvtevkifatakatkisi: '0',
-        gtip: item.gtip ?? '',
-      })),
-      tip: 'İskonto',
-      matrah: details.grandTotal.toFixed(2),
-      malhizmetToplamTutari: details.grandTotal.toFixed(2),
-      toplamIskonto: (details.totalDiscount ?? 0).toFixed(2),
-      hesaplanankdv: details.totalVAT.toFixed(2),
-      vergilerToplami: details.totalVAT.toFixed(2),
-      vergilerDahilToplamTutar: details.grandTotalInclVAT.toFixed(2),
-      odenecekTutar: details.paymentTotal.toFixed(2),
-      not: details.note ?? '',
-      siparisNumarasi: '',
-      siparisTarihi: '',
-      fisNo: '',
-      fisTarihi: '',
-      fisSaati: ' ',
-      fisTipi: ' ',
-      zRaporNo: '',
-      okcSeriNo: '',
-    };
+    const invoiceData = draftInvoicePayload(details);
 
     const result = await dispatch(
       session,
