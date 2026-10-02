@@ -1,5 +1,6 @@
 import {
   Button,
+  DateField,
   Dialog,
   DialogClose,
   DialogContent,
@@ -17,12 +18,12 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  Input,
 } from '@angaria/ui';
 import { spacing } from '@angaria/ui/tokens.stylex';
+import type { CalendarDate } from '@internationalized/date';
 import { create, props } from '@stylexjs/stylex';
 import { CalendarIcon, ChevronDownIcon } from 'lucide-react';
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import {
   DATE_PRESETS,
   MAX_RANGE_DAYS,
@@ -31,6 +32,12 @@ import {
   type DatePreset,
   type DateRange,
 } from '@/lib/invoices.ts';
+import {
+  calendarDateToGIB,
+  DATE_TEXT_HINT,
+  gibToCalendarDate,
+  parseTurkishDate,
+} from '@/lib/tr-date.ts';
 import { parseGIB } from '@/lib/utils.ts';
 
 const styles = create({
@@ -51,12 +58,7 @@ const styles = create({
   },
 });
 
-const DAY = 24 * 60 * 60 * 1000;
 const longDate = new Intl.DateTimeFormat('tr-TR', { dateStyle: 'long' });
-
-// <input type="date"> speaks yyyy-MM-dd, GİB dd/MM/yyyy.
-const toInputDate = (gib: string) => gib.split(/[/-]/).toReversed().join('-');
-const fromInputDate = (input: string) => input.split('-').toReversed().join('/');
 
 /** "1 Eylül – 15 Eylül 2026", or the GİB text when a date does not parse. */
 function rangeLabel({ end, start }: DateRange) {
@@ -65,19 +67,26 @@ function rangeLabel({ end, start }: DateRange) {
   return from && to ? longDate.formatRange(from, to) : `${start} – ${end}`;
 }
 
-function rangeProblem(start: string, end: string) {
-  if (!start || !end) {
-    return 'Başlangıç ve bitiş tarihini seç.';
+/** What is wrong with each end of the range, checked as the user types. */
+function rangeErrors(start: CalendarDate | null, end: CalendarDate | null) {
+  const errors: { end?: string; start?: string } = {};
+  if (!start) {
+    errors.start = 'Başlangıç tarihini gir.';
   }
-  const days = (Date.parse(end) - Date.parse(start)) / DAY + 1;
-  if (days < 1) {
-    return 'Bitiş tarihi başlangıçtan önce olamaz.';
+  if (!end) {
+    errors.end = 'Bitiş tarihini gir.';
+  } else if (start) {
+    const days = end.compare(start) + 1;
+    if (days < 1) {
+      errors.end = 'Bitiş tarihi başlangıçtan önce olamaz.';
+    } else if (days > MAX_RANGE_DAYS) {
+      errors.end = 'En fazla bir yıllık aralık seçebilirsin.';
+    }
   }
-  if (days > MAX_RANGE_DAYS) {
-    return 'En fazla bir yıllık aralık seçebilirsin.';
-  }
-  return null;
+  return errors;
 }
+
+const parseText = (text: string, today: CalendarDate) => parseTurkishDate(text, today, 'past');
 
 function CustomRangeForm({
   initial,
@@ -87,21 +96,24 @@ function CustomRangeForm({
   onApply: (range: DateRange) => void;
 }) {
   const id = useId();
-  const [start, setStart] = useState(() => toInputDate(initial.start));
-  const [end, setEnd] = useState(() => toInputDate(initial.end));
-  const [submitted, setSubmitted] = useState(false);
-  const problem = rangeProblem(start, end);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [start, setStart] = useState(() => gibToCalendarDate(initial.start));
+  const [end, setEnd] = useState(() => gibToCalendarDate(initial.end));
+  const errors = rangeErrors(start, end);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    setSubmitted(true);
-    if (!problem) {
-      onApply({ end: fromInputDate(end), start: fromInputDate(start) });
+    if (start && end && !errors.start && !errors.end) {
+      onApply({ end: calendarDateToGIB(end), start: calendarDateToGIB(start) });
+    } else {
+      formRef.current
+        ?.querySelector<HTMLElement>('[role="spinbutton"][aria-invalid="true"]')
+        ?.focus();
     }
   };
 
   return (
-    <form onSubmit={submit} {...props(styles.form)}>
+    <form onSubmit={submit} ref={formRef} {...props(styles.form)}>
       <DialogHeader>
         <DialogTitle>Özel tarih aralığı</DialogTitle>
         <DialogDescription>
@@ -109,27 +121,38 @@ function CustomRangeForm({
         </DialogDescription>
       </DialogHeader>
       <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor={`${id}-start`}>Başlangıç</FieldLabel>
-          <Input
-            aria-describedby={submitted && problem ? `${id}-error` : undefined}
-            autoFocus
+        <Field data-invalid={errors.start ? true : undefined}>
+          <FieldLabel htmlFor={`${id}-start`} id={`${id}-start-label`}>
+            Başlangıç
+          </FieldLabel>
+          <DateField
+            aria-describedby={errors.start ? `${id}-start-error` : undefined}
+            aria-labelledby={`${id}-start-label`}
             id={`${id}-start`}
-            onChange={(event) => setStart(event.target.value)}
-            type="date"
+            invalid={Boolean(errors.start)}
+            onChange={setStart}
+            parseText={parseText}
+            textHint={DATE_TEXT_HINT}
             value={start}
           />
+          {errors.start && <FieldError id={`${id}-start-error`}>{errors.start}</FieldError>}
         </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-end`}>Bitiş</FieldLabel>
-          <Input
-            aria-describedby={submitted && problem ? `${id}-error` : undefined}
+        <Field data-invalid={errors.end ? true : undefined}>
+          <FieldLabel htmlFor={`${id}-end`} id={`${id}-end-label`}>
+            Bitiş
+          </FieldLabel>
+          <DateField
+            aria-describedby={errors.end ? `${id}-end-error` : undefined}
+            aria-labelledby={`${id}-end-label`}
             id={`${id}-end`}
-            onChange={(event) => setEnd(event.target.value)}
-            type="date"
+            invalid={Boolean(errors.end)}
+            minValue={start ?? undefined}
+            onChange={setEnd}
+            parseText={parseText}
+            textHint={DATE_TEXT_HINT}
             value={end}
           />
-          {submitted && problem && <FieldError id={`${id}-error`}>{problem}</FieldError>}
+          {errors.end && <FieldError id={`${id}-end-error`}>{errors.end}</FieldError>}
         </Field>
       </FieldGroup>
       <DialogFooter>

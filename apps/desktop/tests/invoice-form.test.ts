@@ -297,8 +297,8 @@ describe('validateInvoice', () => {
       'items[0].quantity': 'Miktar sıfırdan büyük olmalı',
       'items[0].unitPrice': 'Birim fiyatı rakamla yaz, örneğin 1.250,50',
       'recipient.fullAddress': 'Adresi yaz',
-      'recipient.taxIDOrTRID': 'VKN 10, TCKN 11 hane olmalı',
-      'recipient.title': 'Unvan ya da ad ve soyad gerekli',
+      'recipient.taxIDOrTRID': 'VKN 10, TCKN 11 haneli olur',
+      'recipient.title': 'Unvanı ya da adı ve soyadı yaz',
     });
   });
 
@@ -307,7 +307,7 @@ describe('validateInvoice', () => {
       ...form().recipient,
       name: 'Ayşe',
       surname: 'Yılmaz',
-      taxIDOrTRID: '12345678901',
+      taxIDOrTRID: '10000000146',
       title: '',
     };
     expect(validateInvoice(form({ recipient }), today)).toBeUndefined();

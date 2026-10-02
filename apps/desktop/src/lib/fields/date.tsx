@@ -1,50 +1,103 @@
-import { Input } from '@angaria/ui';
-import { create } from '@stylexjs/stylex';
-import { useState } from 'react';
+import { DateField as DateInput, Input, type DatePreset } from '@angaria/ui';
+import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
+import { getLocalTimeZone, today as todayIn } from '@internationalized/date';
+import { create, props } from '@stylexjs/stylex';
+import { TriangleAlertIcon } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { FieldFrame, useFieldContext, useFieldError, type FieldProps } from '../form-field.tsx';
-import { gibToInputDate, inputDateToGIB } from '../invoice-form.ts';
-import { toGIB } from '../utils.ts';
+import {
+  calendarDateToGIB,
+  DATE_TEXT_HINT,
+  gibToCalendarDate,
+  parseTurkishDate,
+  type DateBias,
+} from '../tr-date.ts';
 
 const styles = create({
   tabular: {
     fontVariantNumeric: 'tabular-nums',
   },
+  warning: {
+    alignItems: 'flex-start',
+    color: colors.warning,
+    display: 'flex',
+    fontSize: font.sizeSm,
+    gap: spacing.s2,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  warningIcon: {
+    flexShrink: 0,
+    height: '1rem',
+    marginTop: '0.125rem',
+    width: '1rem',
+  },
 });
 
 /**
- * A GİB date ("30/09/2026") in the system date picker. Empty means today when
+ * A GİB date ("30/09/2026") in Turkish segments with a calendar popover that
+ * also reads typed text ("dün", "15.10"). Empty means today when
  * `emptyIsToday`, otherwise no date. Days after today cannot be picked unless
- * `allowFuture` (a due date).
+ * `allowFuture` (a due date). `bias` decides which way an incomplete typed
+ * date leans; it follows `allowFuture` unless given. `warning` shows a
+ * non-blocking rule under the field while it has no error.
  */
 export function DateField({
   allowFuture = false,
+  bias,
   emptyIsToday = false,
+  presets,
+  warning,
   ...frame
-}: FieldProps & { allowFuture?: boolean; emptyIsToday?: boolean }) {
+}: FieldProps & {
+  allowFuture?: boolean;
+  bias?: DateBias;
+  emptyIsToday?: boolean;
+  presets?: ReadonlyArray<DatePreset>;
+  warning?: ReactNode;
+}) {
   const field = useFieldContext<string>();
   const error = useFieldError();
-  const [today] = useState(() => gibToInputDate(toGIB(new Date())));
-  const value = gibToInputDate(field.state.value) || (emptyIsToday ? today : '');
+  const [today] = useState(() => todayIn(getLocalTimeZone()));
+  const value = useMemo(
+    () => gibToCalendarDate(field.state.value) ?? (emptyIsToday ? today : null),
+    [emptyIsToday, field.state.value, today],
+  );
+  const textBias = bias ?? (allowFuture ? 'future' : 'past');
+  const warningId = `${field.name}-warning`;
+  const showWarning = Boolean(warning) && !error;
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
-        <Input
-          aria-describedby={describedBy}
-          aria-invalid={error ? true : undefined}
-          id={field.name}
-          max={allowFuture ? undefined : today}
-          name={field.name}
-          onBlur={field.handleBlur}
-          onChange={(event) => field.handleChange(inputDateToGIB(event.target.value))}
-          style={styles.tabular}
-          type="date"
-          value={value}
-        />
+        <>
+          <DateInput
+            aria-describedby={
+              [describedBy, showWarning && warningId].filter(Boolean).join(' ') || undefined
+            }
+            aria-label={frame.label}
+            id={field.name}
+            invalid={Boolean(error)}
+            maxValue={allowFuture ? undefined : today}
+            onBlur={field.handleBlur}
+            onChange={(date) => field.handleChange(date ? calendarDateToGIB(date) : '')}
+            parseText={(text, now) => parseTurkishDate(text, now, textBias)}
+            presets={presets}
+            textHint={DATE_TEXT_HINT}
+            value={value}
+          />
+          {showWarning && (
+            <p id={warningId} role="status" {...props(styles.warning)}>
+              <TriangleAlertIcon aria-hidden {...props(styles.warningIcon)} />
+              {warning}
+            </p>
+          )}
+        </>
       )}
     </FieldFrame>
   );
 }
 
+/** HH:mm; normalizeTime adds the seconds GİB wants. */
 export function TimeField(frame: FieldProps) {
   const field = useFieldContext<string>();
   const error = useFieldError();
@@ -58,10 +111,10 @@ export function TimeField(frame: FieldProps) {
           name={field.name}
           onBlur={field.handleBlur}
           onChange={(event) => field.handleChange(event.target.value)}
-          step={1}
+          step={60}
           style={styles.tabular}
           type="time"
-          value={field.state.value}
+          value={field.state.value.slice(0, 5)}
         />
       )}
     </FieldFrame>
