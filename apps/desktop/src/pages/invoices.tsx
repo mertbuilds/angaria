@@ -7,7 +7,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  toast,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -18,7 +17,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useNavigate, useParams } from '@tanstack/react-router';
 import { FilePlusIcon, RefreshCwIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { errorMessage, UNNAMED_CUSTOMER } from '@/lib/copy.ts';
+import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
+import { toastError } from '@/lib/gib-errors.ts';
 import { invoiceDetailQuery, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
 import {
   invoiceStatus,
@@ -30,6 +30,7 @@ import {
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
+import { ErrorState } from '@/shell/error-state.tsx';
 import { ListDetail } from '@/shell/list-detail.tsx';
 import { Screen } from '@/shell/screen.tsx';
 import {
@@ -237,10 +238,10 @@ export function InvoicesScreen() {
     void refetch().then((result) => {
       // Without data the list shows the error itself.
       if (result.error && result.data) {
-        toast.error(errorMessage(result.error));
+        toastError(result.error, { openSettings: () => void navigate({ to: '/ayarlar' }) });
       }
     });
-  }, [hasCredentials, isFetching, refetch]);
+  }, [hasCredentials, isFetching, navigate, refetch]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -262,18 +263,7 @@ export function InvoicesScreen() {
 
   let listPane;
   if (list.data === undefined && list.isError) {
-    listPane = (
-      <EmptyState
-        action={
-          <Button onClick={refresh} variant="outline">
-            Tekrar dene
-          </Button>
-        }
-        title="Faturalar alınamadı"
-      >
-        {errorMessage(list.error)}
-      </EmptyState>
-    );
+    listPane = <ErrorState error={list.error} onRetry={refresh} title="Faturalar alınamadı" />;
   } else if (list.data === undefined) {
     listPane = <ListSkeleton />;
   } else if (list.data.length === 0) {

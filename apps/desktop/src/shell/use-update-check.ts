@@ -1,5 +1,6 @@
 import { toast } from '@angaria/ui';
 import { useEffect } from 'react';
+import { errorMessage } from '@/lib/gib-errors.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
 
 const TOAST_ID = 'update';
@@ -12,7 +13,7 @@ async function install(update: Update) {
     await installUpdate(update);
   } catch (error) {
     toast.error('Güncelleme yüklenemedi', {
-      description: error instanceof Error ? error.message : undefined,
+      description: errorMessage(error),
       id: TOAST_ID,
     });
   }

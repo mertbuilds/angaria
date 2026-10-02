@@ -10,7 +10,6 @@ import {
   Field,
   FieldLabel,
   Input,
-  toast,
 } from '@angaria/ui';
 import { spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
@@ -18,6 +17,7 @@ import { useMutation } from '@tanstack/react-query';
 import type { SessionInfo } from 'angaria-earsiv-sdk';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { startSMSSign, verifyAndSign } from '@/lib/angaria.ts';
+import { toastError } from '@/lib/gib-errors.ts';
 import { gib, useGIBAccount } from '@/lib/gib.ts';
 import type { SessionLease } from '@/lib/session-queue.ts';
 
@@ -173,11 +173,7 @@ export function useSMSSign() {
       const error = 'error' in value ? value.error : undefined;
       lease.release(error);
       if (error !== undefined) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : 'Onay kodu gönderilemedi. Biraz sonra tekrar dene.',
-        );
+        toastError(error);
       }
       return { signed: false, value: prepared.value };
     }

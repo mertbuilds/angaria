@@ -3,7 +3,7 @@ import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { LoaderCircleIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { errorMessage } from '@/lib/copy.ts';
+import { errorMessage } from '@/lib/gib-errors.ts';
 import { openCheckout, openCustomerPortal, useLicense } from '@/lib/license-context.tsx';
 import type { LicenseStatus } from '@/lib/license.ts';
 import { shell } from '../shell/shell.stylex.ts';
