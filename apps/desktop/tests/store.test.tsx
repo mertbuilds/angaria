@@ -68,3 +68,38 @@ test("a new company's password is read once it is active, not reported missing",
   expect(vaultRead).toHaveBeenCalledTimes(1);
   act(() => root.unmount());
 });
+
+function CredsReader({ onCreds }: { onCreds: (creds: unknown) => void }) {
+  const { creds } = useStore();
+
+  useEffect(() => {
+    onCreds(creds);
+  }, [creds, onCreds]);
+
+  return null;
+}
+
+test('a login saved with the removed test mode loads without it', async () => {
+  storage.clear();
+  storage.set(
+    'fatura-entities',
+    JSON.stringify([{ creds: { testMode: true, username: 'u' }, id: 'a', name: 'Ana şirket' }]),
+  );
+  const seen: Array<unknown> = [];
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  await act(async () =>
+    root.render(
+      <StoreProvider>
+        <CredsReader onCreds={(creds) => seen.push(creds)} />
+      </StoreProvider>,
+    ),
+  );
+  await settle();
+
+  expect(seen.at(-1)).toEqual({ hasPassword: false, username: 'u' });
+  const [entity] = JSON.parse(storage.get('fatura-entities') ?? '[]');
+  expect(entity.creds).toEqual({ username: 'u' });
+  act(() => root.unmount());
+});

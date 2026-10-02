@@ -172,7 +172,7 @@ const defaultSeedInvoices: Array<InvoiceFixture> = [
     item: 'Danışmanlık Hizmeti',
     recipient: 'ACME GMBH',
     status: 'Onaylandı',
-    taxID: '9876543210',
+    taxID: '2222222222',
     userid: '12345678',
     vatRate: 0,
   },

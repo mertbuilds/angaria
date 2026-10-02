@@ -83,7 +83,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 }
 
 const entities = (...ids: Array<string>) =>
-  JSON.stringify(ids.map((id) => ({ creds: { testMode: true, username: id }, id })));
+  JSON.stringify(ids.map((id) => ({ creds: { username: id }, id })));
 
 const stored = (data: object) => JSON.stringify({ gibPasswords: {}, v: 1, ...data });
 

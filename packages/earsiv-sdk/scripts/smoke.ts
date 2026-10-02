@@ -6,23 +6,16 @@
 //     → yerel GİB emülatörü (`pnpm emulate`), http://127.0.0.1:5180, demo hesap
 //       33333301/1. Başka bir adres için: EARSIV_EMULATOR_URL=...
 //
-//   EARSIV_MODE=test node scripts/smoke.ts
-//     → GİB TEST portalı, herkese açık demo hesap (33333301/1). Yalnızca
-//       açıkça istendiğinde: demo hesaplar çoğu zaman başkalarının oturumuyla kilitli.
-//
 //   EARSIV_MODE=prod EARSIV_USER=<kullanıcı> EARSIV_PASS=<şifre> node scripts/smoke.ts
 //     → GERÇEK portal, kendi hesabınla. 1 TL'lik bir taslak oluşturur,
 //       doğrular ve sonunda SİLER (hiçbir belge imzalanmaz/kesinleşmez).
 //       Oluşan taslağı incelemek için silmeyi atla: EARSIV_KEEP=1
 import { createClient, type SessionInfo } from '../src/index.ts';
 
-const MODE = ['prod', 'test'].includes(process.env.EARSIV_MODE ?? '')
-  ? (process.env.EARSIV_MODE as 'prod' | 'test')
-  : 'emulator';
+const MODE = process.env.EARSIV_MODE === 'prod' ? 'prod' : 'emulator';
 const USER = process.env.EARSIV_USER ?? (MODE === 'prod' ? '' : '33333301');
 const PASS = process.env.EARSIV_PASS ?? (MODE === 'prod' ? '' : '1');
 const EMULATOR_URL = process.env.EARSIV_EMULATOR_URL ?? 'http://127.0.0.1:5180';
-const TEST_MODE = MODE !== 'prod';
 const KEEP = process.env.EARSIV_KEEP === '1';
 
 if (!USER || !PASS) {
@@ -57,24 +50,19 @@ const time = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}
 
 async function loginWithRetry(): Promise<SessionInfo> {
   try {
-    const s = await client.login(USER, PASS, TEST_MODE);
+    const s = await client.login(USER, PASS);
     ok('login', `token=${s.token.slice(0, 10)}…`);
     return s;
   } catch (error) {
     if (error instanceof Error && error.message.includes('birden fazla giriş')) {
       try {
         console.log('… açık oturum var, kapatılıp tekrar deneniyor');
-        await client.forceLogout(USER, PASS, TEST_MODE);
-        const s = await client.login(USER, PASS, TEST_MODE);
+        await client.forceLogout(USER, PASS);
+        const s = await client.login(USER, PASS);
         ok('login (2. deneme)', `token=${s.token.slice(0, 10)}…`);
         return s;
       } catch (error) {
         fail('login (2. deneme)', error);
-        if (MODE === 'test') {
-          console.error(
-            'Demo hesap meşgul olabilir; başka bir hesap deneyin: EARSIV_USER=33333315 EARSIV_PASS=1',
-          );
-        }
         process.exit(1);
       }
     }

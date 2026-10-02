@@ -83,7 +83,6 @@ export type InvoiceSource = { kind: 'invoice'; label: string };
 
 export interface Credentials {
   password: string;
-  testMode: boolean;
   username: string;
 }
 
@@ -93,14 +92,12 @@ export interface Credentials {
  */
 export interface StoredCredentials {
   password?: string;
-  testMode: boolean;
   username: string;
 }
 
 /** Non-secret view of an entity's credentials for rendering. */
 export interface CredentialsInfo {
   hasPassword: boolean;
-  testMode: boolean;
   username: string;
 }
 

@@ -10,6 +10,8 @@ The production GİB e-Arşiv portal issues real legal documents. The shared test
 
 `packages/gib-emulator` is a local `node:http` stand-in for the e-Arşiv portal and the TCMB feed on `http://127.0.0.1:5180`. All development, tests and manual QA run against it, never against live GİB. The SDK's tests start it in-process. The desktop app reaches it through Ayarlar › Gelişmiş › Emülatör (dev only), with a dev-only http allowlist overlay. The `/__emulator` API sets faults (latency, 5xx, an error text on HTTP 200, maintenance HTML, session locks) and state.
 
+Update 2026-10-02: the app, the SDK and the MCP server dropped GİB's test portal mode. The emulator replaces it; production builds reach only the production portal.
+
 ## Consequences
 
 - Tests are deterministic and offline, and the failure paths are testable.

@@ -61,49 +61,40 @@ const rows = async (session: Awaited<ReturnType<typeof client.login>>) =>
 
 describe('session', () => {
   test('logs in with a token and a cookie, and out again', async () => {
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     expect(session.baseUrl).toBe(baseUrl);
     expect(session.token).not.toBe('');
     expect(session.cookies).toEqual([expect.stringMatching(/^JSESSIONID=/)]);
 
     await client.logout(session);
     await expect(client.getUUID(session)).rejects.toThrow(messages.sessionExpired);
-    await client.logout(await client.login('33333301', '1', true));
-  });
-
-  test('logs a production-mode session out with assoscmd=logout', async () => {
-    const session = await client.login('12345678', 'angaria', false);
-    await client.logout(session);
-    await expect(client.getUUID(session)).rejects.toThrow(messages.sessionExpired);
-    await client.logout(await client.login('12345678', 'angaria', false));
+    await client.logout(await client.login('33333301', '1'));
   });
 
   test('a logout the portal refuses throws its message', async () => {
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     await admin('POST', '/faults', { cmd: 'logout', kind: 'error', text: 'Çıkış yapılamadı' });
     await expect(client.logout(session)).rejects.toThrow('Çıkış yapılamadı');
     await client.logout(session);
   });
 
   test('rejects a wrong password with the portal message', async () => {
-    await expect(client.login('33333301', 'yanlis', true)).rejects.toThrow(
-      messages.invalidCredentials,
-    );
+    await expect(client.login('33333301', 'yanlis')).rejects.toThrow(messages.invalidCredentials);
   });
 
   test('refuses a second login until a force logout ends the open session', async () => {
-    const first = await client.login('33333301', '1', true);
-    await expect(client.login('33333301', '1', true)).rejects.toThrow('birden fazla giriş');
+    const first = await client.login('33333301', '1');
+    await expect(client.login('33333301', '1')).rejects.toThrow('birden fazla giriş');
 
-    await client.forceLogout('33333301', '1', true);
+    await client.forceLogout('33333301', '1');
     await expect(client.getUUID(first)).rejects.toThrow(messages.sessionExpired);
-    const second = await client.login('33333301', '1', false);
+    const second = await client.login('33333301', '1');
     expect(second.token).not.toBe(first.token);
     await client.logout(second);
   });
 
   test('an expired token fails with the portal message', async () => {
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     await admin('POST', '/expire');
     await expect(client.getDrafts(session, today, today)).rejects.toThrow(messages.sessionExpired);
   });
@@ -111,7 +102,7 @@ describe('session', () => {
 
 describe('invoices', () => {
   test('create, find the ETTN, list, preview, sign by SMS', async () => {
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     const { response, uuid } = await client.createDraftInvoice(session, invoice());
     expect(response.data).toBe(messages.draftCreated);
     expect(uuid).toMatch(/^[\da-f]{8}-[\da-f]{4}-1[\da-f]{3}-[\da-f]{4}-[\da-f]{12}$/);
@@ -160,7 +151,7 @@ describe('invoices', () => {
       totalVAT: 3.03,
     });
     const sent = draftInvoicePayload(details);
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     const { uuid } = await client.createDraftInvoice(session, details);
     const html = await client.getInvoiceHTML(session, uuid, 'Onaylanmadı');
     await client.logout(session);
@@ -192,7 +183,7 @@ describe('invoices', () => {
   });
 
   test('deletes a draft', async () => {
-    const session = await client.login('33333302', '1', true);
+    const session = await client.login('33333302', '1');
     await client.createDraftInvoice(
       session,
       invoice({ name: '', surname: '', title: 'ACME A.Ş.' }),
@@ -206,7 +197,7 @@ describe('invoices', () => {
   });
 
   test('SMS signing needs a registered phone', async () => {
-    const session = await client.login('33333303', '1', true);
+    const session = await client.login('33333303', '1');
     await expect(client.startSMSSign(session)).rejects.toThrow('kayıtlı telefon numarası');
     await client.logout(session);
   });
@@ -214,7 +205,7 @@ describe('invoices', () => {
 
 describe('portal limits and failures', () => {
   test('long ranges are fetched in chunks the portal accepts', async () => {
-    const session = await client.login('12345678', 'angaria', false);
+    const session = await client.login('12345678', 'angaria');
     const all = (await client.getDrafts(session, daysAgo(45), today)) as Array<
       Record<string, string>
     >;
@@ -228,7 +219,7 @@ describe('portal limits and failures', () => {
 
   test('a range over the portal limit throws its message', async () => {
     await admin('PATCH', '/config', { maxRangeDays: 3 });
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     await expect(client.getDrafts(session, daysAgo(9), today)).rejects.toThrow(
       'Seçilen tarih aralığı 3 günden fazla olamaz!',
     );
@@ -237,7 +228,7 @@ describe('portal limits and failures', () => {
 
   test('HTTP 200 with an error text in data is a failed draft, not a success', async () => {
     await admin('POST', '/faults', { cmd: 'EARSIV_PORTAL_FATURA_OLUSTUR', kind: 'text' });
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     await expect(client.createDraftInvoice(session, invoice())).rejects.toThrow(messages.textError);
     expect(await rows(session)).toEqual([]);
     await client.logout(session);
@@ -249,14 +240,14 @@ describe('portal limits and failures', () => {
       kind: 'error',
       text: 'Genel Sistem Hatası',
     });
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     await expect(client.getDrafts(session, today, today)).rejects.toThrow('Genel Sistem Hatası');
     await client.logout(session);
   });
 
   test('a maintenance page instead of JSON rejects as maintenance', async () => {
     await admin('PATCH', '/config', { chaos: { maintenance: true } });
-    await expect(client.login('33333301', '1', true)).rejects.toMatchObject({
+    await expect(client.login('33333301', '1')).rejects.toMatchObject({
       code: 'maintenance',
       name: 'GibError',
     });
@@ -275,7 +266,7 @@ async function failure(promise: Promise<unknown>): Promise<GibError> {
 
 describe('typed errors', () => {
   test('a wrong password is auth, with GİB’s text', async () => {
-    const error = await failure(client.login('33333301', 'yanlis', true));
+    const error = await failure(client.login('33333301', 'yanlis'));
     expect(error).toMatchObject({
       code: 'auth',
       gibMessage: messages.invalidCredentials,
@@ -285,18 +276,18 @@ describe('typed errors', () => {
 
   test('a session open elsewhere is session-locked', async () => {
     await admin('POST', '/lock', { userid: '33333301' });
-    const error = await failure(client.login('33333301', '1', true));
+    const error = await failure(client.login('33333301', '1'));
     expect(error).toMatchObject({ code: 'session-locked', gibMessage: messages.sessionLocked });
   });
 
   test('an expired token is session-expired', async () => {
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     await admin('POST', '/expire');
     expect((await failure(client.getUUID(session))).code).toBe('session-expired');
   });
 
   test('the maintenance page is maintenance on every call', async () => {
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     await admin('POST', '/faults', { cmd: 'EARSIV_PORTAL_TASLAKLARI_GETIR', kind: 'maintenance' });
     const error = await failure(client.getDrafts(session, today, today));
     expect(error).toMatchObject({ code: 'maintenance', status: 200 });
@@ -305,18 +296,18 @@ describe('typed errors', () => {
   });
 
   test('a 5xx page is unknown with its status, a 429 is rate-limit', async () => {
-    await admin('POST', '/faults', { cmd: 'login', kind: '5xx', status: 502 });
-    expect(await failure(client.login('33333301', '1', true))).toMatchObject({
+    await admin('POST', '/faults', { cmd: 'anologin', kind: '5xx', status: 502 });
+    expect(await failure(client.login('33333301', '1'))).toMatchObject({
       code: 'unknown',
       message: 'GİB beklenmeyen bir yanıt verdi (HTTP 502)',
       status: 502,
     });
-    await admin('POST', '/faults', { cmd: 'login', kind: '5xx', status: 429 });
-    expect((await failure(client.login('33333301', '1', true))).code).toBe('rate-limit');
+    await admin('POST', '/faults', { cmd: 'anologin', kind: '5xx', status: 429 });
+    expect((await failure(client.login('33333301', '1'))).code).toBe('rate-limit');
   });
 
   test('the error envelope is classified by its text', async () => {
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     const cases: Array<[string, string]> = [
       ['Genel Sistem Hatası', 'unknown'],
       [messages.maintenance, 'maintenance'],
@@ -337,7 +328,7 @@ describe('typed errors', () => {
   });
 
   test('HTTP 200 with an error text on create keeps GİB’s text', async () => {
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     await admin('POST', '/faults', { cmd: 'EARSIV_PORTAL_FATURA_OLUSTUR', kind: 'text' });
     expect(await failure(client.createDraftInvoice(session, invoice()))).toMatchObject({
       code: 'unknown',
@@ -354,7 +345,7 @@ describe('typed errors', () => {
 
   test('a range over the limit is range-too-long, a missing invoice not-found', async () => {
     await admin('PATCH', '/config', { maxRangeDays: 3 });
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     expect((await failure(client.getDrafts(session, daysAgo(9), today))).code).toBe(
       'range-too-long',
     );
@@ -363,11 +354,11 @@ describe('typed errors', () => {
   });
 
   test('SMS: no phone and a refused number are sms-failed, a wrong code sms-code-wrong', async () => {
-    const phoneless = await client.login('33333303', '1', true);
+    const phoneless = await client.login('33333303', '1');
     expect((await failure(client.startSMSSign(phoneless))).code).toBe('sms-failed');
     await client.logout(phoneless);
 
-    const session = await client.login('33333301', '1', true);
+    const session = await client.login('33333301', '1');
     expect(await failure(client.requestSigningSMS(session, '5559999999'))).toMatchObject({
       code: 'sms-failed',
       gibMessage: messages.phoneMismatch,
@@ -385,7 +376,7 @@ describe('typed errors', () => {
   });
 
   test('signing a signed invoice away is validation', async () => {
-    const session = await client.login('12345678', 'angaria', false);
+    const session = await client.login('12345678', 'angaria');
     const signed = (await client.getDrafts(session, daysAgo(7), today)).find(
       (row) => row.onayDurumu === 'Onaylandı',
     );
@@ -403,7 +394,7 @@ describe('typed errors', () => {
       'error sending request for url (https://earsivportal.efatura.gov.tr/earsiv-services/assos-login)',
     ]) {
       const offline = createClient({ baseUrl, fetch: () => Promise.reject(reason) });
-      expect(await failure(offline.login('33333301', '1', true))).toMatchObject({
+      expect(await failure(offline.login('33333301', '1'))).toMatchObject({
         cause: reason,
         code: 'network',
         message: 'GİB’e ulaşılamadı',
@@ -414,6 +405,6 @@ describe('typed errors', () => {
   test('an aborted request stays an abort', async () => {
     const abort = new DOMException('Aborted', 'AbortError');
     const aborted = createClient({ baseUrl, fetch: () => Promise.reject(abort) });
-    await expect(aborted.login('33333301', '1', true)).rejects.toBe(abort);
+    await expect(aborted.login('33333301', '1')).rejects.toBe(abort);
   });
 });

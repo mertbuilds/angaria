@@ -1,3 +1,4 @@
+import { FieldError } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import type { ReactNode } from 'react';
@@ -22,6 +23,13 @@ const styles = create({
   error: {
     color: colors.error,
   },
+  field: {
+    display: 'flex',
+    flex: 1,
+    flexDirection: 'column',
+    gap: spacing.s1,
+    minWidth: 0,
+  },
   group: {
     backgroundColor: tones.card,
     borderRadius: radius.base,
@@ -39,6 +47,19 @@ const styles = create({
     fontSize: font.sizeXs,
     lineHeight: 1.5,
     textWrap: 'pretty',
+  },
+  // Under a field, in line with the field's text.
+  fieldMessage: {
+    paddingInline: spacing.s4,
+  },
+  fieldNote: {
+    alignItems: 'center',
+    color: colors.muted,
+    display: 'flex',
+    flexWrap: 'wrap',
+    fontSize: font.sizeXs,
+    gap: spacing.s2,
+    lineHeight: 1.5,
   },
   label: {
     display: 'flex',
@@ -126,18 +147,22 @@ export function SettingsSection({
 /**
  * One row: label and hint on the left, the control on the right. Pass
  * `htmlFor` when the control is a form field, `align="top"` for tall controls.
+ * A control named by aria-labelledby (a chip group) passes `id`: the label is
+ * then `{id}-label` and the hint `{id}-hint`.
  */
 export function SettingsRow({
   align = 'center',
   children,
   hint,
   htmlFor,
+  id,
   label,
 }: {
   align?: 'center' | 'top';
   children?: ReactNode;
   hint?: ReactNode;
   htmlFor?: string;
+  id?: string;
   label?: ReactNode;
 }) {
   return (
@@ -149,12 +174,52 @@ export function SettingsRow({
               {label}
             </label>
           ) : (
-            <span {...props(styles.labelText)}>{label}</span>
+            <span id={id && `${id}-label`} {...props(styles.labelText)}>
+              {label}
+            </span>
           )}
-          {hint && <span {...props(styles.hint)}>{hint}</span>}
+          {hint && (
+            <span id={id && `${id}-hint`} {...props(styles.hint)}>
+              {hint}
+            </span>
+          )}
         </div>
       )}
       <div {...props(styles.control)}>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * A row's field with its message under it: the error once there is one, else
+ * the note. `children` gets the ids to put in the field's aria-describedby.
+ */
+export function SettingsField({
+  children,
+  error,
+  id,
+  note,
+}: {
+  children: (describedBy: string | undefined) => ReactNode;
+  error?: string | undefined;
+  id: string;
+  note?: ReactNode;
+}) {
+  const describedBy = error ? `${id}-error` : note ? `${id}-note` : undefined;
+  return (
+    <div {...props(styles.field)}>
+      {children(describedBy)}
+      {error ? (
+        <FieldError id={`${id}-error`} style={styles.fieldMessage}>
+          {error}
+        </FieldError>
+      ) : (
+        note && (
+          <div id={`${id}-note`} {...props(styles.fieldMessage, styles.fieldNote)}>
+            {note}
+          </div>
+        )
+      )}
     </div>
   );
 }

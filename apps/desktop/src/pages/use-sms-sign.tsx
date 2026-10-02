@@ -8,70 +8,202 @@ import {
   DialogHeader,
   DialogTitle,
   Field,
+  FieldError,
   FieldLabel,
-  Input,
+  OTPInput,
 } from '@angaria/ui';
-import { spacing } from '@angaria/ui/tokens.stylex';
+import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useMutation } from '@tanstack/react-query';
 import type { SessionInfo } from 'angaria-earsiv-sdk';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { startSMSSign, verifyAndSign } from '@/lib/angaria.ts';
-import { toastError } from '@/lib/gib-errors.ts';
+import { describeError, toastError, type UserError } from '@/lib/gib-errors.ts';
 import { gib, useGIBAccount } from '@/lib/gib.ts';
 import type { SessionLease } from '@/lib/session-queue.ts';
 
+/** GİB's SMS şifresi has six digits. */
+const CODE_LENGTH = 6;
+
+/** How long a sent code is waited for before a new one can be asked for. */
+const RESEND_DELAY_MS = 60_000;
+
 const styles = create({
+  detail: {
+    display: 'block',
+  },
   form: {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
   },
+  resend: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s2,
+    minHeight: '1.75rem',
+  },
+  // The link button's text lines up with the slots' left edge.
+  resendButton: {
+    paddingInline: 0,
+  },
+  resendText: {
+    color: colors.muted,
+    fontSize: font.sizeXs,
+    fontVariantNumeric: 'tabular-nums',
+    margin: 0,
+  },
 });
 
+/** The id of the n-th slot (0-based): OTPInput puts `id` on the first, `{id}-2` on the second. */
+const slotId = (id: string, index: number) => (index === 0 ? id : `${id}-${index + 1}`);
+
 function SMSCodeForm({
+  onResend,
   onVerify,
-  pending,
   phone,
 }: {
-  onVerify: (code: string) => void;
-  pending: boolean;
+  /** Has GİB send a new code. Rejects when it could not. */
+  onResend: () => Promise<void>;
+  /** Signs with the code. Rejects when GİB refused it. */
+  onVerify: (code: string) => Promise<void>;
   phone: string;
 }) {
   const id = useId();
+  const codeId = `${id}-code`;
+  const errorId = `${id}-error`;
   const [code, setCode] = useState('');
+  const [error, setError] = useState<UserError | null>(null);
+  const [pending, setPending] = useState<'resend' | 'verify' | null>(null);
+  const [resent, setResent] = useState(false);
+  const [resendAt, setResendAt] = useState(() => Date.now() + RESEND_DELAY_MS);
+  const [now, setNow] = useState(() => Date.now());
+  const [focusRequest, setFocusRequest] = useState<{ slot: number } | null>(null);
+  // One GİB call at a time: an auto-submit, Enter and Onayla can land together.
+  const busy = useRef(false);
+  const secondsLeft = Math.max(0, Math.ceil((resendAt - now) / 1000));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const time = Date.now();
+      setNow(time);
+      if (time >= resendAt) {
+        clearInterval(timer);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendAt]);
+
+  useEffect(() => {
+    if (focusRequest) {
+      document.getElementById(slotId(codeId, focusRequest.slot))?.focus();
+    }
+  }, [codeId, focusRequest]);
+
+  async function verify(value: string) {
+    if (busy.current) {
+      return;
+    }
+    if (value.length < CODE_LENGTH) {
+      setError({
+        text: value ? `SMS şifresinin ${CODE_LENGTH} hanesini de gir` : 'SMS şifresini gir',
+      });
+      setFocusRequest({ slot: value.length });
+      return;
+    }
+    busy.current = true;
+    setPending('verify');
+    setError(null);
+    try {
+      await onVerify(value);
+    } catch (verifyError) {
+      const described = describeError(verifyError);
+      setError(described);
+      // A wrong or expired code is typed again from the start.
+      if (described.code === 'sms-code-wrong') {
+        setCode('');
+        setFocusRequest({ slot: 0 });
+      }
+    } finally {
+      busy.current = false;
+      setPending(null);
+    }
+  }
+
+  async function resend() {
+    if (busy.current) {
+      return;
+    }
+    busy.current = true;
+    setPending('resend');
+    setError(null);
+    setResent(false);
+    try {
+      await onResend();
+      const time = Date.now();
+      setCode('');
+      setResent(true);
+      setNow(time);
+      setResendAt(time + RESEND_DELAY_MS);
+      setFocusRequest({ slot: 0 });
+    } catch (resendError) {
+      setError(describeError(resendError));
+    } finally {
+      busy.current = false;
+      setPending(null);
+    }
+  }
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (code.trim() && !pending) {
-      onVerify(code.trim());
-      setCode('');
-    }
+    void verify(code);
   };
 
   return (
-    <form onSubmit={submit} {...props(styles.form)}>
+    <form noValidate onSubmit={submit} {...props(styles.form)}>
       <DialogHeader>
         <DialogTitle>SMS ile onayla</DialogTitle>
         <DialogDescription>
           {phone} numarasına gelen SMS şifresini gir. Onaylanan fatura kesinleşir.
         </DialogDescription>
       </DialogHeader>
-      <Field>
-        <FieldLabel htmlFor={`${id}-code`}>SMS şifresi</FieldLabel>
-        <Input
-          autoComplete="one-time-code"
-          autoFocus
-          id={`${id}-code`}
-          inputMode="numeric"
-          onChange={(event) => setCode(event.target.value)}
+      <Field data-invalid={error ? true : undefined}>
+        <FieldLabel htmlFor={codeId}>SMS şifresi</FieldLabel>
+        <OTPInput
+          aria-describedby={error ? errorId : undefined}
+          id={codeId}
+          invalid={error !== null}
+          length={CODE_LENGTH}
+          // Six digits sign at once, typed or pasted, without Enter.
+          onComplete={(value) => void verify(value)}
+          onValueChange={setCode}
           value={code}
         />
+        {error && (
+          <FieldError id={errorId}>
+            {error.text}
+            {error.detail && <span {...props(styles.detail)}>{error.detail}</span>}
+          </FieldError>
+        )}
       </Field>
+      <div {...props(styles.resend)}>
+        <Button
+          disabled={secondsLeft > 0 || pending !== null}
+          onClick={() => void resend()}
+          style={styles.resendButton}
+          variant="link"
+        >
+          {pending === 'resend' ? 'Gönderiliyor…' : 'Kodu tekrar gönder'}
+        </Button>
+        {secondsLeft > 0 && <span {...props(styles.resendText)}>{secondsLeft} saniye sonra</span>}
+        <p role="status" {...props(styles.resendText)}>
+          {resent ? 'Yeni SMS şifresi gönderildi.' : ''}
+        </p>
+      </div>
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
-        <Button disabled={!code.trim() || pending} type="submit">
-          {pending ? 'Onaylanıyor…' : 'Onayla'}
+        <Button disabled={pending === 'verify'} type="submit">
+          {pending === 'verify' ? 'Onaylanıyor…' : 'Onayla'}
         </Button>
       </DialogFooter>
     </form>
@@ -114,15 +246,21 @@ export function useSMSSign() {
     return () => controller.abort();
   }, []);
 
-  const verify = useMutation({
-    mutationFn: ({ code, flow }: { code: string; flow: Signing }) =>
-      verifyAndSign(flow.lease.session, code, flow.oid, flow.ettns),
-    onSuccess: (_, { flow }) => {
-      flow.lease.release();
-      setSigning(null);
-      flow.finish(true);
-    },
-  });
+  // Failures show in the dialog, so the user can type the code again.
+  const verify = async (flow: Signing, code: string) => {
+    await verifyAndSign(flow.lease.session, code, flow.oid, flow.ettns);
+    flow.lease.release();
+    setSigning(null);
+    flow.finish(true);
+  };
+
+  // A new code on the same session; verifying uses the OID it came with.
+  const resend = async (flow: Signing) => {
+    const sent = await startSMSSign(flow.lease.session);
+    setSigning((current) =>
+      current === flow ? { ...flow, oid: sent.oid, phone: sent.phone } : current,
+    );
+  };
 
   const cancel = () => {
     if (signing) {
@@ -189,8 +327,8 @@ export function useSMSSign() {
       <DialogContent showCloseButton={false}>
         {signing && (
           <SMSCodeForm
-            onVerify={(code) => verify.mutate({ code, flow: signing })}
-            pending={verify.isPending}
+            onResend={() => resend(signing)}
+            onVerify={(code) => verify(signing, code)}
             phone={signing.phone}
           />
         )}

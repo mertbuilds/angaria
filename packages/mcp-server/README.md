@@ -23,11 +23,10 @@ node packages/mcp-server/dist/index.mjs
 
 Environment variables only:
 
-| Variable        | What                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------ |
-| `GIB_USERNAME`  | e-Arşiv portal user code                                                             |
-| `GIB_PASSWORD`  | e-Arşiv portal password                                                              |
-| `GIB_TEST_MODE` | `true` uses `earsivportaltest.efatura.gov.tr`; anything else is production (default) |
+| Variable       | What                     |
+| -------------- | ------------------------ |
+| `GIB_USERNAME` | e-Arşiv portal user code |
+| `GIB_PASSWORD` | e-Arşiv portal password  |
 
 ## Claude Code
 
