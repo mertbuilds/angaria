@@ -36,7 +36,6 @@ function fakeClient(overrides: Partial<EarsivClient> = {}): EarsivClient {
 
 const testCredentials = (): Credentials => ({
   password: 'secret',
-  testMode: true,
   username: '33333301',
 });
 

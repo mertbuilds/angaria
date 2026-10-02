@@ -312,7 +312,7 @@ function GibAccountSection() {
     setLoggingOut(true);
     try {
       const login = await getCredentials(activeEntityId);
-      await forceLogout(login.username, login.password, login.testMode);
+      await forceLogout(login.username, login.password);
       toast.success('Oturum kapatıldı');
     } catch (error) {
       toastError(error);
@@ -438,15 +438,14 @@ function RateDayRow() {
 }
 
 /**
- * Settings few people need, folded away: the TCMB rate day, GİB's test
- * portal, and in development the local emulator. Open while any is changed,
- * so it shows.
+ * Settings few people need, folded away: the TCMB rate day, and in
+ * development the local emulator. Open while either is changed, so it shows.
  */
 function AdvancedSection() {
-  const { activeEntityId, creds, setCredentials } = useStore();
   const [open, setOpen] = useState(
-    () => creds.testMode || Boolean(activeGibEmulatorURL) || readRateDay() !== DEFAULT_RATE_DAY,
+    () => Boolean(activeGibEmulatorURL) || readRateDay() !== DEFAULT_RATE_DAY,
   );
+  const emulator = import.meta.env.DEV && gibEmulatorURL;
 
   return (
     <details onToggle={(event) => setOpen(event.currentTarget.open)} open={open}>
@@ -456,7 +455,7 @@ function AdvancedSection() {
           {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
         />
         Gelişmiş
-        <span {...props(styles.summaryHint)}>Kur günü, test modu</span>
+        <span {...props(styles.summaryHint)}>{emulator ? 'Kur günü, emülatör' : 'Kur günü'}</span>
       </summary>
       <div {...props(styles.advancedBody, styles.column)}>
         <SettingsSection
@@ -465,32 +464,17 @@ function AdvancedSection() {
         >
           <RateDayRow />
         </SettingsSection>
-        <SettingsSection
-          description="Test modunda faturalar GİB’in test portalında kesilir. Gerçek fatura kesilmez."
-          title="GİB bağlantısı"
-        >
-          <SettingsRow hint="earsivportaltest.efatura.gov.tr adresine bağlanır" label="Test modu">
-            <Switch
-              aria-label="Test modu"
-              checked={creds.testMode}
-              onCheckedChange={(checked) =>
-                void setCredentials(activeEntityId, { testMode: checked })
-              }
-            />
-          </SettingsRow>
-          {import.meta.env.DEV && gibEmulatorURL && (
-            <SettingsRow
-              hint={`Geliştirme: GİB ve TCMB yerine ${gibEmulatorURL} (pnpm emulate)`}
-              label="Emülatör"
-            >
+        {emulator && (
+          <SettingsSection title="Geliştirme">
+            <SettingsRow hint={`GİB ve TCMB yerine ${emulator} (pnpm emulate)`} label="Emülatör">
               <Switch
                 aria-label="Emülatör"
                 checked={Boolean(activeGibEmulatorURL)}
                 onCheckedChange={setGibEmulator}
               />
             </SettingsRow>
-          )}
-        </SettingsSection>
+          </SettingsSection>
+        )}
       </div>
     </details>
   );

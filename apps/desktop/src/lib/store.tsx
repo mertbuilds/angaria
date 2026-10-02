@@ -86,7 +86,16 @@ const DEFAULT_ITEM_ADVANCED = {
   gtip: '',
 };
 
-const DEFAULT_CREDS: StoredCredentials = { username: '', testMode: true };
+const DEFAULT_CREDS: StoredCredentials = { username: '' };
+
+/**
+ * The stored login with only the fields the app knows: the GİB test portal
+ * mode (`testMode`, removed 2026-10-02) is dropped on load.
+ */
+function loadCreds(creds: Partial<StoredCredentials> | null | undefined): StoredCredentials {
+  const { password, username = '' } = creds ?? {};
+  return password === undefined ? { username } : { password, username };
+}
 
 const DEFAULT_COMPANY_INFO: CompanyInfo = {
   name: '',
@@ -227,7 +236,7 @@ function loadEntities(): Array<Entity> {
     return stored.map((entity, index) => ({
       id: entity.id || newId(),
       name: entity.name || makeEntityName(index),
-      creds: entity.creds ?? { ...DEFAULT_CREDS },
+      creds: loadCreds(entity.creds),
       companyInfo: entity.companyInfo ?? { ...DEFAULT_COMPANY_INFO },
       savedRecipients: entity.savedRecipients ?? [],
       savedItems: entity.savedItems ?? [],
@@ -237,7 +246,9 @@ function loadEntities(): Array<Entity> {
   return [
     {
       ...makeDefaultEntity(0, false),
-      creds: loadLocal(LEGACY_CREDS_STORAGE_KEY, { ...DEFAULT_CREDS }),
+      creds: loadCreds(
+        loadLocal<Partial<StoredCredentials> | null>(LEGACY_CREDS_STORAGE_KEY, null),
+      ),
       companyInfo: loadLocal('fatura-company-info', { ...DEFAULT_COMPANY_INFO }),
       savedRecipients: loadLocal('fatura-saved-recipients', SEED_RECIPIENTS),
       savedItems: loadLocal('fatura-saved-items', SEED_ITEMS),
@@ -332,7 +343,7 @@ interface Store {
   setAdvancedFields: React.Dispatch<React.SetStateAction<AdvancedInvoiceFields>>;
   setCompanyInfo: React.Dispatch<React.SetStateAction<CompanyInfo>>;
   /**
-   * Update the given fields. username and testMode apply immediately; a password
+   * Update the given fields. username applies immediately; a password
    * is written to the keychain once typing pauses ('' removes it). Resolves after
    * that write, rejects if it fails.
    */
@@ -590,7 +601,6 @@ function LoadedStoreProvider({
   const storedCreds = activeEntity?.creds ?? DEFAULT_CREDS;
   const creds: CredentialsInfo = {
     username: storedCreds.username,
-    testMode: storedCreds.testMode,
     hasPassword: Boolean(storedCreds.password) || passwordSaved[activeEntity?.id] === true,
   };
   const hasCredentials = Boolean(creds.username && creds.hasPassword);

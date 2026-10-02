@@ -6,7 +6,7 @@ import { createSessionQueue, type GIBAccount } from '../src/lib/session-queue.ts
 
 const session: SessionInfo = { baseUrl: 'emulator', cookies: [], token: 't' };
 const user: GIBAccount = {
-  credentials: async () => ({ password: '1', testMode: true, username: '33333301' }),
+  credentials: async () => ({ password: '1', username: '33333301' }),
   key: '33333301',
 };
 

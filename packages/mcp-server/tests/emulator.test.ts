@@ -24,7 +24,7 @@ beforeEach(() => {
 async function connect() {
   const server = createServer({
     client: createClient({ baseUrl: emulator.url }),
-    credentials: () => ({ password: '1', testMode: true, username: '33333301' }),
+    credentials: () => ({ password: '1', username: '33333301' }),
   });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const mcp = new Client({ name: 'test', version: '0.0.0' });

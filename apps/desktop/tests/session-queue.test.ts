@@ -19,7 +19,7 @@ function fakeClient() {
 }
 
 const account = (username: string): GIBAccount => ({
-  credentials: async () => ({ password: '1', testMode: true, username }),
+  credentials: async () => ({ password: '1', username }),
   key: username,
 });
 
