@@ -47,9 +47,13 @@ const styles = create({
     paddingInlineEnd: '0.25rem',
     width: '100%',
   },
+  // Like Input: focused, the glow tightens to a 1px ring.
   fieldInvalid: {
     borderColor: colors.destructive,
-    boxShadow: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
+    boxShadow: {
+      ':focus-within': `0 0 0 1px ${colors.destructive}`,
+      default: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
+    },
   },
   // The segments fill the pill, so a click anywhere left of the button lands in them.
   input: {
@@ -158,7 +162,12 @@ const styles = create({
     flexShrink: 0,
     height: '2rem',
     justifyContent: 'center',
-    outline: 'none',
+    outlineColor: colors.ring,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: '2px',
     padding: 0,
     width: '2rem',
   },
