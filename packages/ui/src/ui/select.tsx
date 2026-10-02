@@ -149,7 +149,9 @@ const styles = create({
       ':disabled': 'none',
       default: null,
     },
+    // Hover fades; focus (Tab moves it) shows at once.
     transitionDuration: {
+      ':focus-visible': '0s',
       '@media (prefers-reduced-motion: reduce)': '0s',
       default: '150ms',
     },
