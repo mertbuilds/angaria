@@ -22,24 +22,27 @@ const styles = create({
     borderRadius: radius.full,
     borderStyle: 'solid',
     borderWidth: '2px',
-    boxShadow: {
-      ':focus-visible': `0 0 0 1px ${colors.ring}`,
-      default: null,
-    },
     boxSizing: 'border-box',
     cursor: 'pointer',
     display: 'inline-flex',
     flexShrink: 0,
     height: '1.25rem',
     margin: 0,
-    outline: 'none',
+    // A 2px ring 2px off the control: visible on a fill of the ring's own color.
+    outlineColor: colors.ring,
+    outlineOffset: '2px',
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: '2px',
     padding: 0,
     position: 'relative',
     transitionDuration: {
       '@media (prefers-reduced-motion: reduce)': '0s',
       default: motion.fade,
     },
-    transitionProperty: 'background-color, box-shadow',
+    transitionProperty: 'background-color',
     width: '2.25rem',
   },
   rootChecked: {

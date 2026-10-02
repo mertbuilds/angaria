@@ -55,7 +55,7 @@ export const TCMB_RATE_ERROR = 'TCMB kuru alınamadı, kuru elle girebilirsin.';
 /** A request outside GİB that never got an answer. */
 export const NETWORK_ERROR = 'Bağlantı kurulamadı. İnternet bağlantını kontrol et.';
 
-export const UNEXPECTED_ERROR = 'Beklenmeyen bir hata oluştu. Tekrar dene.';
+export const UNEXPECTED_ERROR = 'İşlem tamamlanamadı. Tekrar dene.';
 
 export interface UserError {
   action?: 'settings';

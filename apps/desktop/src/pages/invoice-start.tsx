@@ -326,6 +326,15 @@ export function InvoiceStart() {
     rows[next]?.focus();
   });
 
+  // Yeni fatura or Temizle went away with the form that held the focus: the
+  // newest invoice takes it, so the keys and a screen reader start there.
+  const hasRows = recent.rows.length > 0;
+  useEffect(() => {
+    if (hasRows && (!document.activeElement || document.activeElement === document.body)) {
+      listRef.current?.querySelector<HTMLElement>('button')?.focus();
+    }
+  }, [hasRows]);
+
   useEffect(() => {
     const listener = (event: KeyboardEvent) => onKeyDown(event);
     document.addEventListener('keydown', listener);

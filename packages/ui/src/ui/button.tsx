@@ -23,10 +23,6 @@ const styles = create({
     borderRadius: radius.full,
     borderStyle: 'none',
     borderWidth: 0,
-    boxShadow: {
-      ':focus-visible': `0 0 0 1px ${colors.ring}`,
-      default: null,
-    },
     boxSizing: 'border-box',
     cursor: {
       ':disabled': 'not-allowed',
@@ -44,7 +40,14 @@ const styles = create({
       ':disabled': 0.5,
       default: 1,
     },
-    outline: 'none',
+    // A 2px ring 2px off the control: visible on a fill of the ring's own color.
+    outlineColor: colors.ring,
+    outlineOffset: '2px',
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: '2px',
     paddingInline: '0.875rem',
     pointerEvents: {
       ':disabled': 'none',
@@ -169,6 +172,9 @@ const disabledLinkProps = {
 const Button = ({
   className,
   disabled = false,
+  // A button that is disabled while its own request runs keeps the focus:
+  // a natively disabled button drops it to the page.
+  focusableWhenDisabled = false,
   render,
   // Without a `render` prop this is a <button>; with one, pass
   // `nativeButton` when the rendered element is still a <button>.
@@ -182,7 +188,7 @@ const Button = ({
     styles.base,
     variantStyles[variant],
     size === 'icon' && styles.icon,
-    disabled && !nativeButton && styles.disabledLink,
+    disabled && (!nativeButton || focusableWhenDisabled) && styles.disabledLink,
     customClassName(className),
     style,
   );
@@ -191,7 +197,10 @@ const Button = ({
   if (nativeButton) {
     // Never submit a surrounding form by accident, also when `render` swaps in
     // another <button>; an explicit `type` in restProps still wins.
-    elementProps = { disabled, type: 'button' as const };
+    elementProps =
+      disabled && focusableWhenDisabled
+        ? { ...disabledLinkProps, tabIndex: undefined, type: 'button' as const }
+        : { disabled, type: 'button' as const };
   } else if (disabled) {
     elementProps = disabledLinkProps;
   }

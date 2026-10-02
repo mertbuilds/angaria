@@ -168,9 +168,12 @@ function SMSCodeForm({
         </DialogDescription>
       </DialogHeader>
       <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor={codeId}>SMS şifresi</FieldLabel>
+        <FieldLabel htmlFor={codeId} id={`${codeId}-label`}>
+          SMS şifresi
+        </FieldLabel>
         <OTPInput
           aria-describedby={error ? errorId : undefined}
+          aria-labelledby={`${codeId}-label`}
           id={codeId}
           invalid={error !== null}
           length={CODE_LENGTH}
@@ -201,8 +204,10 @@ function SMSCodeForm({
         </p>
       </div>
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
-        <Button disabled={pending === 'verify'} type="submit">
+        <DialogClose disabled={pending !== null} render={<Button variant="outline" />}>
+          Vazgeç
+        </DialogClose>
+        <Button disabled={pending === 'verify'} focusableWhenDisabled type="submit">
           {pending === 'verify' ? 'Onaylanıyor…' : 'Onayla'}
         </Button>
       </DialogFooter>
@@ -239,6 +244,9 @@ export function useSMSSign() {
   // Aborts when the screen closes: a flow still starting or waiting on the
   // code hands the GİB session back (gib.leaseWith).
   const screen = useRef(new AbortController());
+  // A GİB call on the lease (verify, resend) is in flight: closing then would
+  // hand the session back mid-call and lose whether GİB signed.
+  const calling = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -246,24 +254,36 @@ export function useSMSSign() {
     return () => controller.abort();
   }, []);
 
-  // Failures show in the dialog, so the user can type the code again.
-  const verify = async (flow: Signing, code: string) => {
-    await verifyAndSign(flow.lease.session, code, flow.oid, flow.ettns);
-    flow.lease.release();
-    setSigning(null);
-    flow.finish(true);
+  const onLease = async (call: () => Promise<void>) => {
+    calling.current = true;
+    try {
+      await call();
+    } finally {
+      calling.current = false;
+    }
   };
+
+  // Failures show in the dialog, so the user can type the code again.
+  const verify = (flow: Signing, code: string) =>
+    onLease(async () => {
+      await verifyAndSign(flow.lease.session, code, flow.oid, flow.ettns);
+      flow.lease.release();
+      setSigning(null);
+      flow.finish(true);
+    });
 
   // A new code on the same session; verifying uses the OID it came with.
-  const resend = async (flow: Signing) => {
-    const sent = await startSMSSign(flow.lease.session);
-    setSigning((current) =>
-      current === flow ? { ...flow, oid: sent.oid, phone: sent.phone } : current,
-    );
-  };
+  const resend = (flow: Signing) =>
+    onLease(async () => {
+      const sent = await startSMSSign(flow.lease.session);
+      setSigning((current) =>
+        current === flow ? { ...flow, oid: sent.oid, phone: sent.phone } : current,
+      );
+    });
 
+  // Escape and Vazgeç wait for a call in flight (Vazgeç is disabled then).
   const cancel = () => {
-    if (signing) {
+    if (signing && !calling.current) {
       signing.lease.release();
       setSigning(null);
       signing.finish(false);
@@ -316,8 +336,12 @@ export function useSMSSign() {
       return { signed: false, value: prepared.value };
     }
     return new Promise((resolve) => {
-      const finish = (signed: boolean) => resolve({ signed, value: prepared.value });
-      signal.addEventListener('abort', () => finish(false), { once: true });
+      const onAbort = () => finish(false);
+      const finish = (signed: boolean) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve({ signed, value: prepared.value });
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
       setSigning({ ettns: prepared.ettns, finish, lease, oid: sent.oid, phone: sent.phone });
     });
   }

@@ -4,7 +4,7 @@
 export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml'];
 
 /** Largest file accepted */
-export const MAX_LOGO_FILE_BYTES = 1024 * 1024;
+const MAX_LOGO_FILE_BYTES = 1024 * 1024;
 
 /** Longest side of the stored PNG: sharp in the PDF's 180 by 44 point box */
 const MAX_SIDE = 800;

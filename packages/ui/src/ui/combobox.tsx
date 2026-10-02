@@ -5,7 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
+import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 import { inputStyles } from './input.tsx';
@@ -169,6 +169,9 @@ type StyleXOverrides = {
   style?: StyleXStyles | undefined;
 };
 
+const TRIGGER_LABEL = 'Listeyi aç';
+const CLEAR_LABEL = 'Temizle';
+
 const Combobox = ComboboxPrimitive.Root;
 
 const ComboboxValue = ComboboxPrimitive.Value;
@@ -180,6 +183,7 @@ type ComboboxTriggerProps = Omit<ComboboxPrimitive.Trigger.Props, 'className' | 
 
 const ComboboxTrigger = ({ children, className, style, ...props }: ComboboxTriggerProps) => (
   <ComboboxPrimitive.Trigger
+    aria-label={TRIGGER_LABEL}
     data-slot="combobox-trigger"
     {...stylexProps(styles.iconButton, customClassName(className), style)}
     {...props}
@@ -193,6 +197,7 @@ type ComboboxClearProps = Omit<ComboboxPrimitive.Clear.Props, 'className' | 'sty
 
 const ComboboxClear = ({ children, className, style, ...props }: ComboboxClearProps) => (
   <ComboboxPrimitive.Clear
+    aria-label={CLEAR_LABEL}
     data-slot="combobox-clear"
     {...stylexProps(styles.iconButton, customClassName(className), style)}
     {...props}
@@ -219,7 +224,15 @@ const ComboboxInput = ({
   <div {...stylexProps(styles.inputWrap)}>
     <ComboboxPrimitive.Input
       data-slot="combobox-input"
-      {...stylexProps(inputStyles.root, styles.input, customClassName(className), style)}
+      {...stylexProps(
+        inputStyles.root,
+        styles.input,
+        Boolean(props['aria-invalid']) &&
+          props['aria-invalid'] !== 'false' &&
+          inputStyles.ariaInvalid,
+        customClassName(className),
+        style,
+      )}
       {...props}
     />
     {children}
@@ -317,7 +330,7 @@ const ComboboxContent = ({
             stylexProps(
               popupStyles.surface,
               styles.content,
-              isHidden(state.transitionStatus) && popupStyles.hidden,
+              popupMotion(state.transitionStatus),
               customClassName(className),
               style,
             ).className

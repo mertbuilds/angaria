@@ -19,7 +19,7 @@ const LOCALES: Record<Locale, string> = {
 /** Numbers, dates and file names follow Turkish on a Turkish or bilingual PDF. */
 const localeOf = (language: PDFLanguage): Locale => (language === 'en' ? 'en' : 'tr');
 
-export function isPDFLanguage(value: unknown): value is PDFLanguage {
+function isPDFLanguage(value: unknown): value is PDFLanguage {
   return PDF_LANGUAGES.includes(value as PDFLanguage);
 }
 
@@ -28,7 +28,7 @@ export function resolvePDFLanguage(...candidates: Array<unknown>): PDFLanguage {
   return candidates.find(isPDFLanguage) ?? DEFAULT_PDF_LANGUAGE;
 }
 
-export function isPDFStyle(value: unknown): value is PDFStyle {
+function isPDFStyle(value: unknown): value is PDFStyle {
   return PDF_STYLES.includes(value as PDFStyle);
 }
 

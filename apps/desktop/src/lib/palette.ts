@@ -16,7 +16,7 @@ export const DEFAULT_PALETTE: PaletteChoice = 'mist';
 const PALETTE_STORAGE_KEY = 'angaria-palette';
 
 /** The palette on `<html>`. */
-export function readPalette(root: HTMLElement = document.documentElement): PaletteChoice {
+function readPalette(root: HTMLElement = document.documentElement): PaletteChoice {
   return paletteChoices.find((choice) => choice === root.dataset['palette']) ?? DEFAULT_PALETTE;
 }
 

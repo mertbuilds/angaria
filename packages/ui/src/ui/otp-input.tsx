@@ -99,6 +99,7 @@ const OTPInput = ({
         </span>
       )}
       <OTPField.Root
+        aria-labelledby={firstLabelledBy}
         autoComplete="one-time-code"
         disabled={disabled}
         id={id}

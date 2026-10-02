@@ -12,7 +12,7 @@ import {
   DateSegment,
 } from 'react-aria-components/DateField';
 import { I18nProvider } from 'react-aria-components/I18nProvider';
-import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
+import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { Calendar } from './calendar.tsx';
 import { Input } from './input.tsx';
@@ -47,9 +47,13 @@ const styles = create({
     paddingInlineEnd: '0.25rem',
     width: '100%',
   },
+  // Like Input: focused, the glow tightens to a 1px ring.
   fieldInvalid: {
     borderColor: colors.destructive,
-    boxShadow: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
+    boxShadow: {
+      ':focus-within': `0 0 0 1px ${colors.destructive}`,
+      default: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
+    },
   },
   // The segments fill the pill, so a click anywhere left of the button lands in them.
   input: {
@@ -69,18 +73,7 @@ const styles = create({
     flexDirection: 'column',
     gap: '0.75rem',
     padding: '0.75rem',
-    // A popover from a field opens quickly and settles in place: 150ms, no
-    // movement under reduced motion.
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0s',
-      default: '150ms',
-    },
-    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
     width: 'max-content',
-  },
-  popupHidden: {
-    opacity: 0,
-    transform: 'scale(0.97)',
   },
   preset: {
     backgroundColor: {
@@ -169,7 +162,12 @@ const styles = create({
     flexShrink: 0,
     height: '2rem',
     justifyContent: 'center',
-    outline: 'none',
+    outlineColor: colors.ring,
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: '2px',
     padding: 0,
     width: '2rem',
   },
@@ -204,7 +202,7 @@ export interface DateFieldProps {
 const copy = {
   enter: '↵',
   textLabel: 'Tarihi yaz',
-  textPlaceholder: 'dün, cuma, 15.10, geçen ay sonu',
+  textPlaceholder: 'dün, cuma, 15.10, geçen ay sonu…',
   trigger: 'Takvimi aç',
   unreadable: 'Tarihi anlayamadım.',
 };
@@ -452,11 +450,8 @@ const DateField = ({
         >
           <Popover.Popup
             className={(state) =>
-              stylexProps(
-                popupStyles.surface,
-                styles.popup,
-                isHidden(state.transitionStatus) && styles.popupHidden,
-              ).className
+              stylexProps(popupStyles.surface, styles.popup, popupMotion(state.transitionStatus))
+                .className
             }
             initialFocus={() =>
               textRef.current ??

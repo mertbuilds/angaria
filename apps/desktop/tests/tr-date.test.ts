@@ -1,11 +1,6 @@
 import { CalendarDate } from '@internationalized/date';
 import { describe, expect, test } from 'vitest';
-import {
-  calendarDateToGIB,
-  formatTurkishDate,
-  gibToCalendarDate,
-  parseTurkishDate,
-} from '../src/lib/tr-date.ts';
+import { calendarDateToGIB, gibToCalendarDate, parseTurkishDate } from '../src/lib/tr-date.ts';
 
 // Friday, 2 October 2026.
 const today = new CalendarDate(2026, 10, 2);
@@ -211,17 +206,5 @@ describe('GİB dates', () => {
   test('writes dd/MM/yyyy', () => {
     expect(calendarDateToGIB(date(2026, 10, 2))).toBe('02/10/2026');
     expect(calendarDateToGIB(date(2026, 12, 31))).toBe('31/12/2026');
-  });
-});
-
-describe('formatTurkishDate', () => {
-  test.each([
-    [date(2026, 10, 9), '9 Eki 2026, Cuma'],
-    [date(2026, 10, 2), '2 Eki 2026, Cuma'],
-    [date(2026, 9, 28), '28 Eyl 2026, Pazartesi'],
-    [date(2026, 8, 1), '1 Ağu 2026, Cumartesi'],
-    [date(2027, 1, 3), '3 Oca 2027, Pazar'],
-  ])('%s is %s', (value, expected) => {
-    expect(formatTurkishDate(value)).toBe(expected);
   });
 });

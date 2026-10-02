@@ -2,10 +2,10 @@ import { Button, Input, Wordmark } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { LoaderCircleIcon, TriangleAlertIcon } from 'lucide-react';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { errorMessage } from '@/lib/gib-errors.ts';
 import { openCheckout, openCustomerPortal, useLicense } from '@/lib/license-context.tsx';
-import type { LicenseStatus } from '@/lib/license.ts';
+import { normalizeLicenseKey, type LicenseStatus } from '@/lib/license.ts';
 import { shell } from '../shell/shell.stylex.ts';
 
 type LockedStatus = Exclude<LicenseStatus, { kind: 'grace' } | { kind: 'valid' }>;
@@ -19,8 +19,8 @@ const lockedCopy: Record<
     description: 'Denemeyi ya da aboneliği başlatınca e-postana gelen lisans anahtarını gir.',
   },
   invalid: {
-    title: 'Lisans geçerli değil',
-    description: 'Bu Mac’in lisansı doğrulanamadı. Lisans anahtarını yeniden gir.',
+    title: 'Lisansı yeniden etkinleştir',
+    description: 'Lisans sunucusu bu Mac’i tanımıyor. Lisans anahtarını yeniden gir.',
   },
   subscription: {
     title: 'Lisansın süresi doldu',
@@ -188,6 +188,7 @@ function LicenseSplash() {
 function LicenseScreen({ status }: { status: LockedStatus }) {
   const { activate, check, error: checkError } = useLicense();
   const [key, setKey] = useState('');
+  const keyRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<'activate' | 'check' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const copy = copyFor(status);
@@ -195,7 +196,9 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
 
   async function handleActivate(event: FormEvent) {
     event.preventDefault();
-    if (!key.trim()) {
+    if (!key) {
+      setError('Lisans anahtarını yaz');
+      keyRef.current?.focus();
       return;
     }
     setPending('activate');
@@ -234,6 +237,7 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
         {needsOnlineCheck ? (
           <Button
             disabled={pending !== null}
+            focusableWhenDisabled
             onClick={() => void handleRetry()}
             style={styles.wide}
           >
@@ -242,22 +246,36 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
         ) : (
           <form onSubmit={handleActivate} {...props(styles.form)}>
             <Input
+              aria-describedby={message ? 'license-error' : undefined}
+              aria-invalid={error ? true : undefined}
               aria-label="Lisans anahtarı"
+              autoCapitalize="off"
               autoComplete="off"
+              autoCorrect="off"
+              // The one field on a screen the app opens to.
               autoFocus
               id="license-key"
-              onChange={(event) => setKey(event.target.value)}
-              placeholder="ANGARIA-..."
+              onChange={(event) => {
+                setKey(normalizeLicenseKey(event.target.value));
+                setError(null);
+              }}
+              placeholder="ANGARIA-…"
+              ref={keyRef}
               spellCheck={false}
               value={key}
             />
-            <Button disabled={pending !== null || !key.trim()} style={styles.wide} type="submit">
+            <Button
+              disabled={pending !== null}
+              focusableWhenDisabled
+              style={styles.wide}
+              type="submit"
+            >
               {pending === 'activate' ? 'Etkinleştiriliyor…' : 'Etkinleştir'}
             </Button>
           </form>
         )}
         {message && (
-          <p role="alert" {...props(styles.error)}>
+          <p id="license-error" role="alert" {...props(styles.error)}>
             {message}
           </p>
         )}

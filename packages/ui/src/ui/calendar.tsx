@@ -65,8 +65,10 @@ const styles = create({
     cursor: 'default',
     opacity: 0.4,
   },
+  // Inside the circle, so it shows on the chosen day's fill too: the ring,
+  // then a gap of the popover's color.
   cellFocused: {
-    boxShadow: `0 0 0 2px ${colors.ring}`,
+    boxShadow: `inset 0 0 0 2px ${colors.ring}, inset 0 0 0 4px ${colors.popover}`,
   },
   cellHovered: {
     backgroundColor: colors.muted,
@@ -79,7 +81,7 @@ const styles = create({
     color: colors.primaryForeground,
   },
   cellToday: {
-    boxShadow: `inset 0 0 0 1px ${colors.border}`,
+    boxShadow: `inset 0 0 0 1px ${colors.input}`,
   },
   grid: {
     borderCollapse: 'collapse',

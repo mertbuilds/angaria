@@ -21,7 +21,6 @@ import { z } from 'zod';
 import {
   byRecentInvoice,
   COUNTRY_OPTIONS,
-  countryError,
   customerDefaults,
   customerName,
   findCustomer,
@@ -136,7 +135,7 @@ function defineTool<T extends z.ZodType>({
     call: async (ctx, args, signal) => {
       const parsed = tool.inputSchema.safeParse(args ?? {});
       if (!parsed.success) {
-        return failure('Girdi geçersiz.', {
+        return failure('Girdi aracın şemasına uymuyor.', {
           code: 'invalid-input',
           fields: Object.fromEntries(
             parsed.error.issues.map((issue) => [issue.path.join('.') || '(girdi)', issue.message]),
@@ -516,12 +515,7 @@ const createInvoice = defineTool({
       note: istisnaNote(istisnaCode ?? null, applied.note),
     };
 
-    // The recipient form's own check, outside validateInvoice.
-    const country = countryError(values.recipient);
-    const errors =
-      country === null
-        ? validateInvoice(values, now)?.fields
-        : { ...validateInvoice(values, now)?.fields, 'recipient.country': country };
+    const errors = validateInvoice(values, now)?.fields;
     if (errors) {
       return failure('Taslak oluşturulmadı: bazı bilgiler eksik ya da hatalı.', {
         code: 'invalid-invoice',

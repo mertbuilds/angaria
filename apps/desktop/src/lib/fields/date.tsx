@@ -1,9 +1,7 @@
 import { DateField as DateInput, Input, type DatePreset } from '@angaria/ui';
-import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { getLocalTimeZone, today as todayIn } from '@internationalized/date';
-import { create, props } from '@stylexjs/stylex';
-import { TriangleAlertIcon } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { create } from '@stylexjs/stylex';
+import { useMemo, useState } from 'react';
 import { FieldFrame, useFieldContext, useFieldError, type FieldProps } from '../form-field.tsx';
 import {
   calendarDateToGIB,
@@ -17,21 +15,6 @@ const styles = create({
   tabular: {
     fontVariantNumeric: 'tabular-nums',
   },
-  warning: {
-    alignItems: 'flex-start',
-    color: colors.warning,
-    display: 'flex',
-    fontSize: font.sizeSm,
-    gap: spacing.s2,
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  warningIcon: {
-    flexShrink: 0,
-    height: '1rem',
-    marginTop: '0.125rem',
-    width: '1rem',
-  },
 });
 
 /**
@@ -39,22 +22,19 @@ const styles = create({
  * also reads typed text ("dün", "15.10"). Empty means today when
  * `emptyIsToday`, otherwise no date. Days after today cannot be picked unless
  * `allowFuture` (a due date). `bias` decides which way an incomplete typed
- * date leans; it follows `allowFuture` unless given. `warning` shows a
- * non-blocking rule under the field while it has no error.
+ * date leans; it follows `allowFuture` unless given.
  */
 export function DateField({
   allowFuture = false,
   bias,
   emptyIsToday = false,
   presets,
-  warning,
   ...frame
 }: FieldProps & {
   allowFuture?: boolean;
   bias?: DateBias;
   emptyIsToday?: boolean;
   presets?: ReadonlyArray<DatePreset>;
-  warning?: ReactNode;
 }) {
   const field = useFieldContext<string>();
   const error = useFieldError();
@@ -64,34 +44,22 @@ export function DateField({
     [emptyIsToday, field.state.value, today],
   );
   const textBias = bias ?? (allowFuture ? 'future' : 'past');
-  const warningId = `${field.name}-warning`;
-  const showWarning = Boolean(warning) && !error;
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
-        <>
-          <DateInput
-            aria-describedby={
-              [describedBy, showWarning && warningId].filter(Boolean).join(' ') || undefined
-            }
-            aria-label={frame.label}
-            id={field.name}
-            invalid={Boolean(error)}
-            maxValue={allowFuture ? undefined : today}
-            onBlur={field.handleBlur}
-            onChange={(date) => field.handleChange(date ? calendarDateToGIB(date) : '')}
-            parseText={(text, now) => parseTurkishDate(text, now, textBias)}
-            presets={presets}
-            textHint={DATE_TEXT_HINT}
-            value={value}
-          />
-          {showWarning && (
-            <p id={warningId} role="status" {...props(styles.warning)}>
-              <TriangleAlertIcon aria-hidden {...props(styles.warningIcon)} />
-              {warning}
-            </p>
-          )}
-        </>
+        <DateInput
+          aria-describedby={describedBy}
+          aria-label={frame.label}
+          id={field.name}
+          invalid={Boolean(error)}
+          maxValue={allowFuture ? undefined : today}
+          onBlur={field.handleBlur}
+          onChange={(date) => field.handleChange(date ? calendarDateToGIB(date) : '')}
+          parseText={(text, now) => parseTurkishDate(text, now, textBias)}
+          presets={presets}
+          textHint={DATE_TEXT_HINT}
+          value={value}
+        />
       )}
     </FieldFrame>
   );

@@ -30,7 +30,7 @@ export function DecimalTextField({
   suffix?: ReactNode;
 }) {
   const field = useFieldContext<string>();
-  const error = useFieldError();
+  const error = useFieldError({ typed: true });
   const inputRef = useRef<HTMLInputElement>(null);
   const text = field.state.value;
   const value = text.trim() ? (parseDecimal(text) ?? Number.NaN) : Number.NaN;

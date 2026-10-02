@@ -57,7 +57,9 @@ const styles = create({
     // The first line sits where a 40px Input's text sits.
     paddingBlock: 'calc(0.625rem - 1px)',
     paddingInline: '1rem',
+    // Hover fades; focus (Tab moves it) shows at once.
     transitionDuration: {
+      ':focus-visible': '0s',
       '@media (prefers-reduced-motion: reduce)': '0s',
       default: '150ms',
     },

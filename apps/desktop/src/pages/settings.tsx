@@ -27,7 +27,6 @@ import { readTheme, themeChoices, type ThemeChoice } from '@angaria/ui/theme';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import type { MaskitoOptions } from '@maskito/core';
 import { create, props } from '@stylexjs/stylex';
-import { useQueryClient } from '@tanstack/react-query';
 import { getVersion } from '@tauri-apps/api/app';
 import {
   CheckIcon,
@@ -241,7 +240,9 @@ function GibAccountSection() {
   } = useStore();
   const account = useGIBAccount();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  // The company whose password is shown: switching companies hides it again.
+  const [shownFor, setShownFor] = useState<string | null>(null);
+  const showPassword = shownFor === activeEntityId;
   const [test, setTest] = useState<ConnectionTest>({ kind: 'idle' });
   // The password read from the keychain, tagged with its company
   const [loaded, setLoaded] = useState<{ entityId: string; password: string } | null>(null);
@@ -262,7 +263,7 @@ function GibAccountSection() {
       .catch((error) => {
         if (active) {
           setLoaded({ entityId: activeEntityId, password: '' });
-          toast.error(error instanceof Error ? error.message : 'Şifre okunamadı');
+          toastError(error);
         }
       });
     return () => {
@@ -276,9 +277,7 @@ function GibAccountSection() {
   function handlePasswordChange(value: string) {
     setLoaded({ entityId: activeEntityId, password: value });
     setCredentials(activeEntityId, { password: value }).catch((error) => {
-      toast.error(error instanceof Error ? error.message : 'Şifre kaydedilemedi', {
-        id: 'password-save',
-      });
+      toastError(error, { id: 'password-save' });
     });
   }
 
@@ -360,7 +359,9 @@ function GibAccountSection() {
             aria-label="Şifreyi göster"
             aria-pressed={showPassword}
             disabled={password === null}
-            onClick={() => setShowPassword((shown) => !shown)}
+            onClick={() => setShownFor(showPassword ? null : activeEntityId)}
+            // The caret stays in the password while it is shown or hidden.
+            onMouseDown={(event) => event.preventDefault()}
             size="icon"
             style={styles.passwordToggle}
             variant="ghost"
@@ -373,6 +374,7 @@ function GibAccountSection() {
         <div {...props(styles.testColumn)}>
           <Button
             disabled={testShown.kind === 'testing'}
+            focusableWhenDisabled
             onClick={() => void handleTest()}
             variant="outline"
           >
@@ -384,6 +386,7 @@ function GibAccountSection() {
       <SettingsRow hint="e-Arşiv portalında açık kalan oturumu kapatır" label="Oturum">
         <Button
           disabled={loggingOut || !hasCredentials}
+          focusableWhenDisabled
           onClick={() => void handleForceLogout()}
           variant="outline"
         >
@@ -412,24 +415,17 @@ const rateDayOptions: ReadonlyArray<ChoiceOption<RateDay>> = rateDayChoices.map(
 
 function RateDayRow() {
   const rateDay = useRateDay();
-  const queryClient = useQueryClient();
 
   return (
     <SettingsRow
-      hint="Önceki iş günü önerilir: o gün açıklanan kur, fatura günü geçerlidir"
+      hint="Önceki iş günü önerilir: TCMB’nin bir gün önce açıkladığı kur, fatura gününün kurudur"
       id="rate-day"
       label="Kur günü"
     >
       <ChoiceChips
         aria-describedby="rate-day-hint"
         aria-labelledby="rate-day-label"
-        onValueChange={(choice) => {
-          if (choice) {
-            setRateDay(choice);
-            // Rates fetched by the other rule are refetched on Yeni fatura.
-            void queryClient.invalidateQueries({ queryKey: ['tcmb-rates'] });
-          }
-        }}
+        onValueChange={(choice) => choice && setRateDay(choice)}
         options={rateDayOptions}
         value={rateDay}
       />
@@ -530,7 +526,7 @@ function CompaniesSection() {
 
   return (
     <SettingsSection
-      description="Her şirketin kendi GİB hesabı, firma bilgileri, müşterileri ve hizmetleri olur. Bu sayfadaki diğer ayarlar seçili şirket için geçerlidir."
+      description="Her şirketin kendi GİB hesabı, firma bilgileri, müşterileri ve hizmetleri olur. Bu sayfadaki diğer ayarlar yalnızca seçili şirketi etkiler."
       title="Şirketler"
     >
       {entities.map((entity) => (
@@ -822,7 +818,7 @@ function CompanyLogoRow() {
       const logo = await readLogo(file);
       setCompanyInfo((info) => ({ ...info, logo }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Logo okunamadı');
+      toastError(error);
     } finally {
       setReading(false);
     }
@@ -833,7 +829,9 @@ function CompanyLogoRow() {
       hint="PNG, JPG ya da SVG, en fazla 1 megabayt. Logo yoksa PDF’te firma adı yazılır"
       label="Logo"
     >
-      {companyInfo.logo && <img alt="Logo" src={companyInfo.logo} {...props(styles.logo)} />}
+      {companyInfo.logo && (
+        <img alt="Firma logosu" src={companyInfo.logo} {...props(styles.logo)} />
+      )}
       <input
         accept={LOGO_TYPES.join(',')}
         hidden
@@ -1034,13 +1032,22 @@ function AboutSection() {
         <SettingsValue>{version ?? ''}</SettingsValue>
       </SettingsRow>
       <SettingsRow label="Güncellemeler">
-        {status && (
-          <SettingsValue tone={state.kind === 'failed' ? 'error' : 'muted'}>{status}</SettingsValue>
-        )}
+        <span role="status">
+          {status && (
+            <SettingsValue tone={state.kind === 'failed' ? 'error' : 'muted'}>
+              {status}
+            </SettingsValue>
+          )}
+        </span>
         {state.kind === 'available' ? (
           <Button onClick={() => void handleInstall(state.update)}>Yükle</Button>
         ) : (
-          <Button disabled={busy} onClick={() => void handleCheck()} variant="outline">
+          <Button
+            disabled={busy}
+            focusableWhenDisabled
+            onClick={() => void handleCheck()}
+            variant="outline"
+          >
             Güncellemeleri denetle
           </Button>
         )}

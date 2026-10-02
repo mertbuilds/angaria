@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
   type DatePreset,
 } from '@angaria/ui';
-import { colors, spacing } from '@angaria/ui/tokens.stylex';
+import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { addDays, differenceInCalendarDays, isSameDay } from 'date-fns';
 import { ChevronDownIcon } from 'lucide-react';
@@ -55,6 +55,18 @@ const styles = create({
     flexShrink: 0,
     height: '1rem',
     width: '1rem',
+  },
+  // Under the rate field, after its caption or error.
+  rateReset: {
+    alignSelf: 'flex-start',
+    fontSize: font.sizeSm,
+    minHeight: '1.5rem',
+  },
+  rateStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    minWidth: 0,
   },
   otherCurrency: {
     flexBasis: '10rem',
@@ -132,26 +144,10 @@ const shortDate = (date: Date) =>
   (date.getFullYear() === new Date().getFullYear() ? dayMonth : dayMonthYear).format(date);
 
 /** The rate field's caption: where the rate comes from, or why it is missing. */
-function rateCaption(form: InvoiceForm, description: RateDescription | null): ReactNode {
+function rateCaption(description: RateDescription | null): ReactNode {
   switch (description?.kind) {
     case 'manual':
-      return (
-        <>
-          Elle girildi
-          {description.tcmbAvailable && (
-            <>
-              {' · '}
-              <button
-                onClick={() => form.setFieldValue('advancedFields.currencyRateManual', false)}
-                type="button"
-                {...props(styles.inlineAction)}
-              >
-                TCMB kurunu kullan
-              </button>
-            </>
-          )}
-        </>
-      );
+      return 'Elle girildi';
     case 'error':
       return <span {...props(styles.warning)}>{TCMB_RATE_ERROR}</span>;
     case 'unpublished':
@@ -168,6 +164,46 @@ function rateCaption(form: InvoiceForm, description: RateDescription | null): Re
     case undefined:
       return null;
   }
+}
+
+/**
+ * Döviz kuru with its caption. A typed rate offers TCMB's back under the
+ * field, outside the caption, so an error that hides the caption neither
+ * hides it nor takes the focus with it.
+ */
+function CurrencyRateField({
+  form,
+  rateDescription,
+}: {
+  form: InvoiceForm;
+  rateDescription: RateDescription | null;
+}) {
+  const offerTCMB = rateDescription?.kind === 'manual' && rateDescription.tcmbAvailable;
+  return (
+    <div {...props(styles.rateStack)}>
+      <DecimalTextField
+        description={rateCaption(rateDescription)}
+        format={formatRate}
+        label="Döviz kuru"
+        placeholder="0,0000"
+        step={0.01}
+        suffix="₺"
+      />
+      {offerTCMB && (
+        <button
+          onClick={() => {
+            form.setFieldValue('advancedFields.currencyRateManual', false);
+            // The button goes with the typed rate; the focus goes back to the rate.
+            document.getElementById('invoiceSettings.currencyRate')?.focus();
+          }}
+          type="button"
+          {...props(styles.inlineAction, styles.rateReset)}
+        >
+          TCMB kurunu kullan
+        </button>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -317,7 +353,13 @@ export function InvoiceSection({
   const typeDescription =
     invoiceType === 'SATIS' && sentenceInNote ? (
       <button
-        onClick={() => form.setFieldValue('note', istisnaNote(null, form.state.values.note))}
+        onClick={() => {
+          form.setFieldValue('note', istisnaNote(null, form.state.values.note));
+          // The button goes with the sentence; the focus goes back to the type.
+          document
+            .querySelector<HTMLElement>('[id="invoiceSettings.invoiceType"] [aria-checked="true"]')
+            ?.focus();
+        }}
         type="button"
         {...props(styles.inlineAction)}
       >
@@ -448,16 +490,7 @@ export function InvoiceSection({
             }}
             name="invoiceSettings.currencyRate"
           >
-            {() => (
-              <DecimalTextField
-                description={rateCaption(form, rateDescription)}
-                format={formatRate}
-                label="Döviz kuru"
-                placeholder="0,0000"
-                step={0.01}
-                suffix="₺"
-              />
-            )}
+            {() => <CurrencyRateField form={form} rateDescription={rateDescription} />}
           </form.AppField>
         )}
       </div>

@@ -3,6 +3,7 @@ import { addDays, differenceInCalendarDays } from 'date-fns';
 import type { InvoicePDFData } from '@/components/invoice-pdf.tsx';
 import type { InvoiceDetails } from './angaria.ts';
 import {
+  countryError,
   customerDefaults,
   nameError,
   recipientDetails,
@@ -164,24 +165,12 @@ export function paymentTotal(values: InvoiceFormValues, total: number) {
 export const discountForRate = (item: InvoiceItem, rate: number) =>
   roundKurus((lineTotals(item).gross * rate) / 100);
 
-/** "30/09/2026" (or "30-09-2026") as a date input value, "2026-09-30". */
-export function gibToInputDate(value: string) {
-  const date = parseGIB(value);
-  return date ? `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` : '';
-}
-
-/** A date input value, "2026-09-30", as GİB's "30/09/2026". */
-export function inputDateToGIB(value: string) {
-  const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}/${month}/${year}` : '';
-}
-
 /** "HH:mm:ss" for GİB; a time input drops the seconds when they are zero. */
 export function normalizeTime(value: string) {
   return /^\d{2}:\d{2}$/.test(value) ? `${value}:00` : value;
 }
 
-export const formatTime = (date: Date) =>
+const formatTime = (date: Date) =>
   `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 
 function isAfterToday(gibDate: string, today: Date) {
@@ -218,6 +207,10 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
   }
   if (!recipient.fullAddress.trim()) {
     fields['recipient.fullAddress'] = 'Adresi yaz';
+  }
+  const country = countryError(recipient);
+  if (country) {
+    fields['recipient.country'] = country;
   }
 
   // Any other type would go to GİB with its own fields empty.
@@ -457,7 +450,8 @@ export function istisnaNote(code: string | null | undefined, note: string): stri
  * The form for an invoice to `customer`: its details as the recipient, and its
  * defaults (lib/customer.ts customerDefaults) for the currency, invoice type,
  * every row's VAT rate, the PDF language and the due date, counted from the
- * invoice date (empty: `today`). A new currency starts from its TCMB rate. An
+ * invoice date (empty: `today`) and following it when that date changes
+ * (`dueDays`). A new currency starts from its TCMB rate. An
  * İstisna invoice takes the customer's İstisna reason and writes its sentence
  * into the note.
  */
@@ -481,6 +475,7 @@ export function applyCustomer(
       currencyRateManual: newCurrency ? false : advancedFields.currencyRateManual,
       dueDate:
         dueDays === undefined ? advancedFields.dueDate : toGIB(addDays(invoiceDate, dueDays)),
+      dueDays: dueDays ?? advancedFields.dueDays,
     },
     invoiceSettings: {
       currency,

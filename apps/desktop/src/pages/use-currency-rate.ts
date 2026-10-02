@@ -20,7 +20,9 @@ export type RateDescription =
 
 /**
  * TCMB's buying rate for the invoice's currency and date, from the bulletin
- * the Kur günü setting picks. It fills the rate field until the user types one.
+ * the Kur günü setting picks. It fills the rate field until the user types one;
+ * while it is loading, failed or not published, the field is empty, so another
+ * day's rate never goes to GİB.
  */
 export function useCurrencyRate(form: InvoiceForm, values: InvoiceFormValues) {
   const currency = values.invoiceSettings.currency;
@@ -37,17 +39,17 @@ export function useCurrencyRate(form: InvoiceForm, values: InvoiceFormValues) {
   const tcmbRate = foreign ? rates.data?.rates.get(currency) : undefined;
 
   useEffect(() => {
-    if (rateManual || tcmbRate === undefined) {
+    if (!foreign || rateManual) {
       return;
     }
-    const text = formatRate(tcmbRate);
+    const text = tcmbRate === undefined ? '' : formatRate(tcmbRate);
     if (form.getFieldValue('invoiceSettings.currencyRate') !== text) {
       form.setFieldValue('invoiceSettings.currencyRate', text, {
         dontRunListeners: true,
         dontUpdateMeta: true,
       });
     }
-  }, [form, rateManual, tcmbRate]);
+  }, [foreign, form, rateManual, tcmbRate]);
 
   let rateDescription: RateDescription | null = null;
   if (rateManual) {

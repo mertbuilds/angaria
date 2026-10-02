@@ -30,6 +30,7 @@ describe('copy', () => {
     expect(text).not.toMatch(ENGLISH);
     expect(text).not.toMatch(/[—–!]/);
     expect(text).not.toMatch(/lütfen|[iıuü]n[iıuü]z\b/i);
+    expect(text).not.toMatch(/geçerli|geçersiz|hata oluştu/i);
     expect(text).toMatch(/^\p{Lu}.*\.$/u);
   });
 
@@ -94,8 +95,8 @@ describe('describeError', () => {
   });
 
   test('keeps the app’s own Turkish messages, hides other English', () => {
-    expect(describeError(new Error('Bu lisans anahtarı geçerli değil.'))).toEqual({
-      text: 'Bu lisans anahtarı geçerli değil.',
+    expect(describeError(new Error('Bu lisans anahtarı bulunamadı.'))).toEqual({
+      text: 'Bu lisans anahtarı bulunamadı.',
     });
     expect(describeError(new Error('Cannot read properties of undefined'))).toEqual({
       text: UNEXPECTED_ERROR,

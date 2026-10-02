@@ -41,7 +41,7 @@ export function NumberField({
   suffix?: ReactNode;
 }) {
   const field = useFieldContext<number>();
-  const error = useFieldError();
+  const error = useFieldError({ typed: true });
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (

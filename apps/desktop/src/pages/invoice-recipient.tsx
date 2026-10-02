@@ -13,14 +13,12 @@ import {
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props, type StyleXStyles } from '@stylexjs/stylex';
-import { useStore as useFormStore } from '@tanstack/react-form';
 import { CheckIcon, PlusIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import {
   byRecentInvoice,
   COUNTRY_OPTIONS,
-  countryError,
   countryLabel,
   customerName,
   findCustomer,
@@ -145,14 +143,13 @@ const styles = create({
 export const displayName = (customer: Recipient) => customerName(customer) || UNNAMED_CUSTOMER;
 
 /** A saved customer's muted tag in a list: its country abroad, else its VKN / TCKN. */
-export const customerTag = (customer: Recipient) =>
+const customerTag = (customer: Recipient) =>
   customer.taxIDOrTRID.trim() === FOREIGN_TAX_ID
     ? countryLabel(customer.country)
     : customer.taxIDOrTRID;
 
 /** The country's English name in a list, when it differs from the Turkish one. */
-export const countryHint = (country: CountryOption) =>
-  country.en === country.label ? null : country.en;
+const countryHint = (country: CountryOption) => (country.en === country.label ? null : country.en);
 
 const TAX_ID_HINTS: Record<TaxIDKind, string> = {
   foreign: 'Yurt dışındaki müşteri numarası',
@@ -212,7 +209,11 @@ export function TaxIDInput({
       </FieldFrame>
       {!value && (
         <button
-          onClick={() => onValueChange(UNDISCLOSED_TCKN)}
+          onClick={() => {
+            onValueChange(UNDISCLOSED_TCKN);
+            // The link goes once the field has a value; the focus stays on the field.
+            document.getElementById(id)?.focus();
+          }}
           type="button"
           {...props(styles.textAction)}
         >
@@ -416,7 +417,7 @@ function BoundSuggestField({
   suggestions: (value: string) => ReadonlyArray<TextSuggestion>;
 }) {
   const field = useFieldContext<string>();
-  const error = useFieldError();
+  const error = useFieldError({ typed: true });
   return (
     <FieldFrame error={error} id={field.name} label={label}>
       {(describedBy) => (
@@ -435,19 +436,13 @@ function BoundSuggestField({
   );
 }
 
-/**
- * VKN / TCKN bound to the form. A wrong number shows its error once the field
- * was left or the form submitted, not while it is typed; after that it follows
- * every keystroke, so a fix clears it at once.
- */
+/** VKN / TCKN bound to the form; its error shows as typed text's does (useFieldError). */
 function BoundTaxIDField({ children }: { children?: ReactNode }) {
   const field = useFieldContext<string>();
-  const submitted = useFormStore(field.form.store, (state) => state.submissionAttempts > 0);
-  const error = field.state.meta.errors.find((item) => typeof item === 'string');
-  const shown = field.state.meta.isBlurred || submitted;
+  const error = useFieldError({ typed: true });
   return (
     <TaxIDInput
-      error={shown && typeof error === 'string' ? error : undefined}
+      error={error}
       id={field.name}
       onBlur={field.handleBlur}
       onValueChange={field.handleChange}
@@ -631,7 +626,10 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
                     Kayıtlı müşteri: <span {...props(styles.statusName)}>{displayName(known)}</span>
                     {' · '}
                     <button
-                      onClick={() => pickCustomer(known)}
+                      onClick={() => {
+                        pickCustomer(known);
+                        document.getElementById('recipient.taxIDOrTRID')?.focus();
+                      }}
                       type="button"
                       {...props(styles.textAction, styles.textActionInline)}
                     >
@@ -674,19 +672,7 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
             />
           )}
         </form.AppField>
-        <form.AppField
-          name="recipient.country"
-          // The one check outside validateInvoice: it reads two fields and
-          // re-runs when the VKN changes.
-          validators={{
-            onChange: ({ fieldApi, value }) =>
-              countryError({
-                country: value,
-                taxIDOrTRID: fieldApi.form.getFieldValue('recipient.taxIDOrTRID'),
-              }) ?? undefined,
-            onChangeListenTo: ['recipient.taxIDOrTRID'],
-          }}
-        >
+        <form.AppField name="recipient.country">
           {(field) => (
             <field.ComboboxField
               clearable

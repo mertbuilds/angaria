@@ -35,13 +35,20 @@ export type ValidationOutcome =
 export type LicenseErrorCode = 'inactive' | 'invalid' | 'limit-reached' | 'offline' | 'rejected';
 
 const errorMessages: Record<LicenseErrorCode, string> = {
-  inactive: 'Bu lisans artık geçerli değil. Aboneliğini kontrol et.',
-  invalid: 'Bu lisans anahtarı geçerli değil. Anahtarı kontrol edip tekrar dene.',
+  inactive: 'Bu lisans artık etkin değil. Aboneliğini kontrol et.',
+  invalid: 'Bu lisans anahtarı bulunamadı. Anahtarı e-postandan yeniden kopyala.',
   'limit-reached':
     'Bu lisans izin verilen tüm Mac’lerde etkin. Polar müşteri portalından bir Mac’i kaldırıp tekrar dene.',
   offline: 'Lisans sunucusuna ulaşılamadı. İnternet bağlantını kontrol edip tekrar dene.',
   rejected: 'Lisans işlemi tamamlanamadı. Biraz sonra tekrar dene.',
 };
+
+/**
+ * A license key as typed or pasted, without what a mail or chat adds around
+ * it: spaces, line breaks, invisible characters and quotes.
+ */
+export const normalizeLicenseKey = (text: string) =>
+  text.replaceAll(/[\s\u200B-\u200D\u2060\uFEFF"'`“”‘’]/g, '');
 
 export class LicenseError extends Error {
   readonly code: LicenseErrorCode;

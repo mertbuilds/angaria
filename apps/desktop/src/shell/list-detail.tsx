@@ -24,6 +24,11 @@ const styles = create({
       ':focus-visible': tones.ring,
       default: tones.divider,
     },
+    // Focused, the 1px line widens to 3px, so it reads as focus.
+    boxShadow: {
+      ':focus-visible': `0 0 0 1px ${tones.ring}`,
+      default: 'none',
+    },
     cursor: 'col-resize',
     flexShrink: 0,
     outline: 'none',

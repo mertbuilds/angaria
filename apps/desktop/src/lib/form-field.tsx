@@ -1,7 +1,7 @@
 import { Field, FieldDescription, FieldError, FieldLabel, FieldWarning } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, type StyleXStyles } from '@stylexjs/stylex';
-import { createFormHookContexts } from '@tanstack/react-form';
+import { createFormHookContexts, useStore } from '@tanstack/react-form';
 import type { ReactNode } from 'react';
 
 // What every bound field shares: the form contexts, the touched-error rule and
@@ -21,13 +21,22 @@ const styles = create({
   },
 });
 
-/** The field's error once it was touched, else undefined. */
-export function useFieldError() {
+/**
+ * The field's error, or undefined while it is not shown. A choice (chips, a
+ * list, a date) shows it once changed. Typed text (`typed`) shows it once it
+ * was changed and left, or the form submitted: a half-typed value is not wrong
+ * yet. From then on the error follows every keystroke, so a fix clears it.
+ */
+export function useFieldError({ typed = false }: { typed?: boolean } = {}) {
   const field = useFieldContext<unknown>();
-  if (!field.state.meta.isTouched) {
+  const submitted = useStore(field.form.store, (state) => state.submissionAttempts > 0);
+  const { errors, isBlurred, isDirty, isTouched } = field.state.meta;
+  // A submit touches the fields there are; a row added after it waits for its own edit.
+  const shown = typed ? (isDirty && isBlurred) || (isTouched && submitted) : isTouched;
+  if (!shown) {
     return undefined;
   }
-  const error = field.state.meta.errors.find((item) => typeof item === 'string');
+  const error = errors.find((item) => typeof item === 'string');
   return typeof error === 'string' ? error : undefined;
 }
 

@@ -48,10 +48,6 @@ const styles = create({
     borderRadius: '4px',
     borderStyle: 'solid',
     borderWidth: '1px',
-    boxShadow: {
-      ':focus-visible': `0 0 0 1px ${colors.ring}`,
-      default: null,
-    },
     boxSizing: 'border-box',
     color: colors.primaryForeground,
     cursor: 'pointer',
@@ -60,7 +56,14 @@ const styles = create({
     height: '1rem',
     justifyContent: 'center',
     margin: 0,
-    outline: 'none',
+    // A 2px ring 2px off the control: visible on a fill of the ring's own color.
+    outlineColor: colors.ring,
+    outlineOffset: '2px',
+    outlineStyle: {
+      ':focus-visible': 'solid',
+      default: 'none',
+    },
+    outlineWidth: '2px',
     padding: 0,
     position: 'relative',
     transitionDuration: {

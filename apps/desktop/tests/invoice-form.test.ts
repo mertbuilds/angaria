@@ -7,8 +7,6 @@ import {
   formatAmount,
   formatDecimal,
   formatRate,
-  gibToInputDate,
-  inputDateToGIB,
   invoiceDefaults,
   invoiceTotals,
   invoiceWarnings,
@@ -249,14 +247,6 @@ describe('rounding per line', () => {
 });
 
 describe('dates and times', () => {
-  test('convert between GİB and date inputs', () => {
-    expect(gibToInputDate('30/09/2026')).toBe('2026-09-30');
-    expect(gibToInputDate('30-09-2026')).toBe('2026-09-30');
-    expect(gibToInputDate('')).toBe('');
-    expect(inputDateToGIB('2026-09-30')).toBe('30/09/2026');
-    expect(inputDateToGIB('')).toBe('');
-  });
-
   test('add the seconds a time input leaves out', () => {
     expect(normalizeTime('09:05')).toBe('09:05:00');
     expect(normalizeTime('09:05:07')).toBe('09:05:07');
@@ -274,6 +264,13 @@ const irsaliye = (irsaliyeTarihi: string, manualDate: string) =>
 const due = (dueDate: string, manualDate = '') =>
   validateInvoice(
     form({ advancedFields: { ...form().advancedFields, dueDate, manualDate } }),
+    today,
+  )?.fields;
+
+/** validateInvoice's errors for a customer abroad (GİB's 2222222222) in `country`. */
+const abroad = (country: string) =>
+  validateInvoice(
+    form({ recipient: { ...form().recipient, country, taxIDOrTRID: '2222222222' } }),
     today,
   )?.fields;
 
@@ -311,6 +308,16 @@ describe('validateInvoice', () => {
       title: '',
     };
     expect(validateInvoice(form({ recipient }), today)).toBeUndefined();
+  });
+
+  test('a customer abroad needs a country other than Türkiye', () => {
+    expect(abroad('')).toEqual({
+      'recipient.country': 'Yurt dışındaki müşterinin ülkesini seç',
+    });
+    expect(abroad('Türkiye')).toEqual({
+      'recipient.country': 'Yurt dışı müşteri için Türkiye dışında bir ülke seç',
+    });
+    expect(abroad('Almanya')).toBeUndefined();
   });
 
   test('refuses a due date before the invoice date', () => {
@@ -651,7 +658,7 @@ describe('applyCustomer', () => {
   test('counts the due date from the invoice date', () => {
     const values = form({ advancedFields: { ...form().advancedFields, manualDate: '20/09/2026' } });
     const next = applyCustomer(values, { ...form().recipient, dueDays: 30 }, today);
-    expect(next.advancedFields.dueDate).toBe('20/10/2026');
+    expect(next.advancedFields).toMatchObject({ dueDate: '20/10/2026', dueDays: 30 });
     expect(next.invoiceSettings).toMatchObject({ currency: 'TRY', invoiceType: 'SATIS' });
     expect(next.recipient.pdfLanguage).toBe('tr');
   });
