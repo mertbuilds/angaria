@@ -494,7 +494,7 @@ export function InstallScene() {
   );
 }
 
-/* 2. GİB hesabını bağla: the user name and password fill in, the password
+/* 2. GİB hesabını bağla: the user code and password fill in, the password
    drops into Anahtar Zinciri, and the invoices come from GİB row by row. */
 
 const USER = '48172936';
