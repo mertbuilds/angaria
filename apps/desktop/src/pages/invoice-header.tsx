@@ -191,7 +191,11 @@ function CurrencyRateField({
       />
       {offerTCMB && (
         <button
-          onClick={() => form.setFieldValue('advancedFields.currencyRateManual', false)}
+          onClick={() => {
+            form.setFieldValue('advancedFields.currencyRateManual', false);
+            // The button goes with the typed rate; the focus goes back to the rate.
+            document.getElementById('invoiceSettings.currencyRate')?.focus();
+          }}
           type="button"
           {...props(styles.inlineAction, styles.rateReset)}
         >
