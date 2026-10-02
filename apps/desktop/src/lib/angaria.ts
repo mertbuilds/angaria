@@ -3,6 +3,7 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { createClient } from 'angaria-earsiv-sdk';
 import { fetchTCMBRateTable as _fetchTCMBRateTable } from 'angaria-utils';
 import { activeGibEmulatorURL } from './gib-emulator.ts';
+import { readRateDay, type RateDay } from './rate-day.ts';
 
 export type { InvoiceDetails } from 'angaria-earsiv-sdk';
 
@@ -42,5 +43,16 @@ export const startSMSSign = (...args: Parameters<typeof client.startSMSSign>) =>
 export const cancelInvoice = (...args: Parameters<typeof client.cancelInvoice>) =>
   client.cancelInvoice(...args);
 
-export const fetchTCMBRateTable = (baseDate?: Date) =>
-  _fetchTCMBRateTable(baseDate, { baseUrl: activeGibEmulatorURL, fetch: hostFetch });
+/**
+ * The TCMB bulletin for an invoice dated `baseDate` (default today), by the
+ * Kur günü setting unless `rateDay` is given. Put `rateDay` in the query key.
+ */
+export const fetchTCMBRateTable = async (baseDate?: Date, rateDay: RateDay = readRateDay()) => {
+  const table = await _fetchTCMBRateTable(baseDate, {
+    baseUrl: activeGibEmulatorURL,
+    fetch: hostFetch,
+    rateDay,
+  });
+  // `date` is the old name of publishedOn, until pages/use-currency-rate.ts moves to it.
+  return { ...table, date: table.publishedOn };
+};
