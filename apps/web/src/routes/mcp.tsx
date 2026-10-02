@@ -6,11 +6,13 @@ import { Fragment, type ReactNode } from 'react';
 import { CheckoutButton, DownloadButton } from '../components/cta.tsx';
 import { McpScene } from '../components/mcp-scene.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
+import { Screenshot } from '../components/screenshot.tsx';
 import { SectionHeading } from '../components/section-heading.tsx';
 import { brand } from '../lib/brand.stylex.ts';
 import { SITE_URL } from '../lib/canonical.ts';
 import { layout } from '../lib/layout.ts';
 import { CLAUDE_CODE_COMMAND, MCP_TOOLS, mcpToolTitle, type McpToolName } from '../lib/mcp.ts';
+import { SCREENS } from '../lib/screens.ts';
 import { m } from '../paraglide/messages.js';
 
 const PAGE_URL = `${SITE_URL}/mcp`;
@@ -66,6 +68,8 @@ const QUESTIONS = [
 
 const WIDE = '@media (min-width: 640px)';
 const MONO = "ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
+/** How wide the MCP screenshot is drawn, for the browser's choice of export. */
+const SHOT_SIZES = '(min-width: 992px) 960px, calc(100vw - 32px)';
 
 const styles = create({
   actions: {
@@ -241,6 +245,9 @@ const styles = create({
       [WIDE]: spacing.s8,
     },
   },
+  shot: {
+    boxShadow: brand.shotShadow,
+  },
   step: {
     display: 'flex',
     gap: spacing.s3,
@@ -297,6 +304,10 @@ const styles = create({
     color: colors.muted,
     fontFamily: MONO,
     fontSize: 13,
+  },
+  // Wider than the column, like the landing's compare slider, so the app's text stays legible.
+  wide: {
+    marginInline: 'calc(50% - min(50vw - 16px, 480px))',
   },
 });
 
@@ -399,6 +410,9 @@ function McpPage() {
       <RevealSection aria-labelledby="kurulum" style={[layout.section, styles.section]}>
         <Reveal index={0}>
           <SectionHeading id="kurulum">{m.mcp_setup_title()}</SectionHeading>
+        </Reveal>
+        <Reveal index={1} style={styles.wide}>
+          <Screenshot screen={SCREENS.mcp} sizes={SHOT_SIZES} style={styles.shot} />
         </Reveal>
         <ol {...props(styles.steps)}>
           <Step body={m.mcp_setup_open_body()} index={1} title={m.mcp_setup_open_title()} />

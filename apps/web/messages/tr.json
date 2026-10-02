@@ -188,6 +188,7 @@
   "mcp_limits_check": "Yapay zekâ yanılabilir. Taslağı onaylamadan önce alıcıyı, tutarı ve KDV'yi Angaria'da kontrol et.",
 
   "mcp_setup_title": "Üç adımda kur",
+  "screen_mcp_alt": "Angaria'nın MCP bölümünde açık MCP sunucusu ve Claude Desktop, Claude Code, Cursor için kurulum düğmeleri",
   "mcp_setup_open_title": "MCP'yi aç",
   "mcp_setup_open_body": "Angaria'da soldaki menüden MCP'ye gir ve MCP sunucusunu aç.",
   "mcp_setup_add_title": "Uygulamana ekle",
