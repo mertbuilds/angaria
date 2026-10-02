@@ -225,7 +225,7 @@ function Pending() {
   return (
     <>
       <LoaderCircleIcon {...props(styles.spinner)} />
-      GİB’e gönderiliyor
+      GİB’e gönderiliyor…
     </>
   );
 }
@@ -394,7 +394,7 @@ export function SuccessPanel({
         <InvoiceThumbnail html={created.html} onOpen={onOpenInvoice} />
       ) : (
         <p {...props(styles.muted)}>
-          GİB taslağı kaydetti ama geri okunamadı. Faturalar listesinden kontrol edin.
+          GİB taslağı kaydetti ama geri okunamadı. Faturalar’da kontrol et.
         </p>
       )}
       <div {...props(styles.actions)}>
@@ -413,7 +413,7 @@ export function SuccessPanel({
       />
       {!created.signed && (
         <p {...props(styles.note)}>
-          Taslak GİB’de onay bekliyor. Faturalar’dan imzalayabilirsiniz.
+          Taslak GİB’de onay bekliyor. Faturalar’dan SMS ile onaylayabilirsin.
         </p>
       )}
     </section>

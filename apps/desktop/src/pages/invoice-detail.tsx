@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cancelInvoice } from '@/lib/angaria.ts';
+import { errorMessage, UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { defaultPDFLanguage, findCustomer } from '@/lib/customer.ts';
 import { fetchForeground } from '@/lib/foreground-fetch.ts';
 import {
@@ -47,7 +48,6 @@ import type { Invoice, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
 import { EmptyState, formatMoney } from '@/shell/searchable-list.tsx';
-import { errorMessage } from './invoices.tsx';
 import { useSMSSign } from './use-sms-sign.tsx';
 
 const spin = keyframes({
@@ -202,7 +202,7 @@ export function InvoiceFrame({ html, style }: { html: string; style?: StyleXStyl
         <iframe
           sandbox=""
           srcDoc={html}
-          title="Fatura önizleme"
+          title="Fatura önizlemesi"
           {...props(
             styles.frame,
             styles.frameSize(scale < 1 ? PAGE_WIDTH : size.width, size.height / scale, scale),
@@ -296,7 +296,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
 
   const pdf = useMutation({
     mutationFn: async (language: PDFLanguage) => {
-      toast.loading('PDF hazırlanıyor...', { id: `pdf-${ettn}` });
+      toast.loading('PDF hazırlanıyor…', { id: `pdf-${ettn}` });
       const { items, note, recipient, settings, subtotal, vat } = await readDetail();
       // The QR code's text sits in GİB's preview, which the pane shows already.
       const html = await queryClient.fetchQuery(
@@ -385,7 +385,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     <div {...props(styles.root)}>
       <header {...props(styles.header)}>
         <div {...props(styles.titleBlock)}>
-          <h2 {...props(styles.title)}>{invoice.aliciUnvanAdSoyad || 'Alıcı belirtilmedi'}</h2>
+          <h2 {...props(styles.title)}>{invoice.aliciUnvanAdSoyad || UNNAMED_CUSTOMER}</h2>
           <p {...props(styles.meta)}>
             {[
               invoice.belgeNumarasi,
@@ -401,7 +401,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
           {status.filter === 'onaylanmadi' && (
             <Button disabled={busy} onClick={guarded(() => startSign.mutate())}>
               <MessageSquareIcon />
-              {sms.sending ? 'SMS gönderiliyor...' : 'SMS ile onayla'}
+              {sms.sending ? 'SMS gönderiliyor…' : 'SMS ile onayla'}
             </Button>
           )}
           {status.filter === 'onaylandi' && (
@@ -437,8 +437,10 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Taslak silinsin mi?</AlertDialogTitle>
             <AlertDialogDescription>
-              {invoice.belgeNumarasi ?? 'Bu'} numaralı taslak GİB’den silinir. Bu işlem geri
-              alınamaz.
+              {invoice.belgeNumarasi
+                ? `${invoice.belgeNumarasi} numaralı taslak GİB’den silinir.`
+                : 'Bu taslak GİB’den silinir.'}{' '}
+              Bu işlem geri alınamaz.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -481,7 +483,7 @@ export function InvoiceDetail({ ettn }: { ettn: string }) {
       }
       title="Fatura bulunamadı"
     >
-      Bu fatura seçili tarih aralığında yok. Aralığı değiştirip yeniden açın.
+      Bu fatura seçili tarih aralığında yok. Tarih aralığını değiştirip yeniden aç.
     </EmptyState>
   );
 }
@@ -489,8 +491,9 @@ export function InvoiceDetail({ ettn }: { ettn: string }) {
 /** /faturalar with nothing open. */
 export function NoInvoiceOpen() {
   return (
-    <EmptyState title="Bir fatura seçin">
-      Tıklayın ya da ok tuşlarıyla gidip Enter’a basın. GİB önizlemesi, onay ve PDF burada açılır.
+    <EmptyState title="Bir fatura seç">
+      Listeden bir faturaya tıkla ya da ok tuşlarıyla seçip Enter’a bas. Önizleme, SMS onayı ve PDF
+      burada açılır.
     </EmptyState>
   );
 }

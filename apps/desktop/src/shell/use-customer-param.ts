@@ -27,7 +27,7 @@ export function useCustomerParam() {
     if (customer) {
       startInvoiceFor(customer);
     } else {
-      toast.error('Müşteri bulunamadı');
+      toast.error('Müşteri bulunamadı. Silinmiş olabilir.');
     }
     void navigate({ replace: true, search: (prev) => ({ ...prev, musteri: undefined }) });
   }, [musteri, navigate, savedRecipients, startInvoiceFor]);

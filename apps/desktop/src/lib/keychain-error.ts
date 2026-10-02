@@ -6,7 +6,7 @@
 const ACCESS_DENIED = 'User interaction is not allowed';
 
 export const KEYCHAIN_ACCESS_HINT =
-  "macOS anahtar zincirine erişim izni verilmedi. Uygulamayı Finder'dan veya Dock'tan açıp tekrar deneyin.";
+  'macOS, Anahtar Zinciri’ne erişime izin vermedi. Angaria’yı Finder’dan ya da Dock’tan açıp tekrar dene.';
 
 function errorText(error: unknown): string {
   if (error instanceof Error) {

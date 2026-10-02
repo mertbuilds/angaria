@@ -178,9 +178,9 @@ describe('validateInvoice', () => {
     );
     expect(result?.fields).toEqual({
       'invoiceSettings.currencyRate': 'Döviz kuru gerekli',
-      'items[0].name': 'Kalem adı gerekli',
+      'items[0].name': 'Hizmet adı gerekli',
       'items[0].quantity': 'Miktar sıfırdan büyük olmalı',
-      'items[0].unitPrice': 'Geçerli bir tutar girin',
+      'items[0].unitPrice': 'Geçerli bir tutar gir',
       'recipient.fullAddress': 'Adres gerekli',
       'recipient.taxIDOrTRID': 'VKN 10, TCKN 11 hane olmalı',
       'recipient.title': 'Unvan ya da ad ve soyad gerekli',
@@ -223,8 +223,8 @@ describe('validateInvoice', () => {
     );
     expect(result?.fields).toEqual({
       'advancedFields.manualDate': 'Fatura tarihi bugünden sonra olamaz',
-      'advancedFields.paymentTotal': 'Geçerli bir tutar girin',
-      'invoiceSettings.currencyRate': 'Geçerli bir kur girin',
+      'advancedFields.paymentTotal': 'Geçerli bir tutar gir',
+      'invoiceSettings.currencyRate': 'Geçerli bir kur gir',
       'items[0].discountAmount': 'İskonto satır tutarını geçemez',
     });
   });

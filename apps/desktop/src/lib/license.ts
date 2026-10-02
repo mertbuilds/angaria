@@ -35,12 +35,12 @@ export type ValidationOutcome =
 export type LicenseErrorCode = 'inactive' | 'invalid' | 'limit-reached' | 'offline' | 'rejected';
 
 const errorMessages: Record<LicenseErrorCode, string> = {
-  inactive: 'Bu lisans artık geçerli değil. Aboneliğinizi kontrol edin.',
-  invalid: 'Lisans anahtarı geçerli değil. Anahtarı kontrol edip tekrar deneyin.',
+  inactive: 'Bu lisans artık geçerli değil. Aboneliğini kontrol et.',
+  invalid: 'Bu lisans anahtarı geçerli değil. Anahtarı kontrol edip tekrar dene.',
   'limit-reached':
-    'Bu lisans izin verilen tüm cihazlarda etkin. Polar müşteri portalından bir cihazı kaldırıp tekrar deneyin.',
-  offline: "Polar'a bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
-  rejected: 'Lisans işlemi tamamlanamadı. Biraz sonra tekrar deneyin.',
+    'Bu lisans izin verilen tüm Mac’lerde etkin. Polar müşteri portalından bir Mac’i kaldırıp tekrar dene.',
+  offline: 'Lisans sunucusuna ulaşılamadı. İnternet bağlantını kontrol edip tekrar dene.',
+  rejected: 'Lisans işlemi tamamlanamadı. Biraz sonra tekrar dene.',
 };
 
 export class LicenseError extends Error {

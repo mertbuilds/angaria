@@ -28,7 +28,7 @@ async function sizedSVG(file: File) {
   const parsed = new DOMParser().parseFromString(await file.text(), 'image/svg+xml');
   const svg = parsed.documentElement;
   if (svg.nodeName !== 'svg') {
-    throw new Error('SVG dosyası okunamadı');
+    throw new Error('SVG dosyası okunamadı. Başka bir dosya seç.');
   }
   const box = (svg.getAttribute('viewBox') ?? '').split(/[\s,]+/).map(Number);
   const [width, height] = box.length === 4 ? [box[2], box[3]] : [0, 0];
@@ -53,10 +53,10 @@ export async function readLogo(file: File): Promise<string> {
     const image = new Image();
     image.src = url;
     await image.decode().catch(() => {
-      throw new Error('Logo okunamadı');
+      throw new Error('Logo okunamadı. Başka bir dosya seç.');
     });
     if (!image.naturalWidth || !image.naturalHeight) {
-      throw new Error('Logonun boyutu okunamadı');
+      throw new Error('Logonun boyutu okunamadı. Başka bir dosya seç.');
     }
     const { height, width } = fitLogoSize(image.naturalWidth, image.naturalHeight);
     const canvas = document.createElement('canvas');
@@ -64,7 +64,7 @@ export async function readLogo(file: File): Promise<string> {
     canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) {
-      throw new Error('Logo çizilemedi');
+      throw new Error('Logo işlenemedi. Tekrar dene.');
     }
     context.drawImage(image, 0, 0, width, height);
     return canvas.toDataURL('image/png');

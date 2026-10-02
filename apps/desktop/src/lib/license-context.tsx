@@ -26,7 +26,7 @@ import {
 } from './license.ts';
 import { createPolarClient } from './polar.ts';
 
-const KEYCHAIN_ERROR = 'Lisans bilgilerine sistem anahtar zincirinde erişilemedi.';
+const KEYCHAIN_ERROR = 'Lisans bilgileri Anahtar Zinciri’nden okunamadı.';
 
 // import.meta.env.DEV is statically false in production builds, so the bypass
 // cannot ship even if VITE_LICENSE_BYPASS is set there.
@@ -39,7 +39,7 @@ const polar = createPolarClient({
 });
 
 function openExternal(url: string) {
-  openUrl(url).catch(() => toast.error('Bağlantı açılamadı.'));
+  openUrl(url).catch(() => toast.error('Sayfa tarayıcıda açılamadı. Tekrar dene.'));
 }
 
 export const openCheckout = () => openExternal(import.meta.env.VITE_POLAR_CHECKOUT_URL);
@@ -169,7 +169,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           await polar.deactivate(key, result.activationId);
           throw new Error(
-            reportKeychainError('Lisans anahtarı sistem anahtar zincirine kaydedilemedi.', error),
+            reportKeychainError('Lisans anahtarı Anahtar Zinciri’ne kaydedilemedi.', error),
             { cause: error },
           );
         }

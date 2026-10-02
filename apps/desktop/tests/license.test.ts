@@ -352,6 +352,6 @@ describe('LicenseError', () => {
   test('carries the code and a Turkish message', () => {
     const error = new LicenseError('limit-reached');
     expect(error.code).toBe('limit-reached');
-    expect(error.message).toContain('Polar müşteri portalından bir cihazı kaldırıp');
+    expect(error.message).toContain('Polar müşteri portalından bir Mac’i kaldırıp');
   });
 });

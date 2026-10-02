@@ -246,8 +246,8 @@ function loadEntities(): Array<Entity> {
 }
 
 const MIGRATION_WARNING =
-  "GİB şifresi Anahtar Zinciri'ne taşınamadı. Şifreniz silinmedi, uygulama bir sonraki açılışta yeniden deneyecek.";
-const READ_ERROR = "GİB şifresi Anahtar Zinciri'nden okunamadı";
+  'GİB şifresi Anahtar Zinciri’ne taşınamadı. Şifre silinmedi, Angaria bir sonraki açılışta yeniden dener.';
+const READ_ERROR = 'GİB şifresi Anahtar Zinciri’nden okunamadı';
 
 interface CredentialStartup {
   /** The warning to show when a password could not move to the keychain */
@@ -467,7 +467,7 @@ function LoadedStoreProvider({
           .catch((error: unknown) =>
             toast.warning(
               reportKeychainError(
-                "Silinen şirketin GİB şifresi Anahtar Zinciri'nden kaldırılamadı.",
+                'Silinen şirketin GİB şifresi Anahtar Zinciri’nden kaldırılamadı.',
                 error,
               ),
             ),
@@ -541,7 +541,7 @@ function LoadedStoreProvider({
         await vault.setPassword(entityId, password);
       } catch (error) {
         throw new Error(
-          reportKeychainError("GİB şifresi Anahtar Zinciri'ne kaydedilemedi", error),
+          reportKeychainError('GİB şifresi Anahtar Zinciri’ne kaydedilemedi', error),
           { cause: error },
         );
       } finally {

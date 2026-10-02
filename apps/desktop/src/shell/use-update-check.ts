@@ -7,7 +7,7 @@ const TOAST_ID = 'update';
 let checked = false;
 
 async function install(update: Update) {
-  toast.loading('Güncelleme indiriliyor...', { id: TOAST_ID });
+  toast.loading('Güncelleme indiriliyor…', { id: TOAST_ID });
   try {
     await installUpdate(update);
   } catch (error) {

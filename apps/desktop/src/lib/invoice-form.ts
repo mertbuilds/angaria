@@ -173,7 +173,7 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
     if (!invoiceSettings.currencyRate.trim()) {
       fields['invoiceSettings.currencyRate'] = 'Döviz kuru gerekli';
     } else if (rate === null || rate <= 0) {
-      fields['invoiceSettings.currencyRate'] = 'Geçerli bir kur girin';
+      fields['invoiceSettings.currencyRate'] = 'Geçerli bir kur gir';
     }
   }
 
@@ -191,21 +191,21 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
     fields['advancedFields.dueDate'] = 'Son ödeme tarihi fatura tarihinden önce olamaz';
   }
   if (parseDecimal(advancedFields.paymentTotal) === null) {
-    fields['advancedFields.paymentTotal'] = 'Geçerli bir tutar girin';
+    fields['advancedFields.paymentTotal'] = 'Geçerli bir tutar gir';
   }
 
   items.forEach((item, index) => {
     const at = (key: keyof InvoiceItem) => `items[${index}].${key}`;
     if (!item.name.trim()) {
-      fields[at('name')] = 'Kalem adı gerekli';
+      fields[at('name')] = 'Hizmet adı gerekli';
     }
     if (!Number.isFinite(item.quantity)) {
-      fields[at('quantity')] = 'Geçerli bir sayı girin';
+      fields[at('quantity')] = 'Geçerli bir sayı gir';
     } else if (item.quantity <= 0) {
       fields[at('quantity')] = 'Miktar sıfırdan büyük olmalı';
     }
     if (!Number.isFinite(item.unitPrice)) {
-      fields[at('unitPrice')] = 'Geçerli bir tutar girin';
+      fields[at('unitPrice')] = 'Geçerli bir tutar gir';
     } else if (item.unitPrice <= 0) {
       fields[at('unitPrice')] = 'Birim fiyat sıfırdan büyük olmalı';
     }
@@ -219,7 +219,7 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
       fields[at('discountRate')] = 'İskonto oranı 0 ile 100 arasında olmalı';
     }
     if (!Number.isFinite(discountAmount) || discountAmount < 0) {
-      fields[at('discountAmount')] = 'Geçerli bir tutar girin';
+      fields[at('discountAmount')] = 'Geçerli bir tutar gir';
     } else if (discountAmount > lineTotals(item).gross) {
       fields[at('discountAmount')] = 'İskonto satır tutarını geçemez';
     }

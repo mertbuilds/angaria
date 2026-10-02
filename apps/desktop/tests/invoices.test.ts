@@ -49,12 +49,12 @@ describe('invoiceStatus', () => {
   test('maps GİB statuses to filters, labels and badge variants', () => {
     expect(invoiceStatus('Onaylanmadı')).toEqual({
       filter: 'onaylanmadi',
-      label: 'Onaylanmadı',
+      label: 'Taslak',
       variant: 'outline',
     });
     expect(invoiceStatus('Onaylandı')).toEqual({
       filter: 'onaylandi',
-      label: 'Onaylandı',
+      label: 'Onaylı',
       variant: 'default',
     });
     expect(invoiceStatus('Silinmiş')).toEqual({

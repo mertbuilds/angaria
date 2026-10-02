@@ -54,11 +54,11 @@ function SMSCodeForm({
       <DialogHeader>
         <DialogTitle>SMS ile onayla</DialogTitle>
         <DialogDescription>
-          {phone} numarasına gönderilen kodu girin. Onaylanan fatura kesinleşir.
+          {phone} numarasına gelen onay kodunu gir. Onaylanan fatura kesinleşir.
         </DialogDescription>
       </DialogHeader>
       <Field>
-        <FieldLabel htmlFor={`${id}-code`}>SMS kodu</FieldLabel>
+        <FieldLabel htmlFor={`${id}-code`}>Onay kodu</FieldLabel>
         <Input
           autoComplete="one-time-code"
           autoFocus
@@ -71,7 +71,7 @@ function SMSCodeForm({
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
         <Button disabled={!code.trim() || pending} type="submit">
-          {pending ? 'Onaylanıyor...' : 'Onayla'}
+          {pending ? 'Onaylanıyor…' : 'Onayla'}
         </Button>
       </DialogFooter>
     </form>
@@ -173,7 +173,11 @@ export function useSMSSign() {
       const error = 'error' in value ? value.error : undefined;
       lease.release(error);
       if (error !== undefined) {
-        toast.error(error instanceof Error ? error.message : 'SMS kodu gönderilemedi');
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : 'Onay kodu gönderilemedi. Biraz sonra tekrar dene.',
+        );
       }
       return { signed: false, value: prepared.value };
     }

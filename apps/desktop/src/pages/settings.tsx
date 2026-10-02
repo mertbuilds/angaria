@@ -161,7 +161,7 @@ function GibAccountSection() {
 
   async function handleForceLogout() {
     if (!hasCredentials) {
-      toast.error('Kullanıcı adı ve şifre gerekli');
+      toast.error('Önce kullanıcı kodunu ve şifreni gir');
       return;
     }
     setLoggingOut(true);
@@ -170,7 +170,7 @@ function GibAccountSection() {
       await forceLogout(login.username, login.password, login.testMode);
       toast.success('Oturum kapatıldı');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Çıkış yapılamadı');
+      toast.error(error instanceof Error ? error.message : 'Oturum kapatılamadı. Tekrar dene.');
     } finally {
       setLoggingOut(false);
     }
@@ -178,20 +178,20 @@ function GibAccountSection() {
 
   return (
     <SettingsSection
-      description="e-Arşiv portalına bu bilgilerle girilir. Şifre bu cihazın anahtar zincirinde saklanır."
+      description="e-Arşiv portalına girdiğin kullanıcı kodu ve şifre. Bunlar yoksa mali müşavirinden ya da İnteraktif Vergi Dairesi’nden alabilirsin. Şifre bu Mac’in Anahtar Zinciri’nde saklanır."
       title="GİB hesabı"
     >
       <SettingsRow label="Şirket">
         <SettingsValue>{activeEntity.name}</SettingsValue>
       </SettingsRow>
-      <SettingsRow htmlFor="gib-username" label="Kullanıcı adı">
+      <SettingsRow htmlFor="gib-username" label="Kullanıcı kodu">
         <Input
           autoComplete="off"
           id="gib-username"
           onChange={(event) =>
             void setCredentials(activeEntityId, { username: event.target.value })
           }
-          placeholder="GİB kullanıcı adı"
+          placeholder="e-Arşiv kullanıcı kodu"
           spellCheck={false}
           value={creds.username}
         />
@@ -202,18 +202,18 @@ function GibAccountSection() {
           id="gib-password"
           onBlur={() => void flushCredentials()}
           onChange={(event) => handlePasswordChange(event.target.value)}
-          placeholder="GİB şifresi"
+          placeholder="e-Arşiv şifresi"
           type="password"
           value={password ?? ''}
         />
       </SettingsRow>
-      <SettingsRow hint="GİB portalında açık kalan oturumu kapatır" label="Oturum">
+      <SettingsRow hint="e-Arşiv portalında açık kalan oturumu kapatır" label="Oturum">
         <Button
           disabled={loggingOut || !hasCredentials}
           onClick={() => void handleForceLogout()}
           variant="outline"
         >
-          {loggingOut ? 'Kapatılıyor...' : 'Oturumu kapat'}
+          {loggingOut ? 'Kapatılıyor…' : 'Oturumu kapat'}
         </Button>
       </SettingsRow>
     </SettingsSection>
@@ -240,7 +240,7 @@ function AdvancedSection() {
       </summary>
       <div {...props(styles.advancedBody)}>
         <SettingsSection
-          description="Test modu açıkken faturalar GİB’in test portalında kesilir, gerçek fatura oluşmaz."
+          description="Test modunda faturalar GİB’in test portalında kesilir. Gerçek fatura kesilmez."
           title="GİB bağlantısı"
         >
           <SettingsRow hint="earsivportaltest.efatura.gov.tr adresine bağlanır" label="Test modu">
@@ -299,7 +299,7 @@ function CompaniesSection() {
 
   return (
     <SettingsSection
-      description="Her şirket kendi GİB hesabını, firma bilgilerini, müşterilerini ve hizmetlerini tutar. Bu sayfadaki diğer ayarlar etkin şirkete aittir."
+      description="Her şirketin kendi GİB hesabı, firma bilgileri, müşterileri ve hizmetleri olur. Bu sayfadaki diğer ayarlar seçili şirket için geçerlidir."
       title="Şirketler"
     >
       {entities.map((entity) => (
@@ -309,14 +309,14 @@ function CompaniesSection() {
           label={entity.name}
         >
           {entity.id === activeEntityId ? (
-            <Badge variant="secondary">Etkin</Badge>
+            <Badge variant="secondary">Seçili</Badge>
           ) : (
             <Button onClick={() => setActiveEntityId(entity.id)} variant="ghost">
               Seç
             </Button>
           )}
           <Button
-            aria-label={`${entity.name} adını değiştir`}
+            aria-label={`Yeniden adlandır: ${entity.name}`}
             onClick={() => openDialog('rename', entity)}
             size="icon"
             variant="ghost"
@@ -324,7 +324,7 @@ function CompaniesSection() {
             <PencilIcon />
           </Button>
           <Button
-            aria-label={`${entity.name} sil`}
+            aria-label={`Sil: ${entity.name}`}
             disabled={entities.length === 1}
             onClick={() => openDialog('delete', entity)}
             size="icon"
@@ -345,7 +345,7 @@ function CompaniesSection() {
         <DialogContent showCloseButton={false}>
           <form onSubmit={handleRename} {...props(styles.dialogForm)}>
             <DialogHeader>
-              <DialogTitle>Şirketin adını değiştir</DialogTitle>
+              <DialogTitle>Şirketi yeniden adlandır</DialogTitle>
             </DialogHeader>
             <Input
               aria-label="Şirket adı"
@@ -355,7 +355,7 @@ function CompaniesSection() {
               onFocus={(event) => event.currentTarget.select()}
             />
             <DialogFooter>
-              <DialogClose render={<Button variant="outline" />}>İptal</DialogClose>
+              <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
               <Button type="submit">Kaydet</Button>
             </DialogFooter>
           </form>
@@ -365,14 +365,14 @@ function CompaniesSection() {
       <AlertDialog onOpenChange={(open) => !open && setDialog(null)} open={dialog === 'delete'}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Şirketi sil</AlertDialogTitle>
+            <AlertDialogTitle>{target?.name} silinsin mi?</AlertDialogTitle>
             <AlertDialogDescription>
-              {target?.name} ile birlikte GİB hesabı, firma bilgileri, müşterileri ve hizmetleri bu
-              cihazdan silinir. Bu işlem geri alınamaz.
+              Şirketin GİB giriş bilgileri, firma bilgileri, müşterileri ve hizmetleri bu Mac’ten
+              silinir. GİB’deki faturalar etkilenmez. Bu işlem geri alınamaz.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} variant="destructive">
               Sil
             </AlertDialogAction>
@@ -391,8 +391,8 @@ interface CompanyField {
 }
 
 const companyFields: Array<CompanyField> = [
-  { key: 'name', label: 'Firma adı veya unvan', placeholder: 'Firma Adı A.Ş.' },
-  { key: 'taxID', label: 'VKN veya TCKN', placeholder: '1234567890' },
+  { key: 'name', label: 'Firma adı ya da unvan', placeholder: 'Firma Adı A.Ş.' },
+  { key: 'taxID', label: 'VKN / TCKN', placeholder: '1234567890' },
   { key: 'taxOffice', label: 'Vergi dairesi', placeholder: 'Kadıköy' },
   { key: 'address', label: 'Adres', multiline: true, placeholder: 'Tam adres' },
   { key: 'phone', label: 'Telefon', placeholder: '+90 555 123 45 67' },
@@ -472,7 +472,7 @@ function CompanyLogoRow() {
         type="file"
       />
       <Button disabled={reading} onClick={() => input.current?.click()} variant="outline">
-        {companyInfo.logo ? 'Değiştir' : 'Logo yükle'}
+        {companyInfo.logo ? 'Değiştir' : 'Logo seç'}
       </Button>
       {companyInfo.logo && (
         <Button
@@ -570,12 +570,12 @@ function updateStatus(state: UpdateState) {
     case 'available':
       return `Yeni sürüm var: ${state.update.version}`;
     case 'checking':
-      return 'Denetleniyor...';
+      return 'Denetleniyor…';
     case 'current':
       return 'Angaria güncel';
     case 'downloading':
       return state.progress === null
-        ? 'İndiriliyor...'
+        ? 'İndiriliyor…'
         : `İndiriliyor, ${percent.format(state.progress)}`;
     case 'failed':
       return state.message;
@@ -612,7 +612,7 @@ function AboutSection() {
       const update = await checkForUpdate();
       setState(update ? { kind: 'available', update } : { kind: 'current' });
     } catch {
-      setState({ kind: 'failed', message: 'Güncellemeler denetlenemedi' });
+      setState({ kind: 'failed', message: 'Denetlenemedi. Tekrar dene.' });
     }
   }
 
@@ -621,7 +621,7 @@ function AboutSection() {
     try {
       await installUpdate(update, (progress) => setState({ kind: 'downloading', progress }));
     } catch {
-      setState({ kind: 'failed', message: 'Güncelleme yüklenemedi' });
+      setState({ kind: 'failed', message: 'Yüklenemedi. Tekrar dene.' });
     }
   }
 
