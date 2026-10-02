@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root.tsx'
 import { Route as IndexRouteImport } from './routes/index.tsx'
 import { Route as AyarlarRouteImport } from './routes/ayarlar.tsx'
 import { Route as FaturalarRouteImport } from './routes/faturalar.tsx'
+import { Route as HizmetlerRouteImport } from './routes/hizmetler.tsx'
 import { Route as MusterilerRouteImport } from './routes/musteriler.tsx'
 import { Route as YeniRouteImport } from './routes/yeni.tsx'
 import { Route as FaturalarIndexRouteImport } from './routes/faturalar.index.tsx'
@@ -30,6 +31,11 @@ const AyarlarRoute = AyarlarRouteImport.update({
 const FaturalarRoute = FaturalarRouteImport.update({
   id: '/faturalar',
   path: '/faturalar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HizmetlerRoute = HizmetlerRouteImport.update({
+  id: '/hizmetler',
+  path: '/hizmetler',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MusterilerRoute = MusterilerRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ayarlar': typeof AyarlarRoute
   '/faturalar': typeof FaturalarRouteWithChildren
+  '/hizmetler': typeof HizmetlerRoute
   '/musteriler': typeof MusterilerRoute
   '/yeni': typeof YeniRoute
   '/faturalar/$ettn': typeof FaturalarEttnRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ayarlar': typeof AyarlarRoute
+  '/hizmetler': typeof HizmetlerRoute
   '/musteriler': typeof MusterilerRoute
   '/yeni': typeof YeniRoute
   '/faturalar/$ettn': typeof FaturalarEttnRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ayarlar': typeof AyarlarRoute
   '/faturalar': typeof FaturalarRouteWithChildren
+  '/hizmetler': typeof HizmetlerRoute
   '/musteriler': typeof MusterilerRoute
   '/yeni': typeof YeniRoute
   '/faturalar/$ettn': typeof FaturalarEttnRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ayarlar'
     | '/faturalar'
+    | '/hizmetler'
     | '/musteriler'
     | '/yeni'
     | '/faturalar/$ettn'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ayarlar'
+    | '/hizmetler'
     | '/musteriler'
     | '/yeni'
     | '/faturalar/$ettn'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ayarlar'
     | '/faturalar'
+    | '/hizmetler'
     | '/musteriler'
     | '/yeni'
     | '/faturalar/$ettn'
@@ -113,6 +125,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AyarlarRoute: typeof AyarlarRoute
   FaturalarRoute: typeof FaturalarRouteWithChildren
+  HizmetlerRoute: typeof HizmetlerRoute
   MusterilerRoute: typeof MusterilerRoute
   YeniRoute: typeof YeniRoute
 }
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       path: '/faturalar'
       fullPath: '/faturalar'
       preLoaderRoute: typeof FaturalarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hizmetler': {
+      id: '/hizmetler'
+      path: '/hizmetler'
+      fullPath: '/hizmetler'
+      preLoaderRoute: typeof HizmetlerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/musteriler': {
@@ -189,6 +209,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AyarlarRoute: AyarlarRoute,
   FaturalarRoute: FaturalarRouteWithChildren,
+  HizmetlerRoute: HizmetlerRoute,
   MusterilerRoute: MusterilerRoute,
   YeniRoute: YeniRoute,
 }

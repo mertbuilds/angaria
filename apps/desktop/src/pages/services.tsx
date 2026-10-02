@@ -21,7 +21,7 @@ import {
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useId, useRef, useState, type RefObject } from 'react';
 import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
 import { parseDecimal } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
@@ -233,10 +233,10 @@ function ServiceDetail({
 const matchesItem = (item: InvoiceItem, query: string) => matchesQuery(query, item.name);
 
 /**
- * Müşteriler › Hizmetler: the saved service lines. Every invoice adds or
- * updates them; Yeni fatura suggests them by name.
+ * Hizmetler: the saved service lines. Every invoice adds or updates them;
+ * Yeni fatura suggests them by name.
  */
-export function ServicesPage({ tabs }: { tabs: ReactNode }) {
+export function ServicesPage() {
   const { defaultItemAdvanced, newId, savedItems, setSavedItems } = useStore();
   const [query, setQuery] = useState('');
   const [createdId, setCreatedId] = useState<string | null>(null);
@@ -284,8 +284,7 @@ export function ServicesPage({ tabs }: { tabs: ReactNode }) {
     <Screen
       actions={savedItems.length > 0 && newItemButton('outline')}
       scroll={false}
-      title="Müşteriler"
-      toolbar={tabs}
+      title="Hizmetler"
     >
       {savedItems.length === 0 ? (
         <EmptyState action={newItemButton('default')} title="Henüz hizmet yok">
