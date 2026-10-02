@@ -56,7 +56,7 @@ const styles = create({
     height: '1rem',
     width: '1rem',
   },
-  // Under the rate's error, where the caption that holds it is hidden.
+  // Under the rate field, after its caption or error.
   rateReset: {
     alignSelf: 'flex-start',
     fontSize: font.sizeSm,
@@ -143,34 +143,11 @@ const dayMonthYear = new Intl.DateTimeFormat('tr-TR', {
 const shortDate = (date: Date) =>
   (date.getFullYear() === new Date().getFullYear() ? dayMonth : dayMonthYear).format(date);
 
-/** Puts TCMB's rate back in place of a typed one. */
-function TCMBRateButton({ form, standalone }: { form: InvoiceForm; standalone?: boolean }) {
-  return (
-    <button
-      onClick={() => form.setFieldValue('advancedFields.currencyRateManual', false)}
-      type="button"
-      {...props(styles.inlineAction, standalone && styles.rateReset)}
-    >
-      TCMB kurunu kullan
-    </button>
-  );
-}
-
 /** The rate field's caption: where the rate comes from, or why it is missing. */
-function rateCaption(form: InvoiceForm, description: RateDescription | null): ReactNode {
+function rateCaption(description: RateDescription | null): ReactNode {
   switch (description?.kind) {
     case 'manual':
-      return (
-        <>
-          Elle girildi
-          {description.tcmbAvailable && (
-            <>
-              {' · '}
-              <TCMBRateButton form={form} />
-            </>
-          )}
-        </>
-      );
+      return 'Elle girildi';
     case 'error':
       return <span {...props(styles.warning)}>{TCMB_RATE_ERROR}</span>;
     case 'unpublished':
@@ -190,8 +167,9 @@ function rateCaption(form: InvoiceForm, description: RateDescription | null): Re
 }
 
 /**
- * Döviz kuru with its caption. The error hides the caption, so a typed rate's
- * "TCMB kurunu kullan" then shows under the error instead.
+ * Döviz kuru with its caption. A typed rate offers TCMB's back under the
+ * field, outside the caption, so an error that hides the caption neither
+ * hides it nor takes the focus with it.
  */
 function CurrencyRateField({
   form,
@@ -200,19 +178,26 @@ function CurrencyRateField({
   form: InvoiceForm;
   rateDescription: RateDescription | null;
 }) {
-  const error = useFieldError({ typed: true });
   const offerTCMB = rateDescription?.kind === 'manual' && rateDescription.tcmbAvailable;
   return (
     <div {...props(styles.rateStack)}>
       <DecimalTextField
-        description={rateCaption(form, rateDescription)}
+        description={rateCaption(rateDescription)}
         format={formatRate}
         label="Döviz kuru"
         placeholder="0,0000"
         step={0.01}
         suffix="₺"
       />
-      {error && offerTCMB && <TCMBRateButton form={form} standalone />}
+      {offerTCMB && (
+        <button
+          onClick={() => form.setFieldValue('advancedFields.currencyRateManual', false)}
+          type="button"
+          {...props(styles.inlineAction, styles.rateReset)}
+        >
+          TCMB kurunu kullan
+        </button>
+      )}
     </div>
   );
 }
