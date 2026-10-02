@@ -1,4 +1,4 @@
-import { Field, FieldDescription, FieldError, FieldLabel } from '@angaria/ui';
+import { Field, FieldDescription, FieldError, FieldLabel, FieldWarning } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, type StyleXStyles } from '@stylexjs/stylex';
 import { createFormHookContexts } from '@tanstack/react-form';
@@ -38,9 +38,15 @@ export interface FieldProps {
   description?: ReactNode;
   label: string;
   style?: StyleXStyles;
+  /** A rule the value breaks that does not block submit, shown while it has no error. */
+  warning?: ReactNode;
 }
 
-/** Label, control, then the error or the description, wired for screen readers. */
+/**
+ * Label, control, then the error, or the description and the warning, wired
+ * for screen readers. The label's id is `{id}-label`, for controls that are
+ * named by aria-labelledby (a chip group) instead of <label htmlFor>.
+ */
 export function FieldFrame({
   children,
   compact,
@@ -49,22 +55,31 @@ export function FieldFrame({
   id,
   label,
   style,
+  warning,
 }: FieldProps & {
   children: (describedBy: string | undefined) => ReactNode;
   error?: string;
   id: string;
 }) {
-  const describedBy = error ? `${id}-error` : description ? `${id}-description` : undefined;
+  const describedBy = error
+    ? `${id}-error`
+    : [description && `${id}-description`, warning && `${id}-warning`].filter(Boolean).join(' ') ||
+      undefined;
   return (
     <Field data-invalid={error ? true : undefined} style={[compact && styles.compactField, style]}>
-      <FieldLabel htmlFor={id} style={compact ? styles.compactLabel : undefined}>
+      <FieldLabel htmlFor={id} id={`${id}-label`} style={compact ? styles.compactLabel : undefined}>
         {label}
       </FieldLabel>
       {children(describedBy)}
       {error ? (
         <FieldError id={`${id}-error`}>{error}</FieldError>
       ) : (
-        description && <FieldDescription id={`${id}-description`}>{description}</FieldDescription>
+        <>
+          {description && (
+            <FieldDescription id={`${id}-description`}>{description}</FieldDescription>
+          )}
+          {warning && <FieldWarning id={`${id}-warning`}>{warning}</FieldWarning>}
+        </>
       )}
     </Field>
   );

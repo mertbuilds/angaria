@@ -50,6 +50,8 @@ export const colors = defineConsts({
 export const optional = defineConsts({
   /** Fill of text fields and select triggers. */
   inputBackground: 'var(--input-background, transparent)',
+  /** A field's border under the pointer: a step stronger than `--input`. */
+  inputHover: 'var(--input-hover, color-mix(in oklab, var(--input) 80%, var(--foreground)))',
   /** The primary color as text: the link button. */
   primaryInk: 'var(--primary-ink, var(--primary))',
   switchThumb: 'var(--switch-thumb, var(--background))',

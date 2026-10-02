@@ -8,9 +8,14 @@ import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
 const styles = create({
+  // Invalid is the border, a ring and the FieldError text with its icon, never
+  // color alone. Focus stays visible: the ring tightens to 1px.
   ariaInvalid: {
     borderColor: colors.destructive,
-    boxShadow: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
+    boxShadow: {
+      ':focus-visible': `0 0 0 1px ${colors.destructive}`,
+      default: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
+    },
   },
   root: {
     '::file-selector-button': {
@@ -28,11 +33,13 @@ const styles = create({
     // iOS Safari otherwise paints its own inner shadow on text inputs.
     appearance: 'none',
     backgroundColor: {
-      ':disabled': `color-mix(in oklab, ${colors.input} 50%, transparent)`,
+      ':disabled': colors.muted,
       default: optional.inputBackground,
     },
+    // --input is at least 3:1 against the fill and the surface around it.
     borderColor: {
       ':focus-visible': colors.ring,
+      ':hover': { '@media (hover: hover)': optional.inputHover, default: null },
       default: colors.input,
     },
     borderRadius: radius.full,

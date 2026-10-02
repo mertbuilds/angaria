@@ -16,7 +16,9 @@
  *   --nav-active          the current sidebar row, with -foreground and -icon
  *   --tab-active          the chosen segment of a segmented control, with
  *                         -foreground (the kit's Tabs read it too)
- *   --input-background    the fill of fields and select triggers (the kit reads it)
+ *   --input-background    the fill of fields and select triggers (the kit reads it);
+ *                         in dark mode a step lighter than the card
+ *   --input-hover         a field's border under the pointer (the kit reads it)
  *   --divider             the few hairlines left, between rows of a group
  *   --paper-edge          the outline of GİB's white page on the canvas
  *   --paper-filter        dims that page in dark mode, so it does not glare
@@ -32,6 +34,8 @@
  * 3.1:1 and fails AA, so that fill carries dark text, and a fill with white
  * text is #0077c8 (4.7:1). In light mode destructive and warning are deeper
  * than the kit's: #dc2626 on its own 10% tint is 4.1:1, #d97706 on white 3.2:1.
+ * --input, a field's border, is the lightest value at 3:1 against the fill,
+ * the canvas and the card (WCAG 1.4.11); tests/field-contrast.test.ts checks it.
  *
  * Like theme.css, the dark values are written twice: behind the system
  * preference (skipped when light is forced) and behind data-theme='dark'.
@@ -67,7 +71,7 @@
   --destructive: #c41c1c;
   --warning: #a95209;
   --border: #d6dde5;
-  --input: #d2dae3;
+  --input: #888e97;
   --ring: #0077c8;
   --sidebar: #e1e7ed;
   --sidebar-foreground: #1a1f26;
@@ -85,6 +89,7 @@
   --tab-active: #ffffff;
   --tab-active-foreground: #0067ad;
   --input-background: #ffffff;
+  --input-hover: #7c828b;
   --divider: #e4e9ef;
   --paper-edge: rgb(26 31 38 / 0.08);
   --paper-filter: none;
@@ -113,7 +118,7 @@
     --destructive: #f87171;
     --warning: #fbbf24;
     --border: #2c343e;
-    --input: #303943;
+    --input: #676f77;
     --ring: #3aa8f4;
     --sidebar: #0a0d11;
     --sidebar-foreground: #e2e7ed;
@@ -130,7 +135,8 @@
     --nav-active-icon: #5cb6f5;
     --tab-active: #2c353f;
     --tab-active-foreground: #e2e7ed;
-    --input-background: #151a20;
+    --input-background: #1d242c;
+    --input-hover: #737a83;
     --divider: #1f262e;
     --paper-edge: transparent;
     --paper-filter: brightness(0.9);
@@ -160,7 +166,7 @@
   --destructive: #f87171;
   --warning: #fbbf24;
   --border: #2c343e;
-  --input: #303943;
+  --input: #676f77;
   --ring: #3aa8f4;
   --sidebar: #0a0d11;
   --sidebar-foreground: #e2e7ed;
@@ -177,7 +183,8 @@
   --nav-active-icon: #5cb6f5;
   --tab-active: #2c353f;
   --tab-active-foreground: #e2e7ed;
-  --input-background: #151a20;
+  --input-background: #1d242c;
+  --input-hover: #737a83;
   --divider: #1f262e;
   --paper-edge: transparent;
   --paper-filter: brightness(0.9);
@@ -209,7 +216,7 @@
   --destructive: #c41c1c;
   --warning: #a95209;
   --border: #dfdbd3;
-  --input: #dad5cc;
+  --input: #918d87;
   --ring: #0077c8;
   --sidebar: #e8e5de;
   --sidebar-foreground: #1f1d1a;
@@ -227,6 +234,7 @@
   --tab-active: #ffffff;
   --tab-active-foreground: #1f1d1a;
   --input-background: #ffffff;
+  --input-hover: #84807a;
   --divider: #ebe8e2;
   --paper-edge: rgb(31 29 26 / 0.08);
   --paper-filter: none;
@@ -255,7 +263,7 @@
     --destructive: #f87171;
     --warning: #fbbf24;
     --border: #36332f;
-    --input: #3a3732;
+    --input: #716d66;
     --ring: #3aa8f4;
     --sidebar: #0d0c0b;
     --sidebar-foreground: #ebe6dc;
@@ -272,7 +280,8 @@
     --nav-active-icon: #5cb6f5;
     --tab-active: #36332f;
     --tab-active-foreground: #ebe6dc;
-    --input-background: #1a1918;
+    --input-background: #242320;
+    --input-hover: #7d7972;
     --divider: #272522;
     --paper-edge: transparent;
     --paper-filter: brightness(0.88) sepia(0.06);
@@ -302,7 +311,7 @@
   --destructive: #f87171;
   --warning: #fbbf24;
   --border: #36332f;
-  --input: #3a3732;
+  --input: #716d66;
   --ring: #3aa8f4;
   --sidebar: #0d0c0b;
   --sidebar-foreground: #ebe6dc;
@@ -319,7 +328,8 @@
   --nav-active-icon: #5cb6f5;
   --tab-active: #36332f;
   --tab-active-foreground: #ebe6dc;
-  --input-background: #1a1918;
+  --input-background: #242320;
+  --input-hover: #7d7972;
   --divider: #272522;
   --paper-edge: transparent;
   --paper-filter: brightness(0.88) sepia(0.06);

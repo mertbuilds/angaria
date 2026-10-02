@@ -1,4 +1,5 @@
 import {
+  ChoiceChips,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -10,10 +11,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  type ChoiceChipsProps,
+  type ChoiceOption,
 } from '@angaria/ui';
 import { colors, font } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { FieldFrame, useFieldContext, useFieldError, type FieldProps } from '../form-field.tsx';
 
 const styles = create({
@@ -66,19 +69,70 @@ export function SelectField({
   );
 }
 
-/** A choice from a long list (countries, currencies), filtered by typing. */
-export function ComboboxField({
+/**
+ * One of a few choices (KDV rate, invoice type) as chips with radio semantics.
+ * `other` adds a last chip whose input takes a value outside `options`.
+ */
+export function ChoiceField<T extends string | number>({
+  disabled,
+  options,
+  other,
+  size,
+  ...frame
+}: FieldProps & {
+  disabled?: boolean;
+  options: ReadonlyArray<ChoiceOption<T>>;
+  other?: ChoiceChipsProps<T>['other'];
+  size?: 'sm' | 'md';
+}) {
+  const field = useFieldContext<T | null>();
+  const error = useFieldError();
+  return (
+    <FieldFrame {...frame} error={error} id={field.name}>
+      {(describedBy) => (
+        <ChoiceChips
+          aria-describedby={describedBy}
+          aria-invalid={error ? true : undefined}
+          aria-labelledby={`${field.name}-label`}
+          disabled={disabled}
+          id={field.name}
+          onValueChange={field.handleChange}
+          options={options}
+          other={other}
+          size={size}
+          value={field.state.value}
+        />
+      )}
+    </FieldFrame>
+  );
+}
+
+/**
+ * A choice from a long list (countries, currencies), filtered by typing. The
+ * stored value is the item's `value`; `itemLabel`, `filter` and `secondary`
+ * let a list show and match more than its label (a country's English name).
+ */
+export function ComboboxField<Item extends FieldOption>({
   clearable = false,
   emptyText,
+  filter,
+  itemLabel = (item) => item.label,
   items,
   placeholder,
+  secondary,
   ...frame
 }: FieldProps & {
   /** Allows going back to no choice. */
   clearable?: boolean;
   emptyText: string;
-  items: ReadonlyArray<FieldOption>;
+  /** Whether an item matches the typed text. Default: its label contains it (Turkish case). */
+  filter?: (item: Item, query: string) => boolean;
+  /** The text of an item in the list and in the field. Default `item.label`. */
+  itemLabel?: (item: Item) => string;
+  items: ReadonlyArray<Item>;
   placeholder?: string;
+  /** Muted text at the end of an item's row, e.g. a code or an English name. */
+  secondary?: (item: Item) => ReactNode;
 }) {
   const field = useFieldContext<string>();
   const error = useFieldError();
@@ -87,10 +141,12 @@ export function ComboboxField({
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
         <Combobox
-          isItemEqualToValue={(item: FieldOption, value: FieldOption) => item.value === value.value}
+          filter={filter ? (item: Item, query: string) => filter(item, query) : undefined}
+          isItemEqualToValue={(item: Item, value: Item) => item.value === value.value}
           items={items}
+          itemToStringLabel={itemLabel}
           locale="tr"
-          onValueChange={(item: FieldOption | null) => field.handleChange(item?.value ?? '')}
+          onValueChange={(item: Item | null) => field.handleChange(item?.value ?? '')}
           value={selected}
         >
           <ComboboxInput
@@ -105,11 +161,17 @@ export function ComboboxField({
           <ComboboxContent>
             <ComboboxEmpty>{emptyText}</ComboboxEmpty>
             <ComboboxList>
-              {(item: FieldOption) => (
-                <ComboboxItem key={item.value} value={item}>
-                  {item.label}
-                </ComboboxItem>
-              )}
+              {(item: Item) => {
+                const hint = secondary?.(item);
+                return (
+                  <ComboboxItem key={item.value} value={item}>
+                    <span {...props(styles.suggestionLabel)}>{itemLabel(item)}</span>
+                    {hint != null && hint !== '' && (
+                      <span {...props(styles.suggestionHint)}>{hint}</span>
+                    )}
+                  </ComboboxItem>
+                );
+              }}
             </ComboboxList>
           </ComboboxContent>
         </Combobox>

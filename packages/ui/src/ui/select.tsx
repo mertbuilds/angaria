@@ -114,6 +114,7 @@ const styles = create({
     backgroundColor: optional.inputBackground,
     borderColor: {
       ':focus-visible': colors.ring,
+      ':hover': { '@media (hover: hover)': optional.inputHover, default: null },
       default: colors.input,
     },
     borderRadius: radius.full,
@@ -160,7 +161,7 @@ const styles = create({
   triggerAriaInvalid: {
     borderColor: colors.destructive,
     boxShadow: {
-      ':focus-visible': `0 0 0 1px ${colors.ring}`,
+      ':focus-visible': `0 0 0 1px ${colors.destructive}`,
       default: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
     },
   },
