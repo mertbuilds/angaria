@@ -240,7 +240,9 @@ function GibAccountSection() {
   } = useStore();
   const account = useGIBAccount();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  // The company whose password is shown: switching companies hides it again.
+  const [shownFor, setShownFor] = useState<string | null>(null);
+  const showPassword = shownFor === activeEntityId;
   const [test, setTest] = useState<ConnectionTest>({ kind: 'idle' });
   // The password read from the keychain, tagged with its company
   const [loaded, setLoaded] = useState<{ entityId: string; password: string } | null>(null);
@@ -357,7 +359,7 @@ function GibAccountSection() {
             aria-label="Şifreyi göster"
             aria-pressed={showPassword}
             disabled={password === null}
-            onClick={() => setShowPassword((shown) => !shown)}
+            onClick={() => setShownFor(showPassword ? null : activeEntityId)}
             // The caret stays in the password while it is shown or hidden.
             onMouseDown={(event) => event.preventDefault()}
             size="icon"
@@ -1028,9 +1030,13 @@ function AboutSection() {
         <SettingsValue>{version ?? ''}</SettingsValue>
       </SettingsRow>
       <SettingsRow label="Güncellemeler">
-        {status && (
-          <SettingsValue tone={state.kind === 'failed' ? 'error' : 'muted'}>{status}</SettingsValue>
-        )}
+        <span role="status">
+          {status && (
+            <SettingsValue tone={state.kind === 'failed' ? 'error' : 'muted'}>
+              {status}
+            </SettingsValue>
+          )}
+        </span>
         {state.kind === 'available' ? (
           <Button onClick={() => void handleInstall(state.update)}>Yükle</Button>
         ) : (
