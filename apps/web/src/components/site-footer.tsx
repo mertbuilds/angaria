@@ -58,6 +58,7 @@ export function SiteFooter() {
           }
         />
       </p>
+      <p {...props(styles.line)}>{m.footer_disclaimer()}</p>
       <nav aria-label={m.footer_links()}>
         <ul {...props(styles.links)}>
           <li>

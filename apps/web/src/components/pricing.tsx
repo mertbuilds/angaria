@@ -192,11 +192,12 @@ export function Pricing() {
   );
 }
 
+/** "yıllık 1.499 TL": the period leads, as Turkish says a price, and the amount carries the weight. */
 function Price({ amount, period }: { amount: string; period: string }) {
   return (
     <p {...props(layout.text, styles.price)}>
+      <span {...props(layout.muted)}>{period}</span>{' '}
       <span {...props(styles.priceAmount)}>{amount}</span>
-      <span {...props(layout.muted)}>{period}</span>
     </p>
   );
 }

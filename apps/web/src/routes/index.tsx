@@ -40,7 +40,7 @@ const structuredData = () => ({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   applicationCategory: 'BusinessApplication',
-  description: m.meta_description(),
+  description: m.meta_app_description(),
   inLanguage: 'tr',
   name: 'Angaria',
   offers: [offer('yearly', m.pricing_yearly()), offer('monthly', m.pricing_monthly())],
@@ -229,6 +229,10 @@ const styles = create({
   lead: {
     maxWidth: 600,
   },
+  // Under a centered heading, the lead centers with it.
+  leadCentered: {
+    textAlign: 'center',
+  },
   privacyLead: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
@@ -312,7 +316,7 @@ function Landing() {
         <ul {...props(styles.columns, styles.wide)}>
           <PainPoint body={m.compare_saved_body()} index={3} title={m.compare_saved_title()} />
           <PainPoint body={m.compare_repeat_body()} index={4} title={m.compare_repeat_title()} />
-          <PainPoint body={m.compare_time_body()} index={5} title={m.compare_time_title()} />
+          <PainPoint body={m.compare_sign_body()} index={5} title={m.compare_sign_title()} />
         </ul>
       </RevealSection>
 
@@ -427,6 +431,9 @@ function Landing() {
           </SectionHeading>
         </Reveal>
         <Reveal index={1}>
+          <p {...props(layout.text, styles.leadCentered)}>{m.pricing_lead()}</p>
+        </Reveal>
+        <Reveal index={2}>
           <Pricing />
         </Reveal>
       </RevealSection>
@@ -436,13 +443,17 @@ function Landing() {
           <SectionHeading id="sss">{m.faq_title()}</SectionHeading>
         </Reveal>
         <dl {...props(layout.list)}>
-          <Question body={m.faq_connect_a()} index={1} title={m.faq_connect_q()} />
-          <Question body={m.faq_audience_a()} index={2} title={m.faq_audience_q()} />
-          <Question body={m.faq_windows_a()} index={3} title={m.faq_windows_q()} />
-          <Question body={m.faq_data_a()} index={4} title={m.faq_data_q()} />
-          <Question body={m.faq_price_a()} index={5} title={m.faq_price_q()} />
-          <Question body={m.faq_cancel_a()} index={6} title={m.faq_cancel_q()} />
-          <Question body={m.faq_efatura_a()} index={7} title={m.faq_efatura_q()} />
+          <Question body={m.faq_audience_a()} index={1} title={m.faq_audience_q()} />
+          <Question body={m.faq_not_for_a()} index={2} title={m.faq_not_for_q()} />
+          <Question body={m.faq_efatura_a()} index={3} title={m.faq_efatura_q()} />
+          <Question body={m.faq_connect_a()} index={4} title={m.faq_connect_q()} />
+          <Question body={m.faq_data_a()} index={5} title={m.faq_data_q()} />
+          <Question body={m.faq_foreign_a()} index={6} title={m.faq_foreign_q()} />
+          <Question body={m.faq_pdf_a()} index={7} title={m.faq_pdf_q()} />
+          <Question body={m.faq_accountant_a()} index={8} title={m.faq_accountant_q()} />
+          <Question body={m.faq_price_a()} index={9} title={m.faq_price_q()} />
+          <Question body={m.faq_cancel_a()} index={10} title={m.faq_cancel_q()} />
+          <Question body={m.faq_windows_a()} index={11} title={m.faq_windows_q()} />
         </dl>
       </RevealSection>
     </>
