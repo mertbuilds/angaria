@@ -9,7 +9,7 @@ import {
   CommandShortcut,
 } from '@angaria/ui';
 import { Building2Icon, FilePlusIcon, PaletteIcon, RepeatIcon } from 'lucide-react';
-import { paletteChoices, paletteLabels, setPalette } from '@/lib/palette.ts';
+import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/palette.ts';
 import { useStore } from '@/lib/store.tsx';
 import { sections } from './nav.ts';
 import { useAppActions } from './use-app-actions.ts';
@@ -41,6 +41,7 @@ export function CommandPalette({
   const { goTo, newInvoice, reissueLastMonth } = useAppActions();
   const { activeEntityId, entities, setActiveEntityId } = useStore();
   const otherEntities = entities.filter((entity) => entity.id !== activeEntityId);
+  const palette = usePalette();
 
   const run = (action: () => void) => () => {
     onOpenChange(false);
@@ -93,23 +94,21 @@ export function CommandPalette({
             </CommandGroup>
           </>
         )}
-        {import.meta.env.DEV && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading="Palet (geliştirme)">
-              {paletteChoices.map((choice) => (
-                <CommandItem
-                  key={choice}
-                  keywords={['palet', 'renk', 'tema']}
-                  onSelect={run(() => setPalette(choice))}
-                >
-                  <PaletteIcon />
-                  {paletteLabels[choice]}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </>
-        )}
+        <CommandSeparator />
+        <CommandGroup heading="Renk paletini değiştir">
+          {paletteChoices
+            .filter((choice) => choice !== palette)
+            .map((choice) => (
+              <CommandItem
+                key={choice}
+                keywords={['renk paletini değiştir', 'palet', 'tema', 'görünüm']}
+                onSelect={run(() => setPalette(choice))}
+              >
+                <PaletteIcon />
+                {paletteLabels[choice]}
+              </CommandItem>
+            ))}
+        </CommandGroup>
       </CommandList>
     </CommandDialog>
   );

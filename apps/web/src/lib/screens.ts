@@ -13,7 +13,7 @@ export type Theme = 'dark' | 'light';
  */
 export interface Screen {
   alt: () => string;
-  /** Drawn as a macOS window: 12px corners on a transparent background. */
+  /** Drawn as a macOS window: 20px corners on a transparent background. */
   framed: boolean;
   /** Pixel size of the 1440 export; the 2880 one is twice that. */
   height: number;

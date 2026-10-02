@@ -46,10 +46,10 @@ const styles = create({
     transitionTimingFunction: reveal.ease,
     width: '100%',
   },
-  // A framed export has 12px corners at 1440 by 900 on a transparent
+  // A framed export has 20px corners at 1440 by 900 on a transparent
   // background: the same corners as percentages, so a shadow follows them.
   framed: {
-    borderRadius: `${(12 / 1440) * 100}% / ${(12 / 900) * 100}%`,
+    borderRadius: `${(20 / 1440) * 100}% / ${(20 / 900) * 100}%`,
   },
   image: {
     display: 'block',
