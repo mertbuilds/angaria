@@ -8,43 +8,65 @@ import {
   Calendar as CalendarPrimitive,
   CalendarCell,
   CalendarGrid,
+  CalendarGridBody,
+  CalendarGridHeader,
+  CalendarHeaderCell,
   Heading,
 } from 'react-aria-components/Calendar';
 import { I18nProvider } from 'react-aria-components/I18nProvider';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 
+// No transitions anywhere here: arrow keys move the focus a day at a time and
+// must feel instant.
 const styles = create({
   button: {
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: {
+      ':hover': colors.muted,
+      default: 'transparent',
+    },
     borderRadius: radius.full,
     borderWidth: 0,
+    boxShadow: {
+      ':focus-visible': `0 0 0 2px ${colors.ring}`,
+      default: 'none',
+    },
     color: colors.foreground,
     cursor: 'pointer',
     display: 'inline-flex',
-    height: '1.75rem',
+    height: '2rem',
     justifyContent: 'center',
-    width: '1.75rem',
+    outline: 'none',
+    padding: 0,
+    width: '2rem',
+  },
+  buttonDisabled: {
+    cursor: 'default',
+    opacity: 0.4,
   },
   cell: {
     alignItems: 'center',
     borderRadius: radius.full,
+    boxSizing: 'border-box',
     cursor: 'pointer',
     display: 'flex',
     fontSize: '0.875rem',
     fontVariantNumeric: 'tabular-nums',
-    height: '2rem',
+    height: '2.25rem',
     justifyContent: 'center',
     outline: 'none',
-    width: '2rem',
+    width: '2.25rem',
   },
   cellDisabled: {
     color: colors.mutedForeground,
     cursor: 'default',
-    opacity: 0.5,
+    opacity: 0.4,
   },
   cellFocused: {
-    boxShadow: `0 0 0 1px ${colors.ring}`,
+    boxShadow: `0 0 0 2px ${colors.ring}`,
+  },
+  cellHovered: {
+    backgroundColor: colors.muted,
   },
   cellOutside: {
     visibility: 'hidden',
@@ -53,16 +75,30 @@ const styles = create({
     backgroundColor: colors.primary,
     color: colors.primaryForeground,
   },
+  cellToday: {
+    boxShadow: `inset 0 0 0 1px ${colors.border}`,
+  },
+  grid: {
+    borderCollapse: 'collapse',
+    borderSpacing: 0,
+  },
   header: {
     alignItems: 'center',
     display: 'flex',
     justifyContent: 'space-between',
-    marginBottom: '0.5rem',
+    marginBottom: '0.25rem',
   },
   heading: {
     fontSize: '0.875rem',
     fontWeight: 500,
     margin: 0,
+  },
+  weekday: {
+    color: colors.mutedForeground,
+    fontSize: '0.75rem',
+    fontWeight: 400,
+    height: '1.75rem',
+    padding: 0,
   },
 });
 
@@ -73,7 +109,10 @@ export interface CalendarProps {
   value: CalendarDate | null;
 }
 
-/** A month grid to pick a day. Not implemented yet: the final look. */
+/**
+ * A month grid to pick a day, weeks from Monday. Arrow keys move by day,
+ * Page Up/Down by month, Enter picks.
+ */
 const Calendar = ({ maxValue, minValue, onChange, value }: CalendarProps) => (
   <I18nProvider locale="tr-TR">
     <CalendarPrimitive<CalendarDate>
@@ -83,29 +122,58 @@ const Calendar = ({ maxValue, minValue, onChange, value }: CalendarProps) => (
       value={value}
     >
       <header {...stylexProps(styles.header)}>
-        <Button className={stylexProps(styles.button).className ?? ''} slot="previous">
+        <Button
+          className={({ isDisabled }) =>
+            stylexProps(styles.button, isDisabled && styles.buttonDisabled).className ?? ''
+          }
+          slot="previous"
+        >
           <ChevronLeftIcon aria-hidden size={16} />
         </Button>
         <Heading className={stylexProps(styles.heading).className ?? ''} />
-        <Button className={stylexProps(styles.button).className ?? ''} slot="next">
+        <Button
+          className={({ isDisabled }) =>
+            stylexProps(styles.button, isDisabled && styles.buttonDisabled).className ?? ''
+          }
+          slot="next"
+        >
           <ChevronRightIcon aria-hidden size={16} />
         </Button>
       </header>
-      <CalendarGrid>
-        {(date) => (
-          <CalendarCell
-            className={({ isDisabled, isFocusVisible, isOutsideMonth, isSelected }) =>
-              stylexProps(
-                styles.cell,
-                isSelected && styles.cellSelected,
-                isFocusVisible && styles.cellFocused,
-                isDisabled && styles.cellDisabled,
-                isOutsideMonth && styles.cellOutside,
-              ).className ?? ''
-            }
-            date={date}
-          />
-        )}
+      <CalendarGrid className={stylexProps(styles.grid).className ?? ''} weekdayStyle="short">
+        <CalendarGridHeader>
+          {(day) => (
+            <CalendarHeaderCell className={stylexProps(styles.weekday).className ?? ''}>
+              {day}
+            </CalendarHeaderCell>
+          )}
+        </CalendarGridHeader>
+        <CalendarGridBody>
+          {(date) => (
+            <CalendarCell
+              className={({
+                isDisabled,
+                isFocusVisible,
+                isHovered,
+                isOutsideMonth,
+                isSelected,
+                isToday,
+                isUnavailable,
+              }) =>
+                stylexProps(
+                  styles.cell,
+                  isToday && styles.cellToday,
+                  isHovered && !isSelected && styles.cellHovered,
+                  isSelected && styles.cellSelected,
+                  isFocusVisible && styles.cellFocused,
+                  (isDisabled || isUnavailable) && styles.cellDisabled,
+                  isOutsideMonth && styles.cellOutside,
+                ).className ?? ''
+              }
+              date={date}
+            />
+          )}
+        </CalendarGridBody>
       </CalendarGrid>
     </CalendarPrimitive>
   </I18nProvider>
