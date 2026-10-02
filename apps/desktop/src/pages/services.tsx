@@ -8,22 +8,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
+  ChoiceChips,
   Field,
+  FieldError,
   FieldLabel,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  NumberInput,
   toast,
+  type NumberInputProps,
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState, type RefObject } from 'react';
-import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
-import { parseDecimal } from '@/lib/invoice-form.ts';
+import { formatAmount, parseDecimal } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceItem } from '@/lib/types.ts';
 import { ListDetail } from '@/shell/list-detail.tsx';
@@ -38,6 +36,7 @@ import {
   useDialogTarget,
   useListSelection,
 } from '@/shell/searchable-list.tsx';
+import { UNIT_OPTIONS, UnitCombobox, VAT_OPTIONS, VATRateInput } from './invoice-items.tsx';
 
 const styles = create({
   detail: {
@@ -62,10 +61,6 @@ const styles = create({
     display: 'flex',
     gap: spacing.s4,
     justifyContent: 'space-between',
-  },
-  number: {
-    fontVariantNumeric: 'tabular-nums',
-    textAlign: 'right',
   },
   placeholder: {
     alignItems: 'center',
@@ -96,44 +91,129 @@ const styles = create({
   },
 });
 
+const quantityError = (value: number) =>
+  !Number.isFinite(value)
+    ? 'Miktarı rakamla yaz, örneğin 2 ya da 1,5'
+    : value <= 0
+      ? 'Miktar sıfırdan büyük olmalı'
+      : undefined;
+
+const unitPriceError = (value: number) =>
+  !Number.isFinite(value)
+    ? 'Birim fiyatı rakamla yaz, örneğin 1.250,50'
+    : value < 0
+      ? 'Birim fiyat sıfırdan küçük olamaz'
+      : undefined;
+
+const vatRateError = (value: number) =>
+  Number.isInteger(value) && value >= 0 && value <= 100
+    ? undefined
+    : 'KDV oranı 0 ile 100 arasında tam sayı olmalı';
+
 /**
- * A number field that keeps what is typed ("12," on the way to "12,5") and
- * stores the parsed value on every valid keystroke.
+ * A number of the service as typed: the field shows every keystroke, the
+ * service keeps only a value `check` accepts. Its error shows once the field
+ * was left, then follows every keystroke.
  */
-function NumberInput({
-  blankZero = false,
+function useCheckedNumber(
+  saved: number,
+  check: (value: number) => string | undefined,
+  save: (value: number) => void,
+) {
+  const [value, setValue] = useState(saved);
+  const [left, setLeft] = useState(false);
+  return {
+    error: left ? check(value) : undefined,
+    onBlur: () => setLeft(true),
+    onValueChange: (next: number) => {
+      setValue(next);
+      if (!check(next)) {
+        save(next);
+      }
+    },
+    value,
+  };
+}
+
+function ServiceNumberField({
+  check,
   id,
-  onValueChange,
-  placeholder,
-  value,
-}: {
-  /** Shows 0 as an empty field with the placeholder. */
-  blankZero?: boolean;
+  label,
+  onSave,
+  value: saved,
+  ...input
+}: Omit<
+  NumberInputProps,
+  'aria-describedby' | 'aria-invalid' | 'id' | 'onBlur' | 'onValueChange' | 'parse' | 'value'
+> & {
+  check: (value: number) => string | undefined;
   id: string;
-  onValueChange: (value: number) => void;
-  placeholder?: string;
+  label: string;
+  onSave: (value: number) => void;
   value: number;
 }) {
-  const [text, setText] = useState(() =>
-    blankZero && value === 0 ? '' : String(value).replace('.', ','),
-  );
-
+  const number = useCheckedNumber(saved, check, onSave);
   return (
-    <Input
-      aria-invalid={parseDecimal(text) === null}
-      id={id}
-      inputMode="decimal"
-      onChange={(event) => {
-        setText(event.target.value);
-        const next = parseDecimal(event.target.value);
-        if (next !== null) {
-          onValueChange(next);
-        }
-      }}
-      placeholder={placeholder}
-      style={styles.number}
-      value={text}
-    />
+    <Field data-invalid={number.error ? true : undefined}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <NumberInput
+        {...input}
+        aria-describedby={number.error ? `${id}-error` : undefined}
+        aria-invalid={number.error ? true : undefined}
+        id={id}
+        onBlur={number.onBlur}
+        onValueChange={number.onValueChange}
+        parse={parseDecimal}
+        value={number.value}
+      />
+      {number.error && <FieldError id={`${id}-error`}>{number.error}</FieldError>}
+    </Field>
+  );
+}
+
+/** KDV as on Yeni fatura: the common rates as chips, Diğer for any whole rate. */
+function ServiceVATField({
+  id,
+  onSave,
+  value: saved,
+}: {
+  id: string;
+  onSave: (value: number) => void;
+  value: number;
+}) {
+  const rate = useCheckedNumber(saved, vatRateError, onSave);
+  const describedBy = rate.error ? `${id}-error` : undefined;
+  return (
+    <Field data-invalid={rate.error ? true : undefined} style={styles.fullRow}>
+      <FieldLabel htmlFor={id} id={`${id}-label`}>
+        KDV
+      </FieldLabel>
+      <ChoiceChips
+        aria-describedby={describedBy}
+        aria-invalid={rate.error ? true : undefined}
+        aria-labelledby={`${id}-label`}
+        id={id}
+        onValueChange={(next) => next !== null && rate.onValueChange(next)}
+        options={VAT_OPTIONS}
+        other={{
+          label: 'Diğer',
+          render: ({ autoFocus, id: otherId }) => (
+            <VATRateInput
+              aria-describedby={describedBy}
+              aria-invalid={rate.error ? true : undefined}
+              aria-labelledby={`${id}-label`}
+              autoFocus={autoFocus}
+              id={otherId}
+              onBlur={rate.onBlur}
+              onValueChange={rate.onValueChange}
+              value={rate.value}
+            />
+          ),
+        }}
+        value={rate.value}
+      />
+      {rate.error && <FieldError id={`${id}-error`}>{rate.error}</FieldError>}
+    </Field>
   );
 }
 
@@ -180,51 +260,56 @@ function ServiceDetail({
             value={item.name}
           />
         </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-quantity`}>Miktar</FieldLabel>
-          <NumberInput
-            id={`${id}-quantity`}
-            onValueChange={(quantity) => onChange({ quantity })}
-            value={item.quantity}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-unit`}>Birim</FieldLabel>
-          <Select
-            items={GIB_UNIT_TYPES}
+        <ServiceNumberField
+          check={quantityError}
+          format={formatNumber}
+          id={`${id}-quantity`}
+          label="Miktar"
+          min={0}
+          onSave={(quantity) => onChange({ quantity })}
+          steppers
+          value={item.quantity}
+        />
+        <ServiceNumberField
+          blankZero
+          check={unitPriceError}
+          format={formatAmount}
+          id={`${id}-price`}
+          label="Birim fiyat"
+          min={0}
+          onSave={(unitPrice) => onChange({ unitPrice })}
+          placeholder="0,00"
+          value={item.unitPrice}
+        />
+        <Field style={styles.fullRow}>
+          <FieldLabel htmlFor={`${id}-unit`} id={`${id}-unit-label`}>
+            Birim
+          </FieldLabel>
+          <ChoiceChips
+            aria-labelledby={`${id}-unit-label`}
+            id={`${id}-unit`}
             onValueChange={(unitType) => unitType && onChange({ unitType })}
+            options={UNIT_OPTIONS}
+            other={{
+              label: 'Diğer',
+              render: ({ autoFocus, id: otherId }) => (
+                <UnitCombobox
+                  aria-labelledby={`${id}-unit-label`}
+                  autoFocus={autoFocus}
+                  id={otherId}
+                  onValueChange={(unitType) => onChange({ unitType })}
+                  value={item.unitType}
+                />
+              ),
+            }}
             value={item.unitType}
-          >
-            <SelectTrigger id={`${id}-unit`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {GIB_UNIT_TYPES.map((unit) => (
-                <SelectItem key={unit.value} value={unit.value}>
-                  {unit.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-price`}>Birim fiyat</FieldLabel>
-          <NumberInput
-            blankZero
-            id={`${id}-price`}
-            onValueChange={(unitPrice) => onChange({ unitPrice })}
-            placeholder="0,00"
-            value={item.unitPrice}
           />
         </Field>
-        <Field>
-          <FieldLabel htmlFor={`${id}-vat`}>KDV oranı (%)</FieldLabel>
-          <NumberInput
-            id={`${id}-vat`}
-            onValueChange={(VATRate) => onChange({ VATRate })}
-            value={item.VATRate}
-          />
-        </Field>
+        <ServiceVATField
+          id={`${id}-vat`}
+          onSave={(VATRate) => onChange({ VATRate })}
+          value={item.VATRate}
+        />
       </div>
     </div>
   );
