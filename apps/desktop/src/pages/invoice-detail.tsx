@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cancelInvoice } from '@/lib/angaria.ts';
-import { errorMessage, UNNAMED_CUSTOMER } from '@/lib/copy.ts';
+import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { defaultPDFLanguage, findCustomer } from '@/lib/customer.ts';
 import { fetchForeground } from '@/lib/foreground-fetch.ts';
 import {
@@ -47,6 +47,7 @@ import { useStore } from '@/lib/store.tsx';
 import type { Invoice, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
 import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
+import { ErrorState } from '@/shell/error-state.tsx';
 import { EmptyState, formatMoney } from '@/shell/searchable-list.tsx';
 import { useSMSSign } from './use-sms-sign.tsx';
 
@@ -366,16 +367,11 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     body = <InvoiceFrame html={preview.data} />;
   } else if (preview.isError) {
     body = (
-      <EmptyState
-        action={
-          <Button onClick={() => void preview.refetch()} variant="outline">
-            Tekrar dene
-          </Button>
-        }
+      <ErrorState
+        error={preview.error}
+        onRetry={() => void preview.refetch()}
         title="Önizleme alınamadı"
-      >
-        {errorMessage(preview.error)}
-      </EmptyState>
+      />
     );
   } else {
     body = <Spinner />;

@@ -1,6 +1,6 @@
 import { messages } from '@angaria/gib-emulator';
 import { beforeEach, describe, expect, inject, test } from 'vitest';
-import { createClient, type InvoiceDetails } from '../src/index.ts';
+import { createClient, GibError, type InvoiceDetails } from '../src/index.ts';
 
 // The SDK end to end against the GİB emulator (started by tests/emulator-setup.ts).
 
@@ -209,8 +209,166 @@ describe('portal limits and failures', () => {
     await client.logout(session);
   });
 
-  test('a maintenance page instead of JSON rejects', async () => {
+  test('a maintenance page instead of JSON rejects as maintenance', async () => {
     await admin('PATCH', '/config', { chaos: { maintenance: true } });
-    await expect(client.login('33333301', '1', true)).rejects.toThrow(SyntaxError);
+    await expect(client.login('33333301', '1', true)).rejects.toMatchObject({
+      code: 'maintenance',
+      name: 'GibError',
+    });
+  });
+});
+
+/** The GibError `promise` rejects with. */
+async function failure(promise: Promise<unknown>): Promise<GibError> {
+  const rejection = await promise.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  expect(rejection).toBeInstanceOf(GibError);
+  return rejection as GibError;
+}
+
+describe('typed errors', () => {
+  test('a wrong password is auth, with GİB’s text', async () => {
+    const error = await failure(client.login('33333301', 'yanlis', true));
+    expect(error).toMatchObject({
+      code: 'auth',
+      gibMessage: messages.invalidCredentials,
+      message: messages.invalidCredentials,
+    });
+  });
+
+  test('a session open elsewhere is session-locked', async () => {
+    await admin('POST', '/lock', { userid: '33333301' });
+    const error = await failure(client.login('33333301', '1', true));
+    expect(error).toMatchObject({ code: 'session-locked', gibMessage: messages.sessionLocked });
+  });
+
+  test('an expired token is session-expired', async () => {
+    const session = await client.login('33333301', '1', true);
+    await admin('POST', '/expire');
+    expect((await failure(client.getUUID(session))).code).toBe('session-expired');
+  });
+
+  test('the maintenance page is maintenance on every call', async () => {
+    const session = await client.login('33333301', '1', true);
+    await admin('POST', '/faults', { cmd: 'EARSIV_PORTAL_TASLAKLARI_GETIR', kind: 'maintenance' });
+    const error = await failure(client.getDrafts(session, today, today));
+    expect(error).toMatchObject({ code: 'maintenance', status: 200 });
+    expect(error.gibMessage).toBeUndefined();
+    await client.logout(session);
+  });
+
+  test('a 5xx page is unknown with its status, a 429 is rate-limit', async () => {
+    await admin('POST', '/faults', { cmd: 'login', kind: '5xx', status: 502 });
+    expect(await failure(client.login('33333301', '1', true))).toMatchObject({
+      code: 'unknown',
+      message: 'GİB beklenmeyen bir yanıt verdi (HTTP 502)',
+      status: 502,
+    });
+    await admin('POST', '/faults', { cmd: 'login', kind: '5xx', status: 429 });
+    expect((await failure(client.login('33333301', '1', true))).code).toBe('rate-limit');
+  });
+
+  test('the error envelope is classified by its text', async () => {
+    const session = await client.login('33333301', '1', true);
+    const cases: Array<[string, string]> = [
+      ['Genel Sistem Hatası', 'unknown'],
+      [messages.maintenance, 'maintenance'],
+      ['Çok fazla istek gönderdiniz. Lütfen bekleyiniz.', 'rate-limit'],
+      ['Kayıt bulunamadı.', 'not-found'],
+      ['Alıcı VKN/TCKN 10 veya 11 haneli olmalıdır.', 'validation'],
+      ['Service Not Found', 'unknown'],
+    ];
+    for (const [text, code] of cases) {
+      await admin('POST', '/faults', { cmd: 'EARSIV_PORTAL_UUID_GETIR', kind: 'error', text });
+      expect(await failure(client.getUUID(session)), text).toMatchObject({
+        code,
+        gibMessage: text,
+        message: text,
+      });
+    }
+    await client.logout(session);
+  });
+
+  test('HTTP 200 with an error text on create keeps GİB’s text', async () => {
+    const session = await client.login('33333301', '1', true);
+    await admin('POST', '/faults', { cmd: 'EARSIV_PORTAL_FATURA_OLUSTUR', kind: 'text' });
+    expect(await failure(client.createDraftInvoice(session, invoice()))).toMatchObject({
+      code: 'unknown',
+      gibMessage: messages.textError,
+    });
+    await admin('POST', '/faults', {
+      cmd: 'EARSIV_PORTAL_FATURA_OLUSTUR',
+      kind: 'text',
+      text: messages.ettnRejected,
+    });
+    expect((await failure(client.createDraftInvoice(session, invoice()))).code).toBe('validation');
+    await client.logout(session);
+  });
+
+  test('a range over the limit is range-too-long, a missing invoice not-found', async () => {
+    await admin('PATCH', '/config', { maxRangeDays: 3 });
+    const session = await client.login('33333301', '1', true);
+    expect((await failure(client.getDrafts(session, daysAgo(9), today))).code).toBe(
+      'range-too-long',
+    );
+    expect((await failure(client.getInvoiceDetail(session, 'yok'))).code).toBe('not-found');
+    await client.logout(session);
+  });
+
+  test('SMS: no phone and a refused number are sms-failed, a wrong code sms-code-wrong', async () => {
+    const phoneless = await client.login('33333303', '1', true);
+    expect((await failure(client.startSMSSign(phoneless))).code).toBe('sms-failed');
+    await client.logout(phoneless);
+
+    const session = await client.login('33333301', '1', true);
+    expect(await failure(client.requestSigningSMS(session, '5559999999'))).toMatchObject({
+      code: 'sms-failed',
+      gibMessage: messages.phoneMismatch,
+    });
+    const { uuid } = await client.createDraftInvoice(session, invoice());
+    const { oid } = await client.startSMSSign(session);
+    expect(await failure(client.verifyAndSign(session, '000000', oid, [uuid]))).toMatchObject({
+      code: 'sms-code-wrong',
+      gibMessage: messages.smsCodeWrong,
+    });
+    expect((await failure(client.verifyAndSign(session, '123456', 'yok', [uuid]))).code).toBe(
+      'sms-code-wrong',
+    );
+    await client.logout(session);
+  });
+
+  test('signing a signed invoice away is validation', async () => {
+    const session = await client.login('12345678', 'angaria', false);
+    const signed = (await client.getDrafts(session, daysAgo(7), today)).find(
+      (row) => row.onayDurumu === 'Onaylandı',
+    );
+    expect(signed).toBeDefined();
+    expect(await failure(client.cancelInvoice(session, 'iptal', signed ?? {}))).toMatchObject({
+      code: 'validation',
+      gibMessage: messages.notDeletable,
+    });
+    await client.logout(session);
+  });
+
+  test('a request that never reaches GİB is network, in Node and in Tauri', async () => {
+    for (const reason of [
+      new TypeError('fetch failed'),
+      'error sending request for url (https://earsivportal.efatura.gov.tr/earsiv-services/assos-login)',
+    ]) {
+      const offline = createClient({ baseUrl, fetch: () => Promise.reject(reason) });
+      expect(await failure(offline.login('33333301', '1', true))).toMatchObject({
+        cause: reason,
+        code: 'network',
+        message: 'GİB’e ulaşılamadı',
+      });
+    }
+  });
+
+  test('an aborted request stays an abort', async () => {
+    const abort = new DOMException('Aborted', 'AbortError');
+    const aborted = createClient({ baseUrl, fetch: () => Promise.reject(abort) });
+    await expect(aborted.login('33333301', '1', true)).rejects.toBe(abort);
   });
 });

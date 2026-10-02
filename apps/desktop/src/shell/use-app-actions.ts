@@ -2,7 +2,7 @@ import { toast } from '@angaria/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
-import { errorMessage } from '@/lib/copy.ts';
+import { toastError } from '@/lib/gib-errors.ts';
 import { invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
 import { fetchLastMonthInvoice } from '@/lib/reissue.ts';
 import { useStore } from '@/lib/store.tsx';
@@ -61,7 +61,7 @@ export function useAppActions() {
         });
       },
       (error: unknown) => {
-        toast.error(errorMessage(error), { id: toastId });
+        toastError(error, { id: toastId, openSettings: () => void navigate({ to: '/ayarlar' }) });
       },
     );
   }, [account, navigate, queryClient, requireCredentials]);

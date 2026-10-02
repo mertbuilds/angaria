@@ -21,6 +21,7 @@ import { createDraftInvoice, fetchTCMBRateTable, getDrafts } from '@/lib/angaria
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { customerName, defaultPDFLanguage, findCustomer, learnCustomer } from '@/lib/customer.ts';
 import { GIB_COUNTRIES, GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
+import { TCMB_RATE_ERROR } from '@/lib/gib-errors.ts';
 import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
 import { saveDueDate } from '@/lib/invoice-due-dates.ts';
 import {
@@ -681,7 +682,7 @@ export function CreateInvoicePage() {
       </>
     );
   } else if (rates.isError) {
-    rateDescription = <span {...props(styles.warning)}>TCMB kuru alınamadı. Kuru elle gir.</span>;
+    rateDescription = <span {...props(styles.warning)}>{TCMB_RATE_ERROR}</span>;
   } else if (rates.data && tcmbRate === undefined) {
     rateDescription = 'TCMB bu para birimi için kur yayınlamıyor. Kuru elle gir.';
   } else if (rates.data) {

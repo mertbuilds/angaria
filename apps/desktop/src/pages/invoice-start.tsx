@@ -2,10 +2,11 @@ import { Button } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, RepeatIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { errorMessage, UNNAMED_CUSTOMER } from '@/lib/copy.ts';
+import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
+import { describeError } from '@/lib/gib-errors.ts';
 import { cachedInvoices, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
 import { presetRange, recentInvoices } from '@/lib/invoices.ts';
 import { useStore } from '@/lib/store.tsx';
@@ -21,6 +22,10 @@ const styles = create({
     fontSize: font.sizeSm,
     fontVariantNumeric: 'tabular-nums',
     whiteSpace: 'nowrap',
+  },
+  detail: {
+    display: 'block',
+    fontSize: font.sizeXs,
   },
   error: {
     color: colors.muted,
@@ -254,9 +259,16 @@ export function InvoiceStart() {
       </ul>
     );
   } else if (recent.error) {
+    const failure = describeError(recent.error);
     list = (
       <div {...props(styles.footer)}>
-        <p {...props(styles.error)}>Son faturalar alınamadı: {errorMessage(recent.error)}</p>
+        <p {...props(styles.error)}>
+          Son faturalar alınamadı. {failure.text}
+          {failure.detail && <span {...props(styles.detail)}>{failure.detail}</span>}
+        </p>
+        {failure.action === 'settings' && (
+          <Button render={<Link to="/ayarlar" />}>Ayarlar’a git</Button>
+        )}
         <Button onClick={recent.refetch} variant="outline">
           Tekrar dene
         </Button>

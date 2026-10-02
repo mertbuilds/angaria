@@ -34,6 +34,7 @@ import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settin
 import { forceLogout } from '@/lib/angaria.ts';
 import { LOGO_TYPES, readLogo } from '@/lib/company-logo.ts';
 import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
+import { toastError } from '@/lib/gib-errors.ts';
 import { isPDFStyle, PDF_STYLES, resolvePDFStyle } from '@/lib/invoice-pdf-i18n.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
@@ -170,7 +171,7 @@ function GibAccountSection() {
       await forceLogout(login.username, login.password, login.testMode);
       toast.success('Oturum kapatıldı');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Oturum kapatılamadı. Tekrar dene.');
+      toastError(error);
     } finally {
       setLoggingOut(false);
     }

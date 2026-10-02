@@ -23,6 +23,9 @@ const styles = create({
     margin: 0,
     maxWidth: '22rem',
   },
+  emptyDetail: {
+    fontSize: font.sizeXs,
+  },
   emptyTitle: {
     color: colors.fg,
     fontSize: font.sizeMd,
@@ -429,16 +432,20 @@ export function SearchableList<T extends { id: string }>({
 export function EmptyState({
   action,
   children,
+  detail,
   title,
 }: {
   action?: ReactNode;
   children: ReactNode;
+  /** A second, smaller line under the text. */
+  detail?: ReactNode;
   title: string;
 }) {
   return (
     <div {...props(styles.empty)}>
       <h2 {...props(styles.emptyTitle)}>{title}</h2>
       <p {...props(styles.emptyText)}>{children}</p>
+      {detail && <p {...props(styles.emptyText, styles.emptyDetail)}>{detail}</p>}
       {action}
     </div>
   );
