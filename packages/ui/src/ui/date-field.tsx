@@ -12,7 +12,7 @@ import {
   DateSegment,
 } from 'react-aria-components/DateField';
 import { I18nProvider } from 'react-aria-components/I18nProvider';
-import { isHidden, popupStyles } from '../lib/popup.ts';
+import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { Calendar } from './calendar.tsx';
 import { Input } from './input.tsx';
@@ -127,7 +127,9 @@ const styles = create({
     lineHeight: 1.4,
     margin: 0,
     maxWidth: '15.75rem',
-    minHeight: '1.25rem',
+    // Two lines (a date and its range problem wrap to two), so typing never
+    // changes the popover's height.
+    minHeight: 'calc(2.8em + 0.25rem)',
   },
   previewDate: {
     color: colors.foreground,
@@ -293,6 +295,7 @@ const DateField = ({
   const [pendingYear, setPendingYear] = useState<CalendarDate | null>(null);
   const kept = useSameDay(value);
   const shown = pendingYear ?? kept;
+  const placement = useHeldPlacement('bottom', 'start');
 
   // A <label for={id}> names nothing on the segments' group, so make its
   // click focus the first segment like a native input's label would.
@@ -442,10 +445,9 @@ const DateField = ({
       </div>
       <Popover.Portal>
         <Popover.Positioner
-          align="start"
           anchor={fieldRef}
-          side="bottom"
           sideOffset={4}
+          {...placement}
           {...stylexProps(popupStyles.positioner)}
         >
           <Popover.Popup

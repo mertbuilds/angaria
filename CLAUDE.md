@@ -78,6 +78,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 - The package ships TypeScript source; every consumer compiles it with `@stylexjs/unplugin` (`stylex.vite({ useCSSLayers: { before: ['base'] } })`, see `apps/desktop/vite.config.ts`). Components take StyleX styles in `style`, never inline CSS.
 - A new package or `@base-ui/react` subpath imported here also goes into `uiDependencies` in `apps/web/vite.config.ts`, or the web dev server finds it on the first request and serves SSR 500s while it re-bundles.
 - Theme: `data-theme` on `<html>` absent = follow the system, `light` or `dark` forces one; the attribute also themes any subtree.
+- Anchored popups (DateField, Popover, Select, Combobox, Menu) keep the side and alignment they opened on until they close: their Positioner spreads `useHeldPlacement` (`src/lib/popup.ts`). A new anchored popup does the same. The date popover also keeps one height: the calendar always has room for six weeks and the text line for two lines.
 - Optional theme variables (`optional` in `src/lib/tokens.stylex.ts`: field fill, chosen tab, tooltip, switch thumb, link color) are unset in theme.css and fall back to the shipped look; an app's palette sets them (the desktop's `palettes.css`).
 - Gallery (dev only): `http://localhost:5173/ui-gallery.html` (or `/?ui-gallery`) while the desktop dev server runs. Every component, light and dark side by side.
 

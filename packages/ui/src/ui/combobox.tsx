@@ -5,7 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import { isHidden, popupStyles } from '../lib/popup.ts';
+import { isHidden, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 import { inputStyles } from './input.tsx';
@@ -301,32 +301,34 @@ const ComboboxContent = ({
   sideOffset = 4,
   style,
   ...props
-}: ComboboxContentProps) => (
-  <ComboboxPrimitive.Portal>
-    <ComboboxPrimitive.Positioner
-      align={align}
-      alignOffset={alignOffset}
-      anchor={anchor}
-      side={side}
-      sideOffset={sideOffset}
-      {...stylexProps(popupStyles.positioner)}
-    >
-      <ComboboxPrimitive.Popup
-        className={(state) =>
-          stylexProps(
-            popupStyles.surface,
-            styles.content,
-            isHidden(state.transitionStatus) && popupStyles.hidden,
-            customClassName(className),
-            style,
-          ).className
-        }
-        data-slot="combobox-content"
-        {...props}
-      />
-    </ComboboxPrimitive.Positioner>
-  </ComboboxPrimitive.Portal>
-);
+}: ComboboxContentProps) => {
+  const placement = useHeldPlacement(side, align);
+  return (
+    <ComboboxPrimitive.Portal>
+      <ComboboxPrimitive.Positioner
+        alignOffset={alignOffset}
+        anchor={anchor}
+        sideOffset={sideOffset}
+        {...placement}
+        {...stylexProps(popupStyles.positioner)}
+      >
+        <ComboboxPrimitive.Popup
+          className={(state) =>
+            stylexProps(
+              popupStyles.surface,
+              styles.content,
+              isHidden(state.transitionStatus) && popupStyles.hidden,
+              customClassName(className),
+              style,
+            ).className
+          }
+          data-slot="combobox-content"
+          {...props}
+        />
+      </ComboboxPrimitive.Positioner>
+    </ComboboxPrimitive.Portal>
+  );
+};
 
 type ComboboxListProps = Omit<ComboboxPrimitive.List.Props, 'className' | 'style'> &
   StyleXOverrides;
