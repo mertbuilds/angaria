@@ -20,7 +20,6 @@ import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import {
   byRecentInvoice,
   COUNTRY_OPTIONS,
-  countryError,
   countryLabel,
   customerName,
   findCustomer,
@@ -674,19 +673,7 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
             />
           )}
         </form.AppField>
-        <form.AppField
-          name="recipient.country"
-          // The one check outside validateInvoice: it reads two fields and
-          // re-runs when the VKN changes.
-          validators={{
-            onChange: ({ fieldApi, value }) =>
-              countryError({
-                country: value,
-                taxIDOrTRID: fieldApi.form.getFieldValue('recipient.taxIDOrTRID'),
-              }) ?? undefined,
-            onChangeListenTo: ['recipient.taxIDOrTRID'],
-          }}
-        >
+        <form.AppField name="recipient.country">
           {(field) => (
             <field.ComboboxField
               clearable

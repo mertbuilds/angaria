@@ -3,6 +3,7 @@ import { addDays, differenceInCalendarDays } from 'date-fns';
 import type { InvoicePDFData } from '@/components/invoice-pdf.tsx';
 import type { InvoiceDetails } from './angaria.ts';
 import {
+  countryError,
   customerDefaults,
   nameError,
   recipientDetails,
@@ -218,6 +219,10 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
   }
   if (!recipient.fullAddress.trim()) {
     fields['recipient.fullAddress'] = 'Adresi yaz';
+  }
+  const country = countryError(recipient);
+  if (country) {
+    fields['recipient.country'] = country;
   }
 
   // Any other type would go to GİB with its own fields empty.

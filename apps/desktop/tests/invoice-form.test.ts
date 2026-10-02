@@ -277,6 +277,13 @@ const due = (dueDate: string, manualDate = '') =>
     today,
   )?.fields;
 
+/** validateInvoice's errors for a customer abroad (GİB's 2222222222) in `country`. */
+const abroad = (country: string) =>
+  validateInvoice(
+    form({ recipient: { ...form().recipient, country, taxIDOrTRID: '2222222222' } }),
+    today,
+  )?.fields;
+
 describe('validateInvoice', () => {
   test('passes a complete invoice', () => {
     expect(validateInvoice(form(), today)).toBeUndefined();
@@ -311,6 +318,16 @@ describe('validateInvoice', () => {
       title: '',
     };
     expect(validateInvoice(form({ recipient }), today)).toBeUndefined();
+  });
+
+  test('a customer abroad needs a country other than Türkiye', () => {
+    expect(abroad('')).toEqual({
+      'recipient.country': 'Yurt dışındaki müşterinin ülkesini seç',
+    });
+    expect(abroad('Türkiye')).toEqual({
+      'recipient.country': 'Yurt dışı müşteri için Türkiye dışında bir ülke seç',
+    });
+    expect(abroad('Almanya')).toBeUndefined();
   });
 
   test('refuses a due date before the invoice date', () => {
