@@ -1,6 +1,7 @@
 // Dev-only gallery of every @angaria/ui component, served from ui-gallery.html
-// (or /?ui-gallery). It loads only the @angaria/ui stylesheets, so the
-// components render exactly as the package ships them.
+// (or /?ui-gallery). It loads the @angaria/ui stylesheets and the app's
+// palettes.css; Kit (no palette, the default) renders the components exactly as
+// the package ships them, Serin and Sıcak as the app does.
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
+  ChoiceChips,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -60,10 +62,14 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldWarning,
   Input,
   Kbd,
   KbdGroup,
   Label,
+  MaskedInput,
+  NumberInput,
+  OTPInput,
   Popover,
   PopoverContent,
   PopoverDescription,
@@ -125,12 +131,15 @@ import {
   Trash2Icon,
   UsersIcon,
 } from 'lucide-react';
-import { StrictMode, useEffect, useState } from 'react';
+import { StrictMode, useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { paletteChoices, paletteLabels, type PaletteChoice } from '../lib/palette.ts';
+import { GTIP_MASK, IBAN_MASK, isValidTRIBAN, TR_PHONE_MASK } from '../lib/tr-validators.ts';
 import '@angaria/ui/fonts.css';
 import '@angaria/ui/theme.css';
 import '@angaria/ui/base.css';
+import '../palettes.css';
 import { GalleryDates } from './gallery-dates.tsx';
 
 const styles = create({
@@ -158,6 +167,17 @@ const styles = create({
   barHint: {
     color: colors.muted,
     fontSize: font.sizeSm,
+  },
+  barControls: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s3,
+  },
+  narrow: {
+    width: '7rem',
+  },
+  readout: {
+    fontVariantNumeric: 'tabular-nums',
   },
   cardWidth: {
     maxWidth: '22rem',
@@ -272,6 +292,265 @@ const invoices = [
   { amount: '€980.00', customer: 'Linear Orbit Inc.', date: '02.09.2026', no: 'GIB2026000000010' },
 ];
 
+// Gallery only: Turkish amounts, dots grouping thousands. The app's NumberField
+// passes invoice-form's parseDecimal and formatDecimal instead.
+const amountFormat = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 4 });
+const formatAmount = (value: number) => amountFormat.format(value);
+
+function parseAmount(text: string) {
+  const trimmed = text.replaceAll(/[\s₺%]/g, '');
+  if (!trimmed) {
+    return 0;
+  }
+  const grouped = trimmed.includes(',') || /^[1-9]\d{0,2}(?:\.\d{3})+$/.test(trimmed);
+  const normalized = grouped ? trimmed.replaceAll('.', '').replace(',', '.') : trimmed;
+  return /^\d+(?:\.\d+)?$/.test(normalized) ? Number(normalized) : null;
+}
+
+const VAT_OPTIONS = [20, 10, 1, 0].map((rate) => ({ label: `%${rate}`, value: rate }));
+
+const INVOICE_TYPES = [
+  { label: 'Satış', value: 'SATIS' },
+  { label: 'İstisna', value: 'ISTISNA' },
+  {
+    description: 'Bu tip için GİB portalını kullan',
+    disabled: true,
+    label: 'Tevkifat',
+    value: 'TEVKIFAT',
+  },
+];
+
+const DISCOUNT_KINDS = [
+  { label: '%', value: 'percent' },
+  { label: '₺', value: 'amount' },
+];
+
+function Readout({ value }: { value: number | string | null }) {
+  return <FieldDescription style={styles.readout}>Değer: {String(value)}</FieldDescription>;
+}
+
+function GalleryNumbers() {
+  const id = useId();
+  const [price, setPrice] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [rate, setRate] = useState(20);
+  const [broken, setBroken] = useState(Number.NaN);
+  return (
+    <FieldGroup style={styles.stack}>
+      <Field>
+        <FieldLabel htmlFor={`${id}-price`}>Birim fiyat</FieldLabel>
+        <NumberInput
+          blankZero
+          format={formatAmount}
+          id={`${id}-price`}
+          onValueChange={setPrice}
+          parse={parseAmount}
+          placeholder="0,00"
+          suffix="₺"
+          value={price}
+        />
+        <Readout value={price} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-quantity`}>Miktar</FieldLabel>
+        <NumberInput
+          format={formatAmount}
+          id={`${id}-quantity`}
+          min={0}
+          onValueChange={setQuantity}
+          parse={parseAmount}
+          steppers
+          style={styles.narrow}
+          value={quantity}
+        />
+        <Readout value={quantity} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-rate`}>Kur farkı</FieldLabel>
+        <NumberInput
+          format={formatAmount}
+          id={`${id}-rate`}
+          max={100}
+          min={0}
+          onValueChange={setRate}
+          parse={parseAmount}
+          suffix="%"
+          value={rate}
+        />
+        <Readout value={rate} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-broken`}>Ödenecek tutar</FieldLabel>
+        <NumberInput
+          aria-describedby={`${id}-broken-error`}
+          aria-invalid={Number.isNaN(broken)}
+          format={formatAmount}
+          id={`${id}-broken`}
+          onValueChange={setBroken}
+          parse={parseAmount}
+          suffix="₺"
+          value={broken}
+        />
+        {Number.isNaN(broken) && (
+          <FieldError id={`${id}-broken-error`}>
+            Ödenecek tutarı rakamla yaz, örneğin 1.250,50
+          </FieldError>
+        )}
+      </Field>
+    </FieldGroup>
+  );
+}
+
+function GalleryChoices() {
+  const id = useId();
+  const [vat, setVAT] = useState<number | null>(20);
+  const [type, setType] = useState<string | null>('SATIS');
+  const [discount, setDiscount] = useState<string | null>('percent');
+  return (
+    <FieldGroup style={styles.stack}>
+      <Field>
+        <FieldLabel id={`${id}-vat-label`}>KDV</FieldLabel>
+        <ChoiceChips
+          aria-describedby={vat === 0 ? `${id}-vat-warning` : undefined}
+          aria-labelledby={`${id}-vat-label`}
+          onValueChange={setVAT}
+          options={VAT_OPTIONS}
+          other={{
+            label: 'Diğer',
+            render: ({ autoFocus, id: otherId }) => (
+              <NumberInput
+                aria-labelledby={`${id}-vat-label`}
+                autoFocus={autoFocus}
+                format={formatAmount}
+                id={otherId}
+                max={100}
+                min={0}
+                onValueChange={setVAT}
+                parse={parseAmount}
+                style={styles.narrow}
+                suffix="%"
+                value={vat ?? Number.NaN}
+              />
+            ),
+          }}
+          value={vat}
+        />
+        <Readout value={vat} />
+        {vat === 0 && (
+          <FieldWarning id={`${id}-vat-warning`}>
+            %0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota
+            yaz.
+          </FieldWarning>
+        )}
+      </Field>
+      <Field>
+        <FieldLabel id={`${id}-type-label`}>Fatura tipi</FieldLabel>
+        <ChoiceChips
+          aria-labelledby={`${id}-type-label`}
+          onValueChange={setType}
+          options={INVOICE_TYPES}
+          value={type}
+        />
+        <Readout value={type} />
+      </Field>
+      <Field>
+        <FieldLabel id={`${id}-discount-label`}>İskonto</FieldLabel>
+        <ChoiceChips
+          aria-labelledby={`${id}-discount-label`}
+          onValueChange={setDiscount}
+          options={DISCOUNT_KINDS}
+          size="sm"
+          value={discount}
+        />
+      </Field>
+      <Field>
+        <FieldLabel id={`${id}-disabled-label`}>Devre dışı</FieldLabel>
+        <ChoiceChips
+          aria-labelledby={`${id}-disabled-label`}
+          disabled
+          onValueChange={() => {}}
+          options={VAT_OPTIONS}
+          value={0}
+        />
+      </Field>
+    </FieldGroup>
+  );
+}
+
+function GalleryMasked() {
+  const id = useId();
+  const [iban, setIBAN] = useState('');
+  const [phone, setPhone] = useState('');
+  const [gtip, setGTIP] = useState('');
+  return (
+    <FieldGroup style={styles.stack}>
+      <Field>
+        <FieldLabel htmlFor={`${id}-iban`}>IBAN</FieldLabel>
+        <MaskedInput
+          autoComplete="off"
+          id={`${id}-iban`}
+          mask={IBAN_MASK}
+          onInput={(event) => setIBAN(event.currentTarget.value)}
+          placeholder="TR00 0000 0000 0000 0000 0000 00"
+          value={iban}
+        />
+        <Readout
+          value={iban && (isValidTRIBAN(iban) ? 'mod-97 tutuyor' : 'eksik ya da tutmuyor')}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-phone`}>Telefon</FieldLabel>
+        <MaskedInput
+          autoComplete="tel"
+          id={`${id}-phone`}
+          inputMode="tel"
+          mask={TR_PHONE_MASK}
+          onInput={(event) => setPhone(event.currentTarget.value)}
+          placeholder="+90 5__ ___ __ __"
+          value={phone}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-gtip`}>GTİP</FieldLabel>
+        <MaskedInput
+          autoComplete="off"
+          id={`${id}-gtip`}
+          inputMode="numeric"
+          mask={GTIP_MASK}
+          onInput={(event) => setGTIP(event.currentTarget.value)}
+          placeholder="0000.00.00.00.00"
+          value={gtip}
+        />
+      </Field>
+    </FieldGroup>
+  );
+}
+
+function GalleryOTP() {
+  const id = useId();
+  const [code, setCode] = useState('');
+  const [completed, setCompleted] = useState('');
+  return (
+    <Field>
+      <FieldLabel htmlFor={`${id}-otp`}>SMS şifresi</FieldLabel>
+      <OTPInput
+        aria-describedby={`${id}-otp-hint`}
+        id={`${id}-otp`}
+        invalid={completed !== '' && completed !== '123456'}
+        length={6}
+        onComplete={setCompleted}
+        onValueChange={setCode}
+        value={code}
+      />
+      <FieldDescription id={`${id}-otp-hint`}>
+        {completed
+          ? `Tamamlandı: ${completed}`
+          : 'Telefonuna gelen 6 haneli şifre. Emülatörde 123456.'}
+      </FieldDescription>
+    </Field>
+  );
+}
+
 function Section({ children, title }: { children: ReactNode; title: string }) {
   return (
     <section {...props(styles.section)}>
@@ -342,6 +621,14 @@ function Showcase() {
             <FieldError>Vergi numarası 10 haneli olmalı.</FieldError>
           </Field>
           <Field>
+            <FieldLabel htmlFor="gallery-date">Fatura tarihi</FieldLabel>
+            <Input defaultValue="18.09.2026" id="gallery-date" />
+            <FieldWarning>
+              Bu tarih 7 günden eski. VUK 231/5’e göre fatura, hizmetten sonraki 7 gün içinde
+              kesilmeli.
+            </FieldWarning>
+          </Field>
+          <Field>
             <FieldLabel htmlFor="gallery-note">Not</FieldLabel>
             <Textarea id="gallery-note" placeholder="Faturaya eklenecek not" />
           </Field>
@@ -350,6 +637,22 @@ function Showcase() {
             <Input defaultValue="Değiştirilemez" disabled id="gallery-disabled" />
           </Field>
         </FieldGroup>
+      </Section>
+
+      <Section title="NumberInput">
+        <GalleryNumbers />
+      </Section>
+
+      <Section title="ChoiceChips">
+        <GalleryChoices />
+      </Section>
+
+      <Section title="MaskedInput">
+        <GalleryMasked />
+      </Section>
+
+      <Section title="OTPInput">
+        <GalleryOTP />
       </Section>
 
       <Section title="DateField, Calendar">
@@ -718,8 +1021,19 @@ function Showcase() {
   );
 }
 
+type GalleryPalette = 'kit' | PaletteChoice;
+
+const galleryPalettes = [
+  { label: 'Kit', value: 'kit' as GalleryPalette },
+  ...paletteChoices.map((choice) => ({
+    label: paletteLabels[choice],
+    value: choice as GalleryPalette,
+  })),
+];
+
 function Gallery() {
   const [theme, setTheme] = useState<ThemeChoice>(readTheme);
+  const [palette, setPalette] = useState<GalleryPalette>('kit');
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
@@ -738,6 +1052,18 @@ function Gallery() {
     setTheme(choice);
   };
 
+  const choosePalette = (choice: GalleryPalette | null) => {
+    if (!choice) {
+      return;
+    }
+    if (choice === 'kit') {
+      delete document.documentElement.dataset['palette'];
+    } else {
+      document.documentElement.dataset['palette'] = choice;
+    }
+    setPalette(choice);
+  };
+
   return (
     <TooltipProvider>
       <header {...props(styles.bar)} id="gallery">
@@ -747,15 +1073,24 @@ function Gallery() {
             Arayüz bileşenleri. Açılır pencereler sayfa temasını izler. Komut paleti için ⌘K.
           </span>
         </div>
-        <Tabs onValueChange={(value: ThemeChoice) => chooseTheme(value)} value={theme}>
-          <TabsList>
-            {themeChoices.map((choice) => (
-              <TabsTrigger key={choice} value={choice}>
-                {themeLabels[choice]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <div {...props(styles.barControls)}>
+          <ChoiceChips
+            aria-label="Renk paleti"
+            onValueChange={choosePalette}
+            options={galleryPalettes}
+            size="sm"
+            value={palette}
+          />
+          <Tabs onValueChange={(value: ThemeChoice) => chooseTheme(value)} value={theme}>
+            <TabsList>
+              {themeChoices.map((choice) => (
+                <TabsTrigger key={choice} value={choice}>
+                  {themeLabels[choice]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
       </header>
       <div {...props(styles.grid)}>
         <div {...props(styles.pane)} data-theme="light">
