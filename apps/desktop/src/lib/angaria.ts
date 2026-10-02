@@ -47,12 +47,5 @@ export const cancelInvoice = (...args: Parameters<typeof client.cancelInvoice>) 
  * The TCMB bulletin for an invoice dated `baseDate` (default today), by the
  * Kur günü setting unless `rateDay` is given. Put `rateDay` in the query key.
  */
-export const fetchTCMBRateTable = async (baseDate?: Date, rateDay: RateDay = readRateDay()) => {
-  const table = await _fetchTCMBRateTable(baseDate, {
-    baseUrl: activeGibEmulatorURL,
-    fetch: hostFetch,
-    rateDay,
-  });
-  // `date` is the old name of publishedOn, until pages/use-currency-rate.ts moves to it.
-  return { ...table, date: table.publishedOn };
-};
+export const fetchTCMBRateTable = (baseDate?: Date, rateDay: RateDay = readRateDay()) =>
+  _fetchTCMBRateTable(baseDate, { baseUrl: activeGibEmulatorURL, fetch: hostFetch, rateDay });

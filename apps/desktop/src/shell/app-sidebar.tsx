@@ -42,15 +42,12 @@ const styles = create({
 
 function SectionItem({ section }: { section: Section }) {
   const matchRoute = useMatchRoute();
-  const { resetInvoiceForm } = useStore();
   const isActive = Boolean(matchRoute({ fuzzy: true, to: section.to }));
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={isActive}
-        // Yeni fatura always starts a blank form, as it did before the router.
-        onClick={section.to === '/yeni' ? resetInvoiceForm : undefined}
         render={<Link to={section.to} />}
         style={isActive ? styles.active : undefined}
       >

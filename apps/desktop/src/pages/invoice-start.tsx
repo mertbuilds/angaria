@@ -1,10 +1,10 @@
-import { Button } from '@angaria/ui';
+import { Button, Kbd } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, RepeatIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { describeError } from '@/lib/gib-errors.ts';
 import { cachedInvoices, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
@@ -47,6 +47,18 @@ const styles = create({
   hint: {
     color: colors.muted,
     fontSize: font.sizeXs,
+  },
+  keys: {
+    alignItems: 'center',
+    color: colors.muted,
+    display: 'flex',
+    flexWrap: 'wrap',
+    fontSize: font.sizeXs,
+    gap: spacing.s1,
+    margin: 0,
+  },
+  keysGap: {
+    marginInlineStart: spacing.s2,
   },
   list: {
     backgroundColor: tones.card,
@@ -97,14 +109,24 @@ const styles = create({
       ':hover': colors.subtle,
       default: 'transparent',
     },
+    // Rounded like the list while focused, so its ring is never cut at a corner.
+    borderRadius: {
+      ':focus-visible': radius.base,
+      default: 0,
+    },
     borderWidth: 0,
+    // ↑/↓ move focus through the rows: a ring marks the one ↵ repeats.
+    boxShadow: {
+      ':focus-visible': `inset 0 0 0 1px ${tones.ring}`,
+      default: null,
+    },
     boxSizing: 'border-box',
     color: 'inherit',
     cursor: 'pointer',
     display: 'grid',
     fontFamily: 'inherit',
     gap: spacing.s4,
-    gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+    gridTemplateColumns: 'auto minmax(0, 1fr) auto auto',
     outline: 'none',
     paddingBlock: spacing.s3,
     paddingInline: spacing.s4,
@@ -179,13 +201,31 @@ function useRecentInvoices() {
   const fetched = lists.flatMap((list) => list.data ?? []);
   return {
     error: lists.find((list) => list.isError)?.error,
-    pending: lists.some((list) => list.isPending),
+    // A cached empty list that is being refetched (a draft was just created)
+    // does not count as no invoices yet.
+    pending: lists.some((list) => list.isPending || list.isFetching),
     refetch: () => lists.forEach((list) => void list.refetch()),
     rows: recentInvoices([...fetched, ...cachedInvoices(queryClient, account)], RECENT),
   };
 }
 
-function RecentRow({ invoice, onRepeat }: { invoice: Invoice; onRepeat: () => void }) {
+/** Keys typed into a field or a dialog are not the list's. */
+function ownsKeys(target: EventTarget | null) {
+  return !(target as Element | null)?.closest?.(
+    'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="alertdialog"]',
+  );
+}
+
+function RecentRow({
+  invoice,
+  onRepeat,
+  shortcut,
+}: {
+  invoice: Invoice;
+  onRepeat: () => void;
+  /** 1-9: the digit that repeats this invoice. */
+  shortcut: number;
+}) {
   const name = invoice.aliciUnvanAdSoyad || UNNAMED_CUSTOMER;
   const details = [invoice.belgeNumarasi, formatDateHuman(invoice.belgeTarihi ?? '')]
     .filter(Boolean)
@@ -193,11 +233,13 @@ function RecentRow({ invoice, onRepeat }: { invoice: Invoice; onRepeat: () => vo
   return (
     <li {...props(styles.item)}>
       <button
+        aria-keyshortcuts={String(shortcut)}
         aria-label={`Tekrar kes: ${name}, ${details}`}
         onClick={onRepeat}
         type="button"
         {...props(styles.row)}
       >
+        <Kbd aria-hidden>{shortcut}</Kbd>
         <span {...props(styles.text)}>
           <span {...props(styles.name)}>{name}</span>
           <span {...props(styles.subtitle)}>{details}</span>
@@ -229,13 +271,15 @@ function SkeletonRows() {
 
 /**
  * /yeni before a form is started: the newest invoices to repeat in one click
- * (Tekrar kes loads one through ?kaynak=), or a blank invoice. With no invoice
- * yet, the blank form opens right away.
+ * or key (Tekrar kes loads one through ?kaynak=), or a blank invoice. ↑/↓ move
+ * between the invoices, ↵ repeats the focused one and 1-9 the one with that
+ * number. With no invoice yet, the blank form opens right away.
  */
 export function InvoiceStart() {
   const navigate = useNavigate();
   const { startBlankInvoice } = useStore();
   const recent = useRecentInvoices();
+  const listRef = useRef<HTMLUListElement>(null);
   const empty = !recent.pending && !recent.error && recent.rows.length === 0;
 
   useEffect(() => {
@@ -244,18 +288,79 @@ export function InvoiceStart() {
     }
   }, [empty, startBlankInvoice]);
 
+  const repeat = (invoice: Invoice) =>
+    void navigate({ search: { kaynak: invoice.ettn }, to: '/yeni' });
+
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.isComposing ||
+      event.defaultPrevented ||
+      !ownsKeys(event.target)
+    ) {
+      return;
+    }
+    const invoice = /^[1-9]$/.test(event.key) ? recent.rows[Number(event.key) - 1] : undefined;
+    if (invoice) {
+      event.preventDefault();
+      repeat(invoice);
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+      return;
+    }
+    const rows = [...(listRef.current?.querySelectorAll<HTMLElement>('button') ?? [])];
+    if (rows.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    const at = rows.indexOf(document.activeElement as HTMLElement);
+    const next =
+      at === -1
+        ? event.key === 'ArrowDown'
+          ? 0
+          : rows.length - 1
+        : Math.min(rows.length - 1, Math.max(0, at + (event.key === 'ArrowDown' ? 1 : -1)));
+    rows[next]?.focus();
+  });
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => onKeyDown(event);
+    document.addEventListener('keydown', listener);
+    return () => document.removeEventListener('keydown', listener);
+  }, []);
+
   let list;
   if (recent.rows.length > 0) {
     list = (
-      <ul aria-label="Son faturalar" {...props(styles.list)}>
-        {recent.rows.map((invoice) => (
-          <RecentRow
-            invoice={invoice}
-            key={invoice.ettn}
-            onRepeat={() => void navigate({ search: { kaynak: invoice.ettn }, to: '/yeni' })}
-          />
-        ))}
-      </ul>
+      <>
+        <ul aria-label="Son faturalar" ref={listRef} {...props(styles.list)}>
+          {recent.rows.map((invoice, index) => (
+            <RecentRow
+              invoice={invoice}
+              key={invoice.ettn}
+              onRepeat={() => repeat(invoice)}
+              shortcut={index + 1}
+            />
+          ))}
+        </ul>
+        <p aria-hidden {...props(styles.keys)}>
+          <Kbd>↑</Kbd>
+          <Kbd>↓</Kbd>
+          seç,
+          <Kbd style={styles.keysGap}>↵</Kbd>
+          ya da
+          <Kbd>1</Kbd>
+          {recent.rows.length > 1 && (
+            <>
+              -<Kbd>{recent.rows.length}</Kbd>
+            </>
+          )}
+          tekrar kes
+        </p>
+      </>
     );
   } else if (recent.error) {
     const failure = describeError(recent.error);
