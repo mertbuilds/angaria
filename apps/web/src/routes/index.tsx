@@ -450,7 +450,7 @@ function Landing() {
   );
 }
 
-/** A section's title, led by the pale red square the page repeats as its marker. */
+/** A section's title, led by the blue square the page repeats as its marker. */
 function SectionHeading({ children, id }: { children: ReactNode; id: string }) {
   return (
     <h2 id={id} {...props(layout.heading, styles.heading)}>

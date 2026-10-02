@@ -15,7 +15,7 @@ body {
   background: transparent;
 }
 
-/* Links turn the site's red on hover. In @layer base like theme.css's link
+/* Links turn the site's blue on hover. In @layer base like theme.css's link
    rules, so StyleX colors (buttons rendered as links) still win. */
 @layer base {
   a:hover {
