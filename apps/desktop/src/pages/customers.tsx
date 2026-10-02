@@ -335,7 +335,7 @@ function CustomerDefaultsSection({
           description={
             SUPPORTED_INVOICE_TYPES.includes(defaults.invoiceType)
               ? undefined
-              : `Kayıtlı tip ${invoiceTypeLabel(defaults.invoiceType)}: Angaria bu tipi desteklemiyor`
+              : `Kayıtlı tip ${invoiceTypeLabel(defaults.invoiceType)}: Angaria bu tipi desteklemiyor. Satış ya da İstisna seç.`
           }
           id={`${id}-type`}
           label="Fatura tipi"

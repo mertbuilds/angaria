@@ -261,7 +261,7 @@ function GibAccountSection() {
       .catch((error) => {
         if (active) {
           setLoaded({ entityId: activeEntityId, password: '' });
-          toast.error(error instanceof Error ? error.message : 'Şifre okunamadı');
+          toastError(error);
         }
       });
     return () => {
@@ -275,9 +275,7 @@ function GibAccountSection() {
   function handlePasswordChange(value: string) {
     setLoaded({ entityId: activeEntityId, password: value });
     setCredentials(activeEntityId, { password: value }).catch((error) => {
-      toast.error(error instanceof Error ? error.message : 'Şifre kaydedilemedi', {
-        id: 'password-save',
-      });
+      toastError(error, { id: 'password-save' });
     });
   }
 
@@ -360,6 +358,8 @@ function GibAccountSection() {
             aria-pressed={showPassword}
             disabled={password === null}
             onClick={() => setShowPassword((shown) => !shown)}
+            // The caret stays in the password while it is shown or hidden.
+            onMouseDown={(event) => event.preventDefault()}
             size="icon"
             style={styles.passwordToggle}
             variant="ghost"
@@ -814,7 +814,7 @@ function CompanyLogoRow() {
       const logo = await readLogo(file);
       setCompanyInfo((info) => ({ ...info, logo }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Logo okunamadı');
+      toastError(error);
     } finally {
       setReading(false);
     }
@@ -825,7 +825,9 @@ function CompanyLogoRow() {
       hint="PNG, JPG ya da SVG, en fazla 1 megabayt. Logo yoksa PDF’te firma adı yazılır"
       label="Logo"
     >
-      {companyInfo.logo && <img alt="Logo" src={companyInfo.logo} {...props(styles.logo)} />}
+      {companyInfo.logo && (
+        <img alt="Firma logosu" src={companyInfo.logo} {...props(styles.logo)} />
+      )}
       <input
         accept={LOGO_TYPES.join(',')}
         hidden

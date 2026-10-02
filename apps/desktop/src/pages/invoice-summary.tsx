@@ -197,6 +197,8 @@ function TotalsRow({
   );
 }
 
+const DOWNLOAD_LABEL = 'PDF’i indir';
+
 function PDFRow({
   language,
   onDownload,
@@ -210,7 +212,7 @@ function PDFRow({
     <div {...props(styles.pdfRow)}>
       <span {...props(styles.pdfLabel)}>PDF</span>
       <PDFLanguageToggle onChange={onLanguageChange} size="sm" value={language} />
-      <Button onClick={onDownload} variant="ghost">
+      <Button aria-label={DOWNLOAD_LABEL} onClick={onDownload} variant="ghost">
         <DownloadIcon />
         İndir
       </Button>
@@ -308,6 +310,7 @@ export function SummaryPanel({
           {(isSubmitting) => (
             <>
               <Button
+                aria-keyshortcuts={isMac ? 'Meta+Enter' : 'Control+Enter'}
                 disabled={isSubmitting}
                 onClick={() => void form.handleSubmit({ sign: false })}
                 style={styles.full}
@@ -325,6 +328,7 @@ export function SummaryPanel({
               </Button>
               <div {...props(styles.pair)}>
                 <Button
+                  aria-keyshortcuts={isMac ? 'Meta+Shift+Enter' : 'Control+Shift+Enter'}
                   disabled={isSubmitting}
                   onClick={() => void form.handleSubmit({ sign: true })}
                   variant="outline"
