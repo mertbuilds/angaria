@@ -122,20 +122,6 @@ export const GTIP_MASK: MaskitoOptions = {
   ],
 };
 
-/** A GTİP's digits in the mask's groups, as far as they go: `847130` is `8471.30`. */
-export function formatGTIP(text: string) {
-  const digits = text.replaceAll(/\D/g, '').slice(0, 12);
-  return [
-    digits.slice(0, 4),
-    digits.slice(4, 6),
-    digits.slice(6, 8),
-    digits.slice(8, 10),
-    digits.slice(10, 12),
-  ]
-    .filter(Boolean)
-    .join('.');
-}
-
 const PHONE_PREFIX = '+90 ';
 
 /**

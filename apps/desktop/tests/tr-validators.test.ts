@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest';
 import {
-  formatGTIP,
   ibanBankCode,
   isTaxIDPlaceholder,
   isValidEmail,
@@ -146,15 +145,6 @@ describe('IBAN', () => {
     expect(ibanBankCode(example)).toBe('00061');
     expect(ibanBankCode('TR33 0006')).toBeNull();
     expect(ibanBankCode('DE89 3704 0044')).toBeNull();
-  });
-});
-
-describe('formatGTIP', () => {
-  test('groups the digits as far as they go', () => {
-    expect(formatGTIP('847130000000')).toBe('8471.30.00.00.00');
-    expect(formatGTIP('8471 30')).toBe('8471.30');
-    expect(formatGTIP('8471.30.00.00.00.99')).toBe('8471.30.00.00.00');
-    expect(formatGTIP('')).toBe('');
   });
 });
 

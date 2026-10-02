@@ -143,14 +143,13 @@ const styles = create({
 export const displayName = (customer: Recipient) => customerName(customer) || UNNAMED_CUSTOMER;
 
 /** A saved customer's muted tag in a list: its country abroad, else its VKN / TCKN. */
-export const customerTag = (customer: Recipient) =>
+const customerTag = (customer: Recipient) =>
   customer.taxIDOrTRID.trim() === FOREIGN_TAX_ID
     ? countryLabel(customer.country)
     : customer.taxIDOrTRID;
 
 /** The country's English name in a list, when it differs from the Turkish one. */
-export const countryHint = (country: CountryOption) =>
-  country.en === country.label ? null : country.en;
+const countryHint = (country: CountryOption) => (country.en === country.label ? null : country.en);
 
 const TAX_ID_HINTS: Record<TaxIDKind, string> = {
   foreign: 'Yurt dışındaki müşteri numarası',

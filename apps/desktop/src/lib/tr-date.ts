@@ -252,25 +252,5 @@ const pad = (value: number, length = 2) => String(value).padStart(length, '0');
 export const calendarDateToGIB = (date: CalendarDate) =>
   `${pad(date.day)}/${pad(date.month)}/${pad(date.year, 4)}`;
 
-const MONTH_LABELS = [
-  'Oca',
-  'Şub',
-  'Mar',
-  'Nis',
-  'May',
-  'Haz',
-  'Tem',
-  'Ağu',
-  'Eyl',
-  'Eki',
-  'Kas',
-  'Ara',
-];
-const WEEKDAY_LABELS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
-
-/** "9 Eki 2026, Cuma": the preview of a typed date. */
-export const formatTurkishDate = (date: CalendarDate) =>
-  `${date.day} ${MONTH_LABELS[date.month - 1]} ${date.year}, ${WEEKDAY_LABELS[weekdayOf(date)]}`;
-
 /** Under the date popover's text line: what it understands. */
 export const DATE_TEXT_HINT = 'Örnek: dün, 15.10, geçen ay sonu';

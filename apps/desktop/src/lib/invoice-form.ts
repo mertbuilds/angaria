@@ -165,24 +165,12 @@ export function paymentTotal(values: InvoiceFormValues, total: number) {
 export const discountForRate = (item: InvoiceItem, rate: number) =>
   roundKurus((lineTotals(item).gross * rate) / 100);
 
-/** "30/09/2026" (or "30-09-2026") as a date input value, "2026-09-30". */
-export function gibToInputDate(value: string) {
-  const date = parseGIB(value);
-  return date ? `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` : '';
-}
-
-/** A date input value, "2026-09-30", as GİB's "30/09/2026". */
-export function inputDateToGIB(value: string) {
-  const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}/${month}/${year}` : '';
-}
-
 /** "HH:mm:ss" for GİB; a time input drops the seconds when they are zero. */
 export function normalizeTime(value: string) {
   return /^\d{2}:\d{2}$/.test(value) ? `${value}:00` : value;
 }
 
-export const formatTime = (date: Date) =>
+const formatTime = (date: Date) =>
   `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 
 function isAfterToday(gibDate: string, today: Date) {

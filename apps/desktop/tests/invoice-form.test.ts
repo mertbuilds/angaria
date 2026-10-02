@@ -7,8 +7,6 @@ import {
   formatAmount,
   formatDecimal,
   formatRate,
-  gibToInputDate,
-  inputDateToGIB,
   invoiceDefaults,
   invoiceTotals,
   invoiceWarnings,
@@ -249,14 +247,6 @@ describe('rounding per line', () => {
 });
 
 describe('dates and times', () => {
-  test('convert between GİB and date inputs', () => {
-    expect(gibToInputDate('30/09/2026')).toBe('2026-09-30');
-    expect(gibToInputDate('30-09-2026')).toBe('2026-09-30');
-    expect(gibToInputDate('')).toBe('');
-    expect(inputDateToGIB('2026-09-30')).toBe('30/09/2026');
-    expect(inputDateToGIB('')).toBe('');
-  });
-
   test('add the seconds a time input leaves out', () => {
     expect(normalizeTime('09:05')).toBe('09:05:00');
     expect(normalizeTime('09:05:07')).toBe('09:05:07');

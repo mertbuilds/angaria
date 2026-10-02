@@ -248,7 +248,7 @@ export const UNIT_OPTIONS: ReadonlyArray<ChoiceOption<string>> = COMMON_UNITS.ma
 }));
 
 /** A rate typed with or without its sign: "18", "%18" and "18%" are 18. */
-export const parsePercent = (text: string) => parseDecimal(text.replace('%', ''));
+const parsePercent = (text: string) => parseDecimal(text.replace('%', ''));
 
 const currencySymbols = new Map<string, string>();
 

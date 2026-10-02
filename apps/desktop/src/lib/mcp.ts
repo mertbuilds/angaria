@@ -133,7 +133,7 @@ export const mcpToolTitle = (name: string) => MCP_TOOL_COPY[name as McpToolName]
 /** A path or text as one single-quoted shell word. */
 export const shellQuote = (text: string) => `'${text.replaceAll("'", String.raw`'\''`)}'`;
 
-export const mcpURL = (port: number) => `http://127.0.0.1:${port}/mcp`;
+const mcpURL = (port: number) => `http://127.0.0.1:${port}/mcp`;
 
 /** Adds the bridge to Claude Code for every project of this user. */
 export const claudeCodeCommand = (bridgePath: string) =>

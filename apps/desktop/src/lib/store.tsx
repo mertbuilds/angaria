@@ -165,7 +165,7 @@ const DEFAULT_SETTINGS: InvoiceSettings = {
   invoiceType: 'SATIS',
 };
 
-export const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
+const DEFAULT_ADVANCED_FIELDS: AdvancedInvoiceFields = {
   dueDate: '',
   manualDate: '',
   // Empty: the moment the invoice goes to GİB (toDraftDetails).

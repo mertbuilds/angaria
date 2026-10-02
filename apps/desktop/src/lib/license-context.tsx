@@ -31,7 +31,7 @@ const KEYCHAIN_ERROR = 'Lisans bilgileri Anahtar Zinciri’nden okunamadı.';
 
 // import.meta.env.DEV is statically false in production builds, so the bypass
 // cannot ship even if VITE_LICENSE_BYPASS is set there.
-export const licenseBypassed = import.meta.env.DEV && import.meta.env.VITE_LICENSE_BYPASS === '1';
+const licenseBypassed = import.meta.env.DEV && import.meta.env.VITE_LICENSE_BYPASS === '1';
 
 const polar = createPolarClient({
   apiBase: import.meta.env.VITE_POLAR_API_BASE,
