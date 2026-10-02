@@ -18,6 +18,7 @@ import { watchLicense } from './license-watch.ts';
 import {
   activatedLicense,
   LicenseError,
+  normalizeLicenseKey,
   refreshLicense,
   resolveLicense,
   shouldSaveLicense,
@@ -157,7 +158,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
   const activate = useCallback(
     (input: string) =>
       serially(async () => {
-        const key = input.trim();
+        const key = normalizeLicenseKey(input);
         const label = (await hostname().catch(() => null)) || 'Angaria';
         const result = await polar.activate(key, label);
         if (result.kind !== 'activated') {

@@ -4,6 +4,7 @@ import {
   GRACE_PERIOD_MS,
   LAST_SEEN_SAVE_INTERVAL_MS,
   LicenseError,
+  normalizeLicenseKey,
   offlineStatus,
   parseStoredLicense,
   refreshLicense,
@@ -353,5 +354,19 @@ describe('LicenseError', () => {
     const error = new LicenseError('limit-reached');
     expect(error.code).toBe('limit-reached');
     expect(error.message).toContain('Polar müşteri portalından bir Mac’i kaldırıp');
+  });
+});
+
+describe('normalizeLicenseKey', () => {
+  test('drops the spaces, line breaks, invisible characters and quotes of a paste', () => {
+    expect(normalizeLicenseKey('  ANGARIA-1234-ABCD\n')).toBe('ANGARIA-1234-ABCD');
+    expect(normalizeLicenseKey('ANGARIA-\u00a01234 -ABCD')).toBe('ANGARIA-1234-ABCD');
+    expect(normalizeLicenseKey('\u200bANGARIA-1234\ufeff')).toBe('ANGARIA-1234');
+    expect(normalizeLicenseKey('“ANGARIA-1234”')).toBe('ANGARIA-1234');
+    expect(normalizeLicenseKey("'ANGARIA-1234'")).toBe('ANGARIA-1234');
+  });
+
+  test('keeps the key as it is otherwise, case included', () => {
+    expect(normalizeLicenseKey('angaria-1234-abcd')).toBe('angaria-1234-abcd');
   });
 });

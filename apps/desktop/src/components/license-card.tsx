@@ -12,6 +12,7 @@ import {
 } from '@angaria/ui';
 import { useState } from 'react';
 import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
+import { toastError } from '@/lib/gib-errors.ts';
 import { openCustomerPortal, useLicense, type LicenseState } from '@/lib/license-context.tsx';
 
 const formatDate = (iso: string) =>
@@ -43,7 +44,7 @@ export function LicenseCard() {
       await deactivate();
       toast.success('Bu Mac lisanstan kaldırıldı');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Bu Mac kaldırılamadı. Tekrar dene.');
+      toastError(error);
     } finally {
       setRemoving(false);
     }
