@@ -2,18 +2,18 @@
 
 Tauri desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers. Read `docs/relaunch.md` first: it holds the product, repo layout, design, and go-live decisions for the relaunch.
 
-Architecture decisions and their reasons live in `docs/adr/` (tooling, Polar, hosting, downloads and updates, analytics, the GİB emulator, secrets storage); add an ADR when one changes.
+Architecture decisions and their reasons live in `docs/adr/` (tooling, Polar, hosting, downloads and updates, analytics, the GİB emulator, secrets storage, form inputs, the built-in MCP server); add an ADR when one changes.
 
 ## Layout
 
 ```
 apps/
-  desktop/      Tauri 2 + React 19 + Vite. Frontend in src/, Rust in src-tauri/.
+  desktop/      Tauri 2 + React 19 + Vite. Frontend in src/, Rust in src-tauri/ (with mcp-bridge/, the angaria-mcp stdio bridge).
   web/          angaria.app landing page. TanStack Start on Cloudflare Workers, Paraglide (tr only).
 packages/
   earsiv-sdk/   GİB e-Arşiv portal client. tsdown build to dist/.
   gib-emulator/ Local GİB e-Arşiv portal and TCMB rates emulator. node:http, tsdown, vitest.
-  mcp-server/   Internal MCP server (stdio) with GİB invoice tools over the SDK. tsdown, vitest.
+  mcp-server/   Standalone MCP server (stdio) with GİB invoice tools over the SDK; `./inputs` shares tool inputs with the app. tsdown, vitest.
   ui/           @angaria/ui design system: StyleX + Base UI components, theme, fonts. Source-consumed, no build.
   utils/        Shared helpers (TCMB rates). tsdown build, vitest tests.
 ```
@@ -30,9 +30,9 @@ packages/
 | `pnpm format`    | oxfmt (write mode); `pnpm format:check` to verify                               |
 | `pnpm test`      | vitest per package via turbo                                                    |
 | `pnpm fonts`     | fetch Suisse Intl woff2 from R2 into packages/ui/fonts and derive the PDF's ttf |
-| `cargo check`    | Rust check, run in `apps/desktop/src-tauri`                                     |
+| `cargo check`    | Rust check, run in `apps/desktop/src-tauri` (needs the MCP bridge built first)  |
 
-Desktop: `pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json` (same as `pnpm dev`; the overlay lets the app reach the emulator), `pnpm --filter desktop tauri build` for a bundle.
+Desktop: `pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json` (same as `pnpm dev`; the overlay lets the app reach the emulator), `pnpm --filter desktop tauri build` for a bundle. Both build the MCP bridge first; before a bare `cargo check`, `clippy` or `test` run `pnpm --filter desktop mcp-bridge` once. `pnpm --filter desktop test:mcp` runs the MCP end-to-end test (Rust harness, bridge, emulator).
 
 Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and OG image from Suisse Intl), `run deploy` (build + `wrangler deploy`; not before go-live, and `pnpm deploy` without `run` is pnpm's own command).
 
@@ -54,9 +54,9 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 
 ## Desktop shell (`apps/desktop`)
 
-- Routing: TanStack Router file routes in `src/routes` (`/faturalar`, `/faturalar/$ettn`, `/yeni?kaynak=&musteri=`, `/musteriler`, `/hizmetler`, `/ayarlar`; the old `/musteriler?sekme=hizmetler` redirects to `/hizmetler`). The Vite plugin regenerates `src/routeTree.gen.ts` on dev and build; it is committed so typecheck and lint run without a build. Never edit it. `autoCodeSplitting` loads each route's component in its own chunk.
+- Routing: TanStack Router file routes in `src/routes` (`/faturalar`, `/faturalar/$ettn`, `/yeni?kaynak=&musteri=`, `/musteriler`, `/hizmetler`, `/mcp`, `/ayarlar`; the old `/musteriler?sekme=hizmetler` redirects to `/hizmetler`). The Vite plugin regenerates `src/routeTree.gen.ts` on dev and build; it is committed so typecheck and lint run without a build. Never edit it. `autoCodeSplitting` loads each route's component in its own chunk.
 - Screens live in `src/pages` and routes in `src/routes`: a route file owns its URL (params, search) and renders its screen from `src/pages`.
-- The frame lives in `src/shell`: `Screen` (a route's toolbar and content), `ListDetail` (list column and detail pane), `SearchableList` (a list column with search and ↑/↓/↵ keys), `useRequireCredentials`, `useAppActions`, the ⌘K palette and the shortcuts (⌘N, ⌘1-5, ⌘,). The sidebar shows the company switcher only with two or more companies.
+- The frame lives in `src/shell`: `Screen` (a route's toolbar and content), `ListDetail` (list column and detail pane), `SearchableList` (a list column with search and ↑/↓/↵ keys), `useRequireCredentials`, `useAppActions`, the ⌘K palette and the shortcuts (⌘N, ⌘1-6, ⌘,). The sidebar shows the company switcher only with two or more companies.
 - GİB: run every portal call through `gib` in `src/lib/gib.ts` (`gib.run`, `gib.lease` for SMS signing). SMS signing is one hook, `useSMSSign` (`src/pages/use-sms-sign.tsx`): Faturalar' SMS ile onayla and Yeni fatura's Oluştur ve onayla (create the draft, then sign it on the same leased session). GİB refuses a second login while a session is open, so the queue runs calls one at a time on one shared session; the query options there (`invoiceListQuery`, `invoiceDetailQuery`, `invoiceHTMLQuery`) already do. The SDK's `getDrafts` splits ranges into the seven days GİB allows per request.
 - Errors: the SDK throws `GibError` (`code`: auth, session-locked, maintenance, network, ...; `gibMessage`: GİB's own text) for every portal failure, network and non-JSON replies included. The app shows errors only through `src/lib/gib-errors.ts`: `GIB_ERROR_COPY` (Turkish text and action per code), `describeError`, `toastError` (Ayarlar’a git when Ayarlar fixes it) and `ErrorState` (`src/shell/error-state.tsx`) for inline failures. Never put `error.message` on screen: GİB's text shows only as secondary detail, only when it adds information, never in English.
 - Forms: TanStack Form through `useAppForm` and the bound fields in `src/lib/form.tsx` (web-starter's canon): checks in a form-level `validators.onChange` (it also runs on submit), never a form-level onBlur; a field shows its error once touched. Yeni fatura's rules and GİB payload are pure functions in `src/lib/invoice-form.ts`. The invoice form lives in the store and the mounted form writes every change back; the store bumps `invoiceFormRevision` when the form is replaced (reset, GİB invoice, customer, undo), and `/yeni` remounts the form on it. Until a form is started, `/yeni` offers the newest invoices to repeat (`src/pages/invoice-start.tsx`) and Boş fatura.
@@ -70,6 +70,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and O
 - Secrets: one keychain item (service `com.vinena.angaria`, account `vault`) holds every secret as JSON, `{ v: 1, license?, gibPasswords: { [entityId]: password } }` (`src/lib/vault.ts`; Rust `vault_read`/`vault_write` in `src-tauri/src/secrets.rs`). The app reads it once per launch, on first need, through the one instance in `src/lib/app-vault.ts`, serves every read from memory, and writes only when the serialized content changes. A typed password is written 500 ms after the last keystroke, sooner on blur, on leaving Ayarlar and on window close (⌘Q inside those 500 ms loses it). The first launch moves the old items (`license`, `license-key`, `gib-password:<entityId>`; `secret_get`/`secret_delete` exist only for this) into the vault and deletes them only after the vault is written; plaintext passwords in localStorage move on any launch the same way. Dev builds keep the vault in `dev-vault.json` (mode 0600) in the app data dir, so rebuilt unsigned binaries never ask for keychain access; `ANGARIA_DEV_KEYCHAIN=1` opts a dev build into the keychain, release builds always use it, and the dev log names the store at startup. Keychain errors keep their macOS access hint (`src/lib/keychain-error.ts`).
 - License: the record (key, activation, check times) lives in the vault. It is written on a new status, key, details, expiry or check time, and for the time seen alone at most once a day (`shouldSaveLicense`); in between, lastSeenAt moves forward in memory, so a clock set back is caught at once while the app runs. `LicenseProvider` checks with Polar at launch, every six hours and on focus, and recounts the offline grace period hourly (`src/lib/license-watch.ts`), so the app can lock mid-session. `StoreProvider` sits outside `LicenseGate`, so a lock keeps the invoice form.
 - Updates: `useUpdateCheck` (`src/shell`, called in `App` outside the license gate, so a locked app still updates) checks once per launch outside dev and offers the update in a toast; Ayarlar › Hakkında checks on demand. Both go through `src/lib/updater.ts` (`@tauri-apps/plugin-updater`, then `relaunch` from `@tauri-apps/plugin-process`).
+- MCP (`docs/adr/0009-built-in-mcp-server.md`): Angaria › MCP switches a built-in server on (off by default, `angaria-mcp` in localStorage with the port). Rust (`src-tauri/src/mcp`) serves Streamable HTTP on `127.0.0.1:41234` (next free port up to nine on) for both protocol eras (2026-07-28 `_meta` requests, `initialize` up to 2025-11-25); it refuses a non-loopback Host, any Origin and a missing or wrong bearer token. The token and port are in `mcp.json` (0600) in the app data dir. Tools run in the webview: `src/shell/mcp-host.tsx` (outside the license gate) answers `mcp:call` events with `src/lib/mcp-tools.ts` on the `gib` queue with the active company's store, then `mcp_respond`. `create_invoice` makes unsigned drafts only, there is no signing tool, and a locked license is a Turkish tool error. Clients use the bundled stdio bridge `angaria-mcp` (`src-tauri/mcp-bridge`, `bundle.externalBin`, built by `scripts/build-mcp-bridge.sh` into `src-tauri/binaries/`): it reads `mcp.json`, so client configs hold no secret, and opens Angaria when nothing listens. The page's buttons write Claude Desktop's and Cursor's config through `mcp_install` (backup first, only those two files).
 - Import `.stylex.ts` files (e.g. `shell.stylex.ts`) by relative path: the StyleX compiler does not resolve the `@/` alias and the build fails.
 
 ## UI (`packages/ui`)
