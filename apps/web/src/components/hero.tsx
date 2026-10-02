@@ -87,6 +87,7 @@ const styles = create({
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.s3,
+    justifyContent: 'center',
   },
   // A still grid of dots behind the header and the hero, across the whole
   // viewport: no ancestor is positioned, so it is placed against the page
@@ -105,16 +106,18 @@ const styles = create({
     // behind the words so they stay easy to read.
     maskComposite: 'intersect',
     maskImage:
-      'linear-gradient(to bottom, #000 30%, transparent 92%), linear-gradient(to right, transparent, #000 20%, #000 80%, transparent), radial-gradient(48% 42% at 42% 28%, rgb(0 0 0 / 0.12), #000)',
+      'linear-gradient(to bottom, #000 30%, transparent 92%), linear-gradient(to right, transparent, #000 20%, #000 80%, transparent), radial-gradient(48% 42% at 50% 28%, rgb(0 0 0 / 0.12), #000)',
     pointerEvents: 'none',
     position: 'absolute',
     top: 0,
     zIndex: -1,
   },
   copy: {
+    alignItems: 'center',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
+    textAlign: 'center',
   },
   enter: {
     animationDuration: reveal.duration,

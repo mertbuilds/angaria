@@ -90,6 +90,7 @@ export function Screenshot({
       <img
         alt={screen.alt()}
         decoding="async"
+        draggable={false}
         fetchPriority={priority ? 'high' : 'auto'}
         height={screen.height}
         loading={priority ? 'eager' : 'lazy'}

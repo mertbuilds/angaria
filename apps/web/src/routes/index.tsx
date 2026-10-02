@@ -1,5 +1,5 @@
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
-import { create, defaultMarker, props } from '@stylexjs/stylex';
+import { create, defaultMarker, props, type StyleXStyles } from '@stylexjs/stylex';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { LinkHTMLAttributes, ReactNode } from 'react';
 import { AppHosts } from '../components/app-hosts.tsx';
@@ -214,6 +214,11 @@ const styles = create({
       [HANG]: `calc(-8px - ${spacing.s3})`,
     },
   },
+  // Over a centered block, the marker and the words center together.
+  headingCentered: {
+    justifyContent: 'center',
+    marginInlineStart: null,
+  },
   item: {
     display: 'flex',
     flexDirection: 'column',
@@ -417,7 +422,9 @@ function Landing() {
 
       <RevealSection aria-labelledby="fiyat" style={[layout.section, styles.section]}>
         <Reveal index={0}>
-          <SectionHeading id="fiyat">{m.pricing_title()}</SectionHeading>
+          <SectionHeading id="fiyat" style={styles.headingCentered}>
+            {m.pricing_title()}
+          </SectionHeading>
         </Reveal>
         <Reveal index={1}>
           <Pricing />
@@ -443,9 +450,17 @@ function Landing() {
 }
 
 /** A section's title, led by the blue square the page repeats as its marker. */
-function SectionHeading({ children, id }: { children: ReactNode; id: string }) {
+function SectionHeading({
+  children,
+  id,
+  style,
+}: {
+  children: ReactNode;
+  id: string;
+  style?: StyleXStyles | undefined;
+}) {
   return (
-    <h2 id={id} {...props(layout.heading, styles.heading)}>
+    <h2 id={id} {...props(layout.heading, styles.heading, style)}>
       {children}
     </h2>
   );
