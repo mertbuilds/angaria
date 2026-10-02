@@ -84,7 +84,6 @@ export const GIB_COUNTRIES = [
   { value: 'Etiyopya', label: 'Etiyopya', en: 'Ethiopia' },
   { value: 'Falkland Adaları', label: 'Falkland Adaları', en: 'Falkland Islands' },
   { value: 'Faroe Adaları', label: 'Faroe Adaları', en: 'Faroe Islands' },
-  { value: 'Faroe Adaları', label: 'Faroe Adaları', en: 'Faroe Islands' },
   { value: 'Fas', label: 'Fas', en: 'Morocco' },
   { value: 'Fransa', label: 'Fransa', en: 'France' },
   { value: 'Fransiz Guyanasi', label: 'Fransız Guyanası', en: 'French Guiana' },
@@ -327,6 +326,35 @@ export const GIB_COUNTRIES = [
   { value: 'Zambia', label: 'Zambia', en: 'Zambia' },
   { value: 'Zimbabve', label: 'Zimbabve', en: 'Zimbabwe' },
 ];
+
+/**
+ * Other names people type for a country, by GİB `value`, on top of its
+ * Turkish and English names: short forms, codes and local names.
+ */
+export const GIB_COUNTRY_ALIASES: Readonly<Record<string, ReadonlyArray<string>>> = {
+  Almanya: ['Deutschland', 'DE'],
+  'Amerika Birleşik Dev': ['ABD', 'USA', 'US', 'United States of America'],
+  Avusturya: ['Österreich', 'AT'],
+  'Birleşik Arap Emirli': ['BAE', 'UAE', 'Emirates'],
+  'Birleşik Krallik': ['İngiltere', 'UK', 'GB', 'Great Britain', 'Britain', 'England', 'İskoçya'],
+  'Çek Cumhuriyeti': ['Çekya', 'Czechia', 'CZ'],
+  'Çin Halk Cumhuriyeti': ['China', 'PRC', 'CN'],
+  Fransa: ['FR'],
+  'Fildişi Sahili': ['Ivory Coast'],
+  'Güney Afrika Cumhuri': ['Güney Afrika', 'RSA'],
+  'Güney Kore Cumhuriye': ['Kore', 'Korea', 'KR'],
+  Hollanda: ['Holland', 'Nederland', 'NL'],
+  İspanya: ['España', 'ES'],
+  İsviçre: ['Schweiz', 'Suisse', 'CH'],
+  İtalya: ['Italia', 'IT'],
+  'Kibris Rum Kesimi': ['GKRY', 'Kıbrıs'],
+  'Kuzey Kibris Türk Cu': ['KKTC', 'TRNC', 'Kıbrıs'],
+  Makedonya: ['Kuzey Makedonya'],
+  'Rusya Federasyonu': ['Rusya', 'RF'],
+  'Suudi Arabistan': ['KSA'],
+  Svaziland: ['Esvatini'],
+  Türkiye: ['TR'],
+};
 
 export const GIB_CURRENCIES = [
   { value: 'AFN', label: 'Afghani' },
