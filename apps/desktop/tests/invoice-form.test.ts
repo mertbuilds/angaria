@@ -1,17 +1,23 @@
+import { draftInvoicePayload } from 'angaria-earsiv-sdk';
 import { describe, expect, test } from 'vitest';
 import {
   applyCustomer,
   cleanItems,
   discountForRate,
+  formatAmount,
   formatDecimal,
   formatRate,
   gibToInputDate,
   inputDateToGIB,
   invoiceDefaults,
   invoiceTotals,
+  invoiceWarnings,
   isBlankForm,
+  istisnaNote,
+  lineTotals,
   normalizeTime,
   parseDecimal,
+  roundKurus,
   sameInvoice,
   toDraftDetails,
   toPDFData,
@@ -20,6 +26,7 @@ import {
   validateInvoice,
   vatByRate,
 } from '../src/lib/invoice-form.ts';
+import { ISTISNA_REASONS } from '../src/lib/regulated.ts';
 import type { CompanyInfo, InvoiceFormValues, InvoiceItem, Recipient } from '../src/lib/types.ts';
 
 const item = (fields: Partial<InvoiceItem> = {}): InvoiceItem => ({
@@ -66,18 +73,52 @@ const form = (fields: Partial<InvoiceFormValues> = {}): InvoiceFormValues => ({
 const today = new Date(2026, 9, 1, 12);
 
 describe('parseDecimal', () => {
-  test('reads Turkish and plain decimals', () => {
-    expect(parseDecimal('1.250,5')).toBe(1250.5);
-    expect(parseDecimal('1250.5')).toBe(1250.5);
-    expect(parseDecimal('12,')).toBe(12);
-    expect(parseDecimal(' ')).toBe(0);
+  test.each([
+    ['5.000', 5000],
+    ['1.250.000', 1_250_000],
+    ['1.250,50', 1250.5],
+    ['1250,5', 1250.5],
+    ['1250.5', 1250.5],
+    ['5.5', 5.5],
+    ['0.125', 0.125],
+    ['12.50', 12.5],
+    ['1,234.56', 1234.56],
+    ['₺1.234,56', 1234.56],
+    ['1.234,56 TL', 1234.56],
+    ['$ 1,234.56', 1234.56],
+    ['€1.234', 1234],
+    ['£12,5', 12.5],
+    ['1 250,50', 1250.5],
+    ['1 250 000', 1_250_000],
+    ['1.284', 1284],
+    ['1,284', 1.284],
+    ['12,', 12],
+    ['33,3333', 33.3333],
+    ['', 0],
+    [' ', 0],
+  ])('reads %j as %s', (text, value) => {
+    expect(parseDecimal(text)).toBe(value);
   });
 
-  test('rejects anything else', () => {
-    expect(parseDecimal('1,2,3')).toBeNull();
-    expect(parseDecimal('-5')).toBeNull();
-    expect(parseDecimal('abc')).toBeNull();
-    expect(parseDecimal('.')).toBeNull();
+  test.each([
+    '-42,5',
+    '-5',
+    '1,2,3',
+    '1.2.3',
+    '1,25.000,5',
+    '1.25,5',
+    'abc',
+    '.',
+    ',',
+    '12a',
+    '3*8',
+  ])('refuses %j', (text) => {
+    expect(parseDecimal(text)).toBeNull();
+  });
+
+  test('returns quickly on a 2,000 character paste', () => {
+    expect(parseDecimal('1.'.repeat(1000))).toBeNull();
+    expect(parseDecimal('9'.repeat(2000))).toBeNull();
   });
 });
 
@@ -92,6 +133,25 @@ describe('formatDecimal', () => {
   test('reads back as the same number', () => {
     for (const value of [5000, 1234.5, 0.5, 1_000_000, 0, 12.3456]) {
       expect(parseDecimal(formatDecimal(value))).toBe(value);
+    }
+  });
+});
+
+describe('formatAmount', () => {
+  test.each([
+    [5000, '5.000,00'],
+    [1250.5, '1.250,50'],
+    [33.3333, '33,3333'],
+    [1_234_567.891, '1.234.567,891'],
+    [0.5, '0,50'],
+    [1 / 3, '0,33333333'],
+  ])('shows %s as %s', (value, text) => {
+    expect(formatAmount(value)).toBe(text);
+  });
+
+  test('reads back as the same number', () => {
+    for (const value of [5000, 1250.5, 33.3333, 1_234_567.891, 0.5, 0, 1284]) {
+      expect(parseDecimal(formatAmount(value))).toBe(value);
     }
   });
 });
@@ -136,8 +196,56 @@ describe('vatByRate', () => {
   });
 });
 
-test('discountForRate rounds to kuruş', () => {
+test('discountForRate rounds to kuruş, half away from zero', () => {
   expect(discountForRate(item({ quantity: 3, unitPrice: 333.33 }), 7)).toBe(70);
+  // 1.15 × 50% is 0.575, which binary floats hold as 0.57499...
+  expect(discountForRate(item({ unitPrice: 1.15 }), 50)).toBe(0.58);
+});
+
+test('roundKurus is the SDK rounding', () => {
+  expect(roundKurus(1.005)).toBe(1.01);
+});
+
+/**
+ * Three lines whose VAT is 1.005 each before rounding: the fixture of
+ * earsiv-sdk's tests/payload.test.ts and mcp-server's tests/totals.test.ts.
+ */
+const edgeItems = () => [
+  item({ unitPrice: 10.05, VATRate: 10 }),
+  item({ unitPrice: 100.5, VATRate: 1 }),
+  item({ quantity: 4, unitPrice: 2.5125, VATRate: 10 }),
+];
+
+describe('rounding per line', () => {
+  test('lineTotals rounds the price and the VAT to kuruş', () => {
+    expect(lineTotals(item({ quantity: 3, unitPrice: 33.3333 }))).toEqual({
+      discount: 0,
+      gross: 100,
+      net: 100,
+      vat: 20,
+    });
+    expect(lineTotals(item({ unitPrice: 10.05, VATRate: 10 })).vat).toBe(1.01);
+  });
+
+  test('invoiceTotals and vatByRate sum the rounded lines', () => {
+    // Rounded once, 3.015 would be 3.02: per line it is 3 × 1.01.
+    expect(invoiceTotals(edgeItems())).toEqual({
+      discount: 0,
+      gross: 120.6,
+      net: 120.6,
+      total: 123.63,
+      vat: 3.03,
+    });
+    expect(vatByRate(edgeItems())).toEqual([
+      { rate: 10, vat: 2.02 },
+      { rate: 1, vat: 1.01 },
+    ]);
+  });
+
+  test('sums ten 0.1 lines to exactly 1', () => {
+    const items = Array.from({ length: 10 }, () => item({ unitPrice: 0.1, VATRate: 0 }));
+    expect(invoiceTotals(items).total).toBe(1);
+  });
 });
 
 describe('dates and times', () => {
@@ -154,6 +262,13 @@ describe('dates and times', () => {
     expect(normalizeTime('09:05:07')).toBe('09:05:07');
   });
 });
+
+/** validateInvoice's errors for an irsaliye date and an invoice date (empty: today). */
+const irsaliye = (irsaliyeTarihi: string, manualDate: string) =>
+  validateInvoice(
+    form({ advancedFields: { ...form().advancedFields, irsaliyeTarihi, manualDate } }),
+    today,
+  )?.fields;
 
 /** validateInvoice's errors for a due date (and an invoice date, empty: today). */
 const due = (dueDate: string, manualDate = '') =>
@@ -177,11 +292,11 @@ describe('validateInvoice', () => {
       today,
     );
     expect(result?.fields).toEqual({
-      'invoiceSettings.currencyRate': 'Döviz kuru gerekli',
-      'items[0].name': 'Hizmet adı gerekli',
+      'invoiceSettings.currencyRate': 'Döviz kurunu yaz',
+      'items[0].name': 'Hizmet adını yaz',
       'items[0].quantity': 'Miktar sıfırdan büyük olmalı',
-      'items[0].unitPrice': 'Geçerli bir tutar gir',
-      'recipient.fullAddress': 'Adres gerekli',
+      'items[0].unitPrice': 'Birim fiyatı rakamla yaz, örneğin 1.250,50',
+      'recipient.fullAddress': 'Adresi yaz',
       'recipient.taxIDOrTRID': 'VKN 10, TCKN 11 hane olmalı',
       'recipient.title': 'Unvan ya da ad ve soyad gerekli',
     });
@@ -223,10 +338,125 @@ describe('validateInvoice', () => {
     );
     expect(result?.fields).toEqual({
       'advancedFields.manualDate': 'Fatura tarihi bugünden sonra olamaz',
-      'advancedFields.paymentTotal': 'Geçerli bir tutar gir',
-      'invoiceSettings.currencyRate': 'Geçerli bir kur gir',
+      'advancedFields.paymentTotal': 'Ödenecek tutarı rakamla yaz, örneğin 1.250,50',
+      'invoiceSettings.currencyRate': 'Döviz kuru sıfırdan büyük olmalı',
       'items[0].discountAmount': 'İskonto satır tutarını geçemez',
     });
+  });
+
+  test('says how to write a number that did not parse', () => {
+    const result = validateInvoice(
+      form({
+        invoiceSettings: { currency: 'EUR', currencyRate: '41,5x', invoiceType: 'SATIS' },
+        items: [item({ discountAmount: Number.NaN, quantity: Number.NaN })],
+      }),
+      today,
+    );
+    expect(result?.fields).toEqual({
+      'invoiceSettings.currencyRate': 'Döviz kurunu rakamla yaz, örneğin 41,5230',
+      'items[0].discountAmount': 'İskonto tutarını rakamla yaz, örneğin 150,00',
+      'items[0].quantity': 'Miktarı rakamla yaz, örneğin 2 ya da 1,5',
+    });
+  });
+
+  test.each([18.5, -1, 101, Number.NaN])('refuses a VAT rate of %s', (VATRate) => {
+    expect(validateInvoice(form({ items: [item({ VATRate })] }), today)?.fields).toEqual({
+      'items[0].VATRate': 'KDV oranı 0 ile 100 arasında tam sayı olmalı',
+    });
+  });
+
+  test('accepts any whole VAT rate from 0 to 100', () => {
+    const items = [0, 1, 8, 18, 100].map((VATRate) => item({ VATRate }));
+    expect(validateInvoice(form({ items }), today)).toBeUndefined();
+  });
+
+  test('İstisna needs 0% VAT on every line', () => {
+    const settings = { currency: 'TRY', currencyRate: '', invoiceType: 'ISTISNA' };
+    const result = validateInvoice(
+      form({ invoiceSettings: settings, items: [item({ VATRate: 0 }), item({ VATRate: 20 })] }),
+      today,
+    );
+    expect(result?.fields).toEqual({
+      'items[1].VATRate': 'İstisna faturada KDV oranı %0 olmalı',
+    });
+  });
+
+  test.each(['TEVKIFAT', 'IADE', 'OZELMATRAH', 'IHRACKAYITLI', ''])(
+    'blocks the unsupported invoice type %j',
+    (invoiceType) => {
+      const settings = { currency: 'TRY', currencyRate: '', invoiceType };
+      expect(validateInvoice(form({ invoiceSettings: settings }), today)?.fields).toEqual({
+        'invoiceSettings.invoiceType':
+          'Angaria bu fatura tipini henüz desteklemiyor. Bu faturayı GİB portalından kes.',
+      });
+    },
+  );
+
+  test('refuses an irsaliye dated after the invoice', () => {
+    expect(irsaliye('28/09/2026', '28/09/2026')).toBeUndefined();
+    expect(irsaliye('27/09/2026', '28/09/2026')).toBeUndefined();
+    expect(irsaliye('29/09/2026', '28/09/2026')).toEqual({
+      'advancedFields.irsaliyeTarihi': 'İrsaliye tarihi fatura tarihinden sonra olamaz',
+    });
+    expect(irsaliye('01/10/2026', '')).toBeUndefined();
+  });
+
+  test('never says lütfen, geçerli or geçersiz, and uses no em dash', () => {
+    const result = validateInvoice(
+      form({
+        advancedFields: {
+          ...form().advancedFields,
+          dueDate: '01/01/2020',
+          irsaliyeTarihi: '05/10/2026',
+          manualDate: '05/10/2026',
+          paymentTotal: 'x',
+        },
+        invoiceSettings: { currency: 'USD', currencyRate: 'x', invoiceType: 'IADE' },
+        items: [
+          item({ discountAmount: Number.NaN, discountRate: 200, name: '', VATRate: 1.5 }),
+          item({ quantity: Number.NaN, unitPrice: Number.NaN }),
+          item({ quantity: 0, unitPrice: 0 }),
+        ],
+        recipient: { ...form().recipient, fullAddress: '' },
+      }),
+      today,
+    );
+    const messages = Object.values(result?.fields ?? {});
+    expect(messages.length).toBeGreaterThan(10);
+    for (const message of messages) {
+      expect(message).not.toMatch(/lütfen|geçerli|geçersiz|\u2014/iu);
+    }
+  });
+});
+
+/** invoiceWarnings for an invoice dated `manualDate` (empty: today). */
+const dated = (manualDate: string) =>
+  invoiceWarnings(form({ advancedFields: { ...form().advancedFields, manualDate } }), today);
+
+describe('invoiceWarnings', () => {
+  test('has none for a fresh invoice', () => {
+    expect(invoiceWarnings(form(), today)).toEqual({});
+  });
+
+  test('warns about VUK 231/5 when the date is more than 7 days back', () => {
+    expect(dated('')).toEqual({});
+    expect(dated('24/09/2026')).toEqual({});
+    expect(dated('23/09/2026')).toEqual({
+      'advancedFields.manualDate':
+        "Bu tarih 7 günden eski. VUK 231/5'e göre fatura, hizmetten sonraki 7 gün içinde kesilmeli.",
+    });
+  });
+
+  test('warns about a 0% line on a Satış invoice only', () => {
+    const items = [item(), item({ VATRate: 0 })];
+    expect(invoiceWarnings(form({ items }), today)).toEqual({
+      'items[1].VATRate':
+        '%0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota yaz.',
+    });
+    const istisna = { currency: 'TRY', currencyRate: '', invoiceType: 'ISTISNA' };
+    expect(
+      invoiceWarnings(form({ invoiceSettings: istisna, items: [item({ VATRate: 0 })] }), today),
+    ).toEqual({});
   });
 });
 
@@ -273,6 +503,30 @@ describe('toDraftDetails', () => {
     expect(main.currencyRate).toBe('38.1230');
   });
 
+  test('the GİB payload carries the same totals as the MCP server', () => {
+    const payload = draftInvoicePayload(toDraftDetails(form({ items: edgeItems() }), now));
+    const lines = payload.malHizmetTable as Array<Record<string, unknown>>;
+    expect(lines.map((line) => [line.birimFiyat, line.fiyat, line.kdvTutari])).toEqual([
+      ['10.05', '10.05', '1.01'],
+      ['100.50', '100.50', '1.01'],
+      ['2.5125', '10.05', '1.01'],
+    ]);
+    expect(payload).toMatchObject({
+      hesaplanankdv: '3.03',
+      matrah: '120.60',
+      odenecekTutar: '123.63',
+      vergilerDahilToplamTutar: '123.63',
+    });
+  });
+
+  test('3 × 33,3333 sends its four decimals and a 100.00 line', () => {
+    const values = form({ items: [item({ quantity: 3, unitPrice: 33.3333 })] });
+    const [line] = draftInvoicePayload(toDraftDetails(values, now)).malHizmetTable as Array<
+      Record<string, unknown>
+    >;
+    expect(line).toMatchObject({ birimFiyat: '33.3333', fiyat: '100.00', kdvTutari: '20.00' });
+  });
+
   test("sends GİB's country value, not the PDF's full name", () => {
     const values = form({ recipient: { ...form().recipient, country: 'Amerika Birleşik Dev' } });
     expect(toDraftDetails(values, now).country).toBe('Amerika Birleşik Dev');
@@ -286,6 +540,44 @@ describe('toDraftDetails', () => {
     expect(details.currencyRate).toBeUndefined();
     expect(details.time).toBe('14:30:05');
     expect(details.paymentTotal).toBe(1000);
+  });
+});
+
+const sentence = (code: string) =>
+  ISTISNA_REASONS.find((reason) => reason.code === code)?.sentence ?? '';
+
+describe('istisnaNote', () => {
+  test('puts the reason sentence before the note', () => {
+    expect(istisnaNote('302', '')).toBe(sentence('302'));
+    expect(istisnaNote('302', 'Ekim hizmeti')).toBe(`${sentence('302')}\nEkim hizmeti`);
+  });
+
+  test('adds it once, however often it runs', () => {
+    const once = istisnaNote('302', 'Ekim hizmeti');
+    expect(istisnaNote('302', once)).toBe(once);
+    expect(istisnaNote('302', istisnaNote('301', once))).toBe(once);
+  });
+
+  test('replaces another reason in place', () => {
+    expect(istisnaNote('301', `${sentence('302')}\nEkim hizmeti`)).toBe(
+      `${sentence('301')}\nEkim hizmeti`,
+    );
+    expect(istisnaNote('350', `Ekim hizmeti\n${sentence('302')}`)).toBe(
+      `Ekim hizmeti\n${sentence('350')}`,
+    );
+  });
+
+  test('removes the sentence without a reason', () => {
+    expect(istisnaNote(null, `${sentence('302')}\nEkim hizmeti`)).toBe('Ekim hizmeti');
+    expect(istisnaNote(undefined, `Ekim hizmeti\n${sentence('302')}`)).toBe('Ekim hizmeti');
+    expect(istisnaNote(null, sentence('302'))).toBe('');
+    expect(istisnaNote(null, 'Ekim hizmeti')).toBe('Ekim hizmeti');
+  });
+
+  test('leaves a sentence the user edited alone', () => {
+    expect(istisnaNote('302', '302 - hizmet ihracatı')).toBe(
+      `${sentence('302')}\n302 - hizmet ihracatı`,
+    );
   });
 });
 
@@ -324,6 +616,24 @@ describe('applyCustomer', () => {
     expect(next.items.map((row) => row.VATRate)).toEqual([0]);
   });
 
+  test("carries the customer's İstisna reason and writes its sentence once", () => {
+    const values = form({ note: 'Ekim hizmeti' });
+    const next = applyCustomer(values, { ...abroad, istisnaCode: '302' }, today);
+    expect(next.invoiceSettings.istisnaCode).toBe('302');
+    expect(next.note).toBe(`${sentence('302')}\nEkim hizmeti`);
+    expect(applyCustomer(next, { ...abroad, istisnaCode: '302' }, today).note).toBe(next.note);
+  });
+
+  test('leaves the reason and the note out of a Satış invoice', () => {
+    const next = applyCustomer(
+      form({ note: 'Ekim' }),
+      { ...form().recipient, istisnaCode: '302' },
+      today,
+    );
+    expect(next.invoiceSettings.istisnaCode).toBeUndefined();
+    expect(next.note).toBe('Ekim');
+  });
+
   test('keeps the currency when none is known abroad, and the rows without a VAT default', () => {
     const values = form({
       invoiceSettings: { currency: 'EUR', currencyRate: '48,1', invoiceType: 'SATIS' },
@@ -351,16 +661,36 @@ describe('invoiceDefaults', () => {
   test('learns the settings, a shared VAT rate and the days to the due date', () => {
     const values = form({
       advancedFields: { ...form().advancedFields, dueDate: '31/10/2026' },
-      invoiceSettings: { currency: 'USD', currencyRate: '41,5', invoiceType: 'ISTISNA' },
+      invoiceSettings: {
+        currency: 'USD',
+        currencyRate: '41,5',
+        invoiceType: 'ISTISNA',
+        istisnaCode: '301',
+      },
       items: [item({ VATRate: 0 }), item({ VATRate: 0 })],
     });
     expect(invoiceDefaults(values, { date: '01/10/2026', pdfLanguage: 'both' })).toEqual({
       currency: 'USD',
       dueDays: 30,
       invoiceType: 'ISTISNA',
+      istisnaCode: '301',
       pdfLanguage: 'both',
       VATRate: 0,
     });
+  });
+
+  test('learns no İstisna reason from a Satış invoice', () => {
+    const values = form({
+      invoiceSettings: {
+        currency: 'TRY',
+        currencyRate: '',
+        invoiceType: 'SATIS',
+        istisnaCode: '302',
+      },
+    });
+    expect(
+      invoiceDefaults(values, { date: '01/10/2026', pdfLanguage: 'tr' }).istisnaCode,
+    ).toBeUndefined();
   });
 
   test('learns no VAT rate from mixed rows and no days without a due date', () => {
