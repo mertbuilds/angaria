@@ -88,15 +88,19 @@ const styles = create({
     letterSpacing: '-0.02em',
     lineHeight: 1.1,
   },
+  // One narrow card in the middle of the column.
   pricing: {
     alignItems: 'flex-start',
     borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: 1,
+    boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
+    marginInline: 'auto',
+    maxWidth: 440,
     padding: spacing.s6,
   },
   // A small radius, not a pill: on a phone the note wraps to two lines.
@@ -115,6 +119,7 @@ const styles = create({
   },
   // Two equal columns, so the pill moves by exactly its own width.
   switch: {
+    alignSelf: 'center',
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     position: 'relative',
