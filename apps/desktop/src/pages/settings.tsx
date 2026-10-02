@@ -374,6 +374,7 @@ function GibAccountSection() {
         <div {...props(styles.testColumn)}>
           <Button
             disabled={testShown.kind === 'testing'}
+            focusableWhenDisabled
             onClick={() => void handleTest()}
             variant="outline"
           >
@@ -385,6 +386,7 @@ function GibAccountSection() {
       <SettingsRow hint="e-Arşiv portalında açık kalan oturumu kapatır" label="Oturum">
         <Button
           disabled={loggingOut || !hasCredentials}
+          focusableWhenDisabled
           onClick={() => void handleForceLogout()}
           variant="outline"
         >
@@ -1040,7 +1042,12 @@ function AboutSection() {
         {state.kind === 'available' ? (
           <Button onClick={() => void handleInstall(state.update)}>Yükle</Button>
         ) : (
-          <Button disabled={busy} onClick={() => void handleCheck()} variant="outline">
+          <Button
+            disabled={busy}
+            focusableWhenDisabled
+            onClick={() => void handleCheck()}
+            variant="outline"
+          >
             Güncellemeleri denetle
           </Button>
         )}

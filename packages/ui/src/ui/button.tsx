@@ -172,6 +172,9 @@ const disabledLinkProps = {
 const Button = ({
   className,
   disabled = false,
+  // A button that is disabled while its own request runs keeps the focus:
+  // a natively disabled button drops it to the page.
+  focusableWhenDisabled = false,
   render,
   // Without a `render` prop this is a <button>; with one, pass
   // `nativeButton` when the rendered element is still a <button>.
@@ -185,7 +188,7 @@ const Button = ({
     styles.base,
     variantStyles[variant],
     size === 'icon' && styles.icon,
-    disabled && !nativeButton && styles.disabledLink,
+    disabled && (!nativeButton || focusableWhenDisabled) && styles.disabledLink,
     customClassName(className),
     style,
   );
@@ -194,7 +197,10 @@ const Button = ({
   if (nativeButton) {
     // Never submit a surrounding form by accident, also when `render` swaps in
     // another <button>; an explicit `type` in restProps still wins.
-    elementProps = { disabled, type: 'button' as const };
+    elementProps =
+      disabled && focusableWhenDisabled
+        ? { ...disabledLinkProps, tabIndex: undefined, type: 'button' as const }
+        : { disabled, type: 'button' as const };
   } else if (disabled) {
     elementProps = disabledLinkProps;
   }

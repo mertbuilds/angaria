@@ -207,7 +207,7 @@ function SMSCodeForm({
         <DialogClose disabled={pending !== null} render={<Button variant="outline" />}>
           Vazgeç
         </DialogClose>
-        <Button disabled={pending === 'verify'} type="submit">
+        <Button disabled={pending === 'verify'} focusableWhenDisabled type="submit">
           {pending === 'verify' ? 'Onaylanıyor…' : 'Onayla'}
         </Button>
       </DialogFooter>

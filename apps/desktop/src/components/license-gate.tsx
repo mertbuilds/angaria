@@ -237,6 +237,7 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
         {needsOnlineCheck ? (
           <Button
             disabled={pending !== null}
+            focusableWhenDisabled
             onClick={() => void handleRetry()}
             style={styles.wide}
           >
@@ -263,7 +264,12 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
               spellCheck={false}
               value={key}
             />
-            <Button disabled={pending !== null} style={styles.wide} type="submit">
+            <Button
+              disabled={pending !== null}
+              focusableWhenDisabled
+              style={styles.wide}
+              type="submit"
+            >
               {pending === 'activate' ? 'Etkinleştiriliyor…' : 'Etkinleştir'}
             </Button>
           </form>

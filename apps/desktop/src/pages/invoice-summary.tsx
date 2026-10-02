@@ -312,6 +312,7 @@ export function SummaryPanel({
               <Button
                 aria-keyshortcuts={isMac ? 'Meta+Enter' : 'Control+Enter'}
                 disabled={isSubmitting}
+                focusableWhenDisabled
                 onClick={() => void form.handleSubmit({ sign: false })}
                 style={styles.full}
               >
@@ -330,6 +331,7 @@ export function SummaryPanel({
                 <Button
                   aria-keyshortcuts={isMac ? 'Meta+Shift+Enter' : 'Control+Shift+Enter'}
                   disabled={isSubmitting}
+                  focusableWhenDisabled
                   onClick={() => void form.handleSubmit({ sign: true })}
                   variant="outline"
                 >
@@ -345,7 +347,12 @@ export function SummaryPanel({
                     </>
                   )}
                 </Button>
-                <Button disabled={isSubmitting} onClick={onClear} variant="ghost">
+                <Button
+                  disabled={isSubmitting}
+                  focusableWhenDisabled
+                  onClick={onClear}
+                  variant="ghost"
+                >
                   Temizle
                 </Button>
               </div>
