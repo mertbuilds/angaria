@@ -353,6 +353,14 @@ export function CreateInvoicePage() {
     }
   });
 
+  // A new form (Boş fatura, Tekrar kes, undo) replaced what held the focus:
+  // the customer picker, the form's first field, takes it.
+  useEffect(() => {
+    if (!document.activeElement || document.activeElement === document.body) {
+      document.getElementById('customer-picker')?.focus();
+    }
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => submitShortcut(event);
     document.addEventListener('keydown', onKeyDown);
