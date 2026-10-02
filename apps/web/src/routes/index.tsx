@@ -8,6 +8,7 @@ import { Hero, HERO_SIZES } from '../components/hero.tsx';
 import { PRICES_TRY, Pricing } from '../components/pricing.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
 import { Screenshot, type Crop } from '../components/screenshot.tsx';
+import { ConnectScene, InstallScene, SignScene } from '../components/step-scenes.tsx';
 import { brand, reveal } from '../lib/brand.stylex.ts';
 import { SITE_URL } from '../lib/canonical.ts';
 import type { Plan } from '../lib/config.ts';
@@ -89,7 +90,6 @@ const HOVER = '@media (hover: hover)';
  */
 const CARD_SIZES = '(min-width: 992px) 860px, (min-width: 640px) 90vw, 180vw';
 const FEATURED_SIZES = '(min-width: 992px) 900px, (min-width: 640px) 95vw, 160vw';
-const STEP_SIZES = '(min-width: 992px) 600px, 200vw';
 const COMPARE_SIZES = '(min-width: 992px) 960px, calc(100vw - 32px)';
 
 const styles = create({
@@ -250,16 +250,18 @@ const styles = create({
       [WIDE]: spacing.s12,
     },
   },
-  step: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s4,
-  },
-  stepMedia: {
+  // A step's scene above its words, in the features' card frame without the
+  // hover: nothing here is a link.
+  stepCard: {
+    backgroundColor: colors.bg,
     borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    overflow: 'hidden',
   },
   // Steps are a real sequence, so they carry their number.
   stepNumber: {
@@ -327,23 +329,20 @@ function Landing() {
         <ol {...props(styles.columns, styles.wide)}>
           <Step
             body={m.step_install_body()}
-            crop={{ x: 50, y: 50, zoom: 2.4 }}
             index={1}
-            screen={SCREENS.license}
+            scene={<InstallScene />}
             title={m.step_install_title()}
           />
           <Step
             body={m.step_login_body()}
-            crop={{ x: 27, y: 0, zoom: 1.8 }}
             index={2}
-            screen={SCREENS.invoices}
+            scene={<ConnectScene />}
             title={m.step_login_title()}
           />
           <Step
             body={m.step_sign_body()}
-            crop={{ x: 50, y: 50, zoom: 2 }}
             index={3}
-            screen={SCREENS.sign}
+            scene={<SignScene />}
             title={m.step_sign_title()}
           />
         </ol>
@@ -486,29 +485,30 @@ function PainPoint({ body, index, title }: { body: string; index: number; title:
   );
 }
 
+/** One step: its looping scene above the words that say what it shows. */
 function Step({
   body,
-  crop,
   index,
-  screen,
+  scene,
   title,
 }: {
   body: string;
-  crop: Crop;
   index: number;
-  screen: Screen;
+  scene: ReactNode;
   title: string;
 }) {
   return (
-    <Reveal as="li" index={index} style={styles.step}>
-      <Screenshot crop={crop} screen={screen} sizes={STEP_SIZES} style={styles.stepMedia} />
-      <div {...props(styles.item)}>
-        <h3 {...props(styles.stepTitle)}>
-          <span {...props(styles.stepNumber)}>{index}</span>
-          {title}
-        </h3>
-        <p {...props(layout.text, layout.muted)}>{body}</p>
-      </div>
+    <Reveal as="li" index={index}>
+      <article {...props(styles.stepCard)}>
+        {scene}
+        <div {...props(styles.cardBody)}>
+          <h3 {...props(styles.stepTitle)}>
+            <span {...props(styles.stepNumber)}>{index}</span>
+            {title}
+          </h3>
+          <p {...props(layout.text, layout.muted)}>{body}</p>
+        </div>
+      </article>
     </Reveal>
   );
 }
