@@ -34,12 +34,9 @@ export const SCREENS = {
   customers: screen('musteriler', m.screen_customers_alt),
   gib: screen('gib-portal', m.screen_gib_alt, { themed: false }),
   hero: screen('faturalar-detail', m.screen_hero_alt, { framed: true }),
-  invoices: screen('faturalar-detail', m.screen_invoices_alt),
-  license: screen('license', m.screen_license_alt),
   palette: screen('palette', m.screen_palette_alt),
   pdf: screen('pdf', m.screen_pdf_alt, { height: 2037, themed: false }),
   rates: screen('yeni-fatura', m.screen_rates_alt),
-  sign: screen('sms', m.screen_sign_alt),
   start: screen('yeni-start', m.screen_start_alt),
 } satisfies Record<string, Screen>;
 
