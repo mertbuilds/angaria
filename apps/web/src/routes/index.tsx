@@ -194,12 +194,6 @@ const styles = create({
     margin: 0,
     padding: 0,
   },
-  // Hatched until Mert's screenshot of the GİB portal lands.
-  gibPlaceholder: {
-    backgroundColor: colors.bg,
-    backgroundImage: `repeating-linear-gradient(135deg, ${colors.subtle} 0 8px, transparent 8px 16px)`,
-    height: '100%',
-  },
   heading: {
     '::before': {
       backgroundColor: brand.fill,
@@ -302,13 +296,11 @@ function Landing() {
         <Reveal index={1}>
           <p {...props(layout.text, layout.muted, styles.lead)}>{m.compare_lead()}</p>
         </Reveal>
-        {/* TODO(screenshot): Mert sends the GİB portal screenshot of the same
-            invoice; it replaces the GİB placeholder. */}
         <Reveal index={2} style={styles.wide}>
           <CompareSlider
             after={<Screenshot screen={SCREENS.compare} sizes={COMPARE_SIZES} />}
             afterLabel={m.compare_angaria()}
-            before={<div {...props(styles.gibPlaceholder)} />}
+            before={<Screenshot screen={SCREENS.gib} sizes={COMPARE_SIZES} />}
             beforeLabel={m.compare_gib()}
           />
         </Reveal>
@@ -450,7 +442,7 @@ function Landing() {
   );
 }
 
-/** A section's title, led by the pale red square the page repeats as its marker. */
+/** A section's title, led by the blue square the page repeats as its marker. */
 function SectionHeading({ children, id }: { children: ReactNode; id: string }) {
   return (
     <h2 id={id} {...props(layout.heading, styles.heading)}>

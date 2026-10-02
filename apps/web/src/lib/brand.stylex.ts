@@ -1,7 +1,7 @@
 import { defineConsts } from '@stylexjs/stylex';
 
 /**
- * The site's pale red (src/brand.css). Use it sparingly: buttons, the selected
+ * The site's blue (src/brand.css). Use it sparingly: buttons, the selected
  * plan, markers, link hovers. Everything else stays black and white.
  */
 export const brand = defineConsts({

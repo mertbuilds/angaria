@@ -26,7 +26,7 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 
 - Suisse Intl 400/500 only (woff2 gitignored, fetched by `scripts/fetch-fonts.sh`; local copies in `/Users/duzgundev/code/mertbuilds/knobs.dev/packages/ui/fonts/`). Inter fallback. Headings weight 500, never bold. License covers app embedding.
 - Black/white; grays `#f5f5f5/#1a1a1a`, `#d4d4d4/#3f3f3f`, `#8a8a8a`. Only chroma: destructive `#dc2626/#f87171`, warning `#d97706/#fbbf24`. No emerald.
-- Website only (2026-10-01): one pale red, `#f07f77` (`--brand`, `apps/web/src/brand.css`), used sparingly: primary buttons (black text, 8.0:1), the selected plan, section markers, link hovers (`#bd3936` on white), the hero pattern. The desktop app stays black and white.
+- Website only (2026-10-02): one bright blue, `#0098f2` (`--brand`, `apps/web/src/brand.css`), used sparingly: primary buttons, the selected plan, section markers, the compare slider. White text on it is 3.1:1 and fails AA, so buttons carry black text (6.8:1). Text in the blue (link hovers, check marks, the focus ring) uses the deeper `#006abb` on white (5.6:1). The hero sits on a still dot grid in a faint text color, faded at the edges and behind the headline. The desktop app stays black and white.
 - Radius 8px cards/dialogs; pill buttons (28px, ~40px hit area) and pill inputs (40px).
 - 4px spacing grid, 1px borders, no shadows/gradients. Dark mode follows system, `data-theme` override.
 - Motion: 200ms fade, 260ms `cubic-bezier(0.16,1,0.3,1)`, respect reduced motion. The landing's scroll reveals rise 16px over 700ms on the same curve.
@@ -50,7 +50,7 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 Turkish. Sections:
 
 1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" / "14 gün ücretsiz dene" CTA.
-2. GİB vs Angaria side-by-side (placeholders until Mert sends GİB screenshots).
+2. GİB vs Angaria: a compare slider over the GİB portal's e-Arşiv fatura form and Angaria's Yeni fatura.
 3. Features: geçen faturadan başla, geçen ayın faturasını tekrar kes, müşteri ve hizmet kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers).
 4. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, Polar license check, update check); credentials in system keychain; data stays on device.
 5. Pricing: Yıllık / Aylık switch (default Yıllık): 1.499 ₺/yıl or 199 ₺/ay, 14 gün ücretsiz → that plan's Polar hosted checkout. Every other checkout button (header, hero) and the app's Satın al open the yearly checkout.

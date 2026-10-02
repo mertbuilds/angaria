@@ -20,7 +20,7 @@ const styles = create({
     marginBlockStart: 4,
     width: 16,
   },
-  // The selected plan's pale red pill, sliding under the two equal tabs.
+  // The selected plan's blue pill, sliding under the two equal tabs.
   perk: {
     alignItems: 'flex-start',
     display: 'flex',

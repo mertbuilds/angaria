@@ -4,7 +4,7 @@ Marketing screenshots of the Angaria desktop app for angaria.app. The frontend r
 
 ## Files
 
-WebP only (quality 82). PNG fallbacks would have taken the folder to 12 MB; these come to 5.7 MB.
+WebP only (quality 82). PNG fallbacks would have taken the folder to 12 MB; these come to 5.8 MB.
 
 Each app screen comes in eight files, `<screen>-<theme>[-framed]-<width>.webp`:
 
@@ -28,6 +28,13 @@ The PDF is paper, so it has one version and no frame:
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pdf-2880.webp` | Page 1 of the PDF of GIB2026000000023 as the app downloads it: minimal style, Turkish and English side by side, QR code, bank details. 2880×4074. |
 | `pdf-1440.webp` | The same at 1440×2037.                                                                                                                            |
+
+The GİB portal has no dark theme, so it has one version and no frame. It is the other side of the landing's compare slider, against `yeni-fatura`:
+
+| File                   | What it shows                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gib-portal-2880.webp` | GİB's e-Arşiv portal on e-Arşiv Fatura (İnteraktif) Oluştur: the empty Fatura Bilgileri and Alıcı Bilgileri form. Mert's screenshot of the live portal, cut to 16:10 on the right (only the logout icon goes) and scaled from 2682×1676. The two header badges with the account holder's name and number are painted over in their own teal. 2880×1800. |
+| `gib-portal-1440.webp` | The same at 1440×900.                                                                                                                                                                                                                                                                                                                                   |
 
 ## Use
 
