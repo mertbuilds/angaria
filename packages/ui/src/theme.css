@@ -6,6 +6,9 @@
  * Radius: 8px surfaces (cards, dialogs, popovers); pill controls use
  * radius.full.
  *
+ * --input, a field's border, is the lightest gray at 3:1 against the surface
+ * (WCAG 1.4.11), so an empty field still reads as one. --border stays soft.
+ *
  * Theme has three states. `data-theme` absent = follow the system; `light` or
  * `dark` on <html> forces one. The same attribute on any element themes just
  * that subtree (portaled popups still follow <html>). The light values are on
@@ -33,7 +36,7 @@
   --destructive: #dc2626;
   --warning: #d97706;
   --border: #d4d4d4;
-  --input: #d4d4d4;
+  --input: #939393;
   --ring: #8a8a8a;
   --sidebar: #ffffff;
   --sidebar-foreground: #000000;
@@ -70,7 +73,7 @@
     --destructive: #f87171;
     --warning: #fbbf24;
     --border: #3f3f3f;
-    --input: #3f3f3f;
+    --input: #5b5b5b;
     --ring: #8a8a8a;
     --sidebar: #000000;
     --sidebar-foreground: #ffffff;
@@ -108,7 +111,7 @@
   --destructive: #f87171;
   --warning: #fbbf24;
   --border: #3f3f3f;
-  --input: #3f3f3f;
+  --input: #5b5b5b;
   --ring: #8a8a8a;
   --sidebar: #000000;
   --sidebar-foreground: #ffffff;

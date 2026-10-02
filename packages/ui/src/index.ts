@@ -97,6 +97,7 @@ export {
   FieldSeparator,
   FieldSet,
   FieldTitle,
+  FieldWarning,
 } from './ui/field.tsx';
 export { Input, type InputProps } from './ui/input.tsx';
 export { Kbd, KbdGroup } from './ui/kbd.tsx';

@@ -36,11 +36,14 @@ const styles = create({
     padding: 0,
     width: '1rem',
   },
+  // Input's radius system: one row is a 40px pill, more rows keep its 20px
+  // ends as a rounded rect.
   chips: {
     alignItems: 'center',
     backgroundColor: optional.inputBackground,
     borderColor: {
       ':focus-within': colors.ring,
+      ':hover': { '@media (hover: hover)': optional.inputHover, default: null },
       default: colors.input,
     },
     borderRadius: '1.25rem',
@@ -88,19 +91,29 @@ const styles = create({
     paddingBlock: '0.375rem',
     paddingInline: '0.5rem',
   },
+  // A 32px round target around the 16px icon, inside the 40px field.
   iconButton: {
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: {
+      ':hover': { '@media (hover: hover)': colors.accent, default: null },
+      default: 'transparent',
+    },
+    borderRadius: radius.full,
     borderWidth: 0,
-    color: colors.mutedForeground,
+    color: {
+      ':hover': { '@media (hover: hover)': colors.foreground, default: null },
+      default: colors.mutedForeground,
+    },
     cursor: 'pointer',
     display: 'inline-flex',
-    insetInlineEnd: '0.75rem',
+    height: '2rem',
+    insetInlineEnd: '0.25rem',
     justifyContent: 'center',
     padding: 0,
     position: 'absolute',
     top: '50%',
     transform: 'translateY(-50%)',
+    width: '2rem',
   },
   input: {
     paddingInlineEnd: '2.25rem',

@@ -2,6 +2,7 @@
 
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { create, props as stylexProps } from '@stylexjs/stylex';
+import { CircleAlertIcon, TriangleAlertIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
 import { colors } from '../lib/tokens.stylex.ts';
@@ -25,10 +26,15 @@ const styles = create({
     lineHeight: 1.5,
     margin: 0,
   },
+  // An icon beside the text: an error or warning never shows by color alone.
   error: {
+    alignItems: 'flex-start',
     color: colors.destructive,
+    display: 'flex',
     fontSize: '0.875rem',
     fontWeight: 400,
+    gap: '0.375rem',
+    lineHeight: 1.5,
   },
   errorList: {
     display: 'flex',
@@ -51,6 +57,13 @@ const styles = create({
   horizontal: {
     alignItems: 'center',
     flexDirection: 'row',
+  },
+  // Centered on the first line: 0.875rem text at a 1.5 line height.
+  icon: {
+    flexShrink: 0,
+    height: '0.875rem',
+    marginTop: '0.1875rem',
+    width: '0.875rem',
   },
   label: {
     alignItems: 'center',
@@ -117,6 +130,9 @@ const styles = create({
   },
   vertical: {
     flexDirection: 'column',
+  },
+  warning: {
+    color: colors.warning,
   },
 });
 
@@ -281,7 +297,29 @@ const FieldError = ({
       role="alert"
       {...props}
     >
-      {content}
+      <CircleAlertIcon aria-hidden {...stylexProps(styles.icon)} />
+      <div>{content}</div>
+    </div>
+  );
+};
+
+/**
+ * A rule the value breaks that does not block, such as a date older than seven
+ * days: an amber icon and the text, announced politely.
+ */
+const FieldWarning = ({ children, className, style, ...props }: StyleXElementProps<'div'>) => {
+  if (!children) {
+    return null;
+  }
+  return (
+    <div
+      {...stylexProps(styles.error, styles.warning, customClassName(className), style)}
+      data-slot="field-warning"
+      role="status"
+      {...props}
+    >
+      <TriangleAlertIcon aria-hidden {...stylexProps(styles.icon)} />
+      <div>{children}</div>
     </div>
   );
 };
@@ -297,4 +335,5 @@ export {
   FieldSeparator,
   FieldSet,
   FieldTitle,
+  FieldWarning,
 };
