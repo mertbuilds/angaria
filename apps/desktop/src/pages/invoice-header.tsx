@@ -200,7 +200,7 @@ function CurrencyRateField({
   form: InvoiceForm;
   rateDescription: RateDescription | null;
 }) {
-  const error = useFieldError();
+  const error = useFieldError({ typed: true });
   const offerTCMB = rateDescription?.kind === 'manual' && rateDescription.tcmbAvailable;
   return (
     <div {...props(styles.rateStack)}>
