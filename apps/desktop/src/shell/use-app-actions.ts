@@ -17,22 +17,13 @@ export function useAppActions() {
   const account = useGIBAccount();
   const { resetInvoiceForm } = useStore();
 
-  /** A blank invoice form, like the sidebar's Yeni fatura. */
+  /** A blank invoice form (⌘N). Going to Yeni fatura otherwise keeps the form in progress. */
   const newInvoice = useCallback(() => {
     resetInvoiceForm();
     void navigate({ to: '/yeni' });
   }, [navigate, resetInvoiceForm]);
 
-  const goTo = useCallback(
-    (to: SectionPath) => {
-      if (to === '/yeni') {
-        newInvoice();
-      } else {
-        void navigate({ to });
-      }
-    },
-    [navigate, newInvoice],
-  );
+  const goTo = useCallback((to: SectionPath) => void navigate({ to }), [navigate]);
 
   /**
    * Loads last month's newest invoice into the form (/yeni?kaynak=), from
