@@ -14,8 +14,8 @@ const requiredDeployEnv = ['VITE_CHECKOUT_URL_YEARLY', 'VITE_CHECKOUT_URL_MONTHL
 // virtual modules, which the dep scanner cannot follow, so dev found each one on
 // the first request and re-bundled mid-render: a cold start served 500s
 // ("Cannot read properties of null (reading 'useEffect')"). Listing them here
-// bundles them at startup. Add an entry when @angaria/ui imports a new package
-// or @base-ui/react subpath.
+// bundles them at startup. Add an entry when @angaria/ui imports a new package,
+// @base-ui/react subpath or react-aria-components subpath.
 const uiDependencies = [
   'alert-dialog',
   'button',
@@ -25,7 +25,10 @@ const uiDependencies = [
   'input',
   'menu',
   'merge-props',
+  'otp-field',
   'popover',
+  'radio',
+  'radio-group',
   'scroll-area',
   'select',
   'separator',
@@ -35,7 +38,19 @@ const uiDependencies = [
   'use-render',
 ]
   .map((subpath) => `@base-ui/react/${subpath}`)
-  .concat(['cmdk', 'sonner'])
+  .concat(
+    ['Calendar', 'DateField', 'I18nProvider'].map((subpath) => `react-aria-components/${subpath}`),
+  )
+  .concat([
+    '@internationalized/date',
+    '@internationalized/number',
+    '@maskito/core',
+    '@maskito/kit',
+    '@maskito/react',
+    'cmdk',
+    'react-aria-components',
+    'sonner',
+  ])
   .map((dependency) => `@angaria/ui > ${dependency}`);
 
 export default defineConfig(({ command, mode }) => {
