@@ -437,11 +437,15 @@ function RateDayRow() {
   );
 }
 
+// Dev only, like the emulator: sample data for its empty fields.
+const loadEmulatorSeed = import.meta.env.DEV ? () => import('@/dev/emulator-seed.ts') : null;
+
 /**
  * Settings few people need, folded away: the TCMB rate day, and in
  * development the local emulator. Open while either is changed, so it shows.
  */
 function AdvancedSection() {
+  const store = useStore();
   const [open, setOpen] = useState(
     () => Boolean(activeGibEmulatorURL) || readRateDay() !== DEFAULT_RATE_DAY,
   );
@@ -473,6 +477,23 @@ function AdvancedSection() {
                 onCheckedChange={setGibEmulator}
               />
             </SettingsRow>
+            {activeGibEmulatorURL && (
+              <SettingsRow
+                hint="Boş GİB, firma ve banka alanlarını örnek bilgilerle doldurur, müşteri yoksa iki örnek ekler"
+                label="Örnek veriler"
+              >
+                <Button
+                  onClick={() =>
+                    void loadEmulatorSeed?.().then(({ fillEmulatorSamples }) =>
+                      fillEmulatorSamples(store),
+                    )
+                  }
+                  variant="outline"
+                >
+                  Örnek verileri doldur
+                </Button>
+              </SettingsRow>
+            )}
           </SettingsSection>
         )}
       </div>
