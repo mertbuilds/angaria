@@ -202,7 +202,7 @@ export interface DateFieldProps {
 const copy = {
   enter: '↵',
   textLabel: 'Tarihi yaz',
-  textPlaceholder: 'dün, cuma, 15.10, geçen ay sonu',
+  textPlaceholder: 'dün, cuma, 15.10, geçen ay sonu…',
   trigger: 'Takvimi aç',
   unreadable: 'Tarihi anlayamadım.',
 };
