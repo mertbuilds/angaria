@@ -19,9 +19,18 @@ export function positionAt(clientX: number, left: number, width: number): number
   return Math.min(100, Math.max(0, ((clientX - left) / width) * 100));
 }
 
+/** Ends a drag: the frame lets go of the pointer when it lifts or the browser takes it. */
+function release(event: PointerEvent<HTMLDivElement>) {
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+}
+
 const styles = create({
+  // The frame takes every pointer, so a drag never grabs a screenshot.
   after: {
     inset: 0,
+    pointerEvents: 'none',
     position: 'absolute',
   },
   // The left side shows up to the divider.
@@ -174,6 +183,8 @@ export function CompareSlider({
     if (event.button !== 0) {
       return;
     }
+    // No native image drag or text selection takes the pointer from us.
+    event.preventDefault();
     take();
     event.currentTarget.setPointerCapture(event.pointerId);
     follow(event);
@@ -187,8 +198,11 @@ export function CompareSlider({
 
   return (
     <div
+      onDragStart={(event) => event.preventDefault()}
+      onPointerCancel={release}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
+      onPointerUp={release}
       ref={frameRef}
       {...props(styles.frame)}
     >
