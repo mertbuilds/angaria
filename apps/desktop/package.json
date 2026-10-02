@@ -6,12 +6,15 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
+    "mcp-bridge": "bash ../../scripts/build-mcp-bridge.sh",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",
+    "test:mcp": "pnpm mcp-bridge && cargo build --manifest-path src-tauri/Cargo.toml --example mcp_harness --quiet && vitest run --config vitest.e2e.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@angaria/mcp-server": "workspace:*",
     "@angaria/ui": "workspace:*",
     "@internationalized/date": "catalog:",
     "@maskito/core": "catalog:",
@@ -33,9 +36,12 @@
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "uqr": "catalog:"
+    "uqr": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@angaria/gib-emulator": "workspace:*",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@stylexjs/unplugin": "catalog:",
     "@tanstack/router-plugin": "catalog:",
     "@tauri-apps/cli": "catalog:",

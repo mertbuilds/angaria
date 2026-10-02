@@ -46,6 +46,20 @@ export function rangePreset(range: DateRange, now: Date): DatePreset | null {
   );
 }
 
+/** `range` grown to cover `date` (dd/MM/yyyy), so a new draft shows in the list. */
+export function rangeCovering(range: DateRange, date: string): DateRange {
+  const day = parseGIB(date);
+  if (!day) {
+    return range;
+  }
+  const start = parseGIB(range.start);
+  const end = parseGIB(range.end);
+  return {
+    end: end && end >= day ? range.end : date,
+    start: start && start <= day ? range.start : date,
+  };
+}
+
 /** Longest custom range: each week is one GİB request. */
 export const MAX_RANGE_DAYS = 366;
 

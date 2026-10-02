@@ -1,3 +1,4 @@
+pub mod mcp;
 mod secrets;
 
 use tauri::Manager;
@@ -19,6 +20,10 @@ pub fn run() {
       }
       let store = secrets::VaultStore::for_build(|| app.path().app_data_dir())?;
       app.manage(store);
+      app.manage(mcp::McpState::new(
+        app.handle().clone(),
+        app.path().app_data_dir()?,
+      ));
       #[cfg(desktop)]
       app
         .handle()
@@ -29,8 +34,20 @@ pub fn run() {
       secrets::vault_read,
       secrets::vault_write,
       secrets::secret_get,
-      secrets::secret_delete
+      secrets::secret_delete,
+      mcp::mcp_start,
+      mcp::mcp_stop,
+      mcp::mcp_status,
+      mcp::mcp_respond,
+      mcp::mcp_token,
+      mcp::mcp_rotate_token,
+      mcp::mcp_install
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app, event| {
+      if let (tauri::RunEvent::Exit, Some(mcp)) = (event, app.try_state::<mcp::McpState>()) {
+        mcp.forget_port();
+      }
+    });
 }

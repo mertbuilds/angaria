@@ -10,6 +10,10 @@
     "dist"
   ],
   "type": "module",
+  "exports": {
+    "./inputs": "./dist/inputs.mjs",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",

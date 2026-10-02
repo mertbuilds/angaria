@@ -1,57 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { InvoiceDetails } from 'angaria-earsiv-sdk';
 import { z } from 'zod';
-import { formatGIBDate, formatGIBTime, gibTime, pastGIBDate } from '../dates.ts';
+import { formatGIBDate, formatGIBTime } from '../dates.ts';
+import { gibTime, invoiceItemInput, pastGIBDate, withDiscountChecks } from '../inputs.ts';
 import type { ToolContext } from '../session.ts';
 import { computeItemFields, computeTotals } from '../totals.ts';
 
 const DEFAULT_CURRENCY = 'USD';
 const DEFAULT_INVOICE_TYPE = 'ISTISNA';
-const MAX_UNIT_PRICE = 1_000_000_000;
 
-/** At most two decimals, the kuruş GİB amounts have. */
-const hasCents = (value: number) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
-
-const itemSchema = z.object({
-  discountAmount: z.number().nonnegative().optional().describe('Discount amount in currency units'),
-  discountRate: z
-    .number()
-    .min(0)
-    .max(100)
-    .optional()
-    .describe('Discount rate as percentage. Derives the discount amount when that is omitted.'),
-  discountReason: z.string().optional().describe('Reason for discount'),
-  gtip: z.string().optional().describe('Customs tariff code (GTIP), for goods export invoices'),
-  name: z.string().min(1).describe('Product or service name'),
-  quantity: z.number().positive().describe('Quantity'),
-  unitPrice: z
-    .number()
-    .positive()
-    .max(MAX_UNIT_PRICE)
-    .refine(hasCents, 'At most two decimals')
-    .describe('Unit price excluding VAT, at most two decimals'),
-  unitType: z
-    .string()
-    .optional()
-    .describe("Unit code: 'C62' (piece, default), 'HUR' (hour), 'DAY' (day), 'MON' (month)"),
-  VATRate: z.literal([0, 1, 10, 20]).describe('VAT rate as percentage: 0, 1, 10 or 20'),
-});
-
-const checkedItem = itemSchema
-  .refine((item) => (item.discountAmount ?? 0) <= computeItemFields(item).price, {
-    message: 'discountAmount must not exceed quantity × unitPrice',
-    path: ['discountAmount'],
-  })
-  .refine(
-    ({ discountAmount, discountRate, ...item }) =>
-      discountAmount === undefined ||
-      discountRate === undefined ||
-      computeItemFields({ ...item, discountRate }).discountAmount === discountAmount,
-    {
-      message: 'discountAmount does not match discountRate; give only one of them',
-      path: ['discountAmount'],
-    },
-  );
+const checkedItem = withDiscountChecks(invoiceItemInput);
 
 export const createInvoiceInput = z
   .object({

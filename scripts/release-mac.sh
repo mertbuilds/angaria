@@ -212,6 +212,20 @@ bundle_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" 
 [[ $bundle_version == "$version" ]] || die "bundle version $bundle_version does not match $version"
 echo "archs: $archs, version: $bundle_version"
 
+# The angaria-mcp stdio bridge (bundle.externalBin, built by beforeBuildCommand).
+# Tauri signs it like the app; notarization rejects the app if it is unsigned or
+# lacks the hardened runtime, and MCP clients run it directly.
+bridge="$APP/Contents/MacOS/angaria-mcp"
+[[ -x $bridge ]] || die "MCP bridge not found at $bridge"
+bridge_archs=$(lipo -archs "$bridge")
+[[ $bridge_archs == *x86_64* && $bridge_archs == *arm64* ]] ||
+  die "expected a universal MCP bridge, got: $bridge_archs"
+codesign --verify --strict --verbose=2 "$bridge"
+# No pipe into grep -q: under pipefail, codesign's SIGPIPE would fail the check.
+[[ $(codesign -dv "$bridge" 2>&1) == *flags=*runtime* ]] ||
+  die "the MCP bridge is not signed with the hardened runtime"
+echo "MCP bridge: $bridge_archs, signed"
+
 notarize_file() {
   local file=$1 log id
   log="$WORK/notarize-$(basename "$file").log"
@@ -245,6 +259,7 @@ if tar -tzf "$TARBALL" | grep -E '(^|/)\._' >&2; then
 fi
 mkdir "$WORK/extract"
 tar -xzf "$TARBALL" -C "$WORK/extract"
+# --deep covers the nested MCP bridge too.
 codesign --verify --deep --strict "$WORK/extract/$APP_NAME.app"
 if [[ $notarize -eq 1 ]]; then
   xcrun stapler validate "$WORK/extract/$APP_NAME.app"

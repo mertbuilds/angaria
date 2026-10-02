@@ -115,13 +115,27 @@ export function createSessionQueue(client: SessionClient) {
         reject(signal.reason);
         return;
       }
-      jobs.push({
+      // A waiting task leaves the queue as soon as its signal aborts, not
+      // only when the task ahead of it (an SMS lease, say) is done.
+      const leave = () => {
+        const index = jobs.indexOf(job);
+        if (index !== -1) {
+          jobs.splice(index, 1);
+          reject(signal?.reason);
+        }
+      };
+      const job: Job = {
         account,
         background,
         reject,
-        run: async (session) => resolve(await task(session, signal)),
+        run: async (session) => {
+          signal?.removeEventListener('abort', leave);
+          resolve(await task(session, signal));
+        },
         signal,
-      });
+      };
+      signal?.addEventListener('abort', leave, { once: true });
+      jobs.push(job);
       void drain();
     });
   }

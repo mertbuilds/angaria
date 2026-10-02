@@ -5,18 +5,19 @@ import { routeTree } from '../src/routeTree.gen.ts';
 import { sections } from '../src/shell/nav.ts';
 
 describe('sections', () => {
-  test('lists Hizmetler on its own, after Müşteriler', () => {
+  test('lists Hizmetler after Müşteriler, then MCP', () => {
     expect(sections.map((section) => [section.label, section.to])).toEqual([
       ['Faturalar', '/faturalar'],
       ['Yeni fatura', '/yeni'],
       ['Müşteriler', '/musteriler'],
       ['Hizmetler', '/hizmetler'],
+      ['MCP', '/mcp'],
       ['Ayarlar', '/ayarlar'],
     ]);
   });
 
-  test('⌘1-5 follow the sidebar order', () => {
-    expect(sections.map((section) => section.key)).toEqual(['1', '2', '3', '4', '5']);
+  test('⌘1-6 follow the sidebar order', () => {
+    expect(sections.map((section) => section.key)).toEqual(['1', '2', '3', '4', '5', '6']);
   });
 });
 

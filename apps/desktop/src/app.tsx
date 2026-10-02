@@ -7,6 +7,7 @@ import { activeGibEmulatorURL } from '@/lib/gib-emulator.ts';
 import { toastError } from '@/lib/gib-errors.ts';
 import { LicenseProvider } from '@/lib/license-context.tsx';
 import { StoreProvider } from '@/lib/store.tsx';
+import { McpHost } from '@/shell/mcp-host.tsx';
 import { useUpdateCheck } from '@/shell/use-update-check.ts';
 import { router } from './router.tsx';
 
@@ -53,6 +54,8 @@ export function App() {
               <EmulatorSeedOnStart />
             </Suspense>
           )}
+          {/* Outside the gate: a locked app answers MCP calls with the license error. */}
+          <McpHost />
           <LicenseGate>
             <RouterProvider router={router} />
           </LicenseGate>

@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.vinena.angaria",
   "build": {
-    "beforeDevCommand": "pnpm exec turbo run build --filter=desktop^... --ui=stream --output-logs=errors-only && pnpm dev",
-    "beforeBuildCommand": "pnpm exec turbo run build --filter=desktop --ui=stream",
+    "beforeDevCommand": "pnpm exec turbo run build --filter=desktop^... --ui=stream --output-logs=errors-only && pnpm mcp-bridge && pnpm dev",
+    "beforeBuildCommand": "pnpm exec turbo run build --filter=desktop --ui=stream && pnpm mcp-bridge",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
   },
@@ -42,6 +42,7 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": false,
+    "externalBin": ["binaries/angaria-mcp"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

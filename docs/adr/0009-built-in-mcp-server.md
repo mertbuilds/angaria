@@ -1,0 +1,28 @@
+# 0009. Built-in MCP server, tools in the webview, no signing tool
+
+Accepted, 2026-10-02.
+
+## Context
+
+Mert wants Angaria's invoices reachable from AI apps (Claude Desktop, Claude Code, Cursor) through MCP, from a section in the app's sidebar. The existing `packages/mcp-server` is a standalone stdio server: it needs Node, environment variables and the GİB password in the client's config file, and its GİB session would collide with the app's (GİB refuses a second login while one is open). Users must not install Node, set variables or put passwords in config files.
+
+MCP's newest revision (2026-07-28) is stateless: every request carries its version and client capabilities in `_meta` and in headers, `server/discover` replaces the `initialize` handshake, and Streamable HTTP has no sessions and no GET stream. The clients and SDKs in use still speak the handshake revisions (2025-11-25 and before), so a server has to speak both.
+
+## Decision
+
+- The app runs the MCP server itself, only while Angaria › MCP has it switched on (off by default), and nothing listens once the app quits. The Rust side (`src-tauri/src/mcp`) serves Streamable HTTP on `127.0.0.1`, port 41234 by default (changeable on the page), trying the next nine ports when it is taken. It is a small handwritten JSON-RPC router (`rpc.rs`) on hyper, which the app already had through Tauri and reqwest. It answers both eras: a request with `_meta` protocol version 2026-07-28 is checked against its `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` headers; `initialize` negotiates 2025-11-25, 2025-06-18, 2025-03-26 or 2024-11-05. It mints no sessions; GET and DELETE answer 405.
+- Every request passes three checks before anything else: a loopback `Host` on the server's port (DNS rebinding), no `Origin` header at all (a web page; MCP clients are not browsers), and the install's bearer token, compared in constant time. There are no CORS headers. Bodies are JSON, at most 1 MiB; at most 8 calls run at once.
+- Tools run in the webview, not in Rust: the server hands each `tools/call` to the frontend as the `mcp:call` event and waits up to 120 seconds for `mcp_respond`. A call still waiting in the GİB queue gives up after 45 seconds, before MCP clients' usual 60 second timeout, and so does one whose client disconnects or cancels (the bridge closes the request's connection on `notifications/cancelled`): a client that gave up and retries does not leave a second draft behind. A call that has started runs to its end. `src/lib/mcp-tools.ts` runs it through the app's own GİB queue (`gib.run`, so MCP calls wait their turn behind the screens and an SMS lease instead of colliding), with the active company's credentials from the vault, the store's customers and services, and the invoice form's rules (`validateInvoice`, the recipient form's `countryError`, `toDraftDetails`, `applyCustomer`: Satış and İstisna only, İstisna at 0% VAT, GİB's countries, currencies and units, the customer's defaults, TCMB's rate by the Kur günü setting). A call keeps the company it arrived for, even if the user switches company while it waits. A created draft teaches the customer and services like Yeni fatura does. Input schemas shared with the stdio server come from `@angaria/mcp-server/inputs`.
+- Tools: `list_invoices`, `get_invoice`, `create_invoice`, `cancel_invoice`, `list_customers`, `list_services`. `create_invoice` makes an unsigned draft only and says "Taslak oluşturuldu, Angaria’da SMS ile onayla."; `cancel_invoice` deletes unsigned drafts only. There is no signing tool: a legal invoice needs the user's SMS approval in the app.
+- Every tool needs a license that is valid or in its grace period; a locked app answers with a Turkish tool error. The host component sits outside the license gate for that.
+- Claude Desktop and most clients start stdio servers, so the app bundles `angaria-mcp` (`src-tauri/mcp-bridge`, `bundle.externalBin`, universal and signed like the app): it forwards each stdio message as a POST, mirrors the MCP headers, and opens Angaria (`open -g` on its own bundle) when nothing listens. The setup buttons write `mcpServers.angaria = { command: <bridge> }` into Claude Desktop's and Cursor's config (backup first, other entries kept, only those two files) and copy a `claude mcp add` command or a JSON snippet. No config holds a secret; the token goes into a config only through the opt-in HTTP command under Gelişmiş.
+- The token and the running port live in `mcp.json` (mode 0600) in the app data dir, not in the vault's keychain item: the bridge is a separate binary, and macOS would ask the user to let it read the keychain item, which also holds the GİB passwords. The token only opens the local server while the app runs with MCP on; Anahtarı yenile replaces it.
+
+## Consequences
+
+- Nothing to install or configure besides one click per client, and MCP calls never break an open GİB session in the app.
+- The app must be running for any tool; the bridge opens it, but its MCP switch must be on.
+- While MCP is on, any process of the same macOS user can read `mcp.json` and call the tools; such a process can already read the app's local data. Other users, web pages and other machines cannot.
+- `cargo check` in `src-tauri` needs the bridge binary first (`pnpm --filter desktop mcp-bridge`); `tauri dev` and `tauri build` build it themselves.
+- The protocol code is ours to keep current with MCP revisions. `rmcp` (the official Rust SDK) was not used: the tools would still be forwarded to the webview by hand, and the server has to answer the stateless 2026-07-28 requests and the handshake revisions side by side.
+- The standalone `packages/mcp-server` stays for headless use; both share the input schemas.

@@ -103,8 +103,8 @@ fn read_file(path: &Path) -> Result<Option<String>, String> {
 }
 
 /// Writes a temporary file with mode 0600, then renames it over the vault, so a
-/// crash mid-write never leaves half a vault.
-fn write_file(path: &Path, json: &str) -> Result<(), String> {
+/// crash mid-write never leaves half a vault. The MCP state file uses it too.
+pub(crate) fn write_file(path: &Path, json: &str) -> Result<(), String> {
   if let Some(dir) = path.parent() {
     fs::create_dir_all(dir).map_err(file_error)?;
   }
