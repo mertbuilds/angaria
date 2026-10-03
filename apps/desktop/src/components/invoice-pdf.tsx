@@ -27,6 +27,7 @@ import {
   resolvePDFStyle,
   type PDFLabels,
 } from '@/lib/invoice-pdf-i18n.ts';
+import { saveFile } from '@/lib/save-file.ts';
 import type {
   CompanyInfo,
   InvoiceItem,
@@ -826,21 +827,15 @@ export function renderInvoicePDF(data: InvoicePDFData): Promise<Blob> {
 }
 
 export async function downloadInvoicePDF(data: InvoicePDFData, filename?: string) {
-  const blob = await renderInvoicePDF(data);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download =
+  saveFile(
+    await renderInvoicePDF(data),
     filename ??
-    buildInvoicePDFFilename({
-      companyName: data.company.name,
-      date: data.date,
-      entityName: data.entityName,
-      language: data.language,
-      recipientTitle: data.recipient.title,
-    });
-  document.body.append(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+      buildInvoicePDFFilename({
+        companyName: data.company.name,
+        date: data.date,
+        entityName: data.entityName,
+        language: data.language,
+        recipientTitle: data.recipient.title,
+      }),
+  );
 }
