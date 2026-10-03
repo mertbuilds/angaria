@@ -20,9 +20,19 @@
     "allow-mcp-rotate-token",
     "allow-mcp-install",
     "allow-html-to-pdf",
+    "allow-save-download",
     "updater:default",
     "process:allow-restart",
     "os:allow-hostname",
+    "opener:allow-reveal-item-in-dir",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "$DOWNLOAD/*"
+        }
+      ]
+    },
     {
       "identifier": "opener:allow-open-url",
       "allow": [

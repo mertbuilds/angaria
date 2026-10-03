@@ -827,7 +827,7 @@ export function renderInvoicePDF(data: InvoicePDFData): Promise<Blob> {
 }
 
 export async function downloadInvoicePDF(data: InvoicePDFData, filename?: string) {
-  saveFile(
+  return saveFile(
     await renderInvoicePDF(data),
     filename ??
       buildInvoicePDFFilename({

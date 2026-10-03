@@ -37,10 +37,163 @@
   outline-offset: 2px;
 }
 
+/* Its buttons take Button's ring (src/ui/button.tsx): 2px and 2px off, so it
+   shows on a fill of the ring's own color. */
 [data-sonner-toaster]
   [data-sonner-toast][data-styled]
   :is([data-button], [data-close-button]):focus-visible {
-  box-shadow: 0 0 0 1px var(--ring);
+  box-shadow: none;
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Toasts in the kit's look. Sonner keys its look on [data-styled='true']; every
+   rule here starts one attribute more specific than any of sonner's and reads
+   the theme's variables, so palettes and a forced data-theme reach it. */
+
+/* Secondary text in the muted color, not sonner's fixed grays. */
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']
+  [data-description] {
+  color: var(--muted-foreground);
+}
+
+/* Buttons are Button's 28px pills: the action in the primary fill, the cancel
+   button (a second action, not only a cancel) in the outline. Sonner centers
+   the label's line box; the top padding moves its caps to the middle
+   (fontMetrics.capOffset, twice, as padding moves the box by half). */
+[data-sonner-toaster][data-sonner-theme] [data-sonner-toast][data-styled='true'] [data-button] {
+  box-sizing: border-box;
+  height: 1.75rem;
+  padding: 0.107em 0.875rem 0;
+  border: none;
+  border-radius: 9999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  /* Sonner's opacity fade (a toast stacked behind hides its parts) stays. */
+  transition-property: opacity, scale, background-color, color;
+  transition-duration: 400ms, 150ms, 150ms, 150ms;
+  transition-timing-function:
+    ease, cubic-bezier(0.2, 0, 0, 1), cubic-bezier(0.2, 0, 0, 1), cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']
+  [data-button]:hover {
+  background: color-mix(in oklab, var(--primary) 80%, transparent);
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']
+  [data-button]:active {
+  scale: 0.96;
+}
+
+/* Two attributes after the prefix: sonner's dark cancel rule matches one. */
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']
+  [data-button][data-cancel] {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']
+  [data-button][data-cancel]:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+/* The close button is a quiet icon button at the top right, centered on the
+   title's line (1.5em tall, under the toast's 16px padding). */
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']
+  [data-close-button] {
+  inset: calc(16px + 0.75em - 0.875rem) 8px auto auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: inherit;
+  transform: none;
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']
+  [data-close-button]:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+/* The text and an inline button keep clear of it. */
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-close-button]) {
+  padding-inline-end: 44px;
+}
+
+/* Under a title with a description, the icon centers on the title's line. */
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-content] > [data-description])
+  > [data-icon] {
+  align-self: flex-start;
+  height: 1.5em;
+}
+
+/* Two actions go in a row under the text, the main one last, as in macOS
+   dialogs; the text then runs to the close button only. */
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-cancel]) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 12px 8px;
+  padding-inline-end: 16px;
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-cancel])
+  > [data-icon] {
+  grid-area: 1 / 1;
+  margin-right: 2px;
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-cancel])
+  > [data-content] {
+  grid-area: 1 / 2 / 2 / -1;
+  min-width: 0;
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-cancel]):not(:has(> [data-icon]))
+  > [data-content] {
+  grid-column: 1 / -1;
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-cancel]):has(> [data-close-button])
+  > [data-content] {
+  padding-inline-end: 28px;
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-cancel])
+  > [data-cancel] {
+  grid-area: 2 / 3;
+  margin: 0;
+}
+
+[data-sonner-toaster][data-sonner-theme]
+  [data-sonner-toast][data-styled='true']:has(> [data-cancel])
+  > [data-action] {
+  grid-area: 2 / 4;
+  margin: 0;
 }
 
 /* A toast's text centers on its cap height, level with its icon, like
