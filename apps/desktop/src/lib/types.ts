@@ -48,6 +48,8 @@ export interface InvoiceItem {
   gtip: string;
   id: string;
   name: string;
+  /** The saved service the row was picked from on Yeni fatura; never sent to GİB. */
+  pickedFrom?: PickedService;
   quantity: number;
   unitPrice: number;
   // Advanced fields
@@ -56,11 +58,23 @@ export interface InvoiceItem {
 }
 
 /**
+ * A row's saved service: its id, the currency of its price when picked (none
+ * for one saved before services had a currency), and whether that price was
+ * converted into the invoice's. Only a row in the service's own currency
+ * updates the service (upsertSavedItems).
+ */
+export interface PickedService {
+  converted: boolean;
+  currency?: string;
+  id: string;
+}
+
+/**
  * A saved service (Hizmetler): an invoice line and the currency of its price,
  * an ISO code from the invoice's currency list. One saved before services had
  * a currency has none: its price counts in the invoice's currency.
  */
-export interface Service extends InvoiceItem {
+export interface Service extends Omit<InvoiceItem, 'pickedFrom'> {
   currency?: string;
 }
 
