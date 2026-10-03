@@ -20,6 +20,8 @@ export const messages = {
 
   // Best-effort.
   deleted: (count: number) => `${count} adet belge başarıyla silinmiştir.`,
+  /** EARSIV_PORTAL_FATURA_GOSTER for a deleted draft. */
+  deletedNotShown: 'Silinmiş belgeler görüntülenemez.',
   deleteReasonMissing: 'Silme nedeni boş olamaz.',
   hsmNotAllowed: 'HSM cihazı ile imzalama yetkiniz yok.',
   hsmSigned: (count: number) => `${count} adet belge HSM cihazı ile imzalanmıştır.`,

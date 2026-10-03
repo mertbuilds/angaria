@@ -182,6 +182,13 @@ const findInvoice = (ctx: CommandContext, ettn: unknown) => {
   return invoice?.userid === ctx.user.userid ? invoice : undefined;
 };
 
+/**
+ * A cancellation request as a row's İptal/İtiraz Durumu, in the codes of the
+ * portal's incoming request list: `iptalItiraz` 0 is a cancellation (1 an
+ * objection), `iptalItirazDurumu` 0 waiting, 1 accepted, 2 rejected.
+ */
+const CANCELLATION_STATUS = { accepted: '1', pending: '0', rejected: '2' } as const;
+
 const listRow = (invoice: StoredInvoice) => ({
   aliciUnvanAdSoyad: invoice.aliciUnvanAdSoyad,
   aliciVknTckn: invoice.aliciVknTckn,
@@ -190,6 +197,10 @@ const listRow = (invoice: StoredInvoice) => ({
   belgeTuru: 'FATURA',
   ettn: invoice.ettn,
   onayDurumu: invoice.onayDurumu,
+  ...(invoice.cancellation && {
+    iptalItiraz: '0',
+    iptalItirazDurumu: CANCELLATION_STATUS[invoice.cancellation],
+  }),
 });
 
 function createDraft(ctx: CommandContext, data: Record<string, unknown>): Reply {
@@ -423,7 +434,12 @@ const COMMANDS: Record<string, Command> = {
   },
   EARSIV_PORTAL_FATURA_GOSTER: (ctx, data) => {
     const invoice = findInvoice(ctx, data.ettn);
-    return invoice ? ok(ctx, invoiceHTML(invoice, ctx.user)) : fail(ctx, messages.invoiceNotFound);
+    if (!invoice) {
+      return fail(ctx, messages.invoiceNotFound);
+    }
+    return invoice.onayDurumu === 'Silinmiş'
+      ? fail(ctx, messages.deletedNotShown)
+      : ok(ctx, invoiceHTML(invoice, ctx.user));
   },
   EARSIV_PORTAL_FATURA_HSM_CIHAZI_ILE_IMZALA: signHSM,
   EARSIV_PORTAL_FATURA_OLUSTUR: createDraft,

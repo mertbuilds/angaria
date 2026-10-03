@@ -153,14 +153,18 @@ describe('invoices', () => {
     const sent = draftInvoicePayload(details);
     const session = await client.login('33333301', '1');
     const { uuid } = await client.createDraftInvoice(session, details);
-    const html = await client.getInvoiceHTML(session, uuid, 'Onaylanmadı');
+    // The portal writes Ö as &Ouml;.
+    const html = (await client.getInvoiceHTML(session, uuid, 'Onaylanmadı')).replaceAll(
+      '&Ouml;',
+      'Ö',
+    );
     await client.logout(session);
 
     // "1.234,56 TL" as GİB's payload writes it: "1234.56".
     const shown = (label: string) => {
       const escaped = label.replaceAll(/[()]/g, (char) => `\\${char}`);
       const match = new RegExp(`${escaped}</span></td>\\s*<td[^>]*>([^<]+)</td>`).exec(html);
-      return match?.[1].replace(' TL', '').replaceAll('.', '').replace(',', '.');
+      return match?.[1].trim().replace(' TL', '').replaceAll('.', '').replace(',', '.');
     };
     expect(shown('Mal Hizmet Toplam Tutarı')).toBe(sent.malhizmetToplamTutari);
     expect(shown('Vergiler Dahil Toplam Tutar')).toBe(sent.vergilerDahilToplamTutar);
@@ -173,12 +177,13 @@ describe('invoices', () => {
       string,
       string
     >;
+    // Amounts as UBL writes them: 120.6, not 120.60.
     expect(qr).toMatchObject({
       'hesaplanankdv(1)': '1.01',
       'hesaplanankdv(10)': '2.02',
-      malhizmettoplam: sent.malhizmetToplamTutari,
-      odenecek: sent.odenecekTutar,
-      vergidahil: sent.vergilerDahilToplamTutar,
+      malhizmettoplam: String(Number(sent.malhizmetToplamTutari)),
+      odenecek: String(Number(sent.odenecekTutar)),
+      vergidahil: String(Number(sent.vergilerDahilToplamTutar)),
     });
   });
 
@@ -210,6 +215,7 @@ describe('portal limits and failures', () => {
       Record<string, string>
     >;
     expect(all.map((row) => row.onayDurumu).toSorted()).toEqual([
+      'Onaylandı',
       'Onaylandı',
       'Onaylandı',
       'Silinmiş',

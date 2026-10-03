@@ -2,6 +2,13 @@ import { readFileSync } from 'node:fs';
 
 export type ApprovalStatus = 'Onaylandı' | 'Onaylanmadı' | 'Silinmiş';
 
+/**
+ * A cancellation request (iptal talebi) on a signed document: waiting for the
+ * buyer, accepted (the document is cancelled) or rejected. The document stays
+ * Onaylandı; the portal's İptal/İtiraz Durumu column shows the request.
+ */
+export type Cancellation = 'accepted' | 'pending' | 'rejected';
+
 /** A portal account. Field names follow EARSIV_PORTAL_KULLANICI_BILGILERI_GETIR. */
 export interface EmulatorUser {
   ad: string;
@@ -25,6 +32,10 @@ export interface EmulatorUser {
 /** A document created on start and on reset, for lists that are not empty. */
 export interface InvoiceFixture {
   amount?: number;
+  /** A cancellation request on a signed document. */
+  cancellation?: Cancellation;
+  /** The recipient's country, GİB's name for it. Default Türkiye. */
+  country?: string;
   currency?: string;
   /** dd/MM/yyyy. Wins over `daysAgo`. */
   date?: string;
@@ -32,6 +43,9 @@ export interface InvoiceFixture {
   daysAgo?: number;
   ettn?: string;
   item?: string;
+  note?: string;
+  /** TRY per unit of `currency` (dovzTLkur). */
+  rate?: number;
   recipient?: string;
   status?: ApprovalStatus;
   taxID?: string;
@@ -156,9 +170,12 @@ export const defaultUsers: Array<EmulatorUser> = [
 const defaultSeedInvoices: Array<InvoiceFixture> = [
   {
     amount: 4500,
+    country: 'Amerika Birleşik Dev',
     currency: 'USD',
     daysAgo: 3,
     item: 'Yazılım Geliştirme Hizmeti',
+    note: '302 - 11/1-a Hizmet ihracatı.',
+    rate: 41.285,
     recipient: 'PLASTIC SOFTWARE LLC',
     status: 'Onaylandı',
     taxID: '2222222222',
@@ -167,10 +184,28 @@ const defaultSeedInvoices: Array<InvoiceFixture> = [
   },
   {
     amount: 2400,
+    country: 'Almanya',
     currency: 'EUR',
     daysAgo: 12,
     item: 'Danışmanlık Hizmeti',
+    note: '302 - 11/1-a Hizmet ihracatı.',
+    rate: 48.1275,
     recipient: 'ACME GMBH',
+    status: 'Onaylandı',
+    taxID: '2222222222',
+    userid: '12345678',
+    vatRate: 0,
+  },
+  {
+    amount: 1000,
+    cancellation: 'accepted',
+    country: 'Amerika Birleşik Dev',
+    currency: 'USD',
+    daysAgo: 20,
+    item: 'Yazılım Geliştirme Hizmeti',
+    note: '350 - Diğerleri.',
+    rate: 41.1032,
+    recipient: 'PLASTIC SOFTWARE LLC',
     status: 'Onaylandı',
     taxID: '2222222222',
     userid: '12345678',

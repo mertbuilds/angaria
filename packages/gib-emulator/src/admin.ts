@@ -60,6 +60,7 @@ const invoiceView = (invoice: StoredInvoice) => ({
   aliciVknTckn: invoice.aliciVknTckn,
   belgeNumarasi: invoice.belgeNumarasi,
   belgeTarihi: invoice.belgeTarihi,
+  cancellation: invoice.cancellation,
   createdAt: iso(invoice.createdAt),
   ettn: invoice.ettn,
   onayDurumu: invoice.onayDurumu,
