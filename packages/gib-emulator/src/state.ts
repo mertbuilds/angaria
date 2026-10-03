@@ -1,6 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { ApprovalStatus, EmulatorConfig, EmulatorUser, InvoiceFixture } from './config.ts';
+import type {
+  ApprovalStatus,
+  Cancellation,
+  EmulatorConfig,
+  EmulatorUser,
+  InvoiceFixture,
+} from './config.ts';
 import { addDays, dashDate, type Day, istanbulDay, parseGIBDate, slashDate } from './dates.ts';
 
 export interface StoredInvoice {
@@ -10,6 +16,8 @@ export interface StoredInvoice {
   belgeNumarasi: string;
   /** dd-MM-yyyy */
   belgeTarihi: string;
+  /** A cancellation request on the signed document; `accepted` cancels it. */
+  cancellation?: Cancellation;
   /** Epoch milliseconds. */
   createdAt: number;
   ettn: string;
@@ -103,16 +111,21 @@ function fixturePayload(fixture: InvoiceFixture, day: Day): Record<string, unkno
   const vatRate = fixture.vatRate ?? 20;
   const vat = (amount * vatRate) / 100;
   const isPerson = (fixture.taxID ?? '').length === 11;
+  const country = fixture.country ?? 'Türkiye';
+  const abroad = country !== 'Türkiye';
   return {
     aliciAdi: isPerson ? (fixture.recipient ?? '') : '',
     aliciSoyadi: '',
     aliciUnvan: isPerson ? '' : (fixture.recipient ?? 'ÖRNEK ALICI A.Ş.'),
-    bulvarcaddesokak: 'Örnek Mah. Deneme Cad. No:1',
-    dovzTLkur: '0',
+    bulvarcaddesokak: abroad
+      ? '350 Fifth Avenue, New York, NY 10118'
+      : 'Örnek Mah. Deneme Cad. No:1',
+    dovzTLkur: String(fixture.rate ?? 0),
     faturaTarihi: slashDate(day),
     faturaTipi: vatRate === 0 ? 'ISTISNA' : 'SATIS',
     hangiTip: '5000/30000',
     hesaplanankdv: money(vat),
+    mahalleSemtIlce: abroad ? '' : 'Kadıköy',
     malHizmetTable: [
       {
         birim: 'C62',
@@ -129,13 +142,13 @@ function fixturePayload(fixture: InvoiceFixture, day: Day): Record<string, unkno
     ],
     malhizmetToplamTutari: money(amount),
     matrah: money(amount),
-    not: '',
+    not: fixture.note ?? '',
     odenecekTutar: money(amount + vat),
     paraBirimi: fixture.currency ?? 'TRY',
     saat: '10:00:00',
-    sehir: 'İstanbul',
+    sehir: abroad ? ' ' : 'İstanbul',
     toplamIskonto: '0.00',
-    ulke: 'Türkiye',
+    ulke: country,
     vergiDairesi: '',
     vergilerDahilToplamTutar: money(amount + vat),
     vergilerToplami: money(vat),
@@ -158,9 +171,10 @@ export function addFixture(state: State, fixture: InvoiceFixture, now: number): 
     aliciVknTckn: String(payload.vknTckn),
     belgeNumarasi,
     belgeTarihi: dashDate(day),
+    cancellation: fixture.cancellation,
     createdAt: now,
     ettn,
-    onayDurumu: fixture.status ?? 'Onaylanmadı',
+    onayDurumu: fixture.status ?? (fixture.cancellation ? 'Onaylandı' : 'Onaylanmadı'),
     payload,
     userid: fixture.userid,
   };
