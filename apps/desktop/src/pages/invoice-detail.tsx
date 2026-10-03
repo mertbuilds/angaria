@@ -9,13 +9,12 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
-  DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  SplitButton,
   toast,
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
@@ -23,7 +22,6 @@ import { create, keyframes, props, type StyleXStyles } from '@stylexjs/stylex';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
-  ChevronDownIcon,
   DownloadIcon,
   LoaderCircleIcon,
   MessageSquareIcon,
@@ -105,11 +103,6 @@ const styles = create({
   }),
   // The menu trigger carries its own data-slot, so the theme's button icon
   // size does not reach its icon.
-  icon: {
-    flexShrink: 0,
-    height: '1rem',
-    width: '1rem',
-  },
   header: {
     display: 'flex',
     flexDirection: 'column',
@@ -153,18 +146,6 @@ const styles = create({
     color: colors.muted,
     height: '1.5rem',
     width: '1.5rem',
-  },
-  splitMain: {
-    borderEndEndRadius: 0,
-    borderStartEndRadius: 0,
-  },
-  splitMenu: {
-    borderEndStartRadius: 0,
-    borderStartStartRadius: 0,
-    marginInlineStart: '1px',
-  },
-  splitWrap: {
-    display: 'inline-flex',
   },
   state: {
     alignItems: 'center',
@@ -267,22 +248,9 @@ function DownloadMenu({
   const eArchiveLabel = useId();
   const angariaLabel = useId();
   return (
-    <div role="group" {...props(styles.splitWrap)}>
-      <Button
-        disabled={disabled}
-        onClick={() => (angaria ? onAngaria(angaria) : onEArchive('pdf'))}
-        style={styles.splitMain}
-      >
-        <DownloadIcon />
-        {angaria ? `Angaria PDF (${PDF_LANGUAGE_NAMES[angaria]})` : 'e-Arşiv PDF'}
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={disabled}
-          render={<Button aria-label="İndirme seçenekleri" size="icon" style={styles.splitMenu} />}
-        >
-          <ChevronDownIcon {...props(styles.icon)} />
-        </DropdownMenuTrigger>
+    <SplitButton
+      disabled={disabled}
+      menu={
         <DropdownMenuContent align="end">
           <DropdownMenuGroup aria-labelledby={eArchiveLabel}>
             <DropdownMenuLabel id={eArchiveLabel}>e-Arşiv faturası (GİB)</DropdownMenuLabel>
@@ -303,8 +271,13 @@ function DownloadMenu({
             </>
           )}
         </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+      }
+      menuLabel="İndirme seçenekleri"
+      onClick={() => (angaria ? onAngaria(angaria) : onEArchive('pdf'))}
+    >
+      <DownloadIcon />
+      {angaria ? `Angaria PDF (${PDF_LANGUAGE_NAMES[angaria]})` : 'e-Arşiv PDF'}
+    </SplitButton>
   );
 }
 

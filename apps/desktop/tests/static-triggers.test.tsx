@@ -15,6 +15,7 @@ import {
   Select,
   SelectTrigger,
   SelectValue,
+  SplitButton,
   Tooltip,
   TooltipTrigger,
 } from '@angaria/ui';
@@ -63,14 +64,21 @@ const isStyleRule = (rule: CSSRule): rule is CSSStyleRule => 'selectorText' in r
 /**
  * The geometry declarations of the rules that apply to `element`: with
  * `pressed`, only the rules under :active or :hover (as if the pointer were
- * on it and down); without, the rest.
+ * on it and down, or on `target` and down: then only `target` and its
+ * ancestors are pressed); without, the rest.
  */
-function geometry(element: Element, pressed: boolean) {
+function geometry(element: Element, pressed: boolean, target?: Element) {
+  const pointed: Array<Element> = [];
+  for (let node = target ?? null; node; node = node.parentElement) {
+    node.setAttribute('data-pointer', '');
+    pointed.push(node);
+  }
+  const state = target ? '[data-pointer]' : '';
   const found: Array<string> = [];
   const visit = (rules: CSSRuleList) => {
     for (const rule of rules) {
       if (isStyleRule(rule)) {
-        const selector = rule.selectorText.replaceAll(POINTER_STATE, '');
+        const selector = rule.selectorText.replaceAll(POINTER_STATE, state);
         const onPointer = selector !== rule.selectorText;
         if (onPointer === pressed && element.matches(selector)) {
           for (const property of rule.style) {
@@ -86,6 +94,9 @@ function geometry(element: Element, pressed: boolean) {
   };
   for (const sheet of document.styleSheets) {
     visit(sheet.cssRules);
+  }
+  for (const node of pointed) {
+    node.removeAttribute('data-pointer');
   }
   return found;
 }
@@ -196,6 +207,15 @@ const triggers: Array<{ label: string; name: string; node: ReactNode }> = [
     node: <DateField aria-label="Tarih" id="tarih" onChange={() => {}} value={null} />,
   },
   {
+    label: 'İndirme seçenekleri',
+    name: 'the SplitButton menu half',
+    node: (
+      <SplitButton menu={null} menuLabel="İndirme seçenekleri">
+        İndir
+      </SplitButton>
+    ),
+  },
+  {
     label: 'Seçenekler',
     name: 'a Button that names its popup itself',
     node: <Button aria-expanded={false} aria-haspopup="menu" aria-label="Seçenekler" />,
@@ -231,4 +251,33 @@ test('a Button trigger keeps its geometry while its menu is open', () => {
   expect(element.getAttribute('aria-expanded')).toBe('true');
   expect(geometry(element, false)).toEqual(closed);
   expect(geometry(element, true)).toEqual([]);
+});
+
+const renderSplitButton = () => {
+  render(
+    <SplitButton menu={null} menuLabel="İndirme seçenekleri">
+      İndir
+    </SplitButton>,
+  );
+  const menu = trigger('İndirme seçenekleri');
+  const group = menu.closest('[data-slot="split-button"]');
+  const main = group?.querySelector('[data-split-main]');
+  if (!group || !main) {
+    throw new Error('No SplitButton');
+  }
+  return { group, main, menu };
+};
+
+test('a SplitButton shrinks as one piece when its main half is pressed', () => {
+  const { group, main, menu } = renderSplitButton();
+  expect(geometry(group, true, main)).toContain('scale: 0.96');
+  expect(geometry(main, true, main)).toEqual([]);
+  expect(geometry(menu, true, main)).toEqual([]);
+});
+
+test('a SplitButton moves nothing when its menu half is pressed', () => {
+  const { group, main, menu } = renderSplitButton();
+  for (const element of [group, main, menu]) {
+    expect(geometry(element, true, menu)).toEqual([]);
+  }
 });

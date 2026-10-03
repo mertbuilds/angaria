@@ -141,6 +141,7 @@ export {
   SidebarSeparator,
 } from './ui/sidebar.tsx';
 export { Skeleton } from './ui/skeleton.tsx';
+export { SplitButton, type SplitButtonProps } from './ui/split-button.tsx';
 export { Toaster } from './ui/sonner.tsx';
 export { Switch, type SwitchProps } from './ui/switch.tsx';
 export {
