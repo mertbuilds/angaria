@@ -5,6 +5,7 @@ import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { fetchTCMBRateTable } from '../src/lib/angaria.ts';
+import { cleanItems, upsertSavedItems } from '../src/lib/invoice-form.ts';
 import { StoreProvider } from '../src/lib/store.tsx';
 import type { InvoiceItem, Service } from '../src/lib/types.ts';
 import { InvoiceItems } from '../src/pages/invoice-items.tsx';
@@ -226,6 +227,10 @@ const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 const priceHint = (index = 0) =>
   document.getElementById(`items[${index}].unitPrice-description`)?.textContent;
 
+/** `saved` after a draft of the form's rows in `currency`, as Yeni fatura learns it. */
+const learn = (saved: Array<Service>, currency: string) =>
+  upsertSavedItems(saved, cleanItems(items()), () => 'new', currency);
+
 describe('a saved service in another currency', () => {
   test('lists each service with the currency of its price', async () => {
     saveServices([service({ currency: 'USD' }), service({ name: 'Eski hizmet', unitPrice: 750 })]);
@@ -251,11 +256,16 @@ describe('a saved service in another currency', () => {
   });
 
   test('a service without a currency counts in the invoice’s, as before', async () => {
-    saveServices([service({})]);
+    const legacy = service({});
+    saveServices([legacy]);
     await mount([row({ name: '' })]);
     await pick(0, 'Engineering Services');
     expect(items()[0].unitPrice).toBe(100);
     expect(priceHint()).toBeUndefined();
+
+    // The draft gives it the invoice's currency.
+    await act(async () => form.setFieldValue('items[0].unitPrice', 120));
+    expect(learn([legacy], 'TRY')).toEqual([{ ...legacy, currency: 'TRY', unitPrice: 120 }]);
   });
 
   test('converts at TCMB’s rate on a lira invoice and says so until typed over', async () => {
@@ -270,6 +280,36 @@ describe('a saved service in another currency', () => {
 
     await act(async () => form.setFieldValue('items[0].unitPrice', 4000));
     expect(priceHint()).toBeUndefined();
+  });
+
+  test('a draft with a converted row leaves the service as it is, typed over or not', async () => {
+    const usd = service({ currency: 'USD' });
+    saveServices([usd]);
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['tcmb-rates', '', 'previous'], TCMB);
+    await mount([row({ name: '' })], queryClient);
+
+    await pick(0, 'Engineering Services');
+    expect(items()[0].pickedFrom).toEqual({ converted: true, currency: 'USD', id: usd.id });
+    expect(learn([usd], 'TRY')).toEqual([usd]);
+
+    await act(async () => form.setFieldValue('items[0].unitPrice', 4000));
+    expect(learn([usd], 'TRY')).toEqual([usd]);
+  });
+
+  test('a draft in the service’s currency updates its price', async () => {
+    const usd = service({ currency: 'USD' });
+    saveServices([usd]);
+    await mount([row({ name: '' })]);
+    await act(async () => {
+      form.setFieldValue('invoiceSettings.currency', 'USD');
+      form.setFieldValue('invoiceSettings.currencyRate', '41,1032');
+    });
+
+    await pick(0, 'Engineering Services');
+    expect(items()[0].pickedFrom).toEqual({ converted: false, currency: 'USD', id: usd.id });
+    await act(async () => form.setFieldValue('items[0].unitPrice', 120));
+    expect(learn([usd], 'USD')).toEqual([{ ...usd, unitPrice: 120 }]);
   });
 
   test('waits for the rate with the price empty, then converts', async () => {

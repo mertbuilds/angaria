@@ -522,9 +522,13 @@ export function invoiceDefaults(
 }
 
 /**
- * Saved services after an invoice in `currency`: each named row replaces the
- * service of the same name (keeping its id) or is added as a new one, priced
- * in the invoice's currency.
+ * Saved services after an invoice in `currency`. A named row of a new name is
+ * added as a service priced in the invoice's currency. A row named like a
+ * saved service replaces it (keeping its id) only when its price is in the
+ * service's currency, or the service has none yet and takes the invoice's.
+ * A row converted from the service's currency, typed over or not, or on an
+ * invoice in another currency leaves the service as it is: a picked row says
+ * so (pickedFrom), any other counts in the invoice's currency.
  */
 export function upsertSavedItems(
   saved: ReadonlyArray<Service>,
@@ -532,8 +536,9 @@ export function upsertSavedItems(
   newId: () => string,
   currency: string,
 ): Array<Service> {
+  const inInvoiceCurrency = (from: string | undefined) => from === undefined || from === currency;
   const next = [...saved];
-  for (const item of items) {
+  for (const { pickedFrom, ...item } of items) {
     const name = item.name.trim();
     if (!name) {
       continue;
@@ -541,8 +546,16 @@ export function upsertSavedItems(
     const index = next.findIndex((service) => service.name === name);
     if (index === -1) {
       next.push({ ...item, currency, id: newId(), name });
-    } else {
-      next[index] = { ...item, currency, id: next[index].id, name };
+      continue;
+    }
+    const service = next[index];
+    const picked = pickedFrom?.id === service.id ? pickedFrom : undefined;
+    if (
+      !picked?.converted &&
+      inInvoiceCurrency(picked?.currency) &&
+      inInvoiceCurrency(service.currency)
+    ) {
+      next[index] = { ...item, currency, id: service.id, name };
     }
   }
   return next;

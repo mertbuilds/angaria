@@ -1,5 +1,6 @@
 import { GibError, type DraftRow, type SessionInfo } from 'angaria-earsiv-sdk';
 import { describe, expect, test, vi } from 'vitest';
+import { cleanItems, upsertSavedItems } from '../src/lib/invoice-form.ts';
 import {
   callMcpTool,
   DRAFT_CREATED,
@@ -13,7 +14,7 @@ import {
 } from '../src/lib/mcp-tools.ts';
 import { ISTISNA_REASONS } from '../src/lib/regulated.ts';
 import { createSessionQueue } from '../src/lib/session-queue.ts';
-import type { Recipient } from '../src/lib/types.ts';
+import type { Recipient, Service } from '../src/lib/types.ts';
 
 const NOW = new Date(2026, 9, 2, 12, 30, 0);
 const session: SessionInfo = { baseUrl: 'https://test.invalid', cookies: [], token: 't' };
@@ -29,6 +30,20 @@ const customer = (fields: Partial<Recipient>): Recipient => ({
   taxIDOrTRID: '2222222222',
   taxOffice: '',
   title: 'ACME GMBH',
+  ...fields,
+});
+
+const service = (fields: Partial<Service>): Service => ({
+  discountAmount: 0,
+  discountRate: 0,
+  discountReason: '',
+  gtip: '',
+  id: 'engineering',
+  name: 'Engineering Services',
+  quantity: 1,
+  unitPrice: 100,
+  unitType: 'C62',
+  VATRate: 0,
   ...fields,
 });
 
@@ -525,6 +540,44 @@ describe('customers and services', () => {
       },
     ]);
     expect(log).toEqual([]);
+  });
+
+  test('a draft updates a saved service only in its currency', async () => {
+    const usd = service({ currency: 'USD' });
+    const legacy = service({ id: 'legacy', name: 'Eski hizmet', unitPrice: 500 });
+    const services = [usd, legacy];
+    const { ctx } = setup({ company: { services } });
+    // What McpHost does with a created draft.
+    const learned = async (customerId: string, unitPrice: number) => {
+      vi.mocked(ctx.onDraftCreated).mockClear();
+      const { error } = await call(ctx, 'create_invoice', {
+        customerId,
+        items: [
+          { name: 'Engineering Services', quantity: 1, unitPrice },
+          { name: 'Eski hizmet', quantity: 1, unitPrice: 750 },
+        ],
+      });
+      expect(error).toBe(false);
+      const values = vi.mocked(ctx.onDraftCreated).mock.calls[0]?.[1];
+      if (!values) {
+        throw new Error('No draft');
+      }
+      return upsertSavedItems(
+        services,
+        cleanItems(values.items),
+        ctx.newId,
+        values.invoiceSettings.currency,
+      );
+    };
+
+    // ÖRNEK is invoiced in lira: the USD service stays as it is.
+    const lira = await learned('ornek', 4110.32);
+    expect(lira[0]).toBe(usd);
+    expect(lira[1]).toMatchObject({ currency: 'TRY', id: 'legacy', unitPrice: 750 });
+
+    // ACME is invoiced in USD: the service takes the new price.
+    const dollars = await learned('acme', 120);
+    expect(dollars[0]).toMatchObject({ currency: 'USD', id: 'engineering', unitPrice: 120 });
   });
 });
 

@@ -543,8 +543,18 @@ function ItemRow({
                 if (saved) {
                   // Without a currency the price counts in the invoice's, as before.
                   const { currency: from = currency, ...service } = saved;
-                  const row = { ...defaultItemAdvanced, ...service, id: item.id };
                   const next = priceConversion(from, rates);
+                  // The draft updates the service only from a row in its currency.
+                  const row: InvoiceItem = {
+                    ...defaultItemAdvanced,
+                    ...service,
+                    id: item.id,
+                    pickedFrom: {
+                      converted: next.kind !== 'same',
+                      currency: saved.currency,
+                      id: saved.id,
+                    },
+                  };
                   form.setFieldValue(`items[${index}]`, pricedRow(row, next));
                   setPicked({ amount: row.unitPrice, discountAmount: row.discountAmount, from });
                   waitingForRate.current = next.kind !== 'converted' && next.kind !== 'same';

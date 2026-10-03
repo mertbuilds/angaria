@@ -25,7 +25,13 @@ import {
   vatByRate,
 } from '../src/lib/invoice-form.ts';
 import { ISTISNA_REASONS } from '../src/lib/regulated.ts';
-import type { CompanyInfo, InvoiceFormValues, InvoiceItem, Recipient } from '../src/lib/types.ts';
+import type {
+  CompanyInfo,
+  InvoiceFormValues,
+  InvoiceItem,
+  Recipient,
+  Service,
+} from '../src/lib/types.ts';
 
 const item = (fields: Partial<InvoiceItem> = {}): InvoiceItem => ({
   discountAmount: 0,
@@ -709,26 +715,75 @@ describe('invoiceDefaults', () => {
   });
 });
 
-test('upsertSavedItems updates by name and adds new names, in the invoice’s currency', () => {
-  const saved = [
-    { ...item({ id: 'saved', unitPrice: 500 }), currency: 'TRY' },
-    item({ id: 'old', name: 'Eski' }),
-  ];
-  const next = upsertSavedItems(
-    saved,
-    [
-      item({ id: 'row', unitPrice: 750 }),
-      item({ id: 'new', name: ' Tasarım ' }),
-      item({ name: '' }),
-    ],
-    () => 'generated',
-    'USD',
-  );
-  expect(next).toEqual([
-    { ...item({ id: 'saved', unitPrice: 750 }), currency: 'USD' },
-    item({ id: 'old', name: 'Eski' }),
-    { ...item({ id: 'generated', name: 'Tasarım' }), currency: 'USD' },
-  ]);
+describe('upsertSavedItems', () => {
+  const usd = { ...item({ id: 'usd', name: 'Engineering', unitPrice: 100 }), currency: 'USD' };
+  const learn = (rows: Array<InvoiceItem>, currency: string, saved: Array<Service> = [usd]) =>
+    upsertSavedItems(saved, rows, () => 'generated', currency);
+
+  test('updates a service on an invoice in its currency and adds new names in it', () => {
+    const saved = [
+      { ...item({ id: 'saved', unitPrice: 500 }), currency: 'USD' },
+      item({ id: 'old', name: 'Eski' }),
+    ];
+    const next = learn(
+      [
+        item({
+          id: 'row',
+          pickedFrom: { converted: false, currency: 'USD', id: 'saved' },
+          unitPrice: 750,
+        }),
+        item({ id: 'new', name: ' Tasarım ' }),
+        item({ name: '' }),
+      ],
+      'USD',
+      saved,
+    );
+    expect(next).toEqual([
+      { ...item({ id: 'saved', unitPrice: 750 }), currency: 'USD' },
+      item({ id: 'old', name: 'Eski' }),
+      { ...item({ id: 'generated', name: 'Tasarım' }), currency: 'USD' },
+    ]);
+    // A row typed with the service's name counts in the invoice's currency.
+    expect(learn([item({ name: 'Engineering', unitPrice: 120 })], 'USD')).toEqual([
+      { ...usd, unitPrice: 120 },
+    ]);
+  });
+
+  test('leaves a service in another currency as it is, typed over or not', () => {
+    const converted = { converted: true, currency: 'USD', id: 'usd' };
+    const row = (unitPrice: number) =>
+      item({ name: 'Engineering', pickedFrom: converted, unitPrice });
+    expect(learn([row(4110.32)], 'TRY')).toEqual([usd]);
+    expect(learn([row(4000)], 'TRY')).toEqual([usd]);
+    // Converted, then the invoice moved to the service's currency.
+    expect(learn([row(4110.32)], 'USD')).toEqual([usd]);
+    // Picked as is, then the invoice moved to another currency.
+    const asIs = { converted: false, currency: 'USD', id: 'usd' };
+    expect(learn([item({ name: 'Engineering', pickedFrom: asIs })], 'EUR')).toEqual([usd]);
+    // Typed with its name rather than picked.
+    expect(learn([item({ name: 'Engineering', unitPrice: 4000 })], 'TRY')).toEqual([usd]);
+  });
+
+  test('a service without a currency takes the invoice’s with the price', () => {
+    const legacy = item({ id: 'legacy', name: 'Eski', unitPrice: 500 });
+    const picked = item({
+      name: 'Eski',
+      pickedFrom: { converted: false, id: 'legacy' },
+      unitPrice: 750,
+    });
+    expect(learn([picked], 'EUR', [legacy])).toEqual([
+      { ...legacy, currency: 'EUR', unitPrice: 750 },
+    ]);
+  });
+
+  test('a picked row renamed to another service counts by its name', () => {
+    const lira = { ...item({ id: 'lira', unitPrice: 500 }), currency: 'TRY' };
+    const renamed = item({
+      pickedFrom: { converted: true, currency: 'USD', id: 'usd' },
+      unitPrice: 750,
+    });
+    expect(learn([renamed], 'TRY', [usd, lira])).toEqual([usd, { ...lira, unitPrice: 750 }]);
+  });
 });
 
 test('isBlankForm ignores the default row and settings', () => {
