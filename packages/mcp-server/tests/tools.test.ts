@@ -18,6 +18,7 @@ function fakeClient(overrides: Partial<EarsivClient> = {}): EarsivClient {
       response: {},
       uuid: 'ettn-1',
     })),
+    downloadInvoice: vi.fn(unused),
     forceLogout: vi.fn(unused),
     getDrafts: vi.fn(async () => []),
     getInvoiceDetail: vi.fn(unused),
