@@ -976,7 +976,7 @@ function Showcase() {
           </Button>
           <Button
             onClick={() =>
-              toast.success('e-Arşiv faturası indirildi', {
+              toast.success('e-Arşiv faturası kaydedildi', {
                 action: { label: 'Finder’da göster', onClick: () => {} },
                 cancel: { label: 'Aç', onClick: () => {} },
                 closeButton: true,

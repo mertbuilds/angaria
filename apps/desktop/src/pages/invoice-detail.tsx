@@ -384,13 +384,13 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     },
     // Errors get the app-wide toast; this one only replaces the spinner.
     onError: () => toast.dismiss(`pdf-${ettn}`),
-    onSuccess: (file) => toastDownloaded(`pdf-${ettn}`, 'PDF indirildi', file),
+    onSuccess: (file) => toastDownloaded(`pdf-${ettn}`, 'PDF kaydedildi', file),
   });
 
   const eArchive = useMutation({
     mutationFn: async (file: EArchiveFile) => {
       toastPreparing(
-        file === 'pdf' ? 'e-Arşiv PDF hazırlanıyor…' : 'GİB’den indiriliyor…',
+        file === 'pdf' ? 'e-Arşiv PDF hazırlanıyor…' : 'e-Arşiv faturası kaydediliyor…',
         `earsiv-${ettn}`,
       );
       const filename = buildEArchiveFilename(
@@ -416,7 +416,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
       return saveFile(new Blob([await htmlToPDF(html)], { type: 'application/pdf' }), filename);
     },
     onError: () => toast.dismiss(`earsiv-${ettn}`),
-    onSuccess: (file) => toastDownloaded(`earsiv-${ettn}`, 'e-Arşiv faturası indirildi', file),
+    onSuccess: (file) => toastDownloaded(`earsiv-${ettn}`, 'e-Arşiv faturası kaydedildi', file),
   });
 
   const remove = useMutation({
