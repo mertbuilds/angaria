@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import {
   anchoredScroll,
@@ -153,7 +154,8 @@ const styles = create({
     maxWidth: 'none',
     width: '100vw',
   },
-  // The dialog's body pads and scrolls; the viewer lies over the whole popup.
+  // The dialog's body pads and grows with its content; the viewer lies over
+  // the whole popup instead, so a zoomed page never widens the bar.
   viewerFrame: {
     display: 'flex',
     flexDirection: 'column',
@@ -171,6 +173,13 @@ const styles = create({
     paddingInlineEnd: spacing.s4,
     paddingInlineStart: shell.trafficLightsInset,
     userSelect: 'none',
+  },
+  // The controls keep their size; the title gives way.
+  viewerActions: {
+    alignItems: 'center',
+    display: 'flex',
+    flexShrink: 0,
+    gap: spacing.s2,
   },
   viewerTitle: {
     flex: 1,
@@ -312,16 +321,20 @@ export function useZoomKeys(zoom: PaperZoom, enabled: boolean, whileDialog = fal
  * pinch (⌘ or Ctrl wheel, WebKit's gesture events) and, with `onOpen`, the
  * click. The HTML has no scripts (withQRCode drops them) and runs in
  * `<iframe sandbox="allow-same-origin">`: still no scripts, forms, popups or
- * navigation; same origin only so the page's height can be read.
+ * navigation; same origin only so the page's height can be read. A zoom
+ * scales the page only: the scroller keeps its size and scrolls further.
  */
 export function InvoicePaper({
   html,
   onOpen,
+  pinchArea,
   style,
   zoom,
 }: {
   html: string;
   onOpen?: () => void;
+  /** Takes the pinch instead of the scroller: the full-screen viewer's whole frame. */
+  pinchArea?: RefObject<HTMLElement | null>;
   style?: StyleXStyles;
   zoom: PaperZoom;
 }) {
@@ -351,7 +364,8 @@ export function InvoicePaper({
 
   useEffect(() => {
     const element = scroller.current;
-    if (!element) {
+    const area = pinchArea?.current ?? element;
+    if (!element || !area) {
       return;
     }
     const pointer = (event: { clientX: number; clientY: number }) => {
@@ -386,17 +400,17 @@ export function InvoicePaper({
       event.preventDefault();
       gestureStart = null;
     };
-    element.addEventListener('wheel', onWheel, { passive: false });
-    element.addEventListener('gesturestart', onGestureStart);
-    element.addEventListener('gesturechange', onGestureChange);
-    element.addEventListener('gestureend', onGestureEnd);
+    area.addEventListener('wheel', onWheel, { passive: false });
+    area.addEventListener('gesturestart', onGestureStart);
+    area.addEventListener('gesturechange', onGestureChange);
+    area.addEventListener('gestureend', onGestureEnd);
     return () => {
-      element.removeEventListener('wheel', onWheel);
-      element.removeEventListener('gesturestart', onGestureStart);
-      element.removeEventListener('gesturechange', onGestureChange);
-      element.removeEventListener('gestureend', onGestureEnd);
+      area.removeEventListener('wheel', onWheel);
+      area.removeEventListener('gesturestart', onGestureStart);
+      area.removeEventListener('gesturechange', onGestureChange);
+      area.removeEventListener('gestureend', onGestureEnd);
     };
-  }, [latest, scroller, zoomTo]);
+  }, [latest, pinchArea, scroller, zoomTo]);
 
   return (
     <div ref={scroller} tabIndex={onOpen ? undefined : 0} {...props(styles.scroller, style)}>
@@ -541,24 +555,27 @@ export function InvoiceViewer({
   title: string;
 }) {
   const zoom = usePaperZoom();
+  const frame = useRef<HTMLDivElement>(null);
   useZoomKeys(zoom, open, true);
   // The page takes the focus, so arrow keys, Page Down and Space scroll it.
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent initialFocus={zoom.scroller} showCloseButton={false} style={styles.viewer}>
-        <div {...props(styles.viewerFrame)}>
+        <div ref={frame} {...props(styles.viewerFrame)}>
           {/* The window's drag region while the viewer covers it; its controls do not drag. */}
           <div data-tauri-drag-region {...props(styles.viewerBar)}>
             <DialogTitle data-tauri-drag-region style={styles.viewerTitle}>
               {title}
             </DialogTitle>
-            <ZoomControls zoom={zoom} />
-            {downloads}
-            <DialogClose render={<Button aria-label="Kapat" size="icon" variant="ghost" />}>
-              <XIcon {...props(styles.icon)} />
-            </DialogClose>
+            <div {...props(styles.viewerActions)}>
+              <ZoomControls zoom={zoom} />
+              {downloads}
+              <DialogClose render={<Button aria-label="Kapat" size="icon" variant="ghost" />}>
+                <XIcon {...props(styles.icon)} />
+              </DialogClose>
+            </div>
           </div>
-          <InvoicePaper html={html} style={styles.viewerPaper} zoom={zoom} />
+          <InvoicePaper html={html} pinchArea={frame} style={styles.viewerPaper} zoom={zoom} />
         </div>
       </DialogContent>
     </Dialog>

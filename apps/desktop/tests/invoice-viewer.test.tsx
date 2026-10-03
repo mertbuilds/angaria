@@ -15,6 +15,8 @@ vi.stubGlobal(
     unobserve() {}
   },
 );
+// jsdom has no scrolling; a zoom scrolls to keep its anchor in place.
+Element.prototype.scrollTo = () => {};
 
 // The shell's titlebar geometry: its height, and room for the traffic lights.
 const expected = create({
@@ -86,4 +88,34 @@ test('the full-screen viewer’s bar reserves the titlebar and drags the window'
   // The page lies below the bar, not in it.
   expect(bar.querySelector('iframe')).toBeNull();
   expect(document.querySelector('[role="dialog"] iframe')).not.toBeNull();
+});
+
+test('a zoom scales the page only, never the viewer or its bar', () => {
+  renderViewer();
+  const { bar } = viewerBar();
+  const frame = bar.parentElement;
+  const popup = document.querySelector('[role="dialog"]');
+  const page = document.querySelector('[role="dialog"] iframe')?.parentElement;
+  const layout = () =>
+    [popup, frame, bar].map((element) => [element?.className, element?.getAttribute('style')]);
+  const before = layout();
+  const pageBefore = page?.getAttribute('style');
+
+  const zoomIn = bar.querySelector<HTMLElement>('[aria-label="Yakınlaştır"]');
+  for (let step = 0; step < 3; step++) {
+    act(() => zoomIn?.click());
+  }
+  // A pinch over the bar zooms the page too, and never the window.
+  const pinch = new WheelEvent('wheel', {
+    bubbles: true,
+    cancelable: true,
+    ctrlKey: true,
+    deltaY: -40,
+  });
+  act(() => bar.dispatchEvent(pinch));
+  expect(pinch.defaultPrevented).toBe(true);
+
+  expect(bar.querySelector('[role="group"] span')?.textContent).toBe('%224');
+  expect(page?.getAttribute('style')).not.toBe(pageBefore);
+  expect(layout()).toEqual(before);
 });
