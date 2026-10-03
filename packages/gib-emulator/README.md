@@ -74,8 +74,9 @@ The texts in `src/messages.ts` are split into verified ones (seen on the live po
 - Not box with the draft's `not` (the app writes the İstisna reason there).
 - QR code: empty `#qrcode`, the XSLT's JSON in the hidden `#qrvalue` (amounts as UBL writes them, `120.6`; a space after the buyer's ID, as GİB leaves it), the inline `makeCode()` script.
 - A cancelled invoice (cancellation accepted) carries the portal's watermark, `İPTAL EDİLMİŞ` in the markup the test portal uses for `İMZASIZ TEST BELGESİ` (lightcoral, 100px, rotated 310°). Drafts and signed invoices carry none.
+- Fonts as GİB's stylesheet sets them: `#mainbody` is `'Tahoma', "Times New Roman", Times, serif` at 11px in `#666666`, h1, h2 and h4 are `Arial, Helvetica, sans-serif`. Tahoma ships with macOS (`/System/Library/Fonts/Supplemental/Tahoma.ttf`), so the app's preview and e-Arşiv PDF show it without loading anything.
 
-Deliberate differences: a qrcode.js stub instead of the inlined library (Angaria strips scripts and draws the code itself), an SVG drawing of GİB's seal instead of the JPEG the real portal inlines (the real portal supplies the real logo), and a condensed face first in the font list (Roboto Condensed, Arial Narrow, then the XSLT's Tahoma), since the portal shows the page in its own condensed face. No remote resources: the app's preview CSP blocks them.
+Deliberate differences: a qrcode.js stub instead of the inlined library (Angaria strips scripts and draws the code itself), and an SVG drawing of GİB's seal instead of the JPEG the real portal inlines (the real portal supplies the real logo). No remote resources: the app's preview CSP blocks them.
 
 ### Statuses
 

@@ -478,6 +478,14 @@ const totals = (html: string) =>
     ([, label, value]) => [label, value.trim()],
   );
 const watermark = /<p style='[^']*color:lightcoral'>İPTAL EDİLMİŞ<\/p>/;
+const stylesheet = (html: string) => /<style type="text\/css">([\s\S]*?)<\/style>/.exec(html)?.[1];
+/** A rule's declarations, one per line as the XSLT writes them. */
+const declarations = (css: string, selector: string) =>
+  new RegExp(`^${selector} \\{([^}]*)\\}`, 'm')
+    .exec(css)?.[1]
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
 
 describe('invoice page', () => {
   test('lays out a SATIŞ invoice like the portal: columns, 20 line rows, totals and note', async () => {
@@ -523,6 +531,32 @@ describe('invoice page', () => {
     expect(html).toContain('Fatura Tarihi:</span></td><td align="left">');
     expect(html).toMatch(/ETTN:&nbsp;<\/span>[\da-f-]{36}<\/td>/);
     expect(html).not.toMatch(watermark);
+  });
+
+  test("sets the page in GİB's fonts: 11px Tahoma in #666666, Arial headings", async () => {
+    const { token } = await login();
+    const row = await createDraft(token);
+    const css = stylesheet(await page(token, row.ettn)) ?? '';
+
+    expect(declarations(css, '#mainbody')).toEqual([
+      'background-color: #FFFFFF;',
+      `font-family: 'Tahoma', "Times New Roman", Times, serif;`,
+      'font-size: 11px;',
+      'color: #666666;',
+    ]);
+    expect(Array.from(css.matchAll(/font-family: ([^;]*);/g), ([, family]) => family)).toEqual([
+      `'Tahoma', "Times New Roman", Times, serif`,
+      'Arial, Helvetica, sans-serif',
+      'Arial, Helvetica, sans-serif',
+    ]);
+    expect(declarations(css, '#mainbody h4')).toEqual([
+      'font-size: 1.1em;',
+      'font-style: bold;',
+      'font-family: Arial, Helvetica, sans-serif;',
+      'color: #000000;',
+      'margin: 0;',
+      'padding: 0;',
+    ]);
   });
 
   test('fills the buyer block the way the XSLT does, empty fields included', async () => {

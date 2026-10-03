@@ -7,11 +7,9 @@ import { unitName } from './units.ts';
 // GİB's e-Arşiv XSLT, captured from the test portal on 2026-10-01, with the
 // portal's own edits around <body> (a watermark and an unclosed z-index div).
 // Elements, attribute order, entities, the 20-row line table and the totals
-// follow that output. Three things differ on purpose: a stub stands in for the
-// inlined qrcode.js (Angaria strips scripts and draws the QR code itself), an
-// SVG drawing stands in for GİB's seal (the portal inlines a JPEG), and the
-// font is the condensed face the portal shows rather than the Tahoma the XSLT
-// names.
+// follow that output. Two things differ on purpose: a stub stands in for the
+// inlined qrcode.js (Angaria strips scripts and draws the QR code itself), and
+// an SVG drawing stands in for GİB's seal (the portal inlines a JPEG).
 
 /** HTML 4's names for U+00A0 to U+00FF. */
 const LATIN1 =
@@ -97,17 +95,11 @@ qrcode.makeCode(msg);
 makeCode(document.getElementById("qrvalue").innerHTML);
 `;
 
-/**
- * Roboto Condensed is the portal's own face, Arial Narrow ships with macOS and
- * Windows; the XSLT's choices follow.
- */
-const CONDENSED = `'Roboto Condensed', 'Arial Narrow', 'Liberation Sans Narrow'`;
-
 // The XSLT's stylesheet, broken declarations included (they are GİB's).
 const STYLE = `
 #mainbody {
     background-color: #FFFFFF;
-    font-family: ${CONDENSED}, 'Tahoma', "Times New Roman", Times, serif;
+    font-family: 'Tahoma', "Times New Roman", Times, serif;
     font-size: 11px;
     color: #666666;
 }
@@ -117,7 +109,7 @@ const STYLE = `
     padding-top: 3px;
     margin-bottom: 5px;
     text-transform: uppercase;
-    font-family: ${CONDENSED}, Arial, Helvetica, sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
 }
 #mainbody h1 {
     font-size: 1.4em;
@@ -137,7 +129,7 @@ const STYLE = `
 #mainbody h4 {
     font-size: 1.1em;
     font-style: bold;
-    font-family: ${CONDENSED}, Arial, Helvetica, sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
     color: #000000;
     margin: 0;
     padding: 0;
