@@ -15,8 +15,10 @@ vi.stubGlobal(
     unobserve() {}
   },
 );
-// jsdom has no scrolling; a zoom scrolls to keep its anchor in place.
-Element.prototype.scrollTo = () => {};
+// jsdom has no scrolling: a zoom scrolls to keep its anchor in place, and
+// fitting to width scrolls back to the top.
+const scrollTo = vi.fn();
+Element.prototype.scrollTo = scrollTo;
 
 // The shell's titlebar geometry: its height, and room for the traffic lights.
 const expected = create({
@@ -30,6 +32,7 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 
 afterEach(() => {
+  scrollTo.mockClear();
   act(() => root?.unmount());
   host?.remove();
   root = null;
@@ -118,4 +121,36 @@ test('a zoom scales the page only, never the viewer or its bar', () => {
   expect(bar.querySelector('[role="group"] span')?.textContent).toBe('%224');
   expect(page?.getAttribute('style')).not.toBe(pageBefore);
   expect(layout()).toEqual(before);
+});
+
+test('fit to width also goes back to the top, so it stays on while the page is scrolled', () => {
+  renderViewer();
+  const { bar } = viewerBar();
+  const fit = bar.querySelector<HTMLButtonElement>('[aria-label="Genişliğe sığdır"]');
+  const scroller = document.querySelector('[role="dialog"] iframe')?.parentElement?.parentElement;
+  if (!fit || !scroller) {
+    throw new Error('The viewer has no fit button or scroller');
+  }
+  expect(fit.disabled).toBe(true);
+
+  Object.defineProperty(scroller, 'scrollTop', { configurable: true, value: 400 });
+  act(() => scroller.dispatchEvent(new Event('scroll')));
+  expect(fit.disabled).toBe(false);
+
+  act(() => fit.click());
+  expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'instant', left: 0, top: 0 });
+  expect(scrollTo.mock.contexts.at(-1)).toBe(scroller);
+
+  // ⌘0 (Ctrl+0 off macOS) does the same.
+  scrollTo.mockClear();
+  act(() =>
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, ctrlKey: true, key: '0' }),
+    ),
+  );
+  expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'instant', left: 0, top: 0 });
+
+  Object.defineProperty(scroller, 'scrollTop', { configurable: true, value: 0 });
+  act(() => scroller.dispatchEvent(new Event('scroll')));
+  expect(fit.disabled).toBe(true);
 });

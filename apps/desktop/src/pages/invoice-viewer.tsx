@@ -202,13 +202,15 @@ interface Anchor {
 
 /**
  * The viewer's zoom: fit to width until the user zooms. A zoom keeps the page
- * point under the pointer (or the viewport's center) where it was.
+ * point under the pointer (or the viewport's center) where it was; fitting to
+ * width starts the page over at its top-left corner.
  */
 export function usePaperZoom() {
   const scroller = useRef<HTMLDivElement>(null);
   const page = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<Zoom>('fit');
   const [fit, setFit] = useState(1);
+  const [atOrigin, setAtOrigin] = useState(true);
   const scale = zoomScale(zoom, fit);
   // The scale on screen, and the newest one asked for: a pinch streams
   // events faster than React renders them.
@@ -256,9 +258,17 @@ export function usePaperZoom() {
     setZoom(next);
   }, []);
 
+  const fitToWidth = useCallback(() => {
+    anchor.current = null;
+    latest.current = fitRef.current;
+    scroller.current?.scrollTo({ behavior: 'instant', left: 0, top: 0 });
+    setZoom('fit');
+  }, []);
+
   return useMemo(
     () => ({
-      fit: () => zoomTo('fit'),
+      atOrigin,
+      fit: fitToWidth,
       fitted: zoom === 'fit',
       in: () => zoomTo(zoomIn(zoom, fit)),
       latest,
@@ -266,10 +276,11 @@ export function usePaperZoom() {
       page,
       scale,
       scroller,
+      setAtOrigin,
       setFit,
       zoomTo,
     }),
-    [fit, scale, zoom, zoomTo],
+    [atOrigin, fit, fitToWidth, scale, zoom, zoomTo],
   );
 }
 
@@ -338,7 +349,7 @@ export function InvoicePaper({
   style?: StyleXStyles;
   zoom: PaperZoom;
 }) {
-  const { latest, page, scale, scroller, setFit, zoomTo } = zoom;
+  const { latest, page, scale, scroller, setAtOrigin, setFit, zoomTo } = zoom;
   const [measured, setMeasured] = useState({ height: PAGE_MIN_HEIGHT, html });
   // A new page starts at A4's height until it has loaded and been measured.
   const height = measured.html === html ? measured.height : PAGE_MIN_HEIGHT;
@@ -361,6 +372,17 @@ export function InvoicePaper({
     observer.observe(element);
     return () => observer.disconnect();
   }, [scroller, setFit]);
+
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element) {
+      return;
+    }
+    const onScroll = () => setAtOrigin(element.scrollLeft < 1 && element.scrollTop < 1);
+    onScroll();
+    element.addEventListener('scroll', onScroll, { passive: true });
+    return () => element.removeEventListener('scroll', onScroll);
+  }, [scroller, setAtOrigin]);
 
   useEffect(() => {
     const element = scroller.current;
@@ -505,7 +527,7 @@ export function ZoomControls({ zoom }: { zoom: PaperZoom }) {
         <PlusIcon {...props(styles.icon)} />
       </ZoomButton>
       <ZoomButton
-        disabled={zoom.fitted}
+        disabled={zoom.fitted && zoom.atOrigin}
         label="Genişliğe sığdır"
         onClick={zoom.fit}
         shortcut={`${mod}0`}
