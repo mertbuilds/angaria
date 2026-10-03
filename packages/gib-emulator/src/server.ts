@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { adminReply, type AdminContext, type Fault } from './admin.ts';
 import { defaultConfig, type EmulatorConfig, mergeConfig, type PartialConfig } from './config.ts';
+import { downloadReply } from './download.ts';
 import { assosLogin, dispatch, fail, ok, type PortalContext, type Reply } from './gib.ts';
 import { messages } from './messages.ts';
 import { indexHTML, maintenanceHTML, notFoundHTML, serverErrorHTML } from './pages.ts';
@@ -228,6 +229,11 @@ export function createEmulator(options: EmulatorOptions = {}): Emulator {
       const reply = (await chaos(ctx, cmd, true)) ?? dispatch(ctx, form);
       log(`dispatch ${cmd} -> ${reply.status}`);
       return reply;
+    }
+
+    if (method === 'GET' && path === '/earsiv-services/download') {
+      const query = new URL(request.url ?? '/', 'http://emulator').searchParams;
+      return (await chaos(ctx, query.get('cmd') ?? '', true)) ?? downloadReply(ctx, query);
     }
 
     if (method === 'GET' && ['/', '/index.jsp', '/intragiris.html'].includes(path)) {

@@ -27,7 +27,7 @@ export interface PortalContext {
 }
 
 export interface Reply {
-  body: string;
+  body: string | Uint8Array;
   contentType: string;
   setCookies?: Array<string>;
   status: number;
