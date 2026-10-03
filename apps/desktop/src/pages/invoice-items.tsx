@@ -1,5 +1,6 @@
 import {
   Button,
+  capStyles,
   ChoiceChips,
   Combobox,
   ComboboxContent,
@@ -590,7 +591,7 @@ function ItemRow({
               aria-hidden
               {...props(styles.summaryIcon, discountOpen && styles.summaryIconOpen)}
             />
-            İskonto
+            <span {...props(capStyles.text)}>İskonto</span>
           </summary>
           <div {...props(styles.discountFields)}>
             {discountKind === 'percent' ? (
@@ -843,15 +844,15 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
               <span {...props(styles.hint)}>
                 <span {...props(styles.hintItem)}>
                   <Kbd>↵</Kbd>
-                  yeni hizmet
+                  <span {...props(capStyles.text)}>yeni hizmet</span>
                 </span>
                 <span {...props(styles.hintItem)}>
                   <Kbd>{mod}D</Kbd>
-                  çoğalt
+                  <span {...props(capStyles.text)}>çoğalt</span>
                 </span>
                 <span {...props(styles.hintItem)}>
                   <Kbd>{isMac ? '⌘⇧⌫' : 'Ctrl ⇧ ⌫'}</Kbd>
-                  sil
+                  <span {...props(capStyles.text)}>sil</span>
                 </span>
               </span>
             </div>

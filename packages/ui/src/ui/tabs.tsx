@@ -4,6 +4,7 @@ import { Tabs as TabsPrimitive } from '@base-ui/react/tabs';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { createContext, useContext } from 'react';
+import { capText } from '../lib/cap-text.tsx';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
@@ -192,7 +193,7 @@ export type TabsTriggerProps = Omit<TabsPrimitive.Tab.Props, 'className' | 'styl
   style?: StyleXStyles | undefined;
 };
 
-const TabsTrigger = ({ className, style, ...props }: TabsTriggerProps) => {
+const TabsTrigger = ({ children, className, style, ...props }: TabsTriggerProps) => {
   const variant = useContext(TabsVariantContext);
   const isLine = variant === 'line';
 
@@ -213,7 +214,9 @@ const TabsTrigger = ({ className, style, ...props }: TabsTriggerProps) => {
       }}
       data-slot="tabs-trigger"
       {...props}
-    />
+    >
+      {capText(children)}
+    </TabsPrimitive.Tab>
   );
 };
 

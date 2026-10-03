@@ -1,4 +1,4 @@
-import { Button, Input, Wordmark } from '@angaria/ui';
+import { Button, capStyles, Input, Wordmark } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { LoaderCircleIcon, TriangleAlertIcon } from 'lucide-react';
@@ -299,9 +299,11 @@ function GraceBanner({ daysLeft }: { daysLeft: number }) {
     <div {...props(styles.bannerWrap)}>
       <p role="status" {...props(styles.banner)}>
         <TriangleAlertIcon aria-hidden {...props(styles.bannerIcon)} />
-        {daysLeft > 0
-          ? `Lisans sunucusuna ulaşılamadı. ${daysLeft} gün içinde doğrulanmazsa Angaria kilitlenir.`
-          : 'Lisans sunucusuna ulaşılamadı. Bugün doğrulanmazsa Angaria kilitlenir.'}
+        <span {...props(capStyles.text)}>
+          {daysLeft > 0
+            ? `Lisans sunucusuna ulaşılamadı. ${daysLeft} gün içinde doğrulanmazsa Angaria kilitlenir.`
+            : 'Lisans sunucusuna ulaşılamadı. Bugün doğrulanmazsa Angaria kilitlenir.'}
+        </span>
       </p>
     </div>
   );

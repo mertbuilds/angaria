@@ -42,3 +42,13 @@
   :is([data-button], [data-close-button]):focus-visible {
   box-shadow: 0 0 0 1px var(--ring);
 }
+
+/* A toast's text centers on its cap height, level with its icon, like
+   capStyles (src/lib/cap-text.tsx) in the components. Unlayered for the same
+   reason as above. */
+@supports (text-box: trim-both cap alphabetic) {
+  [data-sonner-toaster] [data-sonner-toast] :is([data-title], [data-description]) {
+    padding-block: calc((1lh - 1cap) / 2);
+    text-box: trim-both cap alphabetic;
+  }
+}

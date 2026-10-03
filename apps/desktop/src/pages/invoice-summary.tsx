@@ -1,4 +1,4 @@
-import { Button, FieldWarning } from '@angaria/ui';
+import { Button, capStyles, FieldWarning } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import {
@@ -430,7 +430,9 @@ export function SuccessPanel({
           ) : (
             <CircleAlertIcon aria-hidden {...props(styles.headingIcon, styles.warning)} />
           )}
-          {created.signed ? 'Fatura onaylandı' : 'Taslak oluşturuldu'}
+          <span {...props(capStyles.text)}>
+            {created.signed ? 'Fatura onaylandı' : 'Taslak oluşturuldu'}
+          </span>
         </h2>
         <p {...props(styles.muted)}>
           {[created.number, formatDateHuman(created.date)].filter(Boolean).join(' · ')}

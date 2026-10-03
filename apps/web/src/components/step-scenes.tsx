@@ -1,3 +1,4 @@
+import { capStyles } from '@angaria/ui';
 import { colors, font, radius } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { brand } from '../lib/brand.stylex.ts';
@@ -660,7 +661,7 @@ export function ConnectScene() {
               <LockIcon />
             </span>
           </span>
-          {m.scene_login_keychain()}
+          <span {...props(capStyles.text)}>{m.scene_login_keychain()}</span>
         </div>
       </Window>
     </Stage>

@@ -6,6 +6,7 @@ import { useRender } from '@base-ui/react/use-render';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import type { MouseEvent } from 'react';
+import { capText } from '../lib/cap-text.tsx';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
@@ -170,6 +171,7 @@ const disabledLinkProps = {
 };
 
 const Button = ({
+  children,
   className,
   disabled = false,
   // A button that is disabled while its own request runs keeps the focus:
@@ -217,6 +219,8 @@ const Button = ({
       },
       elementProps,
       restProps,
+      // Labels center on their cap height, like the icons beside them.
+      children === undefined ? undefined : { children: capText(children) },
     ),
     render,
     state: {

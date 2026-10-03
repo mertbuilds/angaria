@@ -4,6 +4,7 @@ import { Radio } from '@base-ui/react/radio';
 import { RadioGroup } from '@base-ui/react/radio-group';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { capText } from '../lib/cap-text.tsx';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 
 const styles = create({
@@ -264,7 +265,7 @@ const ChoiceChips = <T extends string | number>({
             title={option.description}
             value={String(optionIndex)}
           >
-            {option.label}
+            {capText(option.label)}
             {option.description && (
               <span hidden id={`${baseId}-${optionIndex}`}>
                 {option.description}
@@ -274,7 +275,7 @@ const ChoiceChips = <T extends string | number>({
         ))}
         {other && (
           <Radio.Root className={chipStyle} value={OTHER}>
-            {other.label}
+            {capText(other.label)}
           </Radio.Root>
         )}
       </RadioGroup>

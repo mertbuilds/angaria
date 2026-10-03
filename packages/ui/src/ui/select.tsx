@@ -5,6 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
+import { capStyles, capText } from '../lib/cap-text.tsx';
 import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
@@ -189,7 +190,8 @@ const styles = create({
       ':is([data-placeholder])': colors.mutedForeground,
       default: colors.foreground,
     },
-    display: 'flex',
+    // A block, so the text can be cap-centered and cut with an ellipsis.
+    display: 'block',
     flex: 1,
     overflow: 'hidden',
     textAlign: 'left',
@@ -225,7 +227,7 @@ type SelectValueProps = Omit<SelectPrimitive.Value.Props, 'className' | 'style'>
 const SelectValue = ({ className, style, ...props }: SelectValueProps) => (
   <SelectPrimitive.Value
     data-slot="select-value"
-    {...stylexProps(styles.value, customClassName(className), style)}
+    {...stylexProps(styles.value, capStyles.text, customClassName(className), style)}
     {...props}
   />
 );
@@ -395,7 +397,7 @@ const SelectItem = ({ children, className, style, ...props }: SelectItemProps) =
     {...props}
   >
     <SelectPrimitive.ItemText {...stylexProps(styles.itemText)}>
-      {children}
+      {capText(children)}
     </SelectPrimitive.ItemText>
     <SelectPrimitive.ItemIndicator
       render={

@@ -1,4 +1,4 @@
-import { Input, Kbd } from '@angaria/ui';
+import { capStyles, Input, Kbd } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -409,16 +409,16 @@ export function SearchableList<T extends { id: string }>({
         <span {...props(styles.hint)}>
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd>
-          seç
+          <span {...props(capStyles.text)}>seç</span>
         </span>
         <span {...props(styles.hint)}>
           <Kbd>↵</Kbd>
-          {openHint}
+          <span {...props(capStyles.text)}>{openHint}</span>
         </span>
         {onDelete && (
           <span {...props(styles.hint)}>
             <Kbd>⌫</Kbd>
-            sil
+            <span {...props(capStyles.text)}>sil</span>
           </span>
         )}
       </div>

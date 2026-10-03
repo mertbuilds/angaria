@@ -1,4 +1,4 @@
-import { toast } from '@angaria/ui';
+import { capStyles, toast } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
@@ -184,7 +184,8 @@ function SourceChip() {
 
   return (
     <span {...props(styles.chip)}>
-      Faturadan:<span {...props(styles.chipName)}>{invoiceSource.label}</span>
+      <span {...props(capStyles.text)}>Faturadan:</span>
+      <span {...props(styles.chipName, capStyles.text)}>{invoiceSource.label}</span>
       <button
         aria-label="Formu temizle"
         onClick={clearForm}

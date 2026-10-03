@@ -12,6 +12,7 @@ import {
   DateSegment,
 } from 'react-aria-components/DateField';
 import { I18nProvider } from 'react-aria-components/I18nProvider';
+import { capStyles } from '../lib/cap-text.tsx';
 import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { Calendar } from './calendar.tsx';
@@ -426,6 +427,7 @@ const DateField = ({
                 <DateSegment
                   className={({ isFocused, isPlaceholder }) =>
                     stylexProps(
+                      capStyles.text,
                       segment.type === 'literal' ? styles.literal : styles.segment,
                       isPlaceholder && styles.segmentPlaceholder,
                       isFocused && styles.segmentFocused,
