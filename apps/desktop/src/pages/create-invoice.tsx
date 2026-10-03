@@ -228,7 +228,9 @@ export function CreateInvoicePage() {
         saveDueDate(draft.uuid, values.advancedFields.dueDate);
       }
       // Every invoice keeps its customer and services up to date.
-      setSavedItems((prev) => upsertSavedItems(prev, cleanItems(values.items), newId));
+      setSavedItems((prev) =>
+        upsertSavedItems(prev, cleanItems(values.items), newId, values.invoiceSettings.currency),
+      );
       const learned = learnCustomer(
         savedRecipients,
         values.recipient,

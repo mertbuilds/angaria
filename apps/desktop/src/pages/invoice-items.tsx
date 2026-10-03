@@ -16,8 +16,9 @@ import {
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useStore as useFormState } from '@tanstack/react-form';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronRightIcon, PlusIcon, XIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { GIB_UNIT_TYPES } from '@/lib/gib-constants.ts';
 import {
   discountForRate,
@@ -27,12 +28,23 @@ import {
   lineTotals,
   parseDecimal,
 } from '@/lib/invoice-form.ts';
+import { useRateDay } from '@/lib/rate-day.ts';
 import { COMMON_UNITS, VAT_RATE_PRESETS } from '@/lib/regulated.ts';
+import {
+  conversionHint,
+  convertAmount,
+  convertLine,
+  formatPrice,
+  priceConversion,
+  type InvoiceRates,
+  type PriceConversion,
+} from '@/lib/services.ts';
 import { useStore } from '@/lib/store.tsx';
 import { GTIP_MASK } from '@/lib/tr-validators.ts';
 import type { InvoiceItem } from '@/lib/types.ts';
 import { formatMoney, formatNumber, matchesQuery, unitLabel } from '@/shell/searchable-list.tsx';
 import { tones } from '../shell/palette.stylex.ts';
+import { tcmbRatesQuery } from './use-currency-rate.ts';
 import type { InvoiceForm } from './use-invoice-form.ts';
 
 const isMac = navigator.userAgent.includes('Mac');
@@ -255,7 +267,7 @@ const parsePercent = (text: string) => parseDecimal(text.replace('%', ''));
 const currencySymbols = new Map<string, string>();
 
 /** ₺ for TRY, $ for USD; the code itself when Intl has no symbol for it. */
-function currencySymbol(currency: string) {
+export function currencySymbol(currency: string) {
   let symbol = currencySymbols.get(currency);
   if (symbol === undefined) {
     try {
@@ -366,6 +378,24 @@ const percentFormat = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 
 const at = <K extends keyof InvoiceItem>(index: number, key: K) =>
   `items[${index}].${key}` as const;
 
+/** A picked service's price, discount amount and currency. */
+interface PickedPrice {
+  amount: number;
+  discountAmount: number;
+  from: string;
+}
+
+/**
+ * A service's row at its price in the invoice's currency: as is, converted,
+ * or empty while there is no rate.
+ */
+const pricedRow = (row: InvoiceItem, conversion: PriceConversion): InvoiceItem =>
+  conversion.kind === 'same'
+    ? row
+    : conversion.kind === 'converted'
+      ? convertLine(row, conversion)
+      : { ...row, discountAmount: 0, unitPrice: 0 };
+
 function ItemRow({
   canRemove,
   currency,
@@ -373,6 +403,7 @@ function ItemRow({
   index,
   item,
   onRemove,
+  rates,
 }: {
   canRemove: boolean;
   currency: string;
@@ -380,6 +411,7 @@ function ItemRow({
   index: number;
   item: InvoiceItem;
   onRemove: () => void;
+  rates: InvoiceRates;
 }) {
   const { defaultItemAdvanced, savedItems } = useStore();
   const istisna = useFormState(
@@ -407,12 +439,53 @@ function ItemRow({
       savedItems
         .filter((saved) => saved.name.trim())
         .map((saved) => ({
-          hint: `${formatMoney(saved.unitPrice)} · ${unitLabel(saved.unitType)} · %${formatNumber(saved.VATRate)}`,
+          hint: `${formatPrice(saved.unitPrice, saved.currency)} · ${unitLabel(saved.unitType)} · %${formatNumber(saved.VATRate)}`,
           id: saved.id,
           label: saved.name,
         })),
     [savedItems],
   );
+
+  // A service in another currency is never converted silently: the price
+  // field says what it was and at which rate, or why it waits. The note goes
+  // once the price is typed over or no longer is the conversion's.
+  const [picked, setPicked] = useState<PickedPrice | null>(null);
+  // true while a picked price waits for its rate.
+  const waitingForRate = useRef(false);
+  const conversion = picked ? priceConversion(picked.from, rates) : null;
+  let priceHint: string | undefined;
+  if (
+    picked &&
+    conversion &&
+    item.unitPrice ===
+      (conversion.kind === 'converted' ? convertAmount(picked.amount, conversion) : 0)
+  ) {
+    priceHint = conversionHint(picked.amount, picked.from, currency, conversion);
+  }
+
+  // The rate came: the waiting price goes on, unless one was typed meanwhile.
+  const placeWaitingPrice = useEffectEvent(() => {
+    if (!picked || !conversion || !waitingForRate.current) {
+      return;
+    }
+    waitingForRate.current = false;
+    const current = form.getFieldValue(`items[${index}]`);
+    if (current.unitPrice === 0) {
+      form.setFieldValue(
+        `items[${index}]`,
+        pricedRow(
+          { ...current, discountAmount: picked.discountAmount, unitPrice: picked.amount },
+          conversion,
+        ),
+      );
+    }
+  });
+  const rateCame = conversion?.kind === 'converted' || conversion?.kind === 'same';
+  useEffect(() => {
+    if (rateCame) {
+      placeWaitingPrice();
+    }
+  }, [rateCame]);
 
   // The amount follows the rate while one is set; typing an amount drops it.
   const recomputeDiscount = () => {
@@ -468,11 +541,13 @@ function ItemRow({
               onPick={(suggestion) => {
                 const saved = savedItems.find((candidate) => candidate.id === suggestion.id);
                 if (saved) {
-                  form.setFieldValue(`items[${index}]`, {
-                    ...defaultItemAdvanced,
-                    ...saved,
-                    id: item.id,
-                  });
+                  // Without a currency the price counts in the invoice's, as before.
+                  const { currency: from = currency, ...service } = saved;
+                  const row = { ...defaultItemAdvanced, ...service, id: item.id };
+                  const next = priceConversion(from, rates);
+                  form.setFieldValue(`items[${index}]`, pricedRow(row, next));
+                  setPicked({ amount: row.unitPrice, discountAmount: row.discountAmount, from });
+                  waitingForRate.current = next.kind !== 'converted' && next.kind !== 'same';
                 }
               }}
               placeholder="Yazılım geliştirme hizmeti"
@@ -499,6 +574,7 @@ function ItemRow({
               <field.NumberField
                 blankZero
                 compact
+                description={priceHint}
                 format={formatAmount}
                 label="Birim fiyat"
                 min={0}
@@ -693,8 +769,33 @@ function ItemRow({
  * VAT rate is 0; a rate it replaced comes back when the type changes again.
  */
 export function InvoiceItems({ form }: { form: InvoiceForm }) {
-  const { defaultItemAdvanced, newId } = useStore();
+  const { defaultItemAdvanced, newId, savedItems } = useStore();
   const currency = useFormState(form.store, (state) => state.values.invoiceSettings.currency);
+  const rateText = useFormState(form.store, (state) => state.values.invoiceSettings.currencyRate);
+  const rateManual = useFormState(
+    form.store,
+    (state) => state.values.advancedFields.currencyRateManual === true,
+  );
+  const rateDate = useFormState(form.store, (state) => state.values.advancedFields.manualDate);
+  const rateDay = useRateDay();
+  // A service priced in a foreign currency other than the invoice's needs
+  // TCMB's rate for it, a lira invoice too. The header's rate shares the query.
+  const tcmb = useQuery({
+    ...tcmbRatesQuery(rateDate, rateDay),
+    enabled: savedItems.some(
+      (service) =>
+        service.currency !== undefined &&
+        service.currency !== 'TRY' &&
+        service.currency !== currency,
+    ),
+  });
+  const rates: InvoiceRates = {
+    currency,
+    rate: parseDecimal(rateText),
+    rateManual,
+    tcmb: tcmb.data ?? null,
+    tcmbFailed: tcmb.isError,
+  };
   const rowCount = useFormState(form.store, (state) => state.values.items.length);
   const istisna = useFormState(
     form.store,
@@ -833,6 +934,7 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
                     index={index}
                     item={item}
                     onRemove={() => remove(index)}
+                    rates={rates}
                   />
                 </li>
               ))}

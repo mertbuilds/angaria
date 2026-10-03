@@ -122,7 +122,12 @@ export function McpHost() {
           saveDueDate(draft.uuid, values.advancedFields.dueDate);
         }
         store.setSavedItems((saved) =>
-          upsertSavedItems(saved, cleanItems(values.items), store.newId),
+          upsertSavedItems(
+            saved,
+            cleanItems(values.items),
+            store.newId,
+            values.invoiceSettings.currency,
+          ),
         );
         const pdfLanguage = values.recipient.pdfLanguage ?? defaultPDFLanguage(values.recipient);
         store.setSavedRecipients(

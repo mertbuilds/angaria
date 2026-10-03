@@ -20,6 +20,7 @@ import { customerName, findCustomer } from './customer.ts';
 import { applyCustomer } from './invoice-form.ts';
 import { parseGIBInvoice, presetRange, type DateRange } from './invoices.ts';
 import { reportKeychainError } from './keychain-error.ts';
+import { withServiceCurrencies } from './services.ts';
 import type {
   AdvancedInvoiceFields,
   CompanyInfo,
@@ -31,6 +32,7 @@ import type {
   InvoiceSettings,
   InvoiceSource,
   Recipient,
+  Service,
   StoredCredentials,
 } from './types.ts';
 import { toGIB } from './utils.ts';
@@ -111,9 +113,10 @@ const DEFAULT_COMPANY_INFO: CompanyInfo = {
   bankAddress: '',
 };
 
-const SEED_ITEMS: Array<InvoiceItem> = [
+const SEED_ITEMS: Array<Service> = [
   {
     id: newId(),
+    currency: 'USD',
     name: 'Engineering Services - Mühendislik Hizmetleri',
     quantity: 1,
     unitPrice: 100,
@@ -122,6 +125,7 @@ const SEED_ITEMS: Array<InvoiceItem> = [
   },
   {
     id: newId(),
+    currency: 'TRY',
     name: 'Yazılım Geliştirme Hizmeti',
     quantity: 1,
     unitPrice: 5000,
@@ -130,6 +134,7 @@ const SEED_ITEMS: Array<InvoiceItem> = [
   },
   {
     id: newId(),
+    currency: 'TRY',
     name: 'Danışmanlık Hizmeti',
     quantity: 1,
     unitPrice: 2500,
@@ -222,7 +227,9 @@ function makeDefaultEntity(index: number, seedData = true): Entity {
 /**
  * The stored companies, with only the fields the app knows. Invoice templates
  * (removed 2026-10-01) are not among them: the startup save (prepareCredentials)
- * writes the companies back without them, so stored ones go silently.
+ * writes the companies back without them, so stored ones go silently. Services
+ * saved before they had a currency take the one their invoices were in, when
+ * the customers tell it (withServiceCurrencies).
  */
 function loadEntities(): Array<Entity> {
   const stored = loadLocal<Array<Entity> | null>(ENTITIES_STORAGE_KEY, null);
@@ -233,10 +240,11 @@ function loadEntities(): Array<Entity> {
       creds: loadCreds(entity.creds),
       companyInfo: entity.companyInfo ?? { ...DEFAULT_COMPANY_INFO },
       savedRecipients: entity.savedRecipients ?? [],
-      savedItems: entity.savedItems ?? [],
+      savedItems: withServiceCurrencies(entity.savedItems ?? [], entity.savedRecipients ?? []),
     }));
   }
 
+  const savedRecipients = loadLocal('fatura-saved-recipients', SEED_RECIPIENTS);
   return [
     {
       ...makeDefaultEntity(0, false),
@@ -244,8 +252,11 @@ function loadEntities(): Array<Entity> {
         loadLocal<Partial<StoredCredentials> | null>(LEGACY_CREDS_STORAGE_KEY, null),
       ),
       companyInfo: loadLocal('fatura-company-info', { ...DEFAULT_COMPANY_INFO }),
-      savedRecipients: loadLocal('fatura-saved-recipients', SEED_RECIPIENTS),
-      savedItems: loadLocal('fatura-saved-items', SEED_ITEMS),
+      savedRecipients,
+      savedItems: withServiceCurrencies(
+        loadLocal('fatura-saved-items', SEED_ITEMS),
+        savedRecipients,
+      ),
     },
   ];
 }
@@ -331,7 +342,7 @@ interface Store {
   resetInvoiceForm: () => void;
   /** Put back a form saved before a reset or load (undo) */
   restoreInvoiceDraft: (values: InvoiceFormValues, source: InvoiceSource | null) => void;
-  savedItems: Array<InvoiceItem>;
+  savedItems: Array<Service>;
   savedRecipients: Array<Recipient>;
   setActiveEntityId: React.Dispatch<React.SetStateAction<string>>;
   setAdvancedFields: React.Dispatch<React.SetStateAction<AdvancedInvoiceFields>>;
@@ -347,7 +358,7 @@ interface Store {
   setItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>>;
   setNote: React.Dispatch<React.SetStateAction<string>>;
   setRecipient: React.Dispatch<React.SetStateAction<Recipient>>;
-  setSavedItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>>;
+  setSavedItems: React.Dispatch<React.SetStateAction<Array<Service>>>;
   setSavedRecipients: React.Dispatch<React.SetStateAction<Array<Recipient>>>;
   /** Start a blank invoice form */
   startBlankInvoice: () => void;
@@ -582,7 +593,7 @@ function LoadedStoreProvider({
     [updateActiveEntity],
   );
 
-  const setSavedItems: React.Dispatch<React.SetStateAction<Array<InvoiceItem>>> = useCallback(
+  const setSavedItems: React.Dispatch<React.SetStateAction<Array<Service>>> = useCallback(
     (value) => {
       updateActiveEntity((entity) => ({
         ...entity,

@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { useStore as useFormState } from '@tanstack/react-form';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { fetchTCMBRateTable } from '../src/lib/angaria.ts';
 import { StoreProvider } from '../src/lib/store.tsx';
-import type { InvoiceItem } from '../src/lib/types.ts';
+import type { InvoiceItem, Service } from '../src/lib/types.ts';
 import { InvoiceItems } from '../src/pages/invoice-items.tsx';
 import {
   useInvoiceForm,
@@ -12,6 +14,10 @@ import {
   type InvoiceForm,
 } from '../src/pages/use-invoice-form.ts';
 
+// TCMB's bulletin never comes unless a test says so.
+vi.mock('../src/lib/angaria.ts', () => ({
+  fetchTCMBRateTable: vi.fn(() => new Promise(() => {})),
+}));
 vi.mock('../src/lib/native.ts', () => ({
   secretDelete: vi.fn(async () => {}),
   secretGet: vi.fn(async () => null),
@@ -77,17 +83,21 @@ afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   storage.clear();
+  document.body.replaceChildren();
+  vi.mocked(fetchTCMBRateTable).mockReset();
 });
 
-async function mount(items: Array<InvoiceItem>) {
+async function mount(items: Array<InvoiceItem>, queryClient = new QueryClient()) {
   const container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
   await act(async () =>
     root?.render(
-      <StoreProvider>
-        <Harness items={items} />
-      </StoreProvider>,
+      <QueryClientProvider client={queryClient}>
+        <StoreProvider>
+          <Harness items={items} />
+        </StoreProvider>
+      </QueryClientProvider>,
     ),
   );
   return container;
@@ -160,4 +170,139 @@ test('switching the discount between amount and rate keeps it consistent', async
 
   await act(async () => discountKinds().at(1)?.click());
   expect(items()[0]).toMatchObject({ discountAmount: 300.11, discountRate: 0 });
+});
+
+const TCMB = {
+  publishedOn: new Date(new Date().getFullYear(), 9, 1),
+  rates: new Map([['USD', 41.1032]]),
+  validFor: new Date(new Date().getFullYear(), 9, 2),
+};
+
+const service = (patch: Partial<Service>): Service => ({
+  ...row({ name: 'Engineering Services', unitPrice: 100, VATRate: 0 }),
+  ...patch,
+});
+
+/** The store's company with these services. */
+const saveServices = (services: Array<Service>) =>
+  storage.set(
+    'fatura-entities',
+    JSON.stringify([
+      {
+        companyInfo: {},
+        creds: { username: '' },
+        id: 'a',
+        name: 'Ana şirket',
+        savedItems: services,
+        savedRecipients: [],
+      },
+    ]),
+  );
+
+/** Types `text` into the row's Hizmet adı and opens its suggestions. */
+async function suggest(index: number, text: string) {
+  const input = byId(`items[${index}].name`) as HTMLInputElement;
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  await act(async () => {
+    input.focus();
+    setValue?.call(input, text);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await press(input, 'ArrowDown');
+  return [...document.querySelectorAll<HTMLElement>('[role="option"]')];
+}
+
+/** Picks the service `name` from the row's suggestions. */
+async function pick(index: number, name: string) {
+  const options = await suggest(index, name.slice(0, 5));
+  const option = options.find((element) => element.textContent?.includes(name));
+  expect(option).toBeTruthy();
+  await act(async () => option?.click());
+}
+
+// React Query tells its observers on a timer.
+const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+const priceHint = (index = 0) =>
+  document.getElementById(`items[${index}].unitPrice-description`)?.textContent;
+
+describe('a saved service in another currency', () => {
+  test('lists each service with the currency of its price', async () => {
+    saveServices([service({ currency: 'USD' }), service({ name: 'Eski hizmet', unitPrice: 750 })]);
+    await mount([row({ name: '' })]);
+    const options = await suggest(0, 'e');
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Engineering Services100,00 USD · Adet · %0',
+      'Eski hizmet750,00 · Adet · %0',
+    ]);
+  });
+
+  test('fills the price as is on an invoice in the same currency', async () => {
+    saveServices([service({ currency: 'USD' })]);
+    await mount([row({ name: '' })]);
+    await act(async () => {
+      form.setFieldValue('invoiceSettings.currency', 'USD');
+      form.setFieldValue('invoiceSettings.currencyRate', '41,1032');
+    });
+    await pick(0, 'Engineering Services');
+    expect(items()[0]).toMatchObject({ name: 'Engineering Services', unitPrice: 100 });
+    expect(items()[0]).not.toHaveProperty('currency');
+    expect(priceHint()).toBeUndefined();
+  });
+
+  test('a service without a currency counts in the invoice’s, as before', async () => {
+    saveServices([service({})]);
+    await mount([row({ name: '' })]);
+    await pick(0, 'Engineering Services');
+    expect(items()[0].unitPrice).toBe(100);
+    expect(priceHint()).toBeUndefined();
+  });
+
+  test('converts at TCMB’s rate on a lira invoice and says so until typed over', async () => {
+    saveServices([service({ currency: 'USD', discountAmount: 10 })]);
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(['tcmb-rates', '', 'previous'], TCMB);
+    await mount([row({ name: '' })], queryClient);
+
+    await pick(0, 'Engineering Services');
+    expect(items()[0]).toMatchObject({ discountAmount: 411.03, unitPrice: 4110.32 });
+    expect(priceHint()).toBe('100,00 USD → 4.110,32 TL (TCMB 1 Eki)');
+
+    await act(async () => form.setFieldValue('items[0].unitPrice', 4000));
+    expect(priceHint()).toBeUndefined();
+  });
+
+  test('waits for the rate with the price empty, then converts', async () => {
+    let resolve: ((table: typeof TCMB) => void) | undefined;
+    vi.mocked(fetchTCMBRateTable).mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    saveServices([service({ currency: 'USD' })]);
+    await mount([row({ name: '' })]);
+
+    await pick(0, 'Engineering Services');
+    expect(items()[0]).toMatchObject({ name: 'Engineering Services', unitPrice: 0 });
+    expect(priceHint()).toBe('100,00 USD. Kur gelince dönüştürülecek.');
+
+    await act(async () => resolve?.(TCMB));
+    await settle();
+    expect(items()[0].unitPrice).toBe(4110.32);
+    expect(priceHint()).toBe('100,00 USD → 4.110,32 TL (TCMB 1 Eki)');
+  });
+
+  test('asks for the price when TCMB has no rate', async () => {
+    vi.mocked(fetchTCMBRateTable).mockRejectedValue(new Error('TCMB'));
+    saveServices([service({ currency: 'USD' })]);
+    await mount(
+      [row({ name: '' })],
+      new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    );
+
+    await pick(0, 'Engineering Services');
+    await settle();
+    expect(items()[0].unitPrice).toBe(0);
+    expect(priceHint()).toBe('100,00 USD. TCMB kuru alınamadı, fiyatı TL olarak yaz.');
+  });
 });

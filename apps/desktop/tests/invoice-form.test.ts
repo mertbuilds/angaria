@@ -709,8 +709,11 @@ describe('invoiceDefaults', () => {
   });
 });
 
-test('upsertSavedItems updates by name and adds new names', () => {
-  const saved = [item({ id: 'saved', unitPrice: 500 })];
+test('upsertSavedItems updates by name and adds new names, in the invoice’s currency', () => {
+  const saved = [
+    { ...item({ id: 'saved', unitPrice: 500 }), currency: 'TRY' },
+    item({ id: 'old', name: 'Eski' }),
+  ];
   const next = upsertSavedItems(
     saved,
     [
@@ -719,10 +722,12 @@ test('upsertSavedItems updates by name and adds new names', () => {
       item({ name: '' }),
     ],
     () => 'generated',
+    'USD',
   );
   expect(next).toEqual([
-    item({ id: 'saved', unitPrice: 750 }),
-    item({ id: 'generated', name: 'Tasarım' }),
+    { ...item({ id: 'saved', unitPrice: 750 }), currency: 'USD' },
+    item({ id: 'old', name: 'Eski' }),
+    { ...item({ id: 'generated', name: 'Tasarım' }), currency: 'USD' },
   ]);
 });
 

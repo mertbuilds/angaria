@@ -112,6 +112,7 @@ function setup({
       name: 'Ana şirket',
       services: [
         {
+          currency: 'TRY',
           discountAmount: 0,
           discountRate: 0,
           discountReason: '',
@@ -515,6 +516,7 @@ describe('customers and services', () => {
     const services = await call(ctx, 'list_services', { query: 'yazilim' });
     expect(services.json.services).toEqual([
       {
+        currency: 'TRY',
         name: 'Yazılım Geliştirme Hizmeti',
         quantity: 1,
         unitPrice: 5000,

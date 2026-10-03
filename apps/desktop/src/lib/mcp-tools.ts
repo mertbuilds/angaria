@@ -41,7 +41,7 @@ import {
 import { invoiceStatus, newestFirst, parseGIBInvoice, statusText } from './invoices.ts';
 import { MCP_TOOL_COPY, type McpToolName } from './mcp.ts';
 import { ISTISNA_REASONS } from './regulated.ts';
-import type { Invoice, InvoiceFormValues, InvoiceItem, Recipient } from './types.ts';
+import type { Invoice, InvoiceFormValues, InvoiceItem, Recipient, Service } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
 
 /** A CallToolResult: JSON text the model reads, isError for a failure. */
@@ -56,7 +56,7 @@ export interface McpCompany {
   /** A user code and a saved password */
   hasCredentials: boolean;
   name: string;
-  services: ReadonlyArray<InvoiceItem>;
+  services: ReadonlyArray<Service>;
 }
 
 export type McpGIBClient = Pick<
@@ -402,7 +402,7 @@ const DEFAULT_ISTISNA_CODE = '302';
 const createInvoice = defineTool({
   annotations: { destructiveHint: false, openWorldHint: true },
   description:
-    "Create an UNSIGNED draft e-Arşiv invoice on GİB for a saved customer (customerId) or a new recipient. Totals and VAT are computed, Angaria's rules apply (Satış or İstisna only, İstisna at 0% VAT), and the customer's defaults fill what is not given. The draft is not a legal invoice until the user signs it by SMS in Angaria: tell them to. Returns the draft's uuid and number.",
+    "Create an UNSIGNED draft e-Arşiv invoice on GİB for a saved customer (customerId) or a new recipient. Totals and VAT are computed, Angaria's rules apply (Satış or İstisna only, İstisna at 0% VAT), and the customer's defaults fill what is not given. Unit prices are in the invoice's currency and are never converted: convert a saved service's price yourself when its currency differs. The draft is not a legal invoice until the user signs it by SMS in Angaria: tell them to. Returns the draft's uuid and number.",
   gib: true,
   inputSchema: createInvoiceInput,
   name: 'create_invoice',
@@ -621,7 +621,7 @@ const listCustomers = defineTool({
 const listServices = defineTool({
   annotations: { openWorldHint: false, readOnlyHint: true },
   description:
-    "The active company's saved services (invoice lines) in Angaria with their prices, units and VAT rates, for create_invoice's items.",
+    "The active company's saved services (invoice lines) in Angaria with their prices, units and VAT rates, for create_invoice's items. unitPrice is in the service's currency; a service without one was saved before services had a currency, and its price was meant for the invoice's currency. create_invoice does not convert prices.",
   gib: false,
   inputSchema: searchInput,
   name: 'list_services',
@@ -632,6 +632,7 @@ const listServices = defineTool({
       services: services
         .filter((service) => matches(query, service.name))
         .map((service) => ({
+          currency: service.currency,
           discountRate: service.discountRate || undefined,
           name: service.name,
           quantity: service.quantity,

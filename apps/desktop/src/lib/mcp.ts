@@ -121,7 +121,7 @@ export const MCP_TOOL_COPY = {
     title: 'Müşterileri listele',
   },
   list_services: {
-    description: 'Kayıtlı hizmetler, fiyatları ve KDV oranları',
+    description: 'Kayıtlı hizmetler, fiyatları, para birimleri ve KDV oranları',
     title: 'Hizmetleri listele',
   },
 } as const satisfies Record<string, { description: string; title: string }>;

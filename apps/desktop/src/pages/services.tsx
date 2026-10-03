@@ -10,6 +10,7 @@ import {
   Button,
   ChoiceChips,
   Field,
+  FieldDescription,
   FieldError,
   FieldLabel,
   Input,
@@ -22,13 +23,13 @@ import { create, props } from '@stylexjs/stylex';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState, type RefObject } from 'react';
 import { formatAmount, parseDecimal } from '@/lib/invoice-form.ts';
+import { formatPrice, historyCurrency } from '@/lib/services.ts';
 import { useStore } from '@/lib/store.tsx';
-import type { InvoiceItem } from '@/lib/types.ts';
+import type { Service } from '@/lib/types.ts';
 import { ListDetail } from '@/shell/list-detail.tsx';
 import { Screen } from '@/shell/screen.tsx';
 import {
   EmptyState,
-  formatMoney,
   formatNumber,
   matchesQuery,
   SearchableList,
@@ -36,7 +37,14 @@ import {
   useDialogTarget,
   useListSelection,
 } from '@/shell/searchable-list.tsx';
-import { UNIT_OPTIONS, UnitCombobox, VAT_OPTIONS, VATRateInput } from './invoice-items.tsx';
+import { CURRENCY_CHOICES, OtherCurrency } from './invoice-header.tsx';
+import {
+  currencySymbol,
+  UNIT_OPTIONS,
+  UnitCombobox,
+  VAT_OPTIONS,
+  VATRateInput,
+} from './invoice-items.tsx';
 
 const styles = create({
   detail: {
@@ -217,6 +225,50 @@ function ServiceVATField({
   );
 }
 
+const NO_CURRENCY = 'Para birimi yok';
+
+/**
+ * Para birimi as on Yeni fatura: the common currencies as chips, Diğer for
+ * GİB's others. A service saved before services had a currency has none, and
+ * says so until one is picked.
+ */
+function ServiceCurrencyField({
+  id,
+  onSave,
+  value,
+}: {
+  id: string;
+  onSave: (currency: string) => void;
+  value: string | undefined;
+}) {
+  return (
+    <Field style={styles.fullRow}>
+      <FieldLabel htmlFor={id} id={`${id}-label`}>
+        Para birimi
+      </FieldLabel>
+      <ChoiceChips
+        aria-describedby={value ? undefined : `${id}-description`}
+        aria-labelledby={`${id}-label`}
+        id={id}
+        onValueChange={(next) => next && onSave(next)}
+        options={CURRENCY_CHOICES}
+        other={{
+          label: 'Diğer',
+          render: ({ id: otherId }) => (
+            <OtherCurrency id={otherId} onChange={onSave} value={value ?? ''} />
+          ),
+        }}
+        value={value ?? null}
+      />
+      {!value && (
+        <FieldDescription id={`${id}-description`}>
+          {NO_CURRENCY}. Seçene kadar fiyat, kestiğin faturanın para biriminde sayılır.
+        </FieldDescription>
+      )}
+    </Field>
+  );
+}
+
 function ServiceDetail({
   autoFocusName,
   item,
@@ -225,9 +277,9 @@ function ServiceDetail({
   onDelete,
 }: {
   autoFocusName: boolean;
-  item: InvoiceItem;
+  item: Service;
   nameRef: RefObject<HTMLInputElement | null>;
-  onChange: (patch: Partial<InvoiceItem>) => void;
+  onChange: (patch: Partial<Service>) => void;
   onDelete: () => void;
 }) {
   const id = useId();
@@ -279,7 +331,13 @@ function ServiceDetail({
           min={0}
           onSave={(unitPrice) => onChange({ unitPrice })}
           placeholder="0,00"
+          suffix={item.currency ? currencySymbol(item.currency) : undefined}
           value={item.unitPrice}
+        />
+        <ServiceCurrencyField
+          id={`${id}-currency`}
+          onSave={(currency) => onChange({ currency })}
+          value={item.currency}
         />
         <Field style={styles.fullRow}>
           <FieldLabel htmlFor={`${id}-unit`} id={`${id}-unit-label`}>
@@ -315,18 +373,18 @@ function ServiceDetail({
   );
 }
 
-const matchesItem = (item: InvoiceItem, query: string) => matchesQuery(query, item.name);
+const matchesItem = (item: Service, query: string) => matchesQuery(query, item.name);
 
 /**
  * Hizmetler: the saved service lines. Every invoice adds or updates them;
  * Yeni fatura suggests them by name.
  */
 export function ServicesPage() {
-  const { defaultItemAdvanced, newId, savedItems, setSavedItems } = useStore();
+  const { defaultItemAdvanced, newId, savedItems, savedRecipients, setSavedItems } = useStore();
   const [query, setQuery] = useState('');
   const [createdId, setCreatedId] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
-  const deleting = useDialogTarget<InvoiceItem>();
+  const deleting = useDialogTarget<Service>();
 
   const { neighborOf, select, selected, visible } = useListSelection(
     savedItems,
@@ -338,14 +396,23 @@ export function ServicesPage() {
     const id = newId();
     setSavedItems((prev) => [
       ...prev,
-      { id, name: '', quantity: 1, unitPrice: 0, VATRate: 20, ...defaultItemAdvanced },
+      {
+        // The currency the invoices are in, when the customers agree on one.
+        currency: historyCurrency(savedRecipients) ?? 'TRY',
+        id,
+        name: '',
+        quantity: 1,
+        unitPrice: 0,
+        VATRate: 20,
+        ...defaultItemAdvanced,
+      },
     ]);
     setQuery('');
     setCreatedId(id);
     select(id);
   };
 
-  const update = (id: string, patch: Partial<InvoiceItem>) =>
+  const update = (id: string, patch: Partial<Service>) =>
     setSavedItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
 
   const remove = () => {
@@ -405,9 +472,15 @@ export function ServicesPage() {
               openHint="düzenle"
               query={query}
               row={(item) => ({
-                subtitle: `${formatNumber(item.quantity)} ${unitLabel(item.unitType)} · KDV %${formatNumber(item.VATRate)}`,
+                subtitle: [
+                  `${formatNumber(item.quantity)} ${unitLabel(item.unitType)}`,
+                  `KDV %${formatNumber(item.VATRate)}`,
+                  !item.currency && NO_CURRENCY,
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
                 title: item.name || 'Adsız hizmet',
-                trailing: formatMoney(item.unitPrice),
+                trailing: formatPrice(item.unitPrice, item.currency),
               })}
               searchPlaceholder="Hizmet ara"
               selected={selected}

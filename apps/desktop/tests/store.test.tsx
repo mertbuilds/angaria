@@ -103,3 +103,58 @@ test('a login saved with the removed test mode loads without it', async () => {
   expect(entity.creds).toEqual({ username: 'u' });
   act(() => root.unmount());
 });
+
+const service = (id: string, currency?: string) => ({
+  currency,
+  discountAmount: 0,
+  discountRate: 0,
+  discountReason: '',
+  gtip: '',
+  id,
+  name: id,
+  quantity: 1,
+  unitPrice: 100,
+  unitType: 'C62',
+  VATRate: 0,
+});
+
+test('services saved before they had a currency take the one the invoices were in', async () => {
+  storage.clear();
+  const invoiced = { currency: 'USD', lastInvoicedAt: '2026-09-01T10:00:00.000Z' };
+  storage.set(
+    'fatura-entities',
+    JSON.stringify([
+      {
+        creds: { username: '' },
+        id: 'a',
+        name: 'Ana şirket',
+        savedItems: [service('legacy'), service('priced', 'TRY')],
+        savedRecipients: [{ ...invoiced, id: 'acme' }],
+      },
+      {
+        creds: { username: '' },
+        id: 'b',
+        name: 'Şirket 2',
+        savedItems: [service('unknown')],
+        savedRecipients: [
+          { ...invoiced, id: 'acme' },
+          { ...invoiced, currency: 'EUR', id: 'gmbh' },
+        ],
+      },
+    ]),
+  );
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  await act(async () => root.render(<StoreProvider>{null}</StoreProvider>));
+  await settle();
+
+  const [first, second] = JSON.parse(storage.get('fatura-entities') ?? '[]');
+  expect(first.savedItems.map((item: { currency?: string }) => item.currency)).toEqual([
+    'USD',
+    'TRY',
+  ]);
+  // The customers disagree: the service keeps no currency until edited.
+  expect(second.savedItems[0]).not.toHaveProperty('currency');
+  act(() => root.unmount());
+});
