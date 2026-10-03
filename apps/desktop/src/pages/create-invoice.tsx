@@ -316,7 +316,7 @@ export function CreateInvoicePage() {
     // react-pdf is large, so it loads with the first PDF.
     import('@/components/invoice-pdf.tsx')
       .then(({ downloadInvoicePDF }) => downloadInvoicePDF(data))
-      .then((file) => toastDownloaded(id, 'PDF indirildi', file))
+      .then((file) => toastDownloaded(id, 'PDF kaydedildi', file))
       .catch(() => toast.error('PDF oluşturulamadı. Tekrar dene.', { id }));
   };
 

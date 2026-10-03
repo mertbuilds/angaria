@@ -70,7 +70,7 @@ const showDownloaded = (path: string | null = PATH) => {
     vi.advanceTimersByTime(0);
   });
   act(() => {
-    toastDownloaded(id, 'PDF indirildi', { name: NAME, path });
+    toastDownloaded(id, 'PDF kaydedildi', { name: NAME, path });
     vi.advanceTimersByTime(0);
   });
 };
@@ -91,7 +91,7 @@ test('turns the loading toast into the saved file, its name and its two actions'
   expect(toasts()).toHaveLength(1);
   const [shown] = toasts();
   expect(shown.dataset.type).toBe('success');
-  expect(shown.querySelector('[data-title]')?.textContent).toBe('PDF indirildi');
+  expect(shown.querySelector('[data-title]')?.textContent).toBe('PDF kaydedildi');
   // The whole name is in the text, cut only by CSS, and in the tooltip.
   const description = shown.querySelector('[data-description]');
   expect(description?.textContent).toBe(NAME);
