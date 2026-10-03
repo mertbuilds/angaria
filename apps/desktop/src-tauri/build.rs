@@ -27,6 +27,7 @@ fn main() {
       "mcp_token",
       "mcp_rotate_token",
       "mcp_install",
+      "html_to_pdf",
     ]),
   ))
   .expect("failed to run tauri-build");

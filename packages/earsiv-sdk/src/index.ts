@@ -96,6 +96,16 @@ export interface EarsivClient {
     session: SessionInfo,
     details: InvoiceDetails,
   ): Promise<{ date: string; response: Record<string, unknown>; uuid: string }>;
+  /**
+   * GİB's own copy of a document: the zip the portal's İndir button saves
+   * (the e-Arşiv invoice as HTML, with its XML where GİB adds it).
+   */
+  downloadInvoice(
+    session: SessionInfo,
+    ettn: string,
+    onayDurumu: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<Uint8Array<ArrayBuffer>>;
   forceLogout(username: string, password: string): Promise<void>;
   getDrafts(
     session: SessionInfo,
@@ -225,6 +235,10 @@ function portalError(
 }
 
 const isAbort = (error: unknown) => error instanceof Error && error.name === 'AbortError';
+
+/** A zip starts with a local file header: PK\x03\x04. */
+const isZip = (bytes: Uint8Array) =>
+  bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
 
 /**
  * A reply that is not GİB's JSON: its maintenance page, a proxy's error
@@ -619,6 +633,57 @@ export function createClient(options?: ClientOptions): EarsivClient {
   }
 
   /**
+   * GET /earsiv-services/download (EARSIV_PORTAL_BELGE_INDIR). A zip comes
+   * back as is; anything else is GİB's error envelope, a plain text such as
+   * "Oturum geçersiz, token yok", or an HTML page.
+   */
+  async function downloadInvoice(
+    session: SessionInfo,
+    ettn: string,
+    onayDurumu: string,
+    { signal }: { signal?: AbortSignal } = {},
+  ): Promise<Uint8Array<ArrayBuffer>> {
+    const query = new URLSearchParams({
+      token: session.token,
+      ettn,
+      belgeTip: 'FATURA',
+      onayDurumu,
+      cmd: 'EARSIV_PORTAL_BELGE_INDIR',
+    });
+    let response: Response;
+    let bytes: Uint8Array<ArrayBuffer>;
+    try {
+      response = await fetchFn(`${session.baseUrl}/earsiv-services/download?${query}`, {
+        headers: { cookie: session.cookies.join('; '), Referer: `${session.baseUrl}/index.jsp` },
+        signal,
+      });
+      bytes = new Uint8Array(await response.arrayBuffer());
+    } catch (error) {
+      if (isAbort(error)) {
+        throw error;
+      }
+      throw new GibError('network', 'GİB’e ulaşılamadı', { cause: error });
+    }
+    if (response.ok && isZip(bytes)) {
+      return bytes;
+    }
+    const text = new TextDecoder().decode(bytes).trim();
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = undefined;
+    }
+    if (isRecord(json)) {
+      throw portalError(json, 'GİB belgeyi vermedi') ?? replyError(response, text);
+    }
+    if (text && !text.startsWith('<')) {
+      throw gibError(text, 'GİB belgeyi vermedi');
+    }
+    throw replyError(response, text);
+  }
+
+  /**
    * Every document dated within the range. Ranges longer than GİB allows are
    * fetched in chunks, one after the other on the same session, and merged
    * oldest first; a row returned twice (same ETTN) is kept once.
@@ -756,6 +821,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     createDraftInvoice,
     getInvoiceDetail,
     getInvoiceHTML,
+    downloadInvoice,
     getDrafts,
     signInvoiceHSM,
     getSigningPhone,

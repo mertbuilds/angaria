@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { GIB_COUNTRIES } from '../src/lib/gib-constants.ts';
 import {
   BILINGUAL_SEPARATOR,
+  buildEArchiveFilename,
   buildInvoicePDFFilename,
   DEFAULT_PDF_LANGUAGE,
   DEFAULT_PDF_STYLE,
@@ -286,5 +287,39 @@ describe('buildInvoicePDFFilename', () => {
     expect(buildInvoicePDFFilename({ ...base, entityName: undefined, language: 'en' })).toBe(
       'Invoice-2026-03-05-Vinena-Studio-ACME-GmbH.pdf',
     );
+  });
+});
+
+describe('buildEArchiveFilename', () => {
+  const base = {
+    companyName: 'Vinena Studio',
+    date: '05/03/2026',
+    entityName: 'Ana Varlık',
+    gibNumber: 'GIB2026000000001',
+    recipientTitle: 'ACME GmbH',
+  };
+
+  test('names GİB’s copy apart from the Angaria PDF, with GİB’s number', () => {
+    expect(buildEArchiveFilename(base, 'pdf')).toBe(
+      'e-Arsiv-Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-GIB2026000000001.pdf',
+    );
+    expect(buildEArchiveFilename(base, 'zip')).toBe(
+      'e-Arsiv-Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-GIB2026000000001.zip',
+    );
+    expect(buildEArchiveFilename(base, 'pdf')).not.toBe(
+      buildInvoicePDFFilename({ ...base, language: 'tr' }),
+    );
+  });
+
+  test('reads GİB’s list date and leaves out a missing number', () => {
+    expect(
+      buildEArchiveFilename({ ...base, date: '05-03-2026', gibNumber: undefined }, 'zip'),
+    ).toBe('e-Arsiv-Fatura-2026-03-05-Ana-Varlık-ACME-GmbH.zip');
+    expect(
+      buildEArchiveFilename(
+        { companyName: '', date: '', gibNumber: ' / ', recipientTitle: 'Ünvan: A/B' },
+        'pdf',
+      ),
+    ).toBe('e-Arsiv-Fatura-tarihsiz-sirket-Ünvan-A-B.pdf');
   });
 });

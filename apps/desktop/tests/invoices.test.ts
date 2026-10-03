@@ -7,6 +7,7 @@ import {
   presetRange,
   rangePreset,
   recentInvoices,
+  STATUS_FILTERS,
 } from '../src/lib/invoices.ts';
 
 const now = new Date(2026, 9, 15, 12);
@@ -47,22 +48,76 @@ describe('rangePreset', () => {
 
 describe('invoiceStatus', () => {
   test('maps GİB statuses to filters, labels and badge variants', () => {
-    expect(invoiceStatus('Onaylanmadı')).toEqual({
+    expect(invoiceStatus({ onayDurumu: 'Onaylanmadı' })).toEqual({
       filter: 'onaylanmadi',
       label: 'Taslak',
       variant: 'outline',
     });
-    expect(invoiceStatus('Onaylandı')).toEqual({
+    expect(invoiceStatus({ onayDurumu: 'Onaylandı' })).toEqual({
       filter: 'onaylandi',
       label: 'Onaylı',
       variant: 'secondary',
     });
-    expect(invoiceStatus('Silinmiş')).toEqual({
-      filter: 'iptal',
+    expect(invoiceStatus({ onayDurumu: 'Silinmiş' })).toEqual({
+      filter: 'silindi',
       label: 'Silindi',
-      variant: 'destructive',
+      variant: 'ghost',
     });
-    expect(invoiceStatus('İptal Edildi').filter).toBe('iptal');
+  });
+
+  test('a signed invoice whose cancellation GİB accepted is İptal edildi', () => {
+    const cancelled = { filter: 'iptal', label: 'İptal edildi', variant: 'destructive' };
+    const signed = { onayDurumu: 'Onaylandı' };
+    expect(invoiceStatus({ ...signed, iptalItiraz: '0', iptalItirazDurumu: '1' })).toEqual(
+      cancelled,
+    );
+    expect(invoiceStatus({ ...signed, iptalItiraz: 0, iptalItirazDurumu: 1 })).toEqual(cancelled);
+    expect(invoiceStatus({ ...signed, iptalItirazDurumu: 'İptal Kabul Edildi' })).toEqual(
+      cancelled,
+    );
+  });
+
+  test('a waiting cancellation keeps Onaylı with a hint, a rejected one keeps Onaylı', () => {
+    const signed = { iptalItiraz: '0', onayDurumu: 'Onaylandı' };
+    expect(invoiceStatus({ ...signed, iptalItirazDurumu: '0' })).toEqual({
+      filter: 'onaylandi',
+      hint: 'İptal aşamasında',
+      label: 'Onaylı',
+      variant: 'secondary',
+    });
+    expect(invoiceStatus({ ...signed, iptalItirazDurumu: 'İptal Aşamasında' }).hint).toBe(
+      'İptal aşamasında',
+    );
+    expect(invoiceStatus({ ...signed, iptalItirazDurumu: '2' })).toEqual({
+      filter: 'onaylandi',
+      label: 'Onaylı',
+      variant: 'secondary',
+    });
+  });
+
+  test('an objection or no request is not a cancellation', () => {
+    const signed = { onayDurumu: 'Onaylandı' };
+    expect(invoiceStatus({ ...signed, iptalItiraz: '1', iptalItirazDurumu: '1' }).label).toBe(
+      'Onaylı',
+    );
+    expect(invoiceStatus({ ...signed, iptalItiraz: '-99', iptalItirazDurumu: '-99' }).label).toBe(
+      'Onaylı',
+    );
+    // Only a signed invoice can be cancelled.
+    expect(
+      invoiceStatus({ iptalItiraz: '0', iptalItirazDurumu: '1', onayDurumu: 'Silinmiş' }).label,
+    ).toBe('Silindi');
+  });
+
+  test('an unknown status keeps GİB’s text and shows only under Tümü', () => {
+    expect(invoiceStatus({ onayDurumu: 'Beklemede' })).toEqual({
+      filter: null,
+      label: 'Beklemede',
+      variant: 'outline',
+    });
+    expect(invoiceStatus({}).label).toBe('Bilinmiyor');
+    expect(matchesStatus({ onayDurumu: 'Beklemede' }, 'tumu')).toBe(true);
+    expect(matchesStatus({ onayDurumu: 'Beklemede' }, 'iptal')).toBe(false);
   });
 
   test('filters by status, Tümü keeps everything', () => {
@@ -71,7 +126,18 @@ describe('invoiceStatus', () => {
     expect(matchesStatus(signed, 'tumu')).toBe(true);
     expect(matchesStatus(signed, 'onaylandi')).toBe(true);
     expect(matchesStatus(signed, 'onaylanmadi')).toBe(false);
-    expect(matchesStatus(deleted, 'iptal')).toBe(true);
+    expect(matchesStatus(deleted, 'silindi')).toBe(true);
+    expect(matchesStatus(deleted, 'iptal')).toBe(false);
+  });
+
+  test('the filter offers every status in one vocabulary', () => {
+    expect(STATUS_FILTERS.map(({ label }) => label)).toEqual([
+      'Tümü',
+      'Taslak',
+      'Onaylı',
+      'İptal edildi',
+      'Silindi',
+    ]);
   });
 });
 

@@ -38,7 +38,7 @@ import {
   toDraftDetails,
   validateInvoice,
 } from './invoice-form.ts';
-import { invoiceStatus, newestFirst, parseGIBInvoice } from './invoices.ts';
+import { invoiceStatus, newestFirst, parseGIBInvoice, statusText } from './invoices.ts';
 import { MCP_TOOL_COPY, type McpToolName } from './mcp.ts';
 import { ISTISNA_REASONS } from './regulated.ts';
 import type { Invoice, InvoiceFormValues, InvoiceItem, Recipient } from './types.ts';
@@ -166,7 +166,7 @@ const invoiceRow = (row: Invoice) => ({
   number: row.belgeNumarasi,
   onayDurumu: row.onayDurumu,
   recipient: row.aliciUnvanAdSoyad,
-  status: invoiceStatus(row.onayDurumu).label,
+  status: statusText(invoiceStatus(row)),
   taxID: row.aliciVknTckn,
   uuid: row.ettn,
 });
@@ -174,7 +174,7 @@ const invoiceRow = (row: Invoice) => ({
 const listInvoices = defineTool({
   ...listInvoicesTool,
   description:
-    'List e-Arşiv invoices on the GİB portal for a date range of at most 31 days, newest first. Each row has the uuid (ETTN), document number, date, recipient, and status: Taslak (unsigned draft), Onaylı (signed) or Silindi.',
+    'List e-Arşiv invoices on the GİB portal for a date range of at most 31 days, newest first. Each row has the uuid (ETTN), document number, date, recipient, and status: Taslak (unsigned draft), Onaylı (signed; Onaylı (iptal aşamasında) while a cancellation request waits), İptal edildi (signed, then cancelled) or Silindi (deleted draft).',
   gib: true,
   name: 'list_invoices',
   run: async (ctx, { endDate, startDate }, signal) => {
@@ -242,7 +242,7 @@ const getInvoice = defineTool({
       number: textField(detail.belgeNumarasi) || row?.belgeNumarasi,
       recipient: invoice.recipient,
       recipientName: customerName(invoice.recipient),
-      status: row ? invoiceStatus(row.onayDurumu).label : undefined,
+      status: row ? statusText(invoiceStatus(row)) : undefined,
       subtotal: roundKurus(invoice.subtotal),
       time: textField(detail.saat) || undefined,
       total: roundKurus(invoice.total),
@@ -576,7 +576,7 @@ const cancelInvoice = defineTool({
     }
     if (found.kind === 'signed') {
       return failure(
-        `Bu fatura imzasız bir taslak değil (${found.status}). Angaria yalnızca taslakları siler; onaylı bir faturayı GİB portalından iptal et.`,
+        `Bu fatura imzasız bir taslak değil (${invoiceStatus({ onayDurumu: found.status }).label}). Angaria yalnızca taslakları siler; onaylı bir faturayı GİB portalından iptal et.`,
         { code: 'not-a-draft' },
       );
     }

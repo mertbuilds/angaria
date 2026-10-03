@@ -34,6 +34,8 @@ export const getInvoiceDetail = (...args: Parameters<typeof client.getInvoiceDet
   client.getInvoiceDetail(...args);
 export const getInvoiceHTML = (...args: Parameters<typeof client.getInvoiceHTML>) =>
   client.getInvoiceHTML(...args);
+export const downloadInvoice = (...args: Parameters<typeof client.downloadInvoice>) =>
+  client.downloadInvoice(...args);
 export const getDrafts = (...args: Parameters<typeof client.getDrafts>) =>
   client.getDrafts(...args);
 export const verifyAndSign = (...args: Parameters<typeof client.verifyAndSign>) =>

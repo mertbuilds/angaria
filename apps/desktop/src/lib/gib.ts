@@ -58,8 +58,9 @@ export const invoiceDetailQuery = (account: GIBAccount, ettn: string, background
   });
 
 /**
- * GİB's HTML rendering of an invoice with its QR code drawn in. Render it
- * only in `<iframe sandbox="">`. Keyed by status: signing changes the page.
+ * GİB's HTML rendering of an invoice with its QR code drawn in and its scripts
+ * dropped. Render it only in a sandboxed iframe without `allow-scripts`
+ * (InvoiceFrame, InvoicePaper). Keyed by status: signing changes the page.
  */
 export const invoiceHTMLQuery = (account: GIBAccount, ettn: string, onayDurumu: string) =>
   queryOptions({

@@ -201,6 +201,24 @@ describe('invoices', () => {
     await client.logout(session);
   });
 
+  test('downloads GİB’s zip of an invoice', async () => {
+    const session = await client.login('33333301', '1');
+    const { uuid } = await client.createDraftInvoice(session, invoice());
+    const bytes = await client.downloadInvoice(session, uuid, 'Onaylanmadı');
+    expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+    expect(new TextDecoder().decode(bytes)).toContain(`${uuid}.html`);
+
+    await expect(client.downloadInvoice(session, 'unknown', 'Onaylandı')).rejects.toMatchObject({
+      code: 'not-found',
+    });
+    await client.logout(session);
+    // A token the portal no longer knows: its plain text, read as an expired session.
+    await expect(client.downloadInvoice(session, uuid, 'Onaylanmadı')).rejects.toMatchObject({
+      code: 'session-expired',
+      gibMessage: 'Oturum geçersiz, token yok',
+    });
+  });
+
   test('SMS signing needs a registered phone', async () => {
     const session = await client.login('33333303', '1');
     await expect(client.startSMSSign(session)).rejects.toThrow('kayıtlı telefon numarası');

@@ -11,11 +11,14 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   toast,
 } from '@angaria/ui';
-import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
+import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props, type StyleXStyles } from '@stylexjs/stylex';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -27,8 +30,8 @@ import {
   RepeatIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { cancelInvoice } from '@/lib/angaria.ts';
+import { useEffect, useId, useRef, useState } from 'react';
+import { cancelInvoice, downloadInvoice } from '@/lib/angaria.ts';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { defaultPDFLanguage, findCustomer } from '@/lib/customer.ts';
 import { fetchForeground } from '@/lib/foreground-fetch.ts';
@@ -41,8 +44,12 @@ import {
   useGIBAccount,
 } from '@/lib/gib.ts';
 import { dueDateOf } from '@/lib/invoice-due-dates.ts';
+import { buildEArchiveFilename } from '@/lib/invoice-pdf-i18n.ts';
 import { readQRValue } from '@/lib/invoice-preview.ts';
+import { PAGE_WIDTH } from '@/lib/invoice-zoom.ts';
 import { invoiceStatus, parseGIBInvoice } from '@/lib/invoices.ts';
+import { htmlToPDF } from '@/lib/native.ts';
+import { saveFile } from '@/lib/save-file.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
@@ -50,6 +57,14 @@ import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
 import { ErrorState } from '@/shell/error-state.tsx';
 import { EmptyState, formatMoney } from '@/shell/searchable-list.tsx';
 import { tones } from '../shell/palette.stylex.ts';
+import {
+  InvoicePaper,
+  InvoiceViewer,
+  PaperBar,
+  paperStyles,
+  usePaperZoom,
+  useZoomKeys,
+} from './invoice-viewer.tsx';
 import { useSMSSign } from './use-sms-sign.tsx';
 
 const spin = keyframes({
@@ -112,13 +127,14 @@ const styles = create({
     gap: spacing.s2,
     margin: 0,
   },
-  // The page lies on the canvas under the header, with a margin and rounded
-  // corners, instead of filling the pane edge to edge.
-  paper: {
-    borderRadius: radius.base,
-    boxShadow: `0 0 0 1px ${tones.paperEdge}`,
-    marginBottom: spacing.s6,
-    marginInline: spacing.s6,
+  // The page lies on the canvas under the header and scrolls there; the zoom
+  // bar floats over its foot.
+  preview: {
+    display: 'flex',
+    flex: 1,
+    flexDirection: 'column',
+    minHeight: 0,
+    position: 'relative',
   },
   root: {
     display: 'flex',
@@ -179,14 +195,12 @@ const PDF_LANGUAGE_NAMES: Record<PDFLanguage, string> = {
   tr: 'Türkçe',
 };
 
-// GİB lays the invoice out 800px wide. A narrower pane shows the whole page
-// scaled down rather than cutting off the QR code and the totals.
-const PAGE_WIDTH = 840;
-
 /**
  * GİB's HTML in `<iframe sandbox="">`: no scripts, forms, plugins or
  * same-origin access to the app. `style` sizes the box (32rem high at least
- * by default); the page scales to its width.
+ * by default); the page scales to its width (never past actual size, GİB lays
+ * it out 800px wide). Yeni fatura's thumbnail; the detail pane zooms with
+ * InvoicePaper.
  */
 export function InvoiceFrame({ html, style }: { html: string; style?: StyleXStyles }) {
   const box = useRef<HTMLDivElement>(null);
@@ -230,39 +244,64 @@ function Spinner() {
   );
 }
 
-/** PDF indir in the customer's language, the other one from the menu. */
-function PDFButton({
-  defaultLanguage,
+type EArchiveFile = 'pdf' | 'zip';
+
+/**
+ * İndir: GİB's own document (e-Arşiv faturası: the PDF of GİB's page, GİB's
+ * zip) and the Angaria PDF (Minimal or Klasik, in a language). The button
+ * downloads the Angaria PDF in the customer's language, or the e-Arşiv PDF
+ * where there is no Angaria PDF (a cancelled invoice).
+ */
+function DownloadMenu({
+  angaria,
   disabled,
-  onDownload,
+  onAngaria,
+  onEArchive,
 }: {
-  defaultLanguage: PDFLanguage;
+  /** The customer's language; null offers GİB's document only. */
+  angaria: PDFLanguage | null;
   disabled: boolean;
-  onDownload: (language: PDFLanguage) => void;
+  onAngaria: (language: PDFLanguage) => void;
+  onEArchive: (file: EArchiveFile) => void;
 }) {
+  const eArchiveLabel = useId();
+  const angariaLabel = useId();
   return (
     <div role="group" {...props(styles.splitWrap)}>
       <Button
         disabled={disabled}
-        onClick={() => onDownload(defaultLanguage)}
+        onClick={() => (angaria ? onAngaria(angaria) : onEArchive('pdf'))}
         style={styles.splitMain}
       >
         <DownloadIcon />
-        PDF indir ({PDF_LANGUAGE_NAMES[defaultLanguage]})
+        {angaria ? `Angaria PDF (${PDF_LANGUAGE_NAMES[angaria]})` : 'e-Arşiv PDF'}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={disabled}
-          render={<Button aria-label="PDF dilini seç" size="icon" style={styles.splitMenu} />}
+          render={<Button aria-label="İndirme seçenekleri" size="icon" style={styles.splitMenu} />}
         >
           <ChevronDownIcon {...props(styles.icon)} />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {(['tr', 'en', 'both'] as const).map((language) => (
-            <DropdownMenuItem key={language} onClick={() => onDownload(language)}>
-              PDF indir ({PDF_LANGUAGE_NAMES[language]})
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuGroup aria-labelledby={eArchiveLabel}>
+            <DropdownMenuLabel id={eArchiveLabel}>e-Arşiv faturası (GİB)</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => onEArchive('pdf')}>e-Arşiv PDF</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEArchive('zip')}>HTML/ZIP (GİB)</DropdownMenuItem>
+          </DropdownMenuGroup>
+          {angaria && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup aria-labelledby={angariaLabel}>
+                <DropdownMenuLabel id={angariaLabel}>Angaria PDF</DropdownMenuLabel>
+                {(['tr', 'en', 'both'] as const).map((language) => (
+                  <DropdownMenuItem key={language} onClick={() => onAngaria(language)}>
+                    {PDF_LANGUAGE_NAMES[language]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -271,8 +310,9 @@ function PDFButton({
 
 /**
  * GİB's own rendering of the invoice (QR code drawn in), under its actions:
- * SMS ile onayla and Sil for drafts, PDF indir for signed invoices, Tekrar kes
- * for all.
+ * SMS ile onayla and Sil for drafts, the downloads for signed and cancelled
+ * invoices, Tekrar kes for all. The page zooms (⌘+, ⌘-, ⌘0, pinch) and opens
+ * full screen on a click, Tam ekran or Space.
  */
 function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const { ettn } = invoice;
@@ -281,15 +321,52 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const requireCredentials = useRequireCredentials();
   const account = useGIBAccount();
   const { activeEntity, companyInfo, savedRecipients } = useStore();
-  const status = invoiceStatus(invoice.onayDurumu);
-  const preview = useQuery(invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''));
+  const status = invoiceStatus(invoice);
+  // GİB shows no page for a deleted draft.
+  const deleted = status.filter === 'silindi';
+  const preview = useQuery({
+    ...invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
+    enabled: !deleted,
+  });
   const total = useQuery({
     ...invoiceDetailQuery(account, ettn, true),
-    enabled: status.filter !== 'iptal',
+    enabled: !deleted,
     select: parseGIBInvoice,
   });
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const sms = useSMSSign();
+  const zoom = usePaperZoom();
+  useZoomKeys(zoom, Boolean(preview.data));
+
+  // Space opens the page full screen, as Quick Look does, from the list or
+  // the pane; fields, buttons and menus keep their own Space.
+  const hasPreview = Boolean(preview.data);
+  useEffect(() => {
+    if (!hasPreview) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as Element | null;
+      if (
+        event.key !== ' ' ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey ||
+        event.isComposing ||
+        event.defaultPrevented ||
+        (target !== document.body && !target?.matches?.('[role="listbox"]')) ||
+        document.querySelector('[role="dialog"], [role="alertdialog"]')
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setViewerOpen(true);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [hasPreview]);
 
   const defaultLanguage = defaultPDFLanguage(
     findCustomer(savedRecipients, invoice.aliciVknTckn ?? '', invoice.aliciUnvanAdSoyad ?? '') ?? {
@@ -336,14 +413,46 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     onSuccess: () => toast.success('PDF indirildi', { id: `pdf-${ettn}` }),
   });
 
+  const eArchive = useMutation({
+    mutationFn: async (file: EArchiveFile) => {
+      toast.loading(file === 'pdf' ? 'e-Arşiv PDF hazırlanıyor…' : 'GİB’den indiriliyor…', {
+        id: `earsiv-${ettn}`,
+      });
+      const filename = buildEArchiveFilename(
+        {
+          companyName: companyInfo.name,
+          date: invoice.belgeTarihi ?? '',
+          entityName: activeEntity.name,
+          gibNumber: invoice.belgeNumarasi,
+          recipientTitle: invoice.aliciUnvanAdSoyad ?? '',
+        },
+        file,
+      );
+      if (file === 'zip') {
+        const zip = await gib.run(account, (session) =>
+          downloadInvoice(session, ettn, invoice.onayDurumu ?? ''),
+        );
+        saveFile(new Blob([zip], { type: 'application/zip' }), filename);
+      } else {
+        // The page the pane shows: GİB's HTML, QR code drawn in, no scripts.
+        const html = await queryClient.fetchQuery(
+          invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
+        );
+        saveFile(new Blob([await htmlToPDF(html)], { type: 'application/pdf' }), filename);
+      }
+      return file;
+    },
+    onError: () => toast.dismiss(`earsiv-${ettn}`),
+    onSuccess: (file) =>
+      toast.success(file === 'pdf' ? 'e-Arşiv PDF indirildi' : 'ZIP indirildi', {
+        id: `earsiv-${ettn}`,
+      }),
+  });
+
   const remove = useMutation({
     mutationFn: () =>
       gib.run(account, (session) =>
-        cancelInvoice(
-          session,
-          'Fatura iptal edildi',
-          invoice as unknown as Record<string, unknown>,
-        ),
+        cancelInvoice(session, 'Taslak silindi', invoice as unknown as Record<string, unknown>),
       ),
     onSuccess: () => {
       toast.success('Taslak silindi');
@@ -368,11 +477,44 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     }
   };
 
-  const busy = pdf.isPending || remove.isPending || startSign.isPending;
+  const busy = pdf.isPending || eArchive.isPending || remove.isPending || startSign.isPending;
+  const title = invoice.aliciUnvanAdSoyad || UNNAMED_CUSTOMER;
+
+  const downloads = (status.filter === 'onaylandi' || status.filter === 'iptal') && (
+    <DownloadMenu
+      angaria={status.filter === 'onaylandi' ? defaultLanguage : null}
+      disabled={busy}
+      onAngaria={(language) => guarded(() => pdf.mutate(language))()}
+      onEArchive={(file) => guarded(() => eArchive.mutate(file))()}
+    />
+  );
 
   let body;
-  if (preview.data) {
-    body = <InvoiceFrame html={preview.data} style={styles.paper} />;
+  if (deleted) {
+    body = (
+      <EmptyState title="Bu taslak silinmiş">
+        GİB silinen taslakların önizlemesini göstermez.
+      </EmptyState>
+    );
+  } else if (preview.data) {
+    body = (
+      <div {...props(styles.preview)}>
+        <InvoicePaper
+          html={preview.data}
+          onOpen={() => setViewerOpen(true)}
+          style={paperStyles.underBar}
+          zoom={zoom}
+        />
+        <PaperBar onOpen={() => setViewerOpen(true)} zoom={zoom} />
+        <InvoiceViewer
+          downloads={downloads}
+          html={preview.data}
+          onOpenChange={setViewerOpen}
+          open={viewerOpen}
+          title={[title, invoice.belgeNumarasi].filter(Boolean).join(' · ')}
+        />
+      </div>
+    );
   } else if (preview.isError) {
     body = (
       <ErrorState
@@ -389,12 +531,13 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     <div {...props(styles.root)}>
       <header {...props(styles.header)}>
         <div {...props(styles.titleBlock)}>
-          <h2 {...props(styles.title)}>{invoice.aliciUnvanAdSoyad || UNNAMED_CUSTOMER}</h2>
+          <h2 {...props(styles.title)}>{title}</h2>
           <p {...props(styles.meta)}>
             {[
               invoice.belgeNumarasi,
               formatDateHuman(invoice.belgeTarihi ?? ''),
               total.data && formatMoney(total.data.total, total.data.settings.currency),
+              status.hint,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -408,13 +551,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
               {sms.sending ? 'SMS gönderiliyor…' : 'SMS ile onayla'}
             </Button>
           )}
-          {status.filter === 'onaylandi' && (
-            <PDFButton
-              defaultLanguage={defaultLanguage}
-              disabled={busy}
-              onDownload={(language) => guarded(() => pdf.mutate(language))()}
-            />
-          )}
+          {downloads}
           <Button
             disabled={busy}
             onClick={guarded(() => void navigate({ search: { kaynak: ettn }, to: '/yeni' }))}

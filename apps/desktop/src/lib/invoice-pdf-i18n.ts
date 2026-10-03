@@ -346,3 +346,37 @@ export function buildInvoicePDFFilename({
   const entity = sanitizeFilenamePart(entityName || companyName, words.entityFallback);
   return `${words.prefix}-${formatFilenameDate(date, words.undated)}-${entity}-${recipientName}.pdf`;
 }
+
+/**
+ * GİB's own copy of an invoice (the e-Arşiv PDF or GİB's zip), named apart
+ * from the Angaria PDF and carrying GİB's number:
+ * e-Arsiv-Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-GIB2026000000001.pdf
+ */
+export function buildEArchiveFilename(
+  {
+    companyName,
+    date,
+    entityName,
+    gibNumber,
+    recipientTitle,
+  }: {
+    companyName: string;
+    date: string;
+    entityName?: string;
+    gibNumber?: string;
+    recipientTitle: string;
+  },
+  extension: 'pdf' | 'zip',
+) {
+  const words = FILENAME_WORDS.tr;
+  return `${[
+    'e-Arsiv',
+    words.prefix,
+    formatFilenameDate(date, words.undated),
+    sanitizeFilenamePart(entityName || companyName, words.entityFallback),
+    sanitizeFilenamePart(recipientTitle, words.recipientFallback),
+    gibNumber && sanitizeFilenamePart(gibNumber, ''),
+  ]
+    .filter(Boolean)
+    .join('-')}.${extension}`;
+}

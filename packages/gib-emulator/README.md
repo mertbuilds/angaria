@@ -56,6 +56,8 @@ POST `/earsiv-services/dispatch` (form: `cmd`, `callid`, `pageName`, `token`, `j
 
 Sessions follow the portal's rules: one open session per user ("Sisteme aynı anda birden fazla giriş yapamazsınız..."), an idle timeout (`sessionTtlSeconds`, default 30 minutes) after which the token fails and the lock is released, and a force logout: the refused login sets a cookie, and a logout carrying it ends the open session (the SDK's `forceLogout`). The force logout is a model, not verified against the live portal: nobody has confirmed that the real portal ends the open session for that cookie.
 
+GET `/earsiv-services/download?token=&ettn=&belgeTip=FATURA&onayDurumu=&cmd=EARSIV_PORTAL_BELGE_INDIR` (`src/download.ts`), the portal's İndir button: a zip with the invoice page (`EARSIV_PORTAL_FATURA_GOSTER`'s) as `{ettn}.html`; the live portal adds the UBL XML, the emulator does not. A missing or expired token answers the plain text "Oturum geçersiz, token yok" (mlevent/fatura), an unknown ETTN the error envelope.
+
 GET `/kurlar/{yyyyMM}/{ddMMyyyy}.xml` and `/kurlar/today.xml`: TCMB's XML schema (`Tarih_Date` › `Currency[CurrencyCode]` › `Unit`, `ForexBuying`, ...) with the 2026 feed's currencies (USD to KZT, then XDR), deterministic rates per day. TCMB publishes at 15:30 Turkish time: before that, `today.xml` is the previous bulletin and today's file answers 404. Weekends, public holidays (fixed ones, Ramazan and Kurban Bayramı for 2025 to 2027, plus `tcmbHolidays`), half days without a bulletin (28 October and the weekday arife days) and days after the latest bulletin answer 404 with an HTML page.
 
 The texts in `src/messages.ts` are split into verified ones (seen on the live portal by the SDK, PR #1, f/fatura and mlevent/fatura) and best-effort wording.
@@ -150,4 +152,4 @@ curl -X PATCH http://127.0.0.1:5180/__emulator/config -d '{"chaos":{"maintenance
 
 ## Not emulated
 
-`/earsiv-services/download` (zip download), `/earsiv-services/esign`, cancellation and objection requests (`EARSIV_PORTAL_IPTAL_TALEBI_OLUSTUR`, `EARSIV_PORTAL_ITIRAZ_TALEBI_OLUSTUR`), documents issued to the user (`EARSIV_PORTAL_ADIMA_KESILEN_BELGELERI_GETIR`), producer and self-employed receipts. The SDK uses none of them. A cancelled invoice comes from a seed with `cancellation`.
+The UBL XML in the download's zip, `/earsiv-services/esign`, cancellation and objection requests (`EARSIV_PORTAL_IPTAL_TALEBI_OLUSTUR`, `EARSIV_PORTAL_ITIRAZ_TALEBI_OLUSTUR`), documents issued to the user (`EARSIV_PORTAL_ADIMA_KESILEN_BELGELERI_GETIR`), producer and self-employed receipts. The SDK uses none of them. A cancelled invoice comes from a seed with `cancellation`.

@@ -46,5 +46,41 @@ tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
 [dev-dependencies]
 tokio = { version = "1", features = ["io-std", "io-util", "rt-multi-thread"] }
 
+# examples/html_pdf.rs runs the main run loop itself.
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSDate",
+  "NSRunLoop",
+] }
+
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-updater = "2"
+
+# The e-Arşiv PDF (src/pdf.rs): WebKit's createPDF. Already in the tree through wry.
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "CFCGTypes",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSData",
+  "NSError",
+  "NSString",
+  "NSValue",
+] }
+objc2-web-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "objc2-app-kit",
+  "objc2-core-foundation",
+  "WKNavigation",
+  "WKNavigationDelegate",
+  "WKPDFConfiguration",
+  "WKWebView",
+  "WKWebViewConfiguration",
+  "WKWebpagePreferences",
+] }

@@ -63,37 +63,86 @@ export function rangeCovering(range: DateRange, date: string): DateRange {
 /** Longest custom range: each week is one GİB request. */
 export const MAX_RANGE_DAYS = 366;
 
-export type StatusFilter = 'tumu' | 'onaylanmadi' | 'onaylandi' | 'iptal';
+export type StatusFilter = 'tumu' | 'onaylanmadi' | 'onaylandi' | 'iptal' | 'silindi';
 
+/**
+ * One word per GİB end state, the same on the filter, the badges, the detail
+ * header and the MCP tools: a deleted draft never was an invoice (Silindi), a
+ * cancelled one was signed first (İptal edildi).
+ */
 export const STATUS_FILTERS: ReadonlyArray<{ label: string; value: StatusFilter }> = [
   { label: 'Tümü', value: 'tumu' },
   { label: 'Taslak', value: 'onaylanmadi' },
   { label: 'Onaylı', value: 'onaylandi' },
-  { label: 'İptal', value: 'iptal' },
+  { label: 'İptal edildi', value: 'iptal' },
+  { label: 'Silindi', value: 'silindi' },
 ];
 
 export interface InvoiceStatus {
-  filter: Exclude<StatusFilter, 'tumu'>;
+  /** Null for a status GİB has not been seen to send: only Tümü lists it. */
+  filter: Exclude<StatusFilter, 'tumu'> | null;
+  /** A signed invoice with a cancellation request still waiting for the buyer. */
+  hint?: 'İptal aşamasında';
   label: string;
-  variant: 'destructive' | 'outline' | 'secondary';
+  variant: 'destructive' | 'ghost' | 'outline' | 'secondary';
 }
 
-/** GİB's onayDurumu: unsigned drafts, signed invoices, and the rest (deleted, cancelled). */
-export function invoiceStatus(onayDurumu: string | undefined): InvoiceStatus {
-  switch (onayDurumu) {
+const code = (value: unknown) =>
+  typeof value === 'number' || typeof value === 'string' ? String(value).trim() : '';
+
+/**
+ * A cancellation request on a signed invoice. A cancelled invoice stays
+ * Onaylandı; GİB puts the request on the list row as `iptalItiraz` (0 a
+ * cancellation, 1 an objection) and `iptalItirazDurumu` (0 İptal Aşamasında,
+ * 1 İptal Kabul Edildi, 2 İptal Reddedildi). The names come from GİB's list
+ * of incoming requests and are not verified on this list, so numbers, strings
+ * and GİB's words all count.
+ */
+function cancellation(invoice: Invoice): 'accepted' | 'pending' | null {
+  const kind = code(invoice.iptalItiraz);
+  if (kind !== '' && kind !== '0') {
+    return null;
+  }
+  const state = code(invoice.iptalItirazDurumu).toLocaleLowerCase('tr');
+  if (state === '1' || state.includes('kabul')) {
+    return 'accepted';
+  }
+  if (state === '0' || state.includes('aşama')) {
+    return 'pending';
+  }
+  return null;
+}
+
+/**
+ * GİB's status of a list row: Taslak, Onaylı, İptal edildi (signed, then
+ * cancelled) or Silindi (a deleted draft).
+ */
+export function invoiceStatus(invoice: Invoice): InvoiceStatus {
+  switch (invoice.onayDurumu) {
     case 'Onaylanmadı':
       return { filter: 'onaylanmadi', label: 'Taslak', variant: 'outline' };
-    case 'Onaylandı':
-      return { filter: 'onaylandi', label: 'Onaylı', variant: 'secondary' };
+    case 'Onaylandı': {
+      const request = cancellation(invoice);
+      if (request === 'accepted') {
+        return { filter: 'iptal', label: 'İptal edildi', variant: 'destructive' };
+      }
+      return request === 'pending'
+        ? { filter: 'onaylandi', hint: 'İptal aşamasında', label: 'Onaylı', variant: 'secondary' }
+        : { filter: 'onaylandi', label: 'Onaylı', variant: 'secondary' };
+    }
     case 'Silinmiş':
-      return { filter: 'iptal', label: 'Silindi', variant: 'destructive' };
+      return { filter: 'silindi', label: 'Silindi', variant: 'ghost' };
     default:
-      return { filter: 'iptal', label: onayDurumu || 'Bilinmiyor', variant: 'destructive' };
+      return { filter: null, label: invoice.onayDurumu || 'Bilinmiyor', variant: 'outline' };
   }
 }
 
+/** The status in words, with its hint: "Onaylı (iptal aşamasında)". */
+export const statusText = ({ hint, label }: InvoiceStatus) =>
+  hint ? `${label} (${hint.toLocaleLowerCase('tr')})` : label;
+
 export const matchesStatus = (invoice: Invoice, filter: StatusFilter) =>
-  filter === 'tumu' || invoiceStatus(invoice.onayDurumu).filter === filter;
+  filter === 'tumu' || invoiceStatus(invoice).filter === filter;
 
 const invoiceTime = (invoice: Invoice) => parseGIB(invoice.belgeTarihi ?? '')?.getTime() ?? 0;
 

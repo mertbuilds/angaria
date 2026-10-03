@@ -140,6 +140,10 @@ export interface Invoice {
   belgeTarihi?: string;
   belgeTuru?: string;
   ettn?: string;
-  /** Onaylanmadı, Onaylandı, Silinmiş */
+  /** A cancellation request's kind: 0 cancellation, 1 objection (see invoiceStatus) */
+  iptalItiraz?: number | string;
+  /** A cancellation request's state: 0 waiting, 1 accepted, 2 rejected */
+  iptalItirazDurumu?: number | string;
+  /** Onaylanmadı, Onaylandı (cancelled ones too), Silinmiş */
   onayDurumu?: string;
 }
