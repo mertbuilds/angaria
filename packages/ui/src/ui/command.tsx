@@ -14,7 +14,8 @@ import {
 } from 'cmdk';
 import { SearchIcon } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
-import { colors, radius } from '../lib/tokens.stylex.ts';
+import { capText } from '../lib/cap-text.tsx';
+import { colors, fontMetrics, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 import { motion } from '../tokens.stylex.ts';
 import { dialogStyles } from './dialog.tsx';
@@ -107,6 +108,8 @@ const styles = create({
     minWidth: 0,
     outline: 'none',
     padding: 0,
+    // The value's caps on the middle, level with the search icon.
+    paddingTop: `calc(2 * ${fontMetrics.capOffset})`,
   },
   inputIcon: {
     color: colors.mutedForeground,
@@ -310,12 +313,14 @@ const CommandSeparator = ({ className, style, ...props }: CommandSeparatorProps)
 type CommandItemProps = Omit<ComponentProps<typeof CmdkItem>, 'className' | 'style'> &
   StyleXOverrides;
 
-const CommandItem = ({ className, style, ...props }: CommandItemProps) => (
+const CommandItem = ({ children, className, style, ...props }: CommandItemProps) => (
   <CmdkItem
     data-slot="command-item"
     {...stylexProps(styles.item, customClassName(className), style)}
     {...props}
-  />
+  >
+    {capText(children)}
+  </CmdkItem>
 );
 
 /** A trailing key hint on a CommandItem, e.g. ⌘N. */

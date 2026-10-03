@@ -157,6 +157,8 @@ export { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs.tsx';
 export { Textarea, type TextareaProps } from './ui/textarea.tsx';
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip.tsx';
 export { Wordmark } from './ui/wordmark.tsx';
+// Text that sits by its cap height next to an icon in a flex row.
+export { capStyles, capText } from './lib/cap-text.tsx';
 // One sonner instance for the Toaster and every toast() call: import toast
 // from here, not from 'sonner', or a second copy can swallow the toasts.
 export { toast } from 'sonner';

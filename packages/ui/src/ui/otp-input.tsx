@@ -3,7 +3,7 @@
 import { OTPField } from '@base-ui/react/otp-field';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import { useId } from 'react';
-import { colors, optional, radius } from '../lib/tokens.stylex.ts';
+import { colors, fontMetrics, optional, radius } from '../lib/tokens.stylex.ts';
 
 const styles = create({
   root: {
@@ -28,8 +28,8 @@ const styles = create({
     caretColor: colors.ring,
     color: colors.foreground,
     fontFamily: 'inherit',
+    // Proportional figures: Suisse Intl's tabular 1 has a foot, like a mono font's.
     fontSize: '1.125rem',
-    fontVariantNumeric: 'tabular-nums',
     height: '2.75rem',
     opacity: {
       ':disabled': 0.5,
@@ -37,6 +37,8 @@ const styles = create({
     },
     outline: 'none',
     padding: 0,
+    // The digit's caps on the middle of the slot.
+    paddingTop: `calc(2 * ${fontMetrics.capOffset})`,
     textAlign: 'center',
     width: '2.5rem',
   },

@@ -4,7 +4,7 @@ import { Input as InputPrimitive } from '@base-ui/react/input';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import type { ComponentProps } from 'react';
-import { colors, optional, radius } from '../lib/tokens.stylex.ts';
+import { colors, fontMetrics, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
 const styles = create({
@@ -66,8 +66,10 @@ const styles = create({
       default: 1,
     },
     outline: 'none',
-    paddingBlock: '0.25rem',
+    // The value's caps on the middle, level with an icon or button inside the field.
+    paddingBottom: `calc(0.25rem - ${fontMetrics.capOffset})`,
     paddingInline: '1rem',
+    paddingTop: `calc(0.25rem + ${fontMetrics.capOffset})`,
     pointerEvents: {
       ':disabled': 'none',
       default: null,

@@ -1,5 +1,6 @@
 import {
   Button,
+  capStyles,
   ChoiceChips,
   Combobox,
   ComboboxContent,
@@ -164,9 +165,10 @@ const styles = create({
     flex: '0 1 14rem',
     minWidth: '9rem',
   },
+  // As wide as NumberInput's stepper field.
   quantity: {
     flexShrink: 0,
-    width: '8.5rem',
+    width: '8rem',
   },
   row: {
     borderTopColor: tones.divider,
@@ -590,7 +592,7 @@ function ItemRow({
               aria-hidden
               {...props(styles.summaryIcon, discountOpen && styles.summaryIconOpen)}
             />
-            İskonto
+            <span {...props(capStyles.text)}>İskonto</span>
           </summary>
           <div {...props(styles.discountFields)}>
             {discountKind === 'percent' ? (
@@ -843,15 +845,15 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
               <span {...props(styles.hint)}>
                 <span {...props(styles.hintItem)}>
                   <Kbd>↵</Kbd>
-                  yeni hizmet
+                  <span {...props(capStyles.text)}>yeni hizmet</span>
                 </span>
                 <span {...props(styles.hintItem)}>
                   <Kbd>{mod}D</Kbd>
-                  çoğalt
+                  <span {...props(capStyles.text)}>çoğalt</span>
                 </span>
                 <span {...props(styles.hintItem)}>
                   <Kbd>{isMac ? '⌘⇧⌫' : 'Ctrl ⇧ ⌫'}</Kbd>
-                  sil
+                  <span {...props(capStyles.text)}>sil</span>
                 </span>
               </span>
             </div>

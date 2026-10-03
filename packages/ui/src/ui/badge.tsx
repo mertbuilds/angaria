@@ -4,6 +4,7 @@ import { mergeProps } from '@base-ui/react/merge-props';
 import { useRender } from '@base-ui/react/use-render';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
+import { capText } from '../lib/cap-text.tsx';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
@@ -113,7 +114,14 @@ export type BadgeProps = Omit<useRender.ComponentProps<'span'>, 'className' | 's
   variant?: BadgeVariant | undefined;
 };
 
-const Badge = ({ className, render, style, variant = 'default', ...props }: BadgeProps) => {
+const Badge = ({
+  children,
+  className,
+  render,
+  style,
+  variant = 'default',
+  ...props
+}: BadgeProps) => {
   const styleProps = stylexProps(
     styles.badgeBase,
     variantStyles[variant],
@@ -131,6 +139,7 @@ const Badge = ({ className, render, style, variant = 'default', ...props }: Badg
         style: styleProps.style,
       },
       props,
+      children === undefined ? undefined : { children: capText(children) },
     ),
     render,
     state: {

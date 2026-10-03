@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
   Badge,
   Button,
+  capStyles,
   ChoiceChips,
   Dialog,
   DialogClose,
@@ -135,10 +136,14 @@ const styles = create({
     gap: spacing.s1,
     minWidth: 0,
   },
+  // On the first line's caps, which capStyles centers in the line.
   testIcon: {
     flexShrink: 0,
     height: '0.875rem',
-    marginTop: '0.125rem',
+    marginTop: {
+      '@supports (text-box: trim-both cap alphabetic)': 'calc((1lh - 0.875rem) / 2)',
+      default: '0.125rem',
+    },
     width: '0.875rem',
   },
   testResult: {
@@ -212,13 +217,13 @@ function ConnectionTestResult({ test }: { test: ConnectionTest }) {
       {test.kind === 'ok' && (
         <>
           <CheckIcon aria-hidden {...props(styles.testIcon)} />
-          GİB girişi çalışıyor.
+          <span {...props(capStyles.text)}>GİB girişi çalışıyor.</span>
         </>
       )}
       {failed && (
         <>
           <CircleAlertIcon aria-hidden {...props(styles.testIcon)} />
-          <span>
+          <span {...props(capStyles.text)}>
             {test.text}
             {test.detail && ` ${test.detail}`}
           </span>
@@ -454,8 +459,10 @@ function AdvancedSection() {
           aria-hidden
           {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
         />
-        Gelişmiş
-        <span {...props(styles.summaryHint)}>{emulator ? 'Kur günü, emülatör' : 'Kur günü'}</span>
+        <span {...props(capStyles.text)}>Gelişmiş</span>
+        <span {...props(styles.summaryHint, capStyles.text)}>
+          {emulator ? 'Kur günü, emülatör' : 'Kur günü'}
+        </span>
       </summary>
       <div {...props(styles.advancedBody, styles.column)}>
         <SettingsSection

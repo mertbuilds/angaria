@@ -1,4 +1,5 @@
 import {
+  capStyles,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -581,13 +582,19 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
               {(item: PickerItem) =>
                 item.kind === 'saved' ? (
                   <ComboboxItem key={item.customer.id} value={item}>
-                    <span {...props(styles.itemLabel)}>{displayName(item.customer)}</span>
-                    <span {...props(styles.hint)}>{customerTag(item.customer)}</span>
+                    <span {...props(styles.itemLabel, capStyles.text)}>
+                      {displayName(item.customer)}
+                    </span>
+                    <span {...props(styles.hint, capStyles.text)}>
+                      {customerTag(item.customer)}
+                    </span>
                   </ComboboxItem>
                 ) : (
                   <ComboboxItem key="new" value={item}>
                     <PlusIcon aria-hidden {...props(styles.itemIcon)} />
-                    <span {...props(styles.itemLabel)}>Yeni müşteri: {item.text}</span>
+                    <span {...props(styles.itemLabel, capStyles.text)}>
+                      Yeni müşteri: {item.text}
+                    </span>
                   </ComboboxItem>
                 )
               }

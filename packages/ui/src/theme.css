@@ -168,6 +168,15 @@
     width: 1rem;
   }
 
+  /* A key's icon: block, so no baseline space sits under it. */
+  :where([data-slot='kbd']) svg {
+    display: block;
+    flex-shrink: 0;
+    height: 0.6875rem;
+    pointer-events: none;
+    width: 0.6875rem;
+  }
+
   :where([data-slot='badge']) svg {
     flex-shrink: 0;
     height: 0.75rem;

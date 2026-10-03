@@ -5,6 +5,7 @@ import { useRender } from '@base-ui/react/use-render';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import type { ComponentProps } from 'react';
+import { capStyles, capText } from '../lib/cap-text.tsx';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
@@ -230,6 +231,7 @@ export type SidebarMenuButtonProps = Omit<
  * render a router link with the same look.
  */
 const SidebarMenuButton = ({
+  children,
   className,
   isActive = false,
   render,
@@ -255,6 +257,7 @@ const SidebarMenuButton = ({
         type: render === undefined ? ('button' as const) : undefined,
       },
       props,
+      children === undefined ? undefined : { children: capText(children) },
     ),
     render,
     state: {
@@ -267,7 +270,7 @@ const SidebarMenuButton = ({
 const SidebarMenuBadge = ({ className, style, ...props }: SidebarPartProps<'span'>) => (
   <span
     data-slot="sidebar-menu-badge"
-    {...stylexProps(styles.menuBadge, customClassName(className), style)}
+    {...stylexProps(styles.menuBadge, capStyles.text, customClassName(className), style)}
     {...props}
   />
 );

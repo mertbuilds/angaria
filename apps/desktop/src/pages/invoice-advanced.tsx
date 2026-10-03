@@ -1,3 +1,4 @@
+import { capStyles } from '@angaria/ui';
 import { colors, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { ChevronRightIcon } from 'lucide-react';
@@ -81,8 +82,10 @@ export function AdvancedSection({
             aria-hidden
             {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
           />
-          <h2 {...props(sectionStyles.sectionTitle)}>Gelişmiş</h2>
-          <span {...props(sectionStyles.sectionHint)}>Saat, ödenecek tutar, irsaliye</span>
+          <h2 {...props(sectionStyles.sectionTitle, capStyles.text)}>Gelişmiş</h2>
+          <span {...props(sectionStyles.sectionHint, capStyles.text)}>
+            Saat, ödenecek tutar, irsaliye
+          </span>
         </summary>
         <div {...props(sectionStyles.fields, styles.advancedFields)}>
           <form.AppField name="advancedFields.manualTime">

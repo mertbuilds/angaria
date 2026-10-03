@@ -64,6 +64,16 @@ export const optional = defineConsts({
 });
 
 /**
+ * Suisse Intl's caps center 0.0535em above the middle of its line box: its
+ * ascent (1.174em) and descent (0.556em) are uneven around the cap height
+ * (0.725em). Text no style can trim, an input's value, moves down by this to
+ * center its caps; other text uses `capStyles` (src/lib/cap-text.tsx).
+ */
+export const fontMetrics = defineConsts({
+  capOffset: '0.0535em',
+});
+
+/**
  * Radius scale, pinned: surfaces (cards/dialogs/popovers) use 8px
  * (`--radius: 8px`); controls (buttons/inputs/select triggers) use `full`
  * (pill). sm through 2xl all resolve to the surface radius so registry

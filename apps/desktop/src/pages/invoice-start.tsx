@@ -1,4 +1,4 @@
-import { Button, Kbd } from '@angaria/ui';
+import { Button, capStyles, Kbd } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
@@ -249,7 +249,7 @@ function RecentRow({
         </span>
         <span {...props(styles.repeat)}>
           <RepeatIcon aria-hidden {...props(styles.repeatIcon)} />
-          Tekrar kes
+          <span {...props(capStyles.text)}>Tekrar kes</span>
         </span>
       </button>
     </li>
@@ -358,16 +358,17 @@ export function InvoiceStart() {
         <p aria-hidden {...props(styles.keys)}>
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd>
-          seç,
+          <span {...props(capStyles.text)}>seç,</span>
           <Kbd style={styles.keysGap}>↵</Kbd>
-          ya da
+          <span {...props(capStyles.text)}>ya da</span>
           <Kbd>1</Kbd>
           {recent.rows.length > 1 && (
             <>
-              -<Kbd>{recent.rows.length}</Kbd>
+              <span {...props(capStyles.text)}>-</span>
+              <Kbd>{recent.rows.length}</Kbd>
             </>
           )}
-          tekrar kes
+          <span {...props(capStyles.text)}>tekrar kes</span>
         </p>
       </>
     );

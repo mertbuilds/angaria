@@ -5,6 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import { CircleAlertIcon, TriangleAlertIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
+import { capStyles } from '../lib/cap-text.tsx';
 import { colors } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 import { Label } from './label.tsx';
@@ -58,11 +59,15 @@ const styles = create({
     alignItems: 'center',
     flexDirection: 'row',
   },
-  // Centered on the first line: 0.875rem text at a 1.5 line height.
+  // Centered on the first line: 0.875rem text at a 1.5 line height, whose
+  // caps the text's capStyles center.
   icon: {
     flexShrink: 0,
     height: '0.875rem',
-    marginTop: '0.1875rem',
+    marginTop: {
+      '@supports (text-box: trim-both cap alphabetic)': 'calc((1lh - 0.875rem) / 2)',
+      default: '0.1875rem',
+    },
     width: '0.875rem',
   },
   label: {
@@ -304,7 +309,7 @@ const FieldError = ({
       {...props}
     >
       <CircleAlertIcon aria-hidden {...stylexProps(styles.icon)} />
-      <div>{content}</div>
+      <div {...stylexProps(capStyles.text)}>{content}</div>
     </div>
   );
 };
@@ -325,7 +330,7 @@ const FieldWarning = ({ children, className, style, ...props }: StyleXElementPro
       {...props}
     >
       <TriangleAlertIcon aria-hidden {...stylexProps(styles.icon)} />
-      <div>{children}</div>
+      <div {...stylexProps(capStyles.text)}>{children}</div>
     </div>
   );
 };

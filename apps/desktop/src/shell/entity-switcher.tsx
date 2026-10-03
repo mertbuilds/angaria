@@ -1,4 +1,5 @@
 import {
+  capStyles,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -74,8 +75,8 @@ export function EntitySwitcher() {
           <Building2Icon {...props(styles.icon)} />
         </span>
         <span {...props(styles.text)}>
-          <span {...props(styles.name)}>{activeEntity.name}</span>
-          <span {...props(styles.detail)}>
+          <span {...props(styles.name, capStyles.text)}>{activeEntity.name}</span>
+          <span {...props(styles.detail, capStyles.text)}>
             {activeEntity.companyInfo.name || 'Firma bilgisi eklenmedi'}
           </span>
         </span>
@@ -90,8 +91,8 @@ export function EntitySwitcher() {
           {entities.map((entity) => (
             <DropdownMenuRadioItem key={entity.id} value={entity.id}>
               <span {...props(styles.text)}>
-                <span {...props(styles.name)}>{entity.name}</span>
-                <span {...props(styles.detail)}>
+                <span {...props(styles.name, capStyles.text)}>{entity.name}</span>
+                <span {...props(styles.detail, capStyles.text)}>
                   {entity.companyInfo.name || 'Firma bilgisi eklenmedi'}
                 </span>
               </span>

@@ -5,12 +5,16 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronRightIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
+import { capStyles, capText } from '../lib/cap-text.tsx';
 import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
 
 const styles = create({
+  // Block: in the check indicator's inline wrapper, an inline icon sits on
+  // the text baseline, about 3px above the middle of the row.
   icon: {
+    display: 'block',
     flexShrink: 0,
     height: '1rem',
     pointerEvents: 'none',
@@ -172,6 +176,7 @@ type DropdownMenuItemProps = Omit<MenuPrimitive.Item.Props, 'className' | 'style
   };
 
 const DropdownMenuItem = ({
+  children,
   className,
   inset,
   style,
@@ -195,7 +200,9 @@ const DropdownMenuItem = ({
     data-slot="dropdown-menu-item"
     data-variant={variant}
     {...props}
-  />
+  >
+    {capText(children)}
+  </MenuPrimitive.Item>
 );
 
 type DropdownMenuCheckboxItemProps = Omit<MenuPrimitive.CheckboxItem.Props, 'className' | 'style'> &
@@ -226,7 +233,7 @@ const DropdownMenuCheckboxItem = ({
         <CheckIcon {...stylexProps(styles.icon)} />
       </MenuPrimitive.CheckboxItemIndicator>
     </span>
-    {children}
+    {capText(children)}
   </MenuPrimitive.CheckboxItem>
 );
 
@@ -258,7 +265,7 @@ const DropdownMenuRadioItem = ({
         <CheckIcon {...stylexProps(styles.icon)} />
       </MenuPrimitive.RadioItemIndicator>
     </span>
-    {children}
+    {capText(children)}
   </MenuPrimitive.RadioItem>
 );
 
@@ -295,7 +302,7 @@ type DropdownMenuShortcutProps = Omit<ComponentProps<'span'>, 'style'> & {
 const DropdownMenuShortcut = ({ className, style, ...props }: DropdownMenuShortcutProps) => (
   <span
     data-slot="dropdown-menu-shortcut"
-    {...stylexProps(styles.shortcut, customClassName(className), style)}
+    {...stylexProps(styles.shortcut, capStyles.text, customClassName(className), style)}
     {...props}
   />
 );
@@ -327,7 +334,7 @@ const DropdownMenuSubTrigger = ({
     data-slot="dropdown-menu-sub-trigger"
     {...props}
   >
-    {children}
+    {capText(children)}
     <ChevronRightIcon {...stylexProps(styles.icon, styles.subTriggerIcon)} />
   </MenuPrimitive.SubmenuTrigger>
 );

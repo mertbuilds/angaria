@@ -5,6 +5,7 @@ import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
+import { capText } from '../lib/cap-text.tsx';
 import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, optional, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
@@ -272,7 +273,7 @@ const ComboboxChip = ({
     {...stylexProps(styles.chip, customClassName(className), style)}
     {...props}
   >
-    {children}
+    {capText(children)}
     {showRemove ? (
       <ComboboxPrimitive.ChipRemove
         aria-label={removeLabel}
@@ -371,7 +372,7 @@ const ComboboxItem = ({ children, className, style, ...props }: ComboboxItemProp
     data-slot="combobox-item"
     {...props}
   >
-    {children}
+    {capText(children)}
     <ComboboxPrimitive.ItemIndicator {...stylexProps(styles.itemIndicator)}>
       <CheckIcon size={16} />
     </ComboboxPrimitive.ItemIndicator>
