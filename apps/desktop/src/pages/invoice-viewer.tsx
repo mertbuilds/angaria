@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import {
   anchoredScroll,
@@ -36,6 +37,7 @@ import {
   type Zoom,
 } from '@/lib/invoice-zoom.ts';
 import { tones } from '../shell/palette.stylex.ts';
+import { shell } from '../shell/shell.stylex.ts';
 
 const isMac = navigator.userAgent.includes('Mac');
 const mod = isMac ? '⌘' : 'Ctrl ';
@@ -142,24 +144,41 @@ const styles = create({
     marginBlock: spacing.s1,
     width: '1px',
   },
+  // The viewer covers the whole window, under the macOS traffic lights.
   viewer: {
-    height: 'calc(100dvh - 2rem)',
+    backgroundColor: colors.bg,
+    borderRadius: 0,
+    borderWidth: 0,
+    height: '100dvh',
     maxHeight: 'none',
     maxWidth: 'none',
-    width: 'calc(100vw - 2rem)',
+    width: '100vw',
   },
-  // The dialog's body pads by 1rem and sizes to its content.
-  viewerLayout: {
+  // The dialog's body pads and grows with its content; the viewer lies over
+  // the whole popup instead, so a zoomed page never widens the bar.
+  viewerFrame: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s4,
-    height: 'calc(100dvh - 4rem)',
-    minHeight: 0,
+    inset: 0,
+    position: 'absolute',
   },
+  // The shell's toolbar height, and room for the traffic lights on the left.
   viewerBar: {
     alignItems: 'center',
+    boxSizing: 'border-box',
     display: 'flex',
-    flexWrap: 'wrap',
+    flexShrink: 0,
+    gap: spacing.s2,
+    height: shell.toolbarHeight,
+    paddingInlineEnd: spacing.s4,
+    paddingInlineStart: shell.trafficLightsInset,
+    userSelect: 'none',
+  },
+  // The controls keep their size; the title gives way.
+  viewerActions: {
+    alignItems: 'center',
+    display: 'flex',
+    flexShrink: 0,
     gap: spacing.s2,
   },
   viewerTitle: {
@@ -170,8 +189,6 @@ const styles = create({
     whiteSpace: 'nowrap',
   },
   viewerPaper: {
-    backgroundColor: colors.bg,
-    borderRadius: radius.base,
     paddingTop: spacing.s6,
   },
 });
@@ -185,13 +202,15 @@ interface Anchor {
 
 /**
  * The viewer's zoom: fit to width until the user zooms. A zoom keeps the page
- * point under the pointer (or the viewport's center) where it was.
+ * point under the pointer (or the viewport's center) where it was; fitting to
+ * width starts the page over at its top-left corner.
  */
 export function usePaperZoom() {
   const scroller = useRef<HTMLDivElement>(null);
   const page = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<Zoom>('fit');
   const [fit, setFit] = useState(1);
+  const [atOrigin, setAtOrigin] = useState(true);
   const scale = zoomScale(zoom, fit);
   // The scale on screen, and the newest one asked for: a pinch streams
   // events faster than React renders them.
@@ -239,9 +258,17 @@ export function usePaperZoom() {
     setZoom(next);
   }, []);
 
+  const fitToWidth = useCallback(() => {
+    anchor.current = null;
+    latest.current = fitRef.current;
+    scroller.current?.scrollTo({ behavior: 'instant', left: 0, top: 0 });
+    setZoom('fit');
+  }, []);
+
   return useMemo(
     () => ({
-      fit: () => zoomTo('fit'),
+      atOrigin,
+      fit: fitToWidth,
       fitted: zoom === 'fit',
       in: () => zoomTo(zoomIn(zoom, fit)),
       latest,
@@ -249,10 +276,11 @@ export function usePaperZoom() {
       page,
       scale,
       scroller,
+      setAtOrigin,
       setFit,
       zoomTo,
     }),
-    [fit, scale, zoom, zoomTo],
+    [atOrigin, fit, fitToWidth, scale, zoom, zoomTo],
   );
 }
 
@@ -304,20 +332,24 @@ export function useZoomKeys(zoom: PaperZoom, enabled: boolean, whileDialog = fal
  * pinch (⌘ or Ctrl wheel, WebKit's gesture events) and, with `onOpen`, the
  * click. The HTML has no scripts (withQRCode drops them) and runs in
  * `<iframe sandbox="allow-same-origin">`: still no scripts, forms, popups or
- * navigation; same origin only so the page's height can be read.
+ * navigation; same origin only so the page's height can be read. A zoom
+ * scales the page only: the scroller keeps its size and scrolls further.
  */
 export function InvoicePaper({
   html,
   onOpen,
+  pinchArea,
   style,
   zoom,
 }: {
   html: string;
   onOpen?: () => void;
+  /** Takes the pinch instead of the scroller: the full-screen viewer's whole frame. */
+  pinchArea?: RefObject<HTMLElement | null>;
   style?: StyleXStyles;
   zoom: PaperZoom;
 }) {
-  const { latest, page, scale, scroller, setFit, zoomTo } = zoom;
+  const { latest, page, scale, scroller, setAtOrigin, setFit, zoomTo } = zoom;
   const [measured, setMeasured] = useState({ height: PAGE_MIN_HEIGHT, html });
   // A new page starts at A4's height until it has loaded and been measured.
   const height = measured.html === html ? measured.height : PAGE_MIN_HEIGHT;
@@ -344,6 +376,18 @@ export function InvoicePaper({
   useEffect(() => {
     const element = scroller.current;
     if (!element) {
+      return;
+    }
+    const onScroll = () => setAtOrigin(element.scrollLeft < 1 && element.scrollTop < 1);
+    onScroll();
+    element.addEventListener('scroll', onScroll, { passive: true });
+    return () => element.removeEventListener('scroll', onScroll);
+  }, [scroller, setAtOrigin]);
+
+  useEffect(() => {
+    const element = scroller.current;
+    const area = pinchArea?.current ?? element;
+    if (!element || !area) {
       return;
     }
     const pointer = (event: { clientX: number; clientY: number }) => {
@@ -378,17 +422,17 @@ export function InvoicePaper({
       event.preventDefault();
       gestureStart = null;
     };
-    element.addEventListener('wheel', onWheel, { passive: false });
-    element.addEventListener('gesturestart', onGestureStart);
-    element.addEventListener('gesturechange', onGestureChange);
-    element.addEventListener('gestureend', onGestureEnd);
+    area.addEventListener('wheel', onWheel, { passive: false });
+    area.addEventListener('gesturestart', onGestureStart);
+    area.addEventListener('gesturechange', onGestureChange);
+    area.addEventListener('gestureend', onGestureEnd);
     return () => {
-      element.removeEventListener('wheel', onWheel);
-      element.removeEventListener('gesturestart', onGestureStart);
-      element.removeEventListener('gesturechange', onGestureChange);
-      element.removeEventListener('gestureend', onGestureEnd);
+      area.removeEventListener('wheel', onWheel);
+      area.removeEventListener('gesturestart', onGestureStart);
+      area.removeEventListener('gesturechange', onGestureChange);
+      area.removeEventListener('gestureend', onGestureEnd);
     };
-  }, [latest, scroller, zoomTo]);
+  }, [latest, pinchArea, scroller, zoomTo]);
 
   return (
     <div ref={scroller} tabIndex={onOpen ? undefined : 0} {...props(styles.scroller, style)}>
@@ -483,7 +527,7 @@ export function ZoomControls({ zoom }: { zoom: PaperZoom }) {
         <PlusIcon {...props(styles.icon)} />
       </ZoomButton>
       <ZoomButton
-        disabled={zoom.fitted}
+        disabled={zoom.fitted && zoom.atOrigin}
         label="Genişliğe sığdır"
         onClick={zoom.fit}
         shortcut={`${mod}0`}
@@ -533,21 +577,27 @@ export function InvoiceViewer({
   title: string;
 }) {
   const zoom = usePaperZoom();
+  const frame = useRef<HTMLDivElement>(null);
   useZoomKeys(zoom, open, true);
   // The page takes the focus, so arrow keys, Page Down and Space scroll it.
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent initialFocus={zoom.scroller} showCloseButton={false} style={styles.viewer}>
-        <div {...props(styles.viewerLayout)}>
-          <div {...props(styles.viewerBar)}>
-            <DialogTitle style={styles.viewerTitle}>{title}</DialogTitle>
-            <ZoomControls zoom={zoom} />
-            {downloads}
-            <DialogClose render={<Button aria-label="Kapat" size="icon" variant="ghost" />}>
-              <XIcon {...props(styles.icon)} />
-            </DialogClose>
+        <div ref={frame} {...props(styles.viewerFrame)}>
+          {/* The window's drag region while the viewer covers it; its controls do not drag. */}
+          <div data-tauri-drag-region {...props(styles.viewerBar)}>
+            <DialogTitle data-tauri-drag-region style={styles.viewerTitle}>
+              {title}
+            </DialogTitle>
+            <div {...props(styles.viewerActions)}>
+              <ZoomControls zoom={zoom} />
+              {downloads}
+              <DialogClose render={<Button aria-label="Kapat" size="icon" variant="ghost" />}>
+                <XIcon {...props(styles.icon)} />
+              </DialogClose>
+            </div>
           </div>
-          <InvoicePaper html={html} style={styles.viewerPaper} zoom={zoom} />
+          <InvoicePaper html={html} pinchArea={frame} style={styles.viewerPaper} zoom={zoom} />
         </div>
       </DialogContent>
     </Dialog>
