@@ -281,11 +281,16 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const requireCredentials = useRequireCredentials();
   const account = useGIBAccount();
   const { activeEntity, companyInfo, savedRecipients } = useStore();
-  const status = invoiceStatus(invoice.onayDurumu);
-  const preview = useQuery(invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''));
+  const status = invoiceStatus(invoice);
+  // GİB shows no page for a deleted draft.
+  const deleted = status.filter === 'silindi';
+  const preview = useQuery({
+    ...invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
+    enabled: !deleted,
+  });
   const total = useQuery({
     ...invoiceDetailQuery(account, ettn, true),
-    enabled: status.filter !== 'iptal',
+    enabled: !deleted,
     select: parseGIBInvoice,
   });
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -339,11 +344,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const remove = useMutation({
     mutationFn: () =>
       gib.run(account, (session) =>
-        cancelInvoice(
-          session,
-          'Fatura iptal edildi',
-          invoice as unknown as Record<string, unknown>,
-        ),
+        cancelInvoice(session, 'Taslak silindi', invoice as unknown as Record<string, unknown>),
       ),
     onSuccess: () => {
       toast.success('Taslak silindi');
@@ -371,7 +372,13 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const busy = pdf.isPending || remove.isPending || startSign.isPending;
 
   let body;
-  if (preview.data) {
+  if (deleted) {
+    body = (
+      <EmptyState title="Bu taslak silinmiş">
+        GİB silinen taslakların önizlemesini göstermez.
+      </EmptyState>
+    );
+  } else if (preview.data) {
     body = <InvoiceFrame html={preview.data} style={styles.paper} />;
   } else if (preview.isError) {
     body = (
@@ -395,6 +402,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
               invoice.belgeNumarasi,
               formatDateHuman(invoice.belgeTarihi ?? ''),
               total.data && formatMoney(total.data.total, total.data.settings.currency),
+              status.hint,
             ]
               .filter(Boolean)
               .join(' · ')}

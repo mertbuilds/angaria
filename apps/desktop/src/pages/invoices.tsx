@@ -291,10 +291,10 @@ export function InvoicesScreen() {
         openOnClick
         query={query}
         row={({ invoice }) => {
-          const { label, variant } = invoiceStatus(invoice.onayDurumu);
+          const { hint, label, variant } = invoiceStatus(invoice);
           return {
             aside: <Badge variant={variant}>{label}</Badge>,
-            subtitle: [invoice.belgeNumarasi, formatDateHuman(invoice.belgeTarihi ?? '')]
+            subtitle: [invoice.belgeNumarasi, formatDateHuman(invoice.belgeTarihi ?? ''), hint]
               .filter(Boolean)
               .join(' · '),
             title: invoice.aliciUnvanAdSoyad || UNNAMED_CUSTOMER,
