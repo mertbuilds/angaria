@@ -390,7 +390,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
   const eArchive = useMutation({
     mutationFn: async (file: EArchiveFile) => {
       toastPreparing(
-        file === 'pdf' ? 'e-Arşiv PDF hazırlanıyor…' : 'e-Arşiv faturası kaydediliyor…',
+        file === 'pdf' ? 'e-Arşiv PDF hazırlanıyor…' : 'GİB’den alınıyor…',
         `earsiv-${ettn}`,
       );
       const filename = buildEArchiveFilename(
