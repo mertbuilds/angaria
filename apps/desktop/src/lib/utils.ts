@@ -23,6 +23,17 @@ export function toGIB(d: Date | undefined): string {
   return d ? format(d, GIB_FORMAT) : '';
 }
 
+const dayMonth = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' });
+const dayMonthYear = new Intl.DateTimeFormat('tr-TR', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
+/** "1 Eki", with the year when it is not this year's. */
+export const shortDate = (date: Date, today = new Date()) =>
+  (date.getFullYear() === today.getFullYear() ? dayMonth : dayMonthYear).format(date);
+
 /** Format a GIB date string as human-readable Turkish (e.g. "19 Mart 2026") */
 export function formatDateHuman(s: string): string {
   const d = parseGIB(s);

@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { fetchTCMBRateTable } from '@/lib/angaria.ts';
 import { formatRate } from '@/lib/invoice-form.ts';
-import { useRateDay } from '@/lib/rate-day.ts';
+import { useRateDay, type RateDay } from '@/lib/rate-day.ts';
 import type { InvoiceFormValues } from '@/lib/types.ts';
 import { parseGIB } from '@/lib/utils.ts';
 import type { InvoiceForm } from './use-invoice-form.ts';
@@ -19,6 +19,17 @@ export type RateDescription =
   | { kind: 'unpublished' };
 
 /**
+ * TCMB's bulletin for an invoice dated `rateDate` (GİB's format, empty:
+ * today) by the Kur günü setting.
+ */
+export const tcmbRatesQuery = (rateDate: string, rateDay: RateDay) =>
+  queryOptions({
+    queryFn: () => fetchTCMBRateTable(parseGIB(rateDate), rateDay),
+    queryKey: ['tcmb-rates', rateDate, rateDay],
+    staleTime: 5 * 60 * 1000,
+  });
+
+/**
  * TCMB's buying rate for the invoice's currency and date, from the bulletin
  * the Kur günü setting picks. It fills the rate field until the user types one;
  * while it is loading, failed or not published, the field is empty, so another
@@ -30,12 +41,7 @@ export function useCurrencyRate(form: InvoiceForm, values: InvoiceFormValues) {
   const rateDate = values.advancedFields.manualDate;
   const rateManual = values.advancedFields.currencyRateManual === true;
   const rateDay = useRateDay();
-  const rates = useQuery({
-    enabled: foreign,
-    queryFn: () => fetchTCMBRateTable(parseGIB(rateDate), rateDay),
-    queryKey: ['tcmb-rates', rateDate, rateDay],
-    staleTime: 5 * 60 * 1000,
-  });
+  const rates = useQuery({ ...tcmbRatesQuery(rateDate, rateDay), enabled: foreign });
   const tcmbRate = foreign ? rates.data?.rates.get(currency) : undefined;
 
   useEffect(() => {

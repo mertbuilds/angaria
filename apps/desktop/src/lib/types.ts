@@ -55,6 +55,15 @@ export interface InvoiceItem {
   VATRate: number;
 }
 
+/**
+ * A saved service (Hizmetler): an invoice line and the currency of its price,
+ * an ISO code from the invoice's currency list. One saved before services had
+ * a currency has none: its price counts in the invoice's currency.
+ */
+export interface Service extends InvoiceItem {
+  currency?: string;
+}
+
 export interface AdvancedInvoiceFields {
   /** true once the rate was typed in: the TCMB rate no longer fills it */
   currencyRateManual?: boolean;
@@ -122,7 +131,7 @@ export interface CompanyInfo {
 export interface EntityData {
   companyInfo: CompanyInfo;
   creds: StoredCredentials;
-  savedItems: Array<InvoiceItem>;
+  savedItems: Array<Service>;
   savedRecipients: Array<Recipient>;
 }
 

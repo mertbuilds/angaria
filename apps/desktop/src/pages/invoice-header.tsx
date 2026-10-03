@@ -26,7 +26,7 @@ import { CURRENCY_OPTIONS, formatRate, istisnaNote } from '@/lib/invoice-form.ts
 import { DUE_DAY_PRESETS, ISTISNA_REASONS, SUPPORTED_INVOICE_TYPES } from '@/lib/regulated.ts';
 import { gibToCalendarDate } from '@/lib/tr-date.ts';
 import type { InvoiceFormValues } from '@/lib/types.ts';
-import { parseGIB, toGIB } from '@/lib/utils.ts';
+import { parseGIB, shortDate, toGIB } from '@/lib/utils.ts';
 import { invoiceTypeLabel } from '@/shell/searchable-list.tsx';
 import { DecimalTextField } from './decimal-text-field.tsx';
 import { Section, sectionStyles } from './invoice-section.tsx';
@@ -109,7 +109,8 @@ const DEFAULT_ISTISNA_CODE = '302';
 
 const PINNED_CURRENCIES = ['TRY', 'USD', 'EUR', 'GBP'];
 
-const CURRENCY_CHOICES = PINNED_CURRENCIES.map((value) => ({ label: value, value }));
+/** Para birimi's chips: TRY, USD, EUR and GBP. Diğer finds any of GİB's other currencies. */
+export const CURRENCY_CHOICES = PINNED_CURRENCIES.map((value) => ({ label: value, value }));
 
 const OTHER_CURRENCIES = CURRENCY_OPTIONS.filter(
   (option) => !PINNED_CURRENCIES.includes(option.value),
@@ -131,17 +132,6 @@ function presetDueDays(invoiceDate: string, dueDate: string) {
   const days = differenceInCalendarDays(due, parseGIB(invoiceDate) ?? new Date());
   return DUE_DAY_PRESETS.includes(days) ? days : undefined;
 }
-
-const dayMonth = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' });
-const dayMonthYear = new Intl.DateTimeFormat('tr-TR', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-});
-
-/** "1 Eki", with the year when it is not this year's. */
-const shortDate = (date: Date) =>
-  (date.getFullYear() === new Date().getFullYear() ? dayMonth : dayMonthYear).format(date);
 
 /** The rate field's caption: where the rate comes from, or why it is missing. */
 function rateCaption(description: RateDescription | null): ReactNode {
@@ -256,7 +246,7 @@ function InvoiceTypeField({ description }: { description?: ReactNode }) {
 }
 
 /** Diğer's input for the currency: any of GİB's other currencies, by code or name. */
-function OtherCurrency({
+export function OtherCurrency({
   id,
   onChange,
   value,

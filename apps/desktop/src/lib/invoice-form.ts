@@ -18,6 +18,7 @@ import type {
   InvoiceItem,
   PDFLanguage,
   Recipient,
+  Service,
 } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
 
@@ -521,14 +522,16 @@ export function invoiceDefaults(
 }
 
 /**
- * Saved services after an invoice: each named row replaces the service of the
- * same name (keeping its id) or is added as a new one.
+ * Saved services after an invoice in `currency`: each named row replaces the
+ * service of the same name (keeping its id) or is added as a new one, priced
+ * in the invoice's currency.
  */
 export function upsertSavedItems(
-  saved: ReadonlyArray<InvoiceItem>,
+  saved: ReadonlyArray<Service>,
   items: ReadonlyArray<InvoiceItem>,
   newId: () => string,
-): Array<InvoiceItem> {
+  currency: string,
+): Array<Service> {
   const next = [...saved];
   for (const item of items) {
     const name = item.name.trim();
@@ -537,9 +540,9 @@ export function upsertSavedItems(
     }
     const index = next.findIndex((service) => service.name === name);
     if (index === -1) {
-      next.push({ ...item, id: newId(), name });
+      next.push({ ...item, currency, id: newId(), name });
     } else {
-      next[index] = { ...item, id: next[index].id, name };
+      next[index] = { ...item, currency, id: next[index].id, name };
     }
   }
   return next;
