@@ -23,7 +23,7 @@ packages/
 | Command          | What                                                                            |
 | ---------------- | ------------------------------------------------------------------------------- |
 | `pnpm dev`       | mprocs: desktop, gib emulator, web (`https://angaria.localhost`)                |
-| `pnpm emulate`   | GİB and TCMB emulator on `http://127.0.0.1:5180` (packages/gib-emulator)        |
+| `pnpm emulate`   | GİB and TCMB emulator on `http://127.0.0.1:5180`, restarts on code changes      |
 | `pnpm build`     | turbo build (workspace packages first, then the desktop and web apps)           |
 | `pnpm typecheck` | `tsc --noEmit` per package via turbo                                            |
 | `pnpm lint`      | builds packages and web, then oxlint type-aware + TS errors (tsgolint)          |
