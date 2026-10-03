@@ -317,11 +317,12 @@ describe('dispatch', () => {
       onayDurumu: 'Onaylanmadı',
     });
     const html = String(page.data);
-    expect(html).toContain('<div id="qrcode" align="right"></div>');
+    expect(html).toContain('<div id="qrcode"></div>');
     expect(html).toContain('makeCode(document.getElementById("qrvalue").innerHTML);');
-    const qr = /<div id="qrvalue"[^>]*>([^<]*)<\/div>/.exec(html)?.[1] ?? '';
+    const qr = /<div [^>]*id="qrvalue">([^<]*)<\/div>/.exec(html)?.[1] ?? '';
     expect(JSON.parse(qr)).toMatchObject({
-      avkntckn: '11111111111',
+      // The portal's XSLT leaves a space after the buyer's ID.
+      avkntckn: '11111111111 ',
       ettn: row.ettn,
       no: row.belgeNumarasi,
       senaryo: 'EARSIVFATURA',
@@ -346,7 +347,9 @@ describe('dispatch', () => {
       onayDurumu: 'Onaylanmadı',
     });
     const quantities = Array.from(
-      String(page.data).matchAll(/<td class="lineTableTd" align="right">&nbsp;(\d+ [^<]*)<\/td>/g),
+      String(page.data).matchAll(
+        /<tr class="lineTableTr"><td class="lineTableTd">&nbsp;\d+<\/td><td class="lineTableTd">&nbsp;[^<]*<\/td><td align="right" class="lineTableTd">&nbsp;([^<]*)<\/td>/g,
+      ),
       ([, quantity]) => quantity,
     );
     expect(quantities).toEqual(['2 Saat', '3 Adet', '4 kg', '5 XYZ']);
@@ -445,6 +448,189 @@ describe('dispatch', () => {
   });
 });
 
+const show = async (token: string, ettn: string) =>
+  dispatch(token, 'EARSIV_PORTAL_FATURA_GOSTER', { ettn, onayDurumu: 'Onaylandı' });
+const page = async (token: string, ettn: string) => String((await show(token, ettn)).data);
+
+async function seed(fixture: Record<string, unknown>) {
+  const seeded = (await (
+    await admin('POST', '/seed', {
+      invoices: [{ date: '01/09/2026', userid: '33333301', ...fixture }],
+    })
+  ).json()) as { invoices: Array<{ ettn: string }> };
+  return seeded.invoices[0].ettn;
+}
+
+const columns = (html: string) =>
+  Array.from(
+    html.matchAll(/<td align="center" style="[^"]*" class="lineTableTd"><span [^>]*>([^<]*)</g),
+    ([, label]) => label,
+  );
+const lineRows = (html: string) => (html.match(/<tr class="lineTableTr">/g)?.length ?? 0) - 1;
+const emptyRows = (html: string) =>
+  html.match(/<tr class="lineTableTr"><td class="lineTableTd">&nbsp;<\/td>/g)?.length ?? 0;
+/** The totals block's rows: label and value. */
+const totals = (html: string) =>
+  Array.from(
+    /id="budgetContainerTable">([\s\S]*?)<\/table><\/td><\/tr><\/tbody><\/table>/
+      .exec(html)?.[1]
+      .matchAll(/<span [^>]*>([^<]*)<\/span><\/td><td [^>]*>(?:<span>)?([^<]*)/g) ?? [],
+    ([, label, value]) => [label, value.trim()],
+  );
+const watermark = /<p style='[^']*color:lightcoral'>İPTAL EDİLMİŞ<\/p>/;
+
+describe('invoice page', () => {
+  test('lays out a SATIŞ invoice like the portal: columns, 20 line rows, totals and note', async () => {
+    const { token } = await login();
+    const row = await createDraft(token, {
+      malhizmetToplamTutari: '100.00',
+      not: 'Teşekkürler',
+      toplamIskonto: '0.00',
+      vergilerDahilToplamTutar: '120.00',
+    });
+    const html = await page(token, row.ettn);
+
+    expect(html).toMatch(/^<!DOCTYPE html PUBLIC "-\/\/W3C\/\/DTD HTML 4.01 Transitional\/\/EN"/);
+    expect(html).toContain('<body id=mainbody ');
+    expect(html).toContain('<img src="data:image/svg+xml;base64,');
+    expect(html).toContain('<h1 align="center"><span style="font-weight:bold; ">e-Arşiv Fatura');
+    expect(columns(html)).toEqual([
+      'Sıra No',
+      'Mal Hizmet',
+      'Miktar',
+      'Birim Fiyat',
+      'İskonto/ Arttırım Oranı',
+      'İskonto/ Arttırım Tutarı',
+      'İskonto/ Arttırım Nedeni',
+      'KDV Oranı',
+      'KDV Tutarı',
+      'Diğer Vergiler',
+      'Mal Hizmet Tutarı',
+    ]);
+    expect(lineRows(html)).toBe(20);
+    expect(emptyRows(html)).toBe(19);
+    expect(html).toContain(
+      '<td align="right" class="lineTableTd">&nbsp; %0,00</td><td align="right" class="lineTableTd">&nbsp;0,00 TL</td><td align="right" class="lineTableTd">&nbsp;İskonto - </td><td align="right" class="lineTableTd">&nbsp;  %20,00</td><td align="right" class="lineTableTd">&nbsp; 20,00 TL</td>',
+    );
+    expect(totals(html)).toEqual([
+      ['Mal Hizmet Toplam Tutarı', '100,00 TL'],
+      ['Toplam İskonto', '0,00 TL'],
+      ['Hesaplanan KDV(%20)', '20,00 TL'],
+      ['Vergiler Dahil Toplam Tutar', '120,00 TL'],
+      ['&Ouml;denecek Tutar', '120,00 TL'],
+    ]);
+    expect(html).toContain('<b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Not: </b>Teşekk&uuml;rler<br>');
+    expect(html).toContain('Fatura Tarihi:</span></td><td align="left">');
+    expect(html).toMatch(/ETTN:&nbsp;<\/span>[\da-f-]{36}<\/td>/);
+    expect(html).not.toMatch(watermark);
+  });
+
+  test('fills the buyer block the way the XSLT does, empty fields included', async () => {
+    const { token } = await login();
+    const row = await createDraft(token, {
+      aliciAdi: '',
+      aliciSoyadi: '',
+      aliciUnvan: 'NORTHWIND LLC',
+      bulvarcaddesokak: '350 Fifth Avenue',
+      sehir: ' ',
+      ulke: 'Amerika Birleşik Dev',
+      vknTckn: '2222222222',
+    });
+    const html = await page(token, row.ettn);
+    expect(html).toContain(
+      '<td align="left" style="width:469px; ">NORTHWIND LLC<br></td></tr><tr><td align="left" style="width:469px; ">350 Fifth Avenue&nbsp; No:&nbsp;<br>Kapı No:&nbsp;<br>&nbsp;/  &nbsp;Amerika Birleşik Dev&nbsp;</td></tr><tr align="left"><td>Web Sitesi: </td></tr><tr align="left"><td>E-Posta: </td></tr><tr align="left"><td align="left" style="width:469px; ">Tel:  Fax: &nbsp;</td></tr><tr align="left"><td>VKN: 2222222222</td></tr>',
+    );
+  });
+
+  test('an İSTİSNA invoice in dollars adds GTİP, the exchange rate and the lira amounts', async () => {
+    const { token } = await login();
+    const ettn = await seed({
+      amount: 1000,
+      country: 'Amerika Birleşik Dev',
+      currency: 'USD',
+      note: '350 - Diğerleri.',
+      rate: 41.5,
+      status: 'Onaylandı',
+      vatRate: 0,
+    });
+    const html = await page(token, ettn);
+
+    expect(columns(html).at(-1)).toBe('GTİP');
+    expect(emptyRows(html)).toBe(19);
+    expect(
+      html.match(/<tr class="lineTableTr"><td class="lineTableTd">&nbsp;<\/td>(.*?)<\/tr>/)?.[1],
+    ).toBe(
+      '<td class="lineTableTd">&nbsp;</td>' +
+        '<td align="right" class="lineTableTd">&nbsp;</td>'.repeat(10),
+    );
+    expect(html).toContain(
+      '<td align="right" class="lineTableTd">&nbsp;1 Adet</td><td align="right" class="lineTableTd">&nbsp;1.000 USD</td>',
+    );
+    expect(html).toContain('Fatura Tipi:</span></td><td align="left">ISTISNA</td>');
+    expect(totals(html)).toEqual([
+      ['Mal Hizmet Toplam Tutarı', '1.000,00 USD'],
+      ['Toplam İskonto', '0,00 USD'],
+      ['Hesaplanan KDV(%0)', '0,00 USD'],
+      ['Vergiler Dahil Toplam Tutar', '1.000,00 USD'],
+      ['&Ouml;denecek Tutar', '1.000,00 USD'],
+      ['D&ouml;viz Kuru', '41,5000'],
+      ['Hesaplanan KDV(%0) (TL)', '0,00 TL'],
+      ['Mal Hizmet Toplam Tutarı(TL)', '41.500,00 TL'],
+      ['Vergiler Dahil Toplam Tutar(TL)', '41.500,00 TL'],
+      ['&Ouml;denecek Tutar(TL)', '41.500,00 TL'],
+    ]);
+    expect(html).toContain('Not: </b>350 - Diğerleri.<br>');
+  });
+
+  test('a cancelled invoice carries the İPTAL EDİLMİŞ watermark, a pending or rejected request does not', async () => {
+    const { token } = await login();
+    const cancelled = await seed({ cancellation: 'accepted' });
+    const pending = await seed({ cancellation: 'pending' });
+    const rejected = await seed({ cancellation: 'rejected' });
+    const signed = await seed({ status: 'Onaylandı' });
+
+    const html = await page(token, cancelled);
+    expect(html).toMatch(watermark);
+    expect(html.indexOf('İPTAL EDİLMİŞ')).toBeLessThan(html.indexOf('id="lineTable"'));
+    for (const ettn of [pending, rejected, signed]) {
+      expect(await page(token, ettn)).not.toMatch(watermark);
+    }
+  });
+
+  test('lists a cancelled invoice as Onaylandı with its İptal/İtiraz Durumu', async () => {
+    for (const [cancellation, status] of [
+      ['pending', '0'],
+      ['accepted', '1'],
+      ['rejected', '2'],
+    ]) {
+      await seed({ cancellation });
+      const { cookie, token } = await login();
+      const list = await dispatch(token, 'EARSIV_PORTAL_TASLAKLARI_GETIR', {
+        baslangic: '01/09/2026',
+        bitis: '01/09/2026',
+      });
+      expect(list.data).toEqual([
+        expect.objectContaining({
+          iptalItiraz: '0',
+          iptalItirazDurumu: status,
+          onayDurumu: 'Onaylandı',
+        }),
+      ]);
+      await post('/earsiv-services/assos-login', { assoscmd: 'logout', token }, cookie);
+      await emulator.reset();
+    }
+  });
+
+  test('does not show a deleted draft', async () => {
+    const { token } = await login();
+    const ettn = await seed({ status: 'Silinmiş' });
+    expect(await show(token, ettn)).toMatchObject({
+      error: '1',
+      messages: [{ text: messages.deletedNotShown }],
+    });
+  });
+});
+
 describe('chaos', () => {
   test('a text fault answers HTTP 200 with the error text in data and creates nothing', async () => {
     await admin('POST', '/faults', { cmd: 'EARSIV_PORTAL_FATURA_OLUSTUR', kind: 'text' });
@@ -456,7 +642,7 @@ describe('chaos', () => {
       messages.draftCreated,
     );
     const state = (await (await admin('GET', '/state')).json()) as { invoices: Array<unknown> };
-    expect(state.invoices).toHaveLength(4);
+    expect(state.invoices).toHaveLength(5);
   });
 
   test('a 5xx fault answers an HTML error page', async () => {
@@ -621,7 +807,7 @@ describe('access', () => {
     });
     expect(seed.status).toBe(403);
     const state = (await (await admin('GET', '/state')).json()) as { invoices: Array<unknown> };
-    expect(state.invoices).toHaveLength(3);
+    expect(state.invoices).toHaveLength(4);
 
     const local = await raw('/__emulator/state', { headers: { origin: 'http://localhost:5173' } });
     expect(local.status).toBe(200);
