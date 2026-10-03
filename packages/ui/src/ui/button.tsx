@@ -55,9 +55,13 @@ const styles = create({
       default: null,
     },
     position: 'relative',
-    // Tactile press feedback; the CSS transition stays interruptible.
+    // Tactile press feedback; the CSS transition stays interruptible. Never on
+    // a popup trigger, however it is composed: Base UI measures the trigger as
+    // its popup opens, so a pressed trigger opens the popup off by the press
+    // and the popup jumps when the trigger springs back.
     scale: {
-      ':active': '0.96',
+      ':active:not(:is([aria-haspopup], [aria-expanded], [data-popup-open], [data-slot$="-trigger"]))':
+        '0.96',
       default: '1',
     },
     // Buttons often render as <a> via the `render` prop: no anchor underline.
@@ -135,6 +139,9 @@ const styles = create({
     },
     color: colors.secondaryForeground,
   },
+  still: {
+    scale: '1',
+  },
 });
 
 export type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
@@ -153,6 +160,12 @@ const variantStyles: Record<ButtonVariant, StyleXStyles> = {
 
 export type ButtonProps = Omit<ButtonPrimitive.Props, 'className' | 'style'> & {
   className?: string | undefined;
+  /**
+   * The press scale. Off for a button that anchors a popup without being its
+   * trigger; a trigger (aria-haspopup, aria-expanded, data-popup-open or a
+   * `*-trigger` data-slot) never moves anyway.
+   */
+  pressMotion?: boolean | undefined;
   size?: ButtonSize | undefined;
   style?: StyleXStyles | undefined;
   variant?: ButtonVariant | undefined;
@@ -181,6 +194,7 @@ const Button = ({
   // Without a `render` prop this is a <button>; with one, pass
   // `nativeButton` when the rendered element is still a <button>.
   nativeButton = render === undefined,
+  pressMotion = true,
   size = 'default',
   style,
   variant = 'default',
@@ -191,6 +205,7 @@ const Button = ({
     variantStyles[variant],
     size === 'icon' && styles.icon,
     disabled && (!nativeButton || focusableWhenDisabled) && styles.disabledLink,
+    !pressMotion && styles.still,
     customClassName(className),
     style,
   );
