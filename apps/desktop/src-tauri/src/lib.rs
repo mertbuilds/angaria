@@ -1,3 +1,4 @@
+mod downloads;
 pub mod mcp;
 pub mod pdf;
 mod secrets;
@@ -43,7 +44,8 @@ pub fn run() {
       mcp::mcp_token,
       mcp::mcp_rotate_token,
       mcp::mcp_install,
-      pdf::html_to_pdf
+      pdf::html_to_pdf,
+      downloads::save_download
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")

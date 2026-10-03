@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "start": "node src/cli.ts",
+    "start": "node --watch --watch-preserve-output src/cli.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

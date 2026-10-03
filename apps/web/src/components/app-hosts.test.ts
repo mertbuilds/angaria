@@ -11,7 +11,11 @@ test('names exactly the hosts the desktop app reaches in production', () => {
   const http = capabilities.permissions.find(
     (permission) => typeof permission === 'object' && permission.identifier === 'http:default',
   );
-  const allowed = typeof http === 'object' ? http.allow.map(({ url }) => hostOf(url)) : [];
+  // Other permissions' scopes (opener's paths) share the inferred entry type.
+  const allowed =
+    typeof http === 'object'
+      ? http.allow.flatMap((entry) => ('url' in entry ? [hostOf(entry.url)] : []))
+      : [];
   const updater = tauriConfig.plugins.updater.endpoints.map(hostOf);
   const production = [...new Set([...allowed, ...updater])];
 

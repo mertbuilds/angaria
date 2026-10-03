@@ -12,6 +12,8 @@ pnpm emulate                                   # repo root, also the `gib` pane 
 
 It listens on `http://127.0.0.1:5180` and registers two portless aliases for the same server: `https://gib.angaria.localhost` and `https://tcmb.angaria.localhost`. The port is fixed (outside portless's 4000-4999 `PORT` pool) because the desktop app's dev allowlist names it.
 
+It runs under `node --watch` and restarts when its code changes, so a pull or a merge never leaves the old emulator serving. A restart starts the state over: documents created since the start, open sessions and SMS codes are gone, and the app logs in afresh with its next call. To keep documents, numbering and edited profiles across restarts, give it a snapshot file outside the repo: `pnpm emulate --state ~/gib-emulator.json` ([Knobs](#knobs)).
+
 Every SMS code, created draft, login and force logout is logged in the terminal.
 
 | User       | Password  | Notes                                                                                                                         |

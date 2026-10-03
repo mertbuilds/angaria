@@ -32,6 +32,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { cancelInvoice, downloadInvoice } from '@/lib/angaria.ts';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { defaultPDFLanguage, findCustomer } from '@/lib/customer.ts';
+import { toastDownloaded, toastPreparing } from '@/lib/download-toast.tsx';
 import { fetchForeground } from '@/lib/foreground-fetch.ts';
 import {
   cachedInvoices,
@@ -355,7 +356,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
 
   const pdf = useMutation({
     mutationFn: async (language: PDFLanguage) => {
-      toast.loading('PDF hazırlanıyor…', { id: `pdf-${ettn}` });
+      toastPreparing('PDF hazırlanıyor…', `pdf-${ettn}`);
       const { items, note, recipient, settings, subtotal, vat } = await readDetail();
       // The QR code's text sits in GİB's preview, which the pane shows already.
       const html = await queryClient.fetchQuery(
@@ -363,7 +364,7 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
       );
       // react-pdf is large, so it loads with the first PDF.
       const { downloadInvoicePDF } = await import('@/components/invoice-pdf.tsx');
-      await downloadInvoicePDF({
+      return downloadInvoicePDF({
         company: companyInfo,
         date: invoice.belgeTarihi ?? '',
         dueDate: dueDateOf(ettn),
@@ -383,14 +384,15 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     },
     // Errors get the app-wide toast; this one only replaces the spinner.
     onError: () => toast.dismiss(`pdf-${ettn}`),
-    onSuccess: () => toast.success('PDF indirildi', { id: `pdf-${ettn}` }),
+    onSuccess: (file) => toastDownloaded(`pdf-${ettn}`, 'PDF indirildi', file),
   });
 
   const eArchive = useMutation({
     mutationFn: async (file: EArchiveFile) => {
-      toast.loading(file === 'pdf' ? 'e-Arşiv PDF hazırlanıyor…' : 'GİB’den indiriliyor…', {
-        id: `earsiv-${ettn}`,
-      });
+      toastPreparing(
+        file === 'pdf' ? 'e-Arşiv PDF hazırlanıyor…' : 'GİB’den indiriliyor…',
+        `earsiv-${ettn}`,
+      );
       const filename = buildEArchiveFilename(
         {
           companyName: companyInfo.name,
@@ -405,21 +407,16 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
         const zip = await gib.run(account, (session) =>
           downloadInvoice(session, ettn, invoice.onayDurumu ?? ''),
         );
-        saveFile(new Blob([zip], { type: 'application/zip' }), filename);
-      } else {
-        // The page the pane shows: GİB's HTML, QR code drawn in, no scripts.
-        const html = await queryClient.fetchQuery(
-          invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
-        );
-        saveFile(new Blob([await htmlToPDF(html)], { type: 'application/pdf' }), filename);
+        return saveFile(new Blob([zip], { type: 'application/zip' }), filename);
       }
-      return file;
+      // The page the pane shows: GİB's HTML, QR code drawn in, no scripts.
+      const html = await queryClient.fetchQuery(
+        invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
+      );
+      return saveFile(new Blob([await htmlToPDF(html)], { type: 'application/pdf' }), filename);
     },
     onError: () => toast.dismiss(`earsiv-${ettn}`),
-    onSuccess: (file) =>
-      toast.success(file === 'pdf' ? 'e-Arşiv PDF indirildi' : 'ZIP indirildi', {
-        id: `earsiv-${ettn}`,
-      }),
+    onSuccess: (file) => toastDownloaded(`earsiv-${ettn}`, 'e-Arşiv faturası indirildi', file),
   });
 
   const remove = useMutation({

@@ -135,6 +135,7 @@ import {
 import { StrictMode, useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { DOWNLOAD_TOAST_DURATION, FileName } from '../lib/download-toast.tsx';
 import { paletteChoices, paletteLabels, type PaletteChoice } from '../lib/palette.ts';
 import { GTIP_MASK, IBAN_MASK, isValidTRIBAN, TR_PHONE_MASK } from '../lib/tr-validators.ts';
 import '@angaria/ui/fonts.css';
@@ -972,6 +973,22 @@ function Showcase() {
           </Button>
           <Button onClick={() => toast.error('GİB oturumu kapandı')} variant="outline">
             Hata bildirimi
+          </Button>
+          <Button
+            onClick={() =>
+              toast.success('e-Arşiv faturası indirildi', {
+                action: { label: 'Finder’da göster', onClick: () => {} },
+                cancel: { label: 'Aç', onClick: () => {} },
+                closeButton: true,
+                description: (
+                  <FileName name="e-Arsiv-Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-GIB2026000000001.pdf" />
+                ),
+                duration: DOWNLOAD_TOAST_DURATION,
+              })
+            }
+            variant="outline"
+          >
+            İki eylemli bildirim
           </Button>
         </div>
       </Section>

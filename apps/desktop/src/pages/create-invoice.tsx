@@ -8,6 +8,7 @@ import type { SessionInfo } from 'angaria-earsiv-sdk';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { createDraftInvoice, getDrafts } from '@/lib/angaria.ts';
 import { customerName, defaultPDFLanguage, findCustomer, learnCustomer } from '@/lib/customer.ts';
+import { toastDownloaded, toastPreparing } from '@/lib/download-toast.tsx';
 import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
 import { saveDueDate } from '@/lib/invoice-due-dates.ts';
 import {
@@ -301,7 +302,7 @@ export function CreateInvoicePage() {
       revealFirstError(rootRef.current);
       return;
     }
-    const id = toast.loading('PDF hazırlanıyor…');
+    const id = toastPreparing('PDF hazırlanıyor…');
     const data = toPDFData(source, {
       company: companyInfo,
       date: created?.date,
@@ -315,7 +316,7 @@ export function CreateInvoicePage() {
     // react-pdf is large, so it loads with the first PDF.
     import('@/components/invoice-pdf.tsx')
       .then(({ downloadInvoicePDF }) => downloadInvoicePDF(data))
-      .then(() => toast.success('PDF indirildi', { id }))
+      .then((file) => toastDownloaded(id, 'PDF indirildi', file))
       .catch(() => toast.error('PDF oluşturulamadı. Tekrar dene.', { id }));
   };
 
