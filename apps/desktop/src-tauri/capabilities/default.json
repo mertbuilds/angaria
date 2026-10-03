@@ -19,6 +19,7 @@
     "allow-mcp-token",
     "allow-mcp-rotate-token",
     "allow-mcp-install",
+    "allow-html-to-pdf",
     "updater:default",
     "process:allow-restart",
     "os:allow-hostname",

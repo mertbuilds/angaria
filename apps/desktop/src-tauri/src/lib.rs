@@ -1,4 +1,5 @@
 pub mod mcp;
+pub mod pdf;
 mod secrets;
 
 use tauri::Manager;
@@ -41,7 +42,8 @@ pub fn run() {
       mcp::mcp_respond,
       mcp::mcp_token,
       mcp::mcp_rotate_token,
-      mcp::mcp_install
+      mcp::mcp_install,
+      pdf::html_to_pdf
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
