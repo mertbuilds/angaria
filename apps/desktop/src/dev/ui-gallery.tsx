@@ -94,6 +94,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   Skeleton,
+  SplitButton,
   Switch,
   Table,
   TableBody,
@@ -560,6 +561,20 @@ function Section({ children, title }: { children: ReactNode; title: string }) {
   );
 }
 
+function DownloadOptions() {
+  return (
+    <DropdownMenuContent align="end">
+      <DropdownMenuLabel>e-Arşiv faturası (GİB)</DropdownMenuLabel>
+      <DropdownMenuItem>e-Arşiv PDF</DropdownMenuItem>
+      <DropdownMenuItem>HTML/ZIP (GİB)</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Angaria PDF</DropdownMenuLabel>
+      <DropdownMenuItem>Türkçe</DropdownMenuItem>
+      <DropdownMenuItem>İngilizce</DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+}
+
 function Showcase() {
   const [englishPdf, setEnglishPdf] = useState(false);
   const [lines, setLines] = useState(true);
@@ -595,6 +610,37 @@ function Showcase() {
           </Button>
           <Button disabled>Devre dışı</Button>
           <Button render={<a href="#gallery" />}>Bağlantı olarak</Button>
+        </div>
+      </Section>
+
+      <Section title="SplitButton">
+        <div {...props(styles.row)}>
+          <SplitButton menu={<DownloadOptions />} menuLabel="İndirme seçenekleri">
+            <DownloadIcon />
+            Angaria PDF (Türkçe)
+          </SplitButton>
+          <SplitButton menu={<DownloadOptions />} menuLabel="İndirme seçenekleri" variant="outline">
+            e-Arşiv PDF
+          </SplitButton>
+          <SplitButton
+            menu={<DownloadOptions />}
+            menuLabel="İndirme seçenekleri"
+            variant="secondary"
+          >
+            İkincil
+          </SplitButton>
+          <SplitButton disabled menu={<DownloadOptions />} menuLabel="İndirme seçenekleri">
+            Devre dışı
+          </SplitButton>
+          <SplitButton
+            disabled
+            menu={<DownloadOptions />}
+            menuDisabled={false}
+            menuLabel="İndirme seçenekleri"
+            variant="outline"
+          >
+            Yalnız menü
+          </SplitButton>
         </div>
       </Section>
 
