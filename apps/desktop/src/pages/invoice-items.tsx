@@ -165,9 +165,10 @@ const styles = create({
     flex: '0 1 14rem',
     minWidth: '9rem',
   },
+  // As wide as NumberInput's stepper field.
   quantity: {
     flexShrink: 0,
-    width: '8.5rem',
+    width: '8rem',
   },
   row: {
     borderTopColor: tones.divider,

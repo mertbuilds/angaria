@@ -28,8 +28,8 @@ const styles = create({
     caretColor: colors.ring,
     color: colors.foreground,
     fontFamily: 'inherit',
+    // Proportional figures: Suisse Intl's tabular 1 has a foot, like a mono font's.
     fontSize: '1.125rem',
-    fontVariantNumeric: 'tabular-nums',
     height: '2.75rem',
     opacity: {
       ':disabled': 0.5,
