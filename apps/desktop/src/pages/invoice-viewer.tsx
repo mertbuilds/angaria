@@ -36,6 +36,7 @@ import {
   type Zoom,
 } from '@/lib/invoice-zoom.ts';
 import { tones } from '../shell/palette.stylex.ts';
+import { shell } from '../shell/shell.stylex.ts';
 
 const isMac = navigator.userAgent.includes('Mac');
 const mod = isMac ? '⌘' : 'Ctrl ';
@@ -142,25 +143,34 @@ const styles = create({
     marginBlock: spacing.s1,
     width: '1px',
   },
+  // The viewer covers the whole window, under the macOS traffic lights.
   viewer: {
-    height: 'calc(100dvh - 2rem)',
+    backgroundColor: colors.bg,
+    borderRadius: 0,
+    borderWidth: 0,
+    height: '100dvh',
     maxHeight: 'none',
     maxWidth: 'none',
-    width: 'calc(100vw - 2rem)',
+    width: '100vw',
   },
-  // The dialog's body pads by 1rem and sizes to its content.
-  viewerLayout: {
+  // The dialog's body pads and scrolls; the viewer lies over the whole popup.
+  viewerFrame: {
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.s4,
-    height: 'calc(100dvh - 4rem)',
-    minHeight: 0,
+    inset: 0,
+    position: 'absolute',
   },
+  // The shell's toolbar height, and room for the traffic lights on the left.
   viewerBar: {
     alignItems: 'center',
+    boxSizing: 'border-box',
     display: 'flex',
-    flexWrap: 'wrap',
+    flexShrink: 0,
     gap: spacing.s2,
+    height: shell.toolbarHeight,
+    paddingInlineEnd: spacing.s4,
+    paddingInlineStart: shell.trafficLightsInset,
+    userSelect: 'none',
   },
   viewerTitle: {
     flex: 1,
@@ -170,8 +180,6 @@ const styles = create({
     whiteSpace: 'nowrap',
   },
   viewerPaper: {
-    backgroundColor: colors.bg,
-    borderRadius: radius.base,
     paddingTop: spacing.s6,
   },
 });
@@ -538,9 +546,12 @@ export function InvoiceViewer({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent initialFocus={zoom.scroller} showCloseButton={false} style={styles.viewer}>
-        <div {...props(styles.viewerLayout)}>
-          <div {...props(styles.viewerBar)}>
-            <DialogTitle style={styles.viewerTitle}>{title}</DialogTitle>
+        <div {...props(styles.viewerFrame)}>
+          {/* The window's drag region while the viewer covers it; its controls do not drag. */}
+          <div data-tauri-drag-region {...props(styles.viewerBar)}>
+            <DialogTitle data-tauri-drag-region style={styles.viewerTitle}>
+              {title}
+            </DialogTitle>
             <ZoomControls zoom={zoom} />
             {downloads}
             <DialogClose render={<Button aria-label="Kapat" size="icon" variant="ghost" />}>
