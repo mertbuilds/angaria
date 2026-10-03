@@ -36,7 +36,8 @@ export default defineConfig(({ command, mode }) => {
       // appends its CSS to the main CSS asset; in dev the plugin injects
       // /virtual:stylex.css and its HMR runtime into every HTML page itself.
       // `before: ['base']` keeps the theme's @layer base under every StyleX layer.
-      stylex.vite({ useCSSLayers: { before: ['base'] } }),
+      // Tests inject the rules at runtime, so jsdom renders hold the real CSS.
+      stylex.vite({ runtimeInjection: mode === 'test', useCSSLayers: { before: ['base'] } }),
     ],
     resolve: {
       alias: {
