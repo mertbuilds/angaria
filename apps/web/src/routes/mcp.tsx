@@ -39,7 +39,9 @@ const PROMPTS: ReadonlyArray<{ text: () => string; tools: ReadonlyArray<McpToolN
   { text: m.mcp_prompt_drafts, tools: ['list_invoices'] },
   { text: m.mcp_prompt_detail, tools: ['list_invoices', 'get_invoice'] },
   { text: m.mcp_prompt_services, tools: ['list_services'] },
-  { text: m.mcp_prompt_cancel, tools: ['cancel_invoice'] },
+  { text: m.mcp_prompt_sign, tools: ['request_signing_sms', 'sign_invoices'] },
+  { text: m.mcp_prompt_company, tools: ['list_companies', 'list_invoices'] },
+  { text: m.mcp_prompt_cancel, tools: ['delete_draft'] },
 ];
 
 const SAFETY: ReadonlyArray<{ body: () => string; icon: LucideIcon; title: () => string }> = [
@@ -306,6 +308,12 @@ const styles = create({
     fontFamily: MONO,
     fontSize: 13,
   },
+  toolTitle: {
+    alignItems: 'baseline',
+    columnGap: spacing.s2,
+    display: 'flex',
+    flexWrap: 'wrap',
+  },
   // Wider than the column, like the landing's compare slider, so the app's text stays legible.
   wide: {
     marginInline: 'calc(50% - min(50vw - 16px, 480px))',
@@ -373,9 +381,12 @@ function McpPage() {
         </Reveal>
         <dl {...props(styles.rows)}>
           {MCP_TOOLS.map((tool, index) => (
-            <Reveal index={index + 2} key={tool.name} style={styles.tool}>
+            <Reveal index={Math.min(index, 6) + 2} key={tool.name} style={styles.tool}>
               <dt {...props(styles.toolHead)}>
-                <span {...props(styles.term)}>{tool.title()}</span>
+                <span {...props(styles.toolTitle)}>
+                  <span {...props(styles.term)}>{tool.title()}</span>
+                  {'gated' in tool && <span {...props(styles.chip)}>{m.mcp_tool_gated()}</span>}
+                </span>
                 <code translate="no" {...props(styles.toolName)}>
                   {tool.name}
                 </code>
