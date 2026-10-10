@@ -1,6 +1,7 @@
 import { colors, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
+import { AppIcon } from '../components/app-icon.tsx';
 import { DownloadButton } from '../components/cta.tsx';
 import { CONTACT_EMAIL } from '../components/site-footer.tsx';
 import { layout } from '../lib/layout.ts';
@@ -52,6 +53,7 @@ function Thanks() {
   return (
     <div {...props(styles.page)}>
       <header {...props(styles.header)}>
+        <AppIcon size={64} />
         <h1 {...props(layout.title)}>{m.thanks_title()}</h1>
         <p {...props(layout.text, styles.lead)}>{m.thanks_lead()}</p>
         <DownloadButton location="thanks" />

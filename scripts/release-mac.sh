@@ -38,6 +38,7 @@ BASE_URL="${ANGARIA_DL_BASE_URL:-https://dl.angaria.app}"
 BASE_URL="${BASE_URL%/}"
 APP_NAME="Angaria"
 OUT="$ROOT/dist/release"
+DMGBUILD_VERSION="1.6.7"
 SEMVER_RE='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
 
 bump=""
@@ -87,6 +88,10 @@ fi
 step "install dependencies and rust targets"
 pnpm install --frozen-lockfile
 (cd "$TAURI_DIR" && rustup target add aarch64-apple-darwin x86_64-apple-darwin)
+
+# The dmg step runs dmgbuild through uvx; fetched here, before the secrets too.
+command -v uvx >/dev/null || die "uv not found on PATH, the dmg is built with dmgbuild through uvx"
+uvx --from "dmgbuild==$DMGBUILD_VERSION" dmgbuild --help >/dev/null
 
 # fetch-fonts.sh never fails, so a missing file is caught here: the app's UI
 # and its PDFs ship Suisse Intl, never the Inter fallback.
@@ -276,10 +281,11 @@ fi
 
 step "dmg"
 DMG="$REL/${APP_NAME}_${version}_universal.dmg"
-mkdir "$WORK/dmg"
-/usr/bin/ditto "$APP" "$WORK/dmg/$APP_NAME.app"
-ln -s /Applications "$WORK/dmg/Applications"
-hdiutil create -volname "$APP_NAME" -srcfolder "$WORK/dmg" -fs HFS+ -format UDZO -ov "$DMG"
+# dmgbuild lays out the install window (background, icon positions from
+# bundle.macOS.dmg) by writing its .DS_Store, without a Finder window.
+DMG_DIR="$TAURI_DIR/dmg"
+uvx --from "dmgbuild==$DMGBUILD_VERSION" dmgbuild -s "$DMG_DIR/settings.py" \
+  -D app="$APP" -D dir="$DMG_DIR" "$APP_NAME" "$DMG"
 codesign --force --sign "$APPLE_SIGNING_IDENTITY" --timestamp "$DMG"
 codesign --verify --strict --verbose=2 "$DMG"
 

@@ -15,7 +15,7 @@ scripts/release-mac.sh [patch|minor|major|X.Y.Z] [--publish] [--skip-notarize] [
 3. `tauri build --target universal-apple-darwin --bundles app`. Tauri signs the app with `APPLE_SIGNING_IDENTITY` (hardened runtime). The script strips the Apple ID and API key variables for this step, so Tauri never notarizes on its own (it cannot use a notarytool keychain profile). It strips the `TAURI_SIGNING_PRIVATE_KEY*` variables too: `bundle.createUpdaterArtifacts` is off, so the build never needs the updater key.
 4. Notarizes the app with notarytool and staples it, then checks it with `stapler validate` and `spctl`.
 5. Packs `Angaria.app.tar.gz` from the stapled app and signs it with `tauri signer sign --app-version <version>`. The version binding is required by `plugins.updater.requireSignedVersion`.
-6. Builds the `.dmg` (app plus an Applications link), signs it, notarizes it, staples it, and checks it with `stapler validate` and `spctl`.
+6. Builds the `.dmg` (app plus an Applications link) with dmgbuild through `uvx`: the install window's background and icon positions come from `apps/desktop/src-tauri/dmg` and `bundle.macOS.dmg` (see `dmg/background.html`). Then it signs it, notarizes it, staples it, and checks it with `stapler validate` and `spctl`.
 7. Writes `updates/latest.json`. `darwin-aarch64` and `darwin-x86_64` both point at the universal updater bundle.
 8. With `--publish`: uploads the files below, `updates/latest.json` last, and prints the URLs.
 

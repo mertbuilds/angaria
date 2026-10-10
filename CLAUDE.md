@@ -29,12 +29,13 @@ packages/
 | `pnpm lint`      | builds packages and web, then oxlint type-aware + TS errors (tsgolint)          |
 | `pnpm format`    | oxfmt (write mode); `pnpm format:check` to verify                               |
 | `pnpm test`      | vitest per package via turbo                                                    |
+| `pnpm icons`     | rebuild every app and site icon from `src-tauri/icons/source/` (needs uv)       |
 | `pnpm fonts`     | fetch Suisse Intl woff2 from R2 into packages/ui/fonts and derive the PDF's ttf |
 | `cargo check`    | Rust check, run in `apps/desktop/src-tauri` (needs the MCP bridge built first)  |
 
-Desktop: `pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json` (same as `pnpm dev`; the overlay lets the app reach the emulator), `pnpm --filter desktop tauri build` for a bundle. Both build the MCP bridge first; before a bare `cargo check`, `clippy` or `test` run `pnpm --filter desktop mcp-bridge` once. `pnpm --filter desktop test:mcp` runs the MCP end-to-end test (Rust harness, bridge, emulator).
+Desktop: `pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json` (same as `pnpm dev`; the overlay lets the app reach the emulator), `pnpm --filter desktop tauri build` for a bundle. Both build the MCP bridge first; before a bare `cargo check`, `clippy` or `test` run `pnpm --filter desktop mcp-bridge` once. `pnpm --filter desktop test:mcp` runs the MCP end-to-end test (Rust harness, bridge, emulator). The `.dmg` install window (dot grid and arrow, no text) is `apps/desktop/src-tauri/dmg`: edit `background.html`, run `render-background.sh`, commit the PNGs; the icon positions live in `bundle.macOS.dmg`.
 
-Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders favicon and OG image from Suisse Intl), `run deploy` (build + `wrangler deploy`; not before go-live, and `pnpm deploy` without `run` is pnpm's own command).
+Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders the OG image `public/og.png` with Suisse Intl; the favicons and other icons come from `pnpm icons`), `run deploy` (build + `wrangler deploy`; not before go-live, and `pnpm deploy` without `run` is pnpm's own command).
 
 ## Tooling
 
