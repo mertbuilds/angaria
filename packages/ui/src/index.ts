@@ -112,6 +112,7 @@ export { Input, type InputProps } from './ui/input.tsx';
 export { Kbd, KbdGroup } from './ui/kbd.tsx';
 export { Label, type LabelProps } from './ui/label.tsx';
 export { MaskedInput, type MaskedInputProps } from './ui/masked-input.tsx';
+export { McpIcon } from './ui/mcp-icon.tsx';
 export { NumberInput, type NumberInputProps } from './ui/number-input.tsx';
 export { OTPInput, type OTPInputProps } from './ui/otp-input.tsx';
 export {

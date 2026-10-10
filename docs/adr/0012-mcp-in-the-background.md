@@ -22,6 +22,7 @@ The MCP settings lived in the webview's localStorage (`angaria-mcp`). Rust could
 
 - An agent can reach the tools whenever MCP is on, whether the window is open, closed or the app was quit; the user sees no window or Dock icon for it. With the icon hidden and MCP on, Angaria runs with nothing visible; the MCP page says so where the icon is hidden.
 - Toasts need the window: while it is hidden the activity log still records every call, and the toasts are not seen. macOS notifications for signing and deleting while hidden are not part of this change.
+- Faturalardan içe aktar's offer after a company's first GİB login is shown, and marked shown, only in a visible window: a first login an agent makes while the window is hidden offers it when the window shows.
 - A background start costs a full webview launch (a few seconds) before the first answer; the bridge waits up to 15 seconds.
 - The first launch after an update with MCP off and never opened: the bridge cannot know MCP is off, launches the app, and gets the answer from the webview a moment later.
 - Launching the binary directly (not through LaunchServices) still starts a second instance; macOS's own single-instance handling covers the Dock, Finder, Spotlight and `open`.

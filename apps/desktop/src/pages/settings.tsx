@@ -283,7 +283,7 @@ function GibAccountSection() {
       <SettingsRow label="Şirket">
         <SettingsValue>{activeEntity.name}</SettingsValue>
       </SettingsRow>
-      <SettingsRow htmlFor="gib-username" label="Kullanıcı kodu">
+      <SettingsRow fill htmlFor="gib-username" label="Kullanıcı kodu">
         <Input
           autoComplete="off"
           id="gib-username"
@@ -295,7 +295,7 @@ function GibAccountSection() {
           value={creds.username}
         />
       </SettingsRow>
-      <SettingsRow htmlFor="gib-password" label="Şifre">
+      <SettingsRow fill htmlFor="gib-password" label="Şifre">
         <div {...props(styles.password)}>
           <Input
             autoComplete="off"
@@ -575,7 +575,7 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
   }
 
   return (
-    <SettingsRow align={kind === 'text' ? 'center' : 'top'} htmlFor={id} label={field.label}>
+    <SettingsRow align={kind === 'text' ? 'center' : 'top'} fill htmlFor={id} label={field.label}>
       <SettingsField error={error} id={id} note={note}>
         {(describedBy) => {
           const control = {

@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -30,7 +31,8 @@ const dialogOpen = () => document.querySelector('[role="dialog"], [role="alertdi
 /**
  * The import from past invoices, and its offer: right after a company's first
  * login GİB accepts, once per company, it opens with Atla. Never on Yeni
- * fatura or over another dialog; a later login offers it then.
+ * fatura or over another dialog; a later login offers it then. A login while
+ * the window is hidden (an agent over MCP) offers it when the window shows.
  */
 export function ImportFromGIBProvider({ children }: { children: ReactNode }) {
   const { activeEntity, activeEntityId, markImportOffered } = useStore();
@@ -38,14 +40,18 @@ export function ImportFromGIBProvider({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   // A new key per opening starts the dialog over.
   const [state, setState] = useState({ entityId: '', key: 0, onboarding: false, open: false });
+  // The user code of a login made while the window was hidden.
+  const hiddenLogin = useRef<string | null>(null);
 
   const offer = useEffectEvent((username: string) => {
-    if (
-      activeEntity.importOffered ||
-      activeEntity.creds.username !== username ||
-      pathname.startsWith('/yeni') ||
-      dialogOpen()
-    ) {
+    if (activeEntity.importOffered || activeEntity.creds.username !== username) {
+      return;
+    }
+    if (document.visibilityState === 'hidden') {
+      hiddenLogin.current = username;
+      return;
+    }
+    if (pathname.startsWith('/yeni') || dialogOpen()) {
       return;
     }
     markImportOffered(activeEntity.id);
@@ -58,6 +64,18 @@ export function ImportFromGIBProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => onGIBLogin((username) => offer(username)), []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      const username = hiddenLogin.current;
+      if (document.visibilityState === 'visible' && username !== null) {
+        hiddenLogin.current = null;
+        offer(username);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   const open = useCallback(() => {
     if (requireCredentials()) {
