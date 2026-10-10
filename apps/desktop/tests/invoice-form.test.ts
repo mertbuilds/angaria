@@ -261,10 +261,10 @@ describe('dates and times', () => {
 
 /** validateInvoice's errors for an irsaliye date and an invoice date (empty: today). */
 const irsaliye = (irsaliyeTarihi: string, manualDate: string) =>
-  validateInvoice(
+  invoiceWarnings(
     form({ advancedFields: { ...form().advancedFields, irsaliyeTarihi, manualDate } }),
     today,
-  )?.fields;
+  );
 
 /** validateInvoice's errors for a due date (and an invoice date, empty: today). */
 const due = (dueDate: string, manualDate = '') =>
@@ -405,15 +405,6 @@ describe('validateInvoice', () => {
     },
   );
 
-  test('refuses an irsaliye dated after the invoice', () => {
-    expect(irsaliye('28/09/2026', '28/09/2026')).toBeUndefined();
-    expect(irsaliye('27/09/2026', '28/09/2026')).toBeUndefined();
-    expect(irsaliye('29/09/2026', '28/09/2026')).toEqual({
-      'advancedFields.irsaliyeTarihi': 'İrsaliye tarihi fatura tarihinden sonra olamaz',
-    });
-    expect(irsaliye('01/10/2026', '')).toBeUndefined();
-  });
-
   test('never says lütfen, geçerli or geçersiz, and uses no em dash', () => {
     const result = validateInvoice(
       form({
@@ -458,6 +449,30 @@ describe('invoiceWarnings', () => {
       'advancedFields.manualDate':
         "Bu tarih 7 günden eski. VUK 231/5'e göre fatura, hizmetten sonraki 7 gün içinde kesilmeli.",
     });
+  });
+
+  test('warns about an irsaliye dated after the invoice or today, never blocks it', () => {
+    expect(irsaliye('28/09/2026', '28/09/2026')).toEqual({});
+    expect(irsaliye('27/09/2026', '28/09/2026')).toEqual({});
+    expect(irsaliye('29/09/2026', '28/09/2026')).toEqual({
+      'advancedFields.irsaliyeTarihi':
+        'İrsaliye tarihi fatura tarihinden sonra görünüyor. Kontrol et.',
+    });
+    expect(irsaliye('01/10/2026', '')).toEqual({});
+    expect(irsaliye('02/10/2026', '')).toEqual({
+      'advancedFields.irsaliyeTarihi': 'İrsaliye tarihi bugünden sonra görünüyor. Kontrol et.',
+    });
+    const blocked = validateInvoice(
+      form({
+        advancedFields: {
+          ...form().advancedFields,
+          irsaliyeTarihi: '02/10/2026',
+          manualDate: '28/09/2026',
+        },
+      }),
+      today,
+    );
+    expect(blocked).toBeUndefined();
   });
 
   test('warns about a 0% line on a Satış invoice only', () => {

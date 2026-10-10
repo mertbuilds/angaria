@@ -395,7 +395,12 @@ export function CreateInvoicePage() {
               )}
             </form.AppField>
           </section>
-          <AdvancedSection currency={values.invoiceSettings.currency} form={form} total={total} />
+          <AdvancedSection
+            currency={values.invoiceSettings.currency}
+            form={form}
+            total={total}
+            warnings={warnings}
+          />
         </div>
         <aside {...props(styles.aside)}>
           {success ? (

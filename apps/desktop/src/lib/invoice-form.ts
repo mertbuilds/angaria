@@ -237,12 +237,6 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
     fields['advancedFields.manualDate'] = 'Fatura tarihi bugünden sonra olamaz';
   }
   const invoiceDate = parseGIB(advancedFields.manualDate) ?? today;
-  const irsaliyeDate = parseGIB(advancedFields.irsaliyeTarihi);
-  if (isAfterToday(advancedFields.irsaliyeTarihi, today)) {
-    fields['advancedFields.irsaliyeTarihi'] = 'İrsaliye tarihi bugünden sonra olamaz';
-  } else if (irsaliyeDate && differenceInCalendarDays(irsaliyeDate, invoiceDate) > 0) {
-    fields['advancedFields.irsaliyeTarihi'] = 'İrsaliye tarihi fatura tarihinden sonra olamaz';
-  }
   const dueDate = parseGIB(advancedFields.dueDate);
   if (dueDate && differenceInCalendarDays(dueDate, invoiceDate) < 0) {
     fields['advancedFields.dueDate'] = 'Son ödeme tarihi fatura tarihinden önce olamaz';
@@ -301,6 +295,15 @@ export function invoiceWarnings(values: InvoiceFormValues, today = new Date()) {
   // Angaria does not know the service date, so the rule counts from today.
   if (invoiceDate && differenceInCalendarDays(today, invoiceDate) > INVOICE_WINDOW_DAYS) {
     fields['advancedFields.manualDate'] = INVOICE_WINDOW_WARNING;
+  }
+  // No text sets the irsaliye date against today or the invoice date: a slip, not a rule.
+  const irsaliyeDate = parseGIB(values.advancedFields.irsaliyeTarihi);
+  if (isAfterToday(values.advancedFields.irsaliyeTarihi, today)) {
+    fields['advancedFields.irsaliyeTarihi'] =
+      'İrsaliye tarihi bugünden sonra görünüyor. Kontrol et.';
+  } else if (irsaliyeDate && differenceInCalendarDays(irsaliyeDate, invoiceDate ?? today) > 0) {
+    fields['advancedFields.irsaliyeTarihi'] =
+      'İrsaliye tarihi fatura tarihinden sonra görünüyor. Kontrol et.';
   }
   if (values.invoiceSettings.invoiceType === 'SATIS') {
     values.items.forEach((item, index) => {
