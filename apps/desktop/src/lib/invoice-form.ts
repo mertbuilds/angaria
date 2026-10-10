@@ -190,6 +190,9 @@ export const CURRENCY_OPTIONS = [
   ...GIB_CURRENCIES.filter((currency) => !PINNED_CURRENCIES.includes(currency.value)),
 ].map((currency) => ({ label: `${currency.value} · ${currency.label}`, value: currency.value }));
 
+/** KDV Kanunu 11/1-a: an exempt export carries no KDV. */
+export const ISTISNA_VAT_ERROR = 'İstisna faturada KDV oranı %0 olmalı';
+
 /**
  * Field errors in Turkish, keyed by field name (TanStack Form's form-level
  * validator shape), or undefined when the invoice can go to GİB.
@@ -267,7 +270,7 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
     if (!Number.isInteger(item.VATRate) || item.VATRate < 0 || item.VATRate > 100) {
       fields[at('VATRate')] = 'KDV oranı 0 ile 100 arasında tam sayı olmalı';
     } else if (invoiceSettings.invoiceType === 'ISTISNA' && item.VATRate > 0) {
-      fields[at('VATRate')] = 'İstisna faturada KDV oranı %0 olmalı';
+      fields[at('VATRate')] = ISTISNA_VAT_ERROR;
     }
     // Rows saved before discounts existed have none.
     const discountRate = item.discountRate ?? 0;
@@ -285,6 +288,9 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
   return Object.keys(fields).length > 0 ? { fields } : undefined;
 }
 
+/** VUK 231/5's warning on an invoice date older than the window. */
+export const INVOICE_WINDOW_WARNING = `Bu tarih ${INVOICE_WINDOW_DAYS} günden eski. VUK 231/5'e göre fatura, hizmetten sonraki ${INVOICE_WINDOW_DAYS} gün içinde kesilmeli.`;
+
 /**
  * Rules worth a second look that never block the invoice, keyed by field name
  * like validateInvoice's errors; empty when there are none.
@@ -294,8 +300,7 @@ export function invoiceWarnings(values: InvoiceFormValues, today = new Date()) {
   const invoiceDate = parseGIB(values.advancedFields.manualDate);
   // Angaria does not know the service date, so the rule counts from today.
   if (invoiceDate && differenceInCalendarDays(today, invoiceDate) > INVOICE_WINDOW_DAYS) {
-    fields['advancedFields.manualDate'] =
-      `Bu tarih ${INVOICE_WINDOW_DAYS} günden eski. VUK 231/5'e göre fatura, hizmetten sonraki ${INVOICE_WINDOW_DAYS} gün içinde kesilmeli.`;
+    fields['advancedFields.manualDate'] = INVOICE_WINDOW_WARNING;
   }
   if (values.invoiceSettings.invoiceType === 'SATIS') {
     values.items.forEach((item, index) => {

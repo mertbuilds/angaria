@@ -1,8 +1,17 @@
-import { Field, FieldDescription, FieldError, FieldLabel, FieldWarning } from '@angaria/ui';
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  FieldSource,
+  FieldWarning,
+  type FieldSourceProps,
+} from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, type StyleXStyles } from '@stylexjs/stylex';
 import { createFormHookContexts, useStore } from '@tanstack/react-form';
 import type { ReactNode } from 'react';
+import { messageSource } from './rule-sources.ts';
 
 // What every bound field shares: the form contexts, the touched-error rule and
 // the label/description/error frame. The bound fields live in lib/fields/, the
@@ -46,6 +55,8 @@ export interface FieldProps {
   /** Shown under the control while it has no error. */
   description?: ReactNode;
   label: string;
+  /** The official text the description's rule comes from, linked after it. */
+  source?: FieldSourceProps;
   style?: StyleXStyles;
   /** A rule the value breaks that does not block submit, shown while it has no error. */
   warning?: ReactNode;
@@ -63,6 +74,7 @@ export function FieldFrame({
   error,
   id,
   label,
+  source,
   style,
   warning,
 }: FieldProps & {
@@ -72,8 +84,9 @@ export function FieldFrame({
 }) {
   const describedBy = error
     ? `${id}-error`
-    : [description && `${id}-description`, warning && `${id}-warning`].filter(Boolean).join(' ') ||
-      undefined;
+    : [(description || source) && `${id}-description`, warning && `${id}-warning`]
+        .filter(Boolean)
+        .join(' ') || undefined;
   return (
     <Field data-invalid={error ? true : undefined} style={[compact && styles.compactField, style]}>
       <FieldLabel htmlFor={id} id={`${id}-label`} style={compact ? styles.compactLabel : undefined}>
@@ -81,13 +94,23 @@ export function FieldFrame({
       </FieldLabel>
       {children(describedBy)}
       {error ? (
-        <FieldError id={`${id}-error`}>{error}</FieldError>
+        <FieldError id={`${id}-error`} source={messageSource(error)}>
+          {error}
+        </FieldError>
       ) : (
         <>
-          {description && (
-            <FieldDescription id={`${id}-description`}>{description}</FieldDescription>
+          {(description || source) && (
+            <FieldDescription id={`${id}-description`}>
+              {description}
+              {description && source && ' '}
+              {source && <FieldSource {...source} />}
+            </FieldDescription>
           )}
-          {warning && <FieldWarning id={`${id}-warning`}>{warning}</FieldWarning>}
+          {warning && (
+            <FieldWarning id={`${id}-warning`} source={messageSource(warning)}>
+              {warning}
+            </FieldWarning>
+          )}
         </>
       )}
     </Field>

@@ -96,6 +96,8 @@ export {
   FieldLegend,
   FieldSeparator,
   FieldSet,
+  FieldSource,
+  type FieldSourceProps,
   FieldTitle,
   FieldWarning,
 } from './ui/field.tsx';

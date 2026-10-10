@@ -17,6 +17,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  FieldSource,
   Input,
   MaskedInput,
   Switch,
@@ -62,6 +63,7 @@ import {
   useRateDay,
   type RateDay,
 } from '@/lib/rate-day.ts';
+import { ruleSourceLink } from '@/lib/rule-sources.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import { ibanBankName } from '@/lib/tr-banks.ts';
@@ -423,7 +425,12 @@ function RateDayRow() {
 
   return (
     <SettingsRow
-      hint="Önceki iş günü önerilir: TCMB’nin bir gün önce açıkladığı kur, fatura gününün kurudur"
+      hint={
+        <>
+          Önceki iş günü önerilir: TCMB’nin bir gün önce açıkladığı kur, fatura gününün kurudur{' '}
+          <FieldSource {...ruleSourceLink('exchangeRate')} />
+        </>
+      }
       id="rate-day"
       label="Kur günü"
     >

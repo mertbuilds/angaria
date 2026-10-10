@@ -30,6 +30,7 @@ import {
 } from '@/lib/invoice-form.ts';
 import { useRateDay } from '@/lib/rate-day.ts';
 import { COMMON_UNITS, VAT_RATE_PRESETS } from '@/lib/regulated.ts';
+import { ruleSourceLink } from '@/lib/rule-sources.ts';
 import {
   conversionHint,
   convertAmount,
@@ -646,6 +647,7 @@ function ItemRow({
                   ),
                 }}
                 size="sm"
+                source={istisna ? ruleSourceLink('exportExemption') : undefined}
                 style={styles.vat}
                 warning={vatWarning}
               />
