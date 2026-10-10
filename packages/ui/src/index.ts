@@ -14,7 +14,13 @@ export {
 } from './ui/alert-dialog.tsx';
 export { Badge, type BadgeProps, type BadgeVariant } from './ui/badge.tsx';
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './ui/button.tsx';
-export { Calendar, type CalendarProps } from './ui/calendar.tsx';
+export {
+  Calendar,
+  type CalendarProps,
+  type CalendarRange,
+  RangeCalendar,
+  type RangeCalendarProps,
+} from './ui/calendar.tsx';
 export {
   Card,
   CardAction,

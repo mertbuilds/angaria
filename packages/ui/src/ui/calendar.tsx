@@ -14,6 +14,7 @@ import {
   Heading,
 } from 'react-aria-components/Calendar';
 import { I18nProvider } from 'react-aria-components/I18nProvider';
+import { RangeCalendar as RangeCalendarPrimitive } from 'react-aria-components/RangeCalendar';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 
 const cellSize = '2.25rem';
@@ -76,6 +77,19 @@ const styles = create({
   cellOutside: {
     visibility: 'hidden',
   },
+  // The days between a range's ends: a band, square where it meets them.
+  cellInRange: {
+    backgroundColor: `color-mix(in oklab, ${colors.primary} 15%, transparent)`,
+    borderRadius: 0,
+  },
+  cellRangeEnd: {
+    borderEndStartRadius: 0,
+    borderStartStartRadius: 0,
+  },
+  cellRangeStart: {
+    borderEndEndRadius: 0,
+    borderStartEndRadius: 0,
+  },
   cellSelected: {
     backgroundColor: colors.primary,
     color: colors.primaryForeground,
@@ -119,6 +133,68 @@ export interface CalendarProps {
   value: CalendarDate | null;
 }
 
+const navButton = ({ isDisabled }: { isDisabled: boolean }) =>
+  stylexProps(styles.button, isDisabled && styles.buttonDisabled).className ?? '';
+
+/** The month's heading with its arrows, then its weeks; `range` draws a range's band. */
+const Month = ({ range = false }: { range?: boolean }) => (
+  <>
+    <header {...stylexProps(styles.header)}>
+      <Button className={navButton} slot="previous">
+        <ChevronLeftIcon aria-hidden size={16} />
+      </Button>
+      <Heading className={stylexProps(styles.heading).className ?? ''} />
+      <Button className={navButton} slot="next">
+        <ChevronRightIcon aria-hidden size={16} />
+      </Button>
+    </header>
+    <div {...stylexProps(styles.weeks)}>
+      <CalendarGrid className={stylexProps(styles.grid).className ?? ''} weekdayStyle="short">
+        <CalendarGridHeader>
+          {(day) => (
+            <CalendarHeaderCell className={stylexProps(styles.weekday).className ?? ''}>
+              {day}
+            </CalendarHeaderCell>
+          )}
+        </CalendarGridHeader>
+        <CalendarGridBody>
+          {(date) => (
+            <CalendarCell
+              className={({
+                isDisabled,
+                isFocusVisible,
+                isHovered,
+                isOutsideMonth,
+                isSelected,
+                isSelectionEnd,
+                isSelectionStart,
+                isToday,
+                isUnavailable,
+              }) => {
+                const isEnd = !range || isSelectionStart || isSelectionEnd;
+                return (
+                  stylexProps(
+                    styles.cell,
+                    isToday && styles.cellToday,
+                    isHovered && !isSelected && styles.cellHovered,
+                    isSelected && (isEnd ? styles.cellSelected : styles.cellInRange),
+                    range && isSelectionStart && !isSelectionEnd && styles.cellRangeStart,
+                    range && isSelectionEnd && !isSelectionStart && styles.cellRangeEnd,
+                    isFocusVisible && styles.cellFocused,
+                    (isDisabled || isUnavailable) && styles.cellDisabled,
+                    isOutsideMonth && styles.cellOutside,
+                  ).className ?? ''
+                );
+              }}
+              date={date}
+            />
+          )}
+        </CalendarGridBody>
+      </CalendarGrid>
+    </div>
+  </>
+);
+
 /**
  * A month grid to pick a day, weeks from Monday. Arrow keys move by day,
  * Page Up/Down by month, Enter picks.
@@ -131,64 +207,50 @@ const Calendar = ({ maxValue, minValue, onChange, value }: CalendarProps) => (
       onChange={onChange}
       value={value}
     >
-      <header {...stylexProps(styles.header)}>
-        <Button
-          className={({ isDisabled }) =>
-            stylexProps(styles.button, isDisabled && styles.buttonDisabled).className ?? ''
-          }
-          slot="previous"
-        >
-          <ChevronLeftIcon aria-hidden size={16} />
-        </Button>
-        <Heading className={stylexProps(styles.heading).className ?? ''} />
-        <Button
-          className={({ isDisabled }) =>
-            stylexProps(styles.button, isDisabled && styles.buttonDisabled).className ?? ''
-          }
-          slot="next"
-        >
-          <ChevronRightIcon aria-hidden size={16} />
-        </Button>
-      </header>
-      <div {...stylexProps(styles.weeks)}>
-        <CalendarGrid className={stylexProps(styles.grid).className ?? ''} weekdayStyle="short">
-          <CalendarGridHeader>
-            {(day) => (
-              <CalendarHeaderCell className={stylexProps(styles.weekday).className ?? ''}>
-                {day}
-              </CalendarHeaderCell>
-            )}
-          </CalendarGridHeader>
-          <CalendarGridBody>
-            {(date) => (
-              <CalendarCell
-                className={({
-                  isDisabled,
-                  isFocusVisible,
-                  isHovered,
-                  isOutsideMonth,
-                  isSelected,
-                  isToday,
-                  isUnavailable,
-                }) =>
-                  stylexProps(
-                    styles.cell,
-                    isToday && styles.cellToday,
-                    isHovered && !isSelected && styles.cellHovered,
-                    isSelected && styles.cellSelected,
-                    isFocusVisible && styles.cellFocused,
-                    (isDisabled || isUnavailable) && styles.cellDisabled,
-                    isOutsideMonth && styles.cellOutside,
-                  ).className ?? ''
-                }
-                date={date}
-              />
-            )}
-          </CalendarGridBody>
-        </CalendarGrid>
-      </div>
+      <Month />
     </CalendarPrimitive>
   </I18nProvider>
 );
 
-export { Calendar };
+export interface CalendarRange {
+  end: CalendarDate;
+  start: CalendarDate;
+}
+
+export interface RangeCalendarProps {
+  /** The day whose month shows; follow it to show a date typed elsewhere. */
+  focusedValue: CalendarDate;
+  maxValue?: CalendarDate | undefined;
+  minValue?: CalendarDate | undefined;
+  onChange: (range: CalendarRange) => void;
+  onFocusChange: (date: CalendarDate) => void;
+  value: CalendarRange | null;
+}
+
+/**
+ * A month grid to pick a range: the first day picked starts it, the second
+ * ends it, with the days between shown as a band. Keys as in Calendar.
+ */
+const RangeCalendar = ({
+  focusedValue,
+  maxValue,
+  minValue,
+  onChange,
+  onFocusChange,
+  value,
+}: RangeCalendarProps) => (
+  <I18nProvider locale="tr-TR">
+    <RangeCalendarPrimitive<CalendarDate>
+      focusedValue={focusedValue}
+      maxValue={maxValue ?? null}
+      minValue={minValue ?? null}
+      onChange={onChange}
+      onFocusChange={onFocusChange}
+      value={value}
+    >
+      <Month range />
+    </RangeCalendarPrimitive>
+  </I18nProvider>
+);
+
+export { Calendar, RangeCalendar };

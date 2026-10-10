@@ -1,13 +1,6 @@
 import {
   Button,
   DateField,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
@@ -16,15 +9,25 @@ import {
   DropdownMenuTrigger,
   Field,
   FieldError,
-  FieldGroup,
   FieldLabel,
+  Kbd,
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  RangeCalendar,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from '@angaria/ui';
 import { spacing } from '@angaria/ui/tokens.stylex';
-import type { CalendarDate } from '@internationalized/date';
+import { getLocalTimeZone, today as todayIn, type CalendarDate } from '@internationalized/date';
 import { create, props } from '@stylexjs/stylex';
 import { CalendarIcon, ChevronDownIcon } from 'lucide-react';
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import {
+  DATE_PRESET_GROUPS,
   DATE_PRESETS,
   MAX_RANGE_DAYS,
   presetRange,
@@ -40,7 +43,23 @@ import {
 } from '@/lib/tr-date.ts';
 import { parseGIB } from '@/lib/utils.ts';
 
+/** Opens the period menu from anywhere on Faturalar but a text field. */
+const MENU_KEY = 'T';
+const CUSTOM_KEY = 'Ö';
+
 const styles = create({
+  calendar: {
+    alignSelf: 'center',
+  },
+  // As wide as the two date fields side by side.
+  custom: {
+    width: 'min-content',
+  },
+  footer: {
+    display: 'flex',
+    gap: spacing.s2,
+    justifyContent: 'flex-end',
+  },
   form: {
     display: 'flex',
     flexDirection: 'column',
@@ -54,9 +73,24 @@ const styles = create({
     width: '1rem',
   },
   menu: {
-    minWidth: '11rem',
+    minWidth: '12rem',
+  },
+  // Each column as wide as its date field; an error wraps under it.
+  range: {
+    display: 'grid',
+    gap: spacing.s4,
+    gridTemplateColumns: 'repeat(2, min-content)',
   },
 });
+
+/** A key typed into a text field, a date segment or a list's search is not a shortcut. */
+const typingIn = (target: EventTarget | null) => {
+  const element = target as HTMLElement | null;
+  return Boolean(
+    element?.isContentEditable ||
+    element?.matches?.('input, textarea, select, [role="spinbutton"], [role="combobox"]'),
+  );
+};
 
 const longDate = new Intl.DateTimeFormat('tr-TR', { dateStyle: 'long' });
 
@@ -91,14 +125,19 @@ const parseText = (text: string, today: CalendarDate) => parseTurkishDate(text, 
 function CustomRangeForm({
   initial,
   onApply,
+  onCancel,
 }: {
   initial: DateRange;
   onApply: (range: DateRange) => void;
+  onCancel: () => void;
 }) {
   const id = useId();
   const formRef = useRef<HTMLFormElement>(null);
+  const [today] = useState(() => todayIn(getLocalTimeZone()));
   const [start, setStart] = useState(() => gibToCalendarDate(initial.start));
   const [end, setEnd] = useState(() => gibToCalendarDate(initial.end));
+  // The calendar shows the month of the date last typed or picked.
+  const [focused, setFocused] = useState(() => end ?? today);
   const errors = rangeErrors(start, end);
 
   const submit = (event: FormEvent) => {
@@ -112,15 +151,22 @@ function CustomRangeForm({
     }
   };
 
+  const typed = (set: (date: CalendarDate | null) => void) => (date: CalendarDate | null) => {
+    set(date);
+    if (date) {
+      setFocused(date);
+    }
+  };
+
   return (
     <form onSubmit={submit} ref={formRef} {...props(styles.form)}>
-      <DialogHeader>
-        <DialogTitle>Özel tarih aralığı</DialogTitle>
-        <DialogDescription>
+      <PopoverHeader>
+        <PopoverTitle>Özel tarih aralığı</PopoverTitle>
+        <PopoverDescription>
           Bu iki tarih arasındaki faturalar listelenir, iki gün de dahil.
-        </DialogDescription>
-      </DialogHeader>
-      <FieldGroup>
+        </PopoverDescription>
+      </PopoverHeader>
+      <div {...props(styles.range)}>
         <Field data-invalid={errors.start ? true : undefined}>
           <FieldLabel htmlFor={`${id}-start`} id={`${id}-start-label`}>
             Başlangıç
@@ -130,7 +176,8 @@ function CustomRangeForm({
             aria-labelledby={`${id}-start-label`}
             id={`${id}-start`}
             invalid={Boolean(errors.start)}
-            onChange={setStart}
+            maxValue={today}
+            onChange={typed(setStart)}
             parseText={parseText}
             textHint={DATE_TEXT_HINT}
             value={start}
@@ -146,24 +193,42 @@ function CustomRangeForm({
             aria-labelledby={`${id}-end-label`}
             id={`${id}-end`}
             invalid={Boolean(errors.end)}
+            maxValue={today}
             minValue={start ?? undefined}
-            onChange={setEnd}
+            onChange={typed(setEnd)}
             parseText={parseText}
             textHint={DATE_TEXT_HINT}
             value={end}
           />
           {errors.end && <FieldError id={`${id}-end-error`}>{errors.end}</FieldError>}
         </Field>
-      </FieldGroup>
-      <DialogFooter>
-        <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
+      </div>
+      <div {...props(styles.calendar)}>
+        <RangeCalendar
+          focusedValue={focused}
+          maxValue={today}
+          onChange={(range) => {
+            setStart(range.start);
+            setEnd(range.end);
+          }}
+          onFocusChange={setFocused}
+          value={start && end && start.compare(end) <= 0 ? { end, start } : null}
+        />
+      </div>
+      <div {...props(styles.footer)}>
+        <Button onClick={onCancel} type="button" variant="outline">
+          Vazgeç
+        </Button>
         <Button type="submit">Uygula</Button>
-      </DialogFooter>
+      </div>
     </form>
   );
 }
 
-/** The list's date range: Bu ay, Geçen ay, Son 3 ay, or Özel in a dialog. */
+/**
+ * The list's date range: the presets, each with its key, or Özel, a range
+ * picked on a calendar or typed. T opens the menu.
+ */
 export function DateRangeMenu({
   onChange,
   value,
@@ -171,46 +236,115 @@ export function DateRangeMenu({
   onChange: (range: DateRange) => void;
   value: DateRange;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
+  // Özel opens its popover once the menu has closed, so the menu's focus
+  // return to the trigger does not pull the focus out of it.
+  const customNext = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   // Today as of opening the screen, to tell which preset the range is.
   const [today] = useState(() => new Date());
   const preset = rangePreset(value, today);
   const label = DATE_PRESETS.find((item) => item.value === preset)?.label ?? rangeLabel(value);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key.toLocaleLowerCase('tr') !== MENU_KEY.toLocaleLowerCase('tr') ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey ||
+        event.isComposing ||
+        event.defaultPrevented ||
+        typingIn(event.target) ||
+        // An open dialog, menu or popover owns the keys.
+        document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setMenuOpen(true);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button aria-label={`Tarih aralığı: ${label}`} variant="outline" />}
+      <Tooltip>
+        <DropdownMenu
+          onOpenChange={setMenuOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open && customNext.current) {
+              customNext.current = false;
+              setCustomOpen(true);
+            }
+          }}
+          open={menuOpen}
         >
-          <CalendarIcon {...props(styles.icon)} />
-          {label}
-          <ChevronDownIcon {...props(styles.icon)} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent style={styles.menu}>
-          <DropdownMenuRadioGroup
-            onValueChange={(next: DatePreset | 'ozel') => {
-              if (next !== 'ozel') {
-                onChange(presetRange(next, new Date()));
-              }
-            }}
-            value={preset ?? 'ozel'}
+          <TooltipTrigger
+            render={
+              <DropdownMenuTrigger
+                ref={triggerRef}
+                render={<Button aria-label={`Tarih aralığı: ${label}`} variant="outline" />}
+              />
+            }
           >
-            {DATE_PRESETS.map((item) => (
-              <DropdownMenuRadioItem closeOnClick key={item.value} value={item.value}>
-                {item.label}
+            <CalendarIcon {...props(styles.icon)} />
+            {label}
+            <ChevronDownIcon {...props(styles.icon)} />
+          </TooltipTrigger>
+          <DropdownMenuContent style={styles.menu}>
+            <DropdownMenuRadioGroup
+              onValueChange={(next: DatePreset | 'ozel') => {
+                if (next !== 'ozel') {
+                  onChange(presetRange(next, new Date()));
+                }
+              }}
+              value={preset ?? 'ozel'}
+            >
+              {DATE_PRESET_GROUPS.map((group, index) => (
+                <Fragment key={group[0]?.value}>
+                  {index > 0 && <DropdownMenuSeparator />}
+                  {group.map((item) => (
+                    <DropdownMenuRadioItem
+                      closeOnClick
+                      key={item.value}
+                      shortcut={item.shortcut}
+                      value={item.value}
+                    >
+                      {item.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </Fragment>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioItem
+                closeOnClick
+                onClick={() => {
+                  customNext.current = true;
+                }}
+                shortcut={CUSTOM_KEY}
+                value="ozel"
+              >
+                Özel
               </DropdownMenuRadioItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioItem closeOnClick onClick={() => setCustomOpen(true)} value="ozel">
-              Özel
-            </DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <TooltipContent>
+          Tarih aralığı <Kbd>{MENU_KEY}</Kbd>
+        </TooltipContent>
+      </Tooltip>
 
-      <Dialog onOpenChange={setCustomOpen} open={customOpen}>
-        <DialogContent showCloseButton={false}>
+      <Popover onOpenChange={setCustomOpen} open={customOpen}>
+        <PopoverContent
+          align="start"
+          anchor={triggerRef}
+          finalFocus={triggerRef}
+          style={styles.custom}
+        >
           {customOpen && (
             <CustomRangeForm
               initial={value}
@@ -218,10 +352,11 @@ export function DateRangeMenu({
                 onChange(range);
                 setCustomOpen(false);
               }}
+              onCancel={() => setCustomOpen(false)}
             />
           )}
-        </DialogContent>
-      </Dialog>
+        </PopoverContent>
+      </Popover>
     </>
   );
 }

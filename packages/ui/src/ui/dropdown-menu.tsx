@@ -4,11 +4,12 @@ import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import type { StyleXStyles } from '@stylexjs/stylex';
 import { CheckIcon, ChevronRightIcon } from 'lucide-react';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, KeyboardEvent, ReactNode } from 'react';
 import { capStyles, capText } from '../lib/cap-text.tsx';
 import { popupMotion, popupStyles, useHeldPlacement } from '../lib/popup.ts';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
+import { Kbd } from './kbd.tsx';
 
 const styles = create({
   // Block: in the check indicator's inline wrapper, an inline icon sits on
@@ -92,10 +93,55 @@ const styles = create({
     letterSpacing: '0.05em',
     marginInlineStart: 'auto',
   },
+  // An item's key, at the row's end.
+  itemKey: {
+    marginInlineStart: 'auto',
+  },
   subTriggerIcon: {
     marginInlineStart: 'auto',
   },
 });
+
+/** A key as the menu compares it: lower case, without marks, so Ö is also O. */
+const foldKey = (key: string) =>
+  key.toLocaleLowerCase('tr').normalize('NFD').replaceAll(/\p{M}/gu, '');
+
+/**
+ * A key without modifiers picks the item that shows it as its `shortcut`,
+ * before the menu's typeahead sees it.
+ */
+function pickByShortcut(event: KeyboardEvent<HTMLDivElement>) {
+  if (
+    event.key.length !== 1 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.nativeEvent.isComposing
+  ) {
+    return;
+  }
+  const key = foldKey(event.key);
+  const item = [
+    ...event.currentTarget.querySelectorAll<HTMLElement>('[data-shortcut]:not([data-disabled])'),
+  ].find((element) => foldKey(element.dataset.shortcut ?? '') === key);
+  if (item) {
+    event.preventDefault();
+    event.stopPropagation();
+    item.click();
+  }
+}
+
+/** The item's text, then its shortcut key at the row's end. */
+const withShortcut = (children: ReactNode, shortcut: string | undefined) => (
+  <>
+    {capText(children)}
+    {shortcut && (
+      <Kbd aria-hidden style={styles.itemKey}>
+        {shortcut}
+      </Kbd>
+    )}
+  </>
+);
 
 type StyleXOverrides = {
   className?: string | undefined;
@@ -136,6 +182,7 @@ const DropdownMenuContent = ({
   alignOffset = 0,
   className,
   collisionPadding = 8,
+  onKeyDownCapture,
   side = 'bottom',
   sideOffset = 4,
   style,
@@ -162,6 +209,10 @@ const DropdownMenuContent = ({
             ).className
           }
           data-slot="dropdown-menu-content"
+          onKeyDownCapture={(event) => {
+            onKeyDownCapture?.(event);
+            pickByShortcut(event);
+          }}
           {...props}
         />
       </MenuPrimitive.Positioner>
@@ -169,8 +220,14 @@ const DropdownMenuContent = ({
   );
 };
 
+/** A key that picks the item while its menu is open, shown at the row's end. */
+type ShortcutProp = {
+  shortcut?: string | undefined;
+};
+
 type DropdownMenuItemProps = Omit<MenuPrimitive.Item.Props, 'className' | 'style'> &
-  StyleXOverrides & {
+  StyleXOverrides &
+  ShortcutProp & {
     inset?: boolean | undefined;
     variant?: 'default' | 'destructive' | undefined;
   };
@@ -179,11 +236,13 @@ const DropdownMenuItem = ({
   children,
   className,
   inset,
+  shortcut,
   style,
   variant = 'default',
   ...props
 }: DropdownMenuItemProps) => (
   <MenuPrimitive.Item
+    aria-keyshortcuts={shortcut}
     className={(state) =>
       stylexProps(
         styles.item,
@@ -197,11 +256,12 @@ const DropdownMenuItem = ({
       ).className
     }
     data-inset={inset ? '' : undefined}
+    data-shortcut={shortcut}
     data-slot="dropdown-menu-item"
     data-variant={variant}
     {...props}
   >
-    {capText(children)}
+    {withShortcut(children, shortcut)}
   </MenuPrimitive.Item>
 );
 
@@ -238,15 +298,18 @@ const DropdownMenuCheckboxItem = ({
 );
 
 type DropdownMenuRadioItemProps = Omit<MenuPrimitive.RadioItem.Props, 'className' | 'style'> &
-  StyleXOverrides;
+  StyleXOverrides &
+  ShortcutProp;
 
 const DropdownMenuRadioItem = ({
   children,
   className,
+  shortcut,
   style,
   ...props
 }: DropdownMenuRadioItemProps) => (
   <MenuPrimitive.RadioItem
+    aria-keyshortcuts={shortcut}
     className={(state) =>
       stylexProps(
         styles.item,
@@ -257,6 +320,7 @@ const DropdownMenuRadioItem = ({
         style,
       ).className
     }
+    data-shortcut={shortcut}
     data-slot="dropdown-menu-radio-item"
     {...props}
   >
@@ -265,7 +329,7 @@ const DropdownMenuRadioItem = ({
         <CheckIcon {...stylexProps(styles.icon)} />
       </MenuPrimitive.RadioItemIndicator>
     </span>
-    {capText(children)}
+    {withShortcut(children, shortcut)}
   </MenuPrimitive.RadioItem>
 );
 

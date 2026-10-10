@@ -47,7 +47,10 @@ const PopoverTrigger = (props: PopoverTriggerProps) => (
 
 type PopoverContentProps = Omit<PopoverPrimitive.Popup.Props, 'className' | 'style'> &
   Partial<
-    Pick<PopoverPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>
+    Pick<
+      PopoverPrimitive.Positioner.Props,
+      'align' | 'alignOffset' | 'anchor' | 'side' | 'sideOffset'
+    >
   > & {
     className?: string | undefined;
     style?: StyleXStyles | undefined;
@@ -56,6 +59,7 @@ type PopoverContentProps = Omit<PopoverPrimitive.Popup.Props, 'className' | 'sty
 const PopoverContent = ({
   align = 'center',
   alignOffset = 0,
+  anchor,
   className,
   side = 'bottom',
   sideOffset = 4,
@@ -67,6 +71,7 @@ const PopoverContent = ({
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
         alignOffset={alignOffset}
+        anchor={anchor}
         sideOffset={sideOffset}
         {...placement}
         {...stylexProps(popupStyles.positioner)}

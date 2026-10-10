@@ -45,8 +45,10 @@ const styles = create({
     fontVariantNumeric: 'tabular-nums',
     // 40px pill, like Input; the calendar button sits inside its right end.
     height: '2.5rem',
+    maxWidth: '100%',
     paddingInlineEnd: '0.25rem',
-    width: '100%',
+    // As wide as a date, never stretched by a flex or grid parent.
+    width: 'fit-content',
   },
   // Like Input: focused, the glow tightens to a 1px ring.
   fieldInvalid: {
@@ -56,13 +58,25 @@ const styles = create({
       default: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
     },
   },
+  // The widest text the segments show, drawn invisibly under them: the pill
+  // takes its width from the font and keeps it while a date is typed.
+  ghost: {
+    alignSelf: 'center',
+    display: 'grid',
+    gridArea: '1 / 1',
+    paddingInlineStart: '1rem',
+    pointerEvents: 'none',
+    visibility: 'hidden',
+    whiteSpace: 'nowrap',
+  },
+  ghostLine: {
+    gridArea: '1 / 1',
+  },
   // The segments fill the pill, so a click anywhere left of the button lands in them.
   input: {
     alignItems: 'center',
-    alignSelf: 'stretch',
     display: 'flex',
-    flex: 1,
-    minWidth: 0,
+    gridArea: '1 / 1',
     paddingInlineStart: '1rem',
   },
   literal: {
@@ -139,6 +153,13 @@ const styles = create({
   segmentPlaceholder: {
     color: colors.mutedForeground,
   },
+  // Holds the segments and their ghost in one cell, as wide as the wider.
+  segments: {
+    alignSelf: 'stretch',
+    display: 'grid',
+    flex: 1,
+    minWidth: 0,
+  },
   text: {
     display: 'flex',
     flexDirection: 'column',
@@ -207,6 +228,13 @@ const copy = {
   trigger: 'Takvimi aç',
   unreadable: 'Tarihi anlayamadım.',
 };
+
+/** The ghost's lines: a date in the widest digit and the placeholder React Aria shows for tr-TR. */
+const GHOST_LITERAL = '.';
+const GHOST_LINES = [
+  { day: '00', month: '00', year: '0000' },
+  { day: 'gg', month: 'aa', year: 'yyyy' },
+];
 
 const previewFormat = new DateFormatter('tr-TR', {
   day: 'numeric',
@@ -422,21 +450,34 @@ const DateField = ({
             shouldForceLeadingZeros
             value={shown}
           >
-            <DateInput className={stylexProps(styles.input).className ?? ''} ref={segmentsRef}>
-              {(segment) => (
-                <DateSegment
-                  className={({ isFocused, isPlaceholder }) =>
-                    stylexProps(
-                      capStyles.text,
-                      segment.type === 'literal' ? styles.literal : styles.segment,
-                      isPlaceholder && styles.segmentPlaceholder,
-                      isFocused && styles.segmentFocused,
-                    ).className ?? ''
-                  }
-                  segment={segment}
-                />
-              )}
-            </DateInput>
+            <div {...stylexProps(styles.segments)}>
+              <DateInput className={stylexProps(styles.input).className ?? ''} ref={segmentsRef}>
+                {(segment) => (
+                  <DateSegment
+                    className={({ isFocused, isPlaceholder }) =>
+                      stylexProps(
+                        capStyles.text,
+                        segment.type === 'literal' ? styles.literal : styles.segment,
+                        isPlaceholder && styles.segmentPlaceholder,
+                        isFocused && styles.segmentFocused,
+                      ).className ?? ''
+                    }
+                    segment={segment}
+                  />
+                )}
+              </DateInput>
+              <span aria-hidden {...stylexProps(styles.ghost)}>
+                {GHOST_LINES.map(({ day, month, year }) => (
+                  <span key={day} {...stylexProps(styles.ghostLine)}>
+                    <span {...stylexProps(styles.segment)}>{day}</span>
+                    <span {...stylexProps(styles.literal)}>{GHOST_LITERAL}</span>
+                    <span {...stylexProps(styles.segment)}>{month}</span>
+                    <span {...stylexProps(styles.literal)}>{GHOST_LITERAL}</span>
+                    <span {...stylexProps(styles.segment)}>{year}</span>
+                  </span>
+                ))}
+              </span>
+            </div>
           </DateFieldPrimitive>
         </I18nProvider>
         <Popover.Trigger aria-label={copy.trigger} {...stylexProps(styles.trigger)}>
