@@ -257,6 +257,9 @@ const post = (method: string, params: object, headers: Record<string, string> = 
     method: 'POST',
   });
 
+const toolNames = (result: Record<string, unknown>) =>
+  (result.tools as Array<{ name: string }>).map((tool) => tool.name);
+
 const text = (result: Awaited<ReturnType<Client['callTool']>>) =>
   JSON.parse((result.content as Array<{ text: string }>)[0]?.text ?? 'null');
 
@@ -490,6 +493,77 @@ describe('stdio bridge', () => {
     });
     expect(text(off).error.code).toBe('actions-off');
     await client.close();
+  });
+
+  test('serves every supported protocol version over stdio', async () => {
+    const bridge = spawn(BRIDGE, [], { env: { ...process.env, ANGARIA_MCP_DIR: dir } });
+    type Reply = { error?: { code: number }; result: Record<string, unknown> };
+    const pending = new Map<number, (reply: Reply) => void>();
+    createInterface({ input: bridge.stdout }).on('line', (line) => {
+      const reply = JSON.parse(line);
+      pending.get(reply.id)?.(reply);
+    });
+    let id = 0;
+    const send = (method: string, params: object = {}) => {
+      id += 1;
+      const reply = new Promise<Reply>((resolve) => pending.set(id, resolve));
+      bridge.stdin.write(`${JSON.stringify({ id, jsonrpc: '2.0', method, params })}\n`);
+      return reply;
+    };
+
+    // Legacy: initialize keeps a version it speaks; 2026-07-28 has no
+    // initialize, so it gets the newest legacy version.
+    for (const [requested, answered] of [
+      ['2024-11-05', '2024-11-05'],
+      ['2025-03-26', '2025-03-26'],
+      ['2025-06-18', '2025-06-18'],
+      ['2025-11-25', '2025-11-25'],
+      ['2026-07-28', '2025-11-25'],
+      ['2099-01-01', '2025-11-25'],
+    ]) {
+      const init = await send('initialize', {
+        capabilities: {},
+        clientInfo: { name: 'raw-stdio', version: '1' },
+        protocolVersion: requested,
+      });
+      expect(init.result.protocolVersion).toBe(answered);
+      bridge.stdin.write(
+        `${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`,
+      );
+      const legacy = (await send('tools/list')).result;
+      expect(toolNames(legacy)).toEqual(TOOL_NAMES);
+      // Fields older schemas do not know stay out.
+      expect(legacy).not.toHaveProperty('resultType');
+      expect(legacy).not.toHaveProperty('ttlMs');
+    }
+
+    // Modern (2026-07-28): stateless, version and capabilities in _meta.
+    const meta = {
+      _meta: {
+        'io.modelcontextprotocol/clientCapabilities': {},
+        'io.modelcontextprotocol/clientInfo': { name: 'raw-stdio', version: '1' },
+        'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+      },
+    };
+    const cacheable = {
+      cacheScope: 'private',
+      resultType: 'complete',
+      ttlMs: expect.any(Number),
+    };
+    const discover = (await send('server/discover', meta)).result;
+    expect(discover).toMatchObject(cacheable);
+    expect((discover.supportedVersions as Array<string>)[0]).toBe('2026-07-28');
+    const modern = (await send('tools/list', meta)).result;
+    expect(modern).toMatchObject(cacheable);
+    expect(toolNames(modern)).toEqual(TOOL_NAMES);
+    const companies = (await send('tools/call', { ...meta, arguments: {}, name: 'list_companies' }))
+      .result;
+    expect(companies).toMatchObject({
+      _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'angaria' } },
+      resultType: 'complete',
+    });
+    expect((await send('ping', meta)).error?.code).toBe(-32_601);
+    bridge.kill();
   });
 
   test('answers in Turkish when Angaria’s server is not running', async () => {

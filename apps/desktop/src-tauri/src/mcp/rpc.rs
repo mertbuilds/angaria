@@ -27,6 +27,11 @@ const UNSUPPORTED_VERSION: i64 = -32022;
 
 pub const SERVER_NAME: &str = "angaria";
 
+/// How long a modern client may cache server/discover and tools/list
+/// (CacheableResult.ttlMs): both are fixed while the app runs and change only
+/// with an app update.
+const CACHE_TTL_MS: u64 = 5 * 60 * 1000;
+
 const INSTRUCTIONS: &str = "Angaria manages GİB e-Arşiv invoices for Turkish freelancers. Tools act on \
 the company active in the Angaria app unless they name another (company: an id or VKN/TCKN from \
 list_companies); naming one never switches the app. create_invoice and duplicate_invoice create \
@@ -90,14 +95,34 @@ fn result_body(id: Value, result: Value) -> Value {
   json!({ "jsonrpc": "2.0", "id": id, "result": result })
 }
 
-/// The result of a tools/call, as the protocol era wants it.
-pub fn tool_response(id: Value, mut result: Value, modern: bool) -> Value {
-  if modern {
-    if let Some(object) = result.as_object_mut() {
-      object.insert("resultType".into(), json!("complete"));
+/// A finished 2026-07-28 result: `resultType` and the server's identity in `_meta`.
+fn complete(mut result: Value, server_version: &str) -> Value {
+  if let Some(object) = result.as_object_mut() {
+    object.insert("resultType".into(), json!("complete"));
+    let meta = object.entry("_meta").or_insert_with(|| json!({}));
+    if let Some(meta) = meta.as_object_mut() {
+      meta.insert(META_SERVER.into(), server_info(server_version));
     }
   }
-  result_body(id, result)
+  result
+}
+
+/// A 2026-07-28 CacheableResult. The token is per install, so no cache may
+/// share it across users.
+fn cacheable(mut result: Value) -> Value {
+  result["ttlMs"] = json!(CACHE_TTL_MS);
+  result["cacheScope"] = json!("private");
+  result
+}
+
+/// The result of a tools/call, as the protocol era wants it: legacy results
+/// stay as the tool gave them.
+pub fn tool_response(id: Value, result: Value, modern: bool, server_version: &str) -> Value {
+  if modern {
+    result_body(id, complete(result, server_version))
+  } else {
+    result_body(id, result)
+  }
 }
 
 /// A tool execution error the model can read (isError), in Turkish.
@@ -259,19 +284,20 @@ fn route_modern(
   if let Some(client) = client_info(meta.and_then(|meta| meta.get(META_CLIENT))) {
     (ctx.on_client)(client);
   }
-  let complete = |mut result: Value| {
-    result["resultType"] = json!("complete");
-    result["_meta"] = json!({ META_SERVER: server_info(ctx.server_version) });
-    reply(200, result_body(id.clone(), result))
+  let answer = |result: Value| {
+    reply(
+      200,
+      result_body(id.clone(), complete(result, ctx.server_version)),
+    )
   };
+  // 2026-07-28 removed ping; it stays a legacy method.
   match method {
-    "server/discover" => complete(json!({
+    "server/discover" => answer(cacheable(json!({
       "supportedVersions": supported_versions(),
       "capabilities": capabilities(),
       "instructions": INSTRUCTIONS,
-    })),
-    "tools/list" => complete(json!({ "tools": ctx.tools })),
-    "ping" => complete(json!({})),
+    }))),
+    "tools/list" => answer(cacheable(json!({ "tools": ctx.tools }))),
     "tools/call" => {
       let name = params
         .and_then(|params| params.get("name"))
@@ -464,11 +490,31 @@ mod tests {
   }
 
   #[test]
-  fn initialize_answers_an_unknown_version_with_the_newest_legacy_one() {
-    let body = json!({ "jsonrpc": "2.0", "id": 0, "method": "initialize", "params": { "protocolVersion": "2099-01-01" } });
-    let (status, body) = reply_of(route_with(body, McpHeaders::default()).0);
-    assert_eq!(status, 200);
-    assert_eq!(body["result"]["protocolVersion"], LEGACY_VERSIONS[0]);
+  fn initialize_negotiates_supported_older_and_unknown_versions() {
+    for (requested, answered) in [
+      ("2025-11-25", "2025-11-25"),
+      ("2024-11-05", "2024-11-05"),
+      // A modern version through initialize: modern clients use server/discover.
+      ("2026-07-28", LEGACY_VERSIONS[0]),
+      ("2099-01-01", LEGACY_VERSIONS[0]),
+    ] {
+      let body = json!({ "jsonrpc": "2.0", "id": 0, "method": "initialize", "params": { "protocolVersion": requested } });
+      let (status, body) = reply_of(route_with(body, McpHeaders::default()).0);
+      assert_eq!(status, 200);
+      assert_eq!(body["result"]["protocolVersion"], answered, "{requested}");
+    }
+  }
+
+  #[test]
+  fn legacy_tools_list_has_no_cache_fields() {
+    let headers = McpHeaders {
+      protocol_version: Some("2025-11-25".into()),
+      ..McpHeaders::default()
+    };
+    let list = json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/list" });
+    let (_, body) = reply_of(route_with(list, headers).0);
+    assert!(body["result"].get("ttlMs").is_none());
+    assert!(body["result"].get("cacheScope").is_none());
   }
 
   #[test]
@@ -536,6 +582,8 @@ mod tests {
     assert_eq!(status, 200);
     assert_eq!(body["result"]["resultType"], "complete");
     assert_eq!(body["result"]["supportedVersions"][0], "2026-07-28");
+    assert_eq!(body["result"]["ttlMs"], CACHE_TTL_MS);
+    assert_eq!(body["result"]["cacheScope"], "private");
     assert_eq!(
       body["result"]["_meta"][META_SERVER]["version"],
       "1.2.3"
@@ -551,6 +599,9 @@ mod tests {
     );
     assert_eq!(body["result"]["tools"], tools());
     assert_eq!(body["result"]["resultType"], "complete");
+    // CacheableResult, required on 2026-07-28 list results.
+    assert_eq!(body["result"]["ttlMs"], CACHE_TTL_MS);
+    assert_eq!(body["result"]["cacheScope"], "private");
   }
 
   #[test]
@@ -640,13 +691,24 @@ mod tests {
 
   #[test]
   fn tool_responses_follow_the_era() {
-    let result = json!({ "content": [] });
-    assert_eq!(
-      tool_response(json!(1), result.clone(), true)["result"]["resultType"],
-      "complete"
+    let result = json!({ "content": [], "_meta": { "x": 1 } });
+    let modern = tool_response(json!(1), result.clone(), true, "1.2.3");
+    assert_eq!(modern["result"]["resultType"], "complete");
+    assert_eq!(modern["result"]["_meta"][META_SERVER]["version"], "1.2.3");
+    assert_eq!(modern["result"]["_meta"]["x"], 1);
+    assert_eq!(tool_response(json!(1), result.clone(), false, "1.2.3")["result"], result);
+  }
+
+  #[test]
+  fn ping_is_legacy_only() {
+    let (status, body) = reply_of(
+      route_with(modern("ping", json!({})), modern_headers("ping", None)).0,
     );
-    assert!(tool_response(json!(1), result, false)["result"]
-      .get("resultType")
-      .is_none());
+    assert_eq!(status, 404);
+    assert_eq!(body["error"]["code"], METHOD_NOT_FOUND);
+    let ping = json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" });
+    let (status, body) = reply_of(route_with(ping, McpHeaders::default()).0);
+    assert_eq!(status, 200);
+    assert_eq!(body["result"], json!({}));
   }
 }

@@ -410,7 +410,10 @@ async fn handle(request: Request<Incoming>, shared: Arc<Shared>) -> Result<Reply
       modern,
     } => {
       let result = run_tool(&shared, name, arguments).await;
-      json_reply(StatusCode::OK, &rpc::tool_response(id, result, modern))
+      json_reply(
+        StatusCode::OK,
+        &rpc::tool_response(id, result, modern, &shared.server_version),
+      )
     }
   })
 }
