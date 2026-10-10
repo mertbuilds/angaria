@@ -76,6 +76,7 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
+  Progress,
   ScrollArea,
   Select,
   SelectContent,
@@ -782,6 +783,13 @@ function Showcase() {
             <Switch disabled />
             Devre dışı
           </Label>
+        </div>
+      </Section>
+
+      <Section title="Progress">
+        <div {...props(styles.stack)}>
+          <Progress label="Faturalar taranıyor…" max={53} value={23} valueText="23/53 hafta" />
+          <Progress label="GİB’e bağlanılıyor…" value={null} />
         </div>
       </Section>
 
