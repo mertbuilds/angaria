@@ -29,6 +29,7 @@ packages/
 | `pnpm lint`      | builds packages and web, then oxlint type-aware + TS errors (tsgolint)          |
 | `pnpm format`    | oxfmt (write mode); `pnpm format:check` to verify                               |
 | `pnpm test`      | vitest per package via turbo                                                    |
+| `pnpm icons`     | rebuild every app and site icon from `src-tauri/icons/source/` (needs uv)       |
 | `pnpm fonts`     | fetch Suisse Intl woff2 from R2 into packages/ui/fonts and derive the PDF's ttf |
 | `cargo check`    | Rust check, run in `apps/desktop/src-tauri` (needs the MCP bridge built first)  |
 

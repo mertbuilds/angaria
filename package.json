@@ -10,6 +10,7 @@
     "fonts": "bash scripts/fetch-fonts.sh",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
+    "icons": "uv run --with pillow --with numpy --with scipy python scripts/build-icons.py",
     "lint": "turbo run build --filter=./packages/* --filter=web --output-logs=errors-only && oxlint --type-aware --type-check",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && lefthook install || echo 'lefthook install skipped (no git repo)'",
     "test": "turbo run test",
