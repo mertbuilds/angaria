@@ -71,11 +71,11 @@ export const Route = createRootRoute({
   component: RootComponent,
   head: () => ({
     links: [
-      // The SVG first: it inverts with the browser's own theme. The PNG is
-      // there for Safari, which takes the first icon it understands.
-      { href: '/favicon.svg', rel: 'icon', type: 'image/svg+xml' },
+      // The app icon, from `pnpm icons`.
       { href: '/favicon.png', rel: 'icon', sizes: '32x32', type: 'image/png' },
+      { href: '/icon-192.png', rel: 'icon', sizes: '192x192', type: 'image/png' },
       { href: '/apple-touch-icon.png', rel: 'apple-touch-icon' },
+      { href: '/site.webmanifest', rel: 'manifest' },
       // Dev-only: link the unplugin's compiled CSS so SSR HTML is styled on first
       // paint (the virtual:stylex:runtime import only injects after hydration).
       // Production CSS is emitted into app.css at build, so the link is dev-only.
