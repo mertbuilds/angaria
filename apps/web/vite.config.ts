@@ -39,7 +39,9 @@ const uiDependencies = [
 ]
   .map((subpath) => `@base-ui/react/${subpath}`)
   .concat(
-    ['Calendar', 'DateField', 'I18nProvider'].map((subpath) => `react-aria-components/${subpath}`),
+    ['Calendar', 'DateField', 'I18nProvider', 'RangeCalendar'].map(
+      (subpath) => `react-aria-components/${subpath}`,
+    ),
   )
   .concat([
     '@internationalized/date',
