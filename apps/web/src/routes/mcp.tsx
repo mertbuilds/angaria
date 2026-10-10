@@ -50,9 +50,9 @@ const SAFETY: ReadonlyArray<{ body: () => string; icon: LucideIcon; title: () =>
 ];
 
 const CLIENTS = [
-  [m.mcp_client_desktop_name, m.mcp_client_desktop_how],
-  [m.mcp_client_cursor_name, m.mcp_client_cursor_how],
-  [m.mcp_client_code_name, m.mcp_client_code_how],
+  [m.mcp_client_claude_name, m.mcp_client_claude_how],
+  [m.mcp_client_editors_name, m.mcp_client_editors_how],
+  [m.mcp_client_more_name, m.mcp_client_more_how],
   [m.mcp_client_other_name, m.mcp_client_other_how],
 ] as const;
 
