@@ -34,13 +34,13 @@ import {
   invoiceTotals,
   invoiceWarnings,
   istisnaNote,
+  istisnaReasonInNote,
   paymentTotal,
   toDraftDetails,
   validateInvoice,
 } from './invoice-form.ts';
 import { invoiceStatus, newestFirst, parseGIBInvoice, statusText } from './invoices.ts';
 import { MCP_TOOL_COPY, type McpToolName } from './mcp.ts';
-import { ISTISNA_REASONS } from './regulated.ts';
 import type { Invoice, InvoiceFormValues, InvoiceItem, Recipient, Service } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
 
@@ -393,10 +393,6 @@ function gibCountry(text: string): string | null {
   );
 }
 
-/** The İstisna reason whose sentence is in `note`, if any. */
-const reasonInNote = (note: string) =>
-  ISTISNA_REASONS.find((reason) => note.includes(reason.sentence))?.code;
-
 const DEFAULT_ISTISNA_CODE = '302';
 
 const createInvoice = defineTool({
@@ -466,7 +462,7 @@ const createInvoice = defineTool({
       invoiceType === 'ISTISNA'
         ? (input.istisnaCode ??
           applied.invoiceSettings.istisnaCode ??
-          reasonInNote(applied.note) ??
+          istisnaReasonInNote(applied.note) ??
           DEFAULT_ISTISNA_CODE)
         : undefined;
     const defaultVAT = invoiceType === 'ISTISNA' ? 0 : (customer.VATRate ?? 20);
