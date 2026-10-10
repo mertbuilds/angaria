@@ -49,6 +49,10 @@ http-body-util = "0.1"
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
+# MCP client configs (src/mcp/agents): JSONC and TOML edited in place, YAML read.
+jsonc-parser = { version = "0.34", features = ["cst", "serde_json"] }
+serde_norway = "0.9"
+toml_edit = "0.25"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["io-std", "io-util", "rt-multi-thread"] }

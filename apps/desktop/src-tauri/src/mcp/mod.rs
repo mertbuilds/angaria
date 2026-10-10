@@ -3,20 +3,20 @@
 //! they share the app's GİB session queue, credentials and store. A call goes
 //! out as the `mcp:call` event and comes back through `mcp_respond`.
 
+pub mod agents;
 pub mod files;
 pub mod rpc;
 pub mod server;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{oneshot, Mutex};
 
-use files::{ClientApp, Installed};
+use agents::{AgentResult, AgentStatus, Env};
 use server::{ClientSeen, Pending, RunningServer, ServerOptions, ToolCall, ToolHost};
 
 /// The stdio bridge next to the app's executable (bundle.externalBin).
@@ -198,19 +198,59 @@ pub async fn mcp_rotate_token(state: State<'_, McpState>) -> Result<String, Stri
   Ok(token)
 }
 
-/// Adds the bridge to an MCP client's config file: `claude-desktop` or `cursor`.
-#[tauri::command]
-pub async fn mcp_install(state: State<'_, McpState>, client: String) -> Result<Installed, String> {
-  let app = ClientApp::parse(&client).ok_or("Bilinmeyen uygulama.")?;
-  let bridge = bridge_path();
-  if !bridge.is_file() {
-    return Err("Angaria’nın MCP köprüsü bulunamadı. Angaria’yı yeniden kur.".into());
-  }
+fn agent_env(state: &McpState) -> Result<Env, String> {
   let home = state
     .host
     .app
     .path()
     .home_dir()
     .map_err(|error| error.to_string())?;
-  files::install(app, &app.config_path(&home), &bridge, SystemTime::now())
+  Ok(Env::new(home).with_process_vars())
+}
+
+/// The MCP clients Angaria knows, whether each is installed and has Angaria.
+#[tauri::command]
+pub async fn mcp_agents(state: State<'_, McpState>) -> Result<Vec<AgentStatus>, String> {
+  Ok(agents::detect_agents(&agent_env(&state)?))
+}
+
+/// Adds the bridge to each client in `ids`; one failing leaves the others.
+#[tauri::command]
+pub async fn mcp_agents_add(
+  state: State<'_, McpState>,
+  ids: Vec<String>,
+) -> Result<Vec<AgentResult>, String> {
+  let bridge = bridge_path();
+  if !bridge.is_file() {
+    return Err("Angaria’nın MCP köprüsü bulunamadı. Angaria’yı yeniden kur.".into());
+  }
+  let bridge = bridge.to_str().ok_or("Angaria’nın yolu okunamadı.")?;
+  let env = agent_env(&state)?;
+  Ok(
+    ids
+      .iter()
+      .map(|id| match agents::find(id) {
+        Some(agent) => agents::upsert_server(agent, &env, bridge),
+        None => agents::unknown(id),
+      })
+      .collect(),
+  )
+}
+
+/// Takes Angaria out of each client in `ids`.
+#[tauri::command]
+pub async fn mcp_agents_remove(
+  state: State<'_, McpState>,
+  ids: Vec<String>,
+) -> Result<Vec<AgentResult>, String> {
+  let env = agent_env(&state)?;
+  Ok(
+    ids
+      .iter()
+      .map(|id| match agents::find(id) {
+        Some(agent) => agents::remove_server(agent, &env),
+        None => agents::unknown(id),
+      })
+      .collect(),
+  )
 }
