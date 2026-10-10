@@ -463,8 +463,7 @@ describe('invoiceWarnings', () => {
   test('warns about a 0% line on a Satış invoice only', () => {
     const items = [item(), item({ VATRate: 0 })];
     expect(invoiceWarnings(form({ items }), today)).toEqual({
-      'items[1].VATRate':
-        '%0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota yaz.',
+      'items[1].VATRate': '%0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.',
     });
     const istisna = { currency: 'TRY', currencyRate: '', invoiceType: 'ISTISNA' };
     expect(

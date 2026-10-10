@@ -440,8 +440,7 @@ function GalleryChoices() {
         <Readout value={vat} />
         {vat === 0 && (
           <FieldWarning id={`${id}-vat-warning`}>
-            %0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota
-            yaz.
+            %0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.
           </FieldWarning>
         )}
       </Field>

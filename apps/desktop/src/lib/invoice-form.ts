@@ -306,7 +306,7 @@ export function invoiceWarnings(values: InvoiceFormValues, today = new Date()) {
     values.items.forEach((item, index) => {
       if (item.VATRate === 0) {
         fields[`items[${index}].VATRate`] =
-          '%0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota yaz.';
+          '%0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.';
       }
     });
   }

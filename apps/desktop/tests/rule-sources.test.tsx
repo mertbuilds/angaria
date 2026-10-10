@@ -77,9 +77,7 @@ test('the rule messages carry their sources, other messages none', () => {
   expect(messageSource('Hizmet adını yaz')).toBeUndefined();
   // Not cited until verified against the official text: see the rule-sources table.
   expect(
-    messageSource(
-      '%0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota yaz.',
-    ),
+    messageSource('%0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.'),
   ).toBeUndefined();
 });
 
