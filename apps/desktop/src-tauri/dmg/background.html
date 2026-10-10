@@ -51,13 +51,15 @@
           transparent 100%
         );
       }
-      /* From just past the app icon's edge to just before the folder's (icons are 128px). */
+      /* Agent Caffeine's three chevrons, centred between the icons on their centre
+      line. The strokes run from x 13 to 81 of the 88 wide box, so the box sits
+      3px left of the midpoint to centre what is drawn. */
       #arrow {
         position: absolute;
-        left: calc(var(--app-x) + 84px);
-        top: calc(var(--icon-y) - 12px);
-        width: calc(var(--folder-x) - var(--app-x) - 168px);
-        height: 24px;
+        left: calc((var(--app-x) + var(--folder-x)) / 2 - 47px);
+        top: calc(var(--icon-y) - 24px);
+        width: 88px;
+        height: 48px;
         display: block;
       }
     </style>
@@ -65,10 +67,11 @@
   <body>
     <div id="c">
       <div id="dots"></div>
-      <svg id="arrow" viewBox="0 0 132 24" fill="none">
-        <g stroke="var(--arrow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M2 12 H128" />
-          <path d="M118 3 L128 12 L118 21" />
+      <svg id="arrow" viewBox="0 0 88 48" fill="none">
+        <g stroke="var(--arrow)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 12 L34 24 L16 36" opacity="0.45" />
+          <path d="M38 12 L56 24 L38 36" opacity="0.75" />
+          <path d="M60 12 L78 24 L60 36" opacity="1" />
         </g>
       </svg>
     </div>
