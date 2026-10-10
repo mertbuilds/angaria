@@ -16,7 +16,6 @@ import {
   DropdownMenuTrigger,
   Field,
   FieldError,
-  FieldGroup,
   FieldLabel,
 } from '@angaria/ui';
 import { spacing } from '@angaria/ui/tokens.stylex';
@@ -45,6 +44,16 @@ const styles = create({
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.s4,
+  },
+  // Shrinks to the two date fields side by side.
+  dialog: {
+    width: 'min-content',
+  },
+  // Each column as wide as its date field; an error wraps under it.
+  range: {
+    display: 'grid',
+    gap: spacing.s4,
+    gridTemplateColumns: 'repeat(2, min-content)',
   },
   // The menu trigger carries its own data-slot, so the theme's button icon
   // size does not reach its icons.
@@ -120,7 +129,7 @@ function CustomRangeForm({
           Bu iki tarih arasındaki faturalar listelenir, iki gün de dahil.
         </DialogDescription>
       </DialogHeader>
-      <FieldGroup>
+      <div {...props(styles.range)}>
         <Field data-invalid={errors.start ? true : undefined}>
           <FieldLabel htmlFor={`${id}-start`} id={`${id}-start-label`}>
             Başlangıç
@@ -154,7 +163,7 @@ function CustomRangeForm({
           />
           {errors.end && <FieldError id={`${id}-end-error`}>{errors.end}</FieldError>}
         </Field>
-      </FieldGroup>
+      </div>
       <DialogFooter>
         <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
         <Button type="submit">Uygula</Button>
@@ -210,7 +219,7 @@ export function DateRangeMenu({
       </DropdownMenu>
 
       <Dialog onOpenChange={setCustomOpen} open={customOpen}>
-        <DialogContent showCloseButton={false}>
+        <DialogContent showCloseButton={false} style={styles.dialog}>
           {customOpen && (
             <CustomRangeForm
               initial={value}
