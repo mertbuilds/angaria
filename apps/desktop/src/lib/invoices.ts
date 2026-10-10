@@ -14,25 +14,56 @@ export interface DateRange {
   start: string;
 }
 
-export type DatePreset = 'bu-ay' | 'gecen-ay' | 'son-3-ay';
+export type DatePreset = 'bu-ay' | 'gecen-ay' | 'son-3-ay' | 'son-6-ay' | 'bu-yil' | 'gecen-yil';
 
-export const DATE_PRESETS: ReadonlyArray<{ label: string; value: DatePreset }> = [
-  { label: 'Bu ay', value: 'bu-ay' },
-  { label: 'Geçen ay', value: 'gecen-ay' },
-  { label: 'Son 3 ay', value: 'son-3-ay' },
+interface DatePresetItem {
+  label: string;
+  /** The key that picks it while the period menu is open. */
+  shortcut: string;
+  value: DatePreset;
+}
+
+/** The period menu's presets, in its sections. */
+export const DATE_PRESET_GROUPS: ReadonlyArray<ReadonlyArray<DatePresetItem>> = [
+  [
+    { label: 'Bu ay', shortcut: 'A', value: 'bu-ay' },
+    { label: 'Geçen ay', shortcut: 'G', value: 'gecen-ay' },
+  ],
+  [
+    { label: 'Son 3 ay', shortcut: '3', value: 'son-3-ay' },
+    { label: 'Son 6 ay', shortcut: '6', value: 'son-6-ay' },
+  ],
+  [
+    { label: 'Bu yıl', shortcut: 'Y', value: 'bu-yil' },
+    { label: 'Geçen yıl', shortcut: 'E', value: 'gecen-yil' },
+  ],
 ];
 
-/** Bu ay and Son 3 ay end today: GİB has no invoices dated later. */
+export const DATE_PRESETS: ReadonlyArray<DatePresetItem> = DATE_PRESET_GROUPS.flat();
+
+// subMonths stops at the month's end: 31 May goes back to 28 February.
+const lastMonths = (months: number, now: Date) => ({
+  end: toGIB(now),
+  start: toGIB(addDays(subMonths(now, months), 1)),
+});
+
+/** Ranges that include this month end today: GİB has no invoices dated later. */
 export function presetRange(preset: DatePreset, now: Date): DateRange {
   const today = toGIB(now);
+  const year = now.getFullYear();
   switch (preset) {
     case 'bu-ay':
-      return { end: today, start: toGIB(new Date(now.getFullYear(), now.getMonth(), 1)) };
+      return { end: today, start: toGIB(new Date(year, now.getMonth(), 1)) };
     case 'gecen-ay':
       return previousMonthRange(now);
     case 'son-3-ay':
-      // subMonths stops at the month's end: 31 May goes back to 28 February.
-      return { end: today, start: toGIB(addDays(subMonths(now, 3), 1)) };
+      return lastMonths(3, now);
+    case 'son-6-ay':
+      return lastMonths(6, now);
+    case 'bu-yil':
+      return { end: today, start: toGIB(new Date(year, 0, 1)) };
+    case 'gecen-yil':
+      return { end: toGIB(new Date(year - 1, 11, 31)), start: toGIB(new Date(year - 1, 0, 1)) };
   }
 }
 

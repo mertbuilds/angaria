@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  DATE_PRESETS,
   invoiceStatus,
   matchesStatus,
   newestFirst,
@@ -37,11 +38,32 @@ describe('presetRange', () => {
   });
 });
 
+describe('presetRange, longer periods', () => {
+  test('Son 6 ay ends today and starts the day after the same date six months back', () => {
+    expect(presetRange('son-6-ay', now)).toEqual({ end: '15/10/2026', start: '16/04/2026' });
+    expect(presetRange('son-6-ay', new Date(2026, 7, 31)).start).toBe('01/03/2026');
+  });
+
+  test('Bu yıl runs from 1 January to today', () => {
+    expect(presetRange('bu-yil', now)).toEqual({ end: '15/10/2026', start: '01/01/2026' });
+  });
+
+  test('Geçen yıl is the whole previous year', () => {
+    expect(presetRange('gecen-yil', now)).toEqual({ end: '31/12/2025', start: '01/01/2025' });
+  });
+
+  test('every preset has its own shortcut', () => {
+    const keys = DATE_PRESETS.map(({ shortcut }) => shortcut.toLocaleLowerCase('tr'));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
 describe('rangePreset', () => {
   test('recognizes the presets and calls anything else custom', () => {
     expect(rangePreset({ end: '15/10/2026', start: '01/10/2026' }, now)).toBe('bu-ay');
     expect(rangePreset({ end: '30/09/2026', start: '01/09/2026' }, now)).toBe('gecen-ay');
     expect(rangePreset({ end: '15/10/2026', start: '16/07/2026' }, now)).toBe('son-3-ay');
+    expect(rangePreset({ end: '31/12/2025', start: '01/01/2025' }, now)).toBe('gecen-yil');
     expect(rangePreset({ end: '14/10/2026', start: '01/10/2026' }, now)).toBeNull();
   });
 });
