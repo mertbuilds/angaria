@@ -43,7 +43,9 @@ pub fn run() {
       mcp::mcp_respond,
       mcp::mcp_token,
       mcp::mcp_rotate_token,
-      mcp::mcp_install,
+      mcp::mcp_agents,
+      mcp::mcp_agents_add,
+      mcp::mcp_agents_remove,
       pdf::html_to_pdf,
       downloads::save_download
     ])

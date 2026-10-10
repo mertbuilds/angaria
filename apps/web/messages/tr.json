@@ -4,16 +4,20 @@
   "meta_description": "e-Arşiv faturanı GİB portalına girmeden, Mac'inden kes. Müşterilerin kayıtlı, geçen ayın faturası tek tıkla, İngilizce PDF hazır. Kontör yok. 14 gün ücretsiz dene.",
   "meta_og_title": "GİB portalıyla uğraşma. Faturanı Mac'inden kes.",
   "meta_app_description": "Serbest çalışanlar ve şahıs şirketleri için GİB e-Arşiv portalının yerine kullanılan Mac uygulaması. Faturalar GİB'de, kullanıcının kendi hesabıyla kesilir. Müşterileri ve hizmetleri kaydeder, geçen ayın faturasını tekrar keser, döviz kurunu TCMB'den alır ve müşteriye Türkçe, İngilizce ya da iki dilli PDF kopya hazırlar.",
+
   "header_home": "Angaria ana sayfa",
   "header_trial": "Ücretsiz dene",
   "header_nav": "Site menüsü",
   "header_mcp": "MCP",
+
   "cta_download": "Mac için indir",
   "cta_trial": "14 gün ücretsiz dene",
+
   "hero_title": "GİB portalıyla uğraşma. Faturanı Mac'inden kes.",
   "hero_lead": "Müşterilerin ve hizmetlerin kayıtlı kalır, geçen ayın faturasını tek tıkla yeniden kesersin. Fatura yine GİB'de, kendi hesabınla kesilir.",
   "hero_note": "14 gün ücretsiz, sonra yıllık 1.499 TL + KDV. Kontör yok.",
   "screen_hero_alt": "Angaria'da fatura listesi ve seçili faturanın önizlemesi",
+
   "compare_title": "Aynı fatura, iki ekran",
   "compare_lead": "Çizgiyi kaydır. Solda GİB'in e-Arşiv portalı, sağda Angaria'da yeni fatura.",
   "compare_gib": "GİB e-Arşiv portalı",
@@ -27,6 +31,7 @@
   "compare_repeat_body": "Aynı müşteriye her ay aynı faturayı kesiyorsan portalda formu yine baştan doldurursun. Angaria'da geçen ayın faturasını açar, Tekrar kes'e basarsın, tarih bugüne gelir.",
   "compare_sign_title": "Taslak bir yerde, onay başka yerde",
   "compare_sign_body": "Portalda faturayı oluşturursun, sonra taslaklara gidip ayrıca onaylarsın. Angaria'da faturayı hazırlar, aynı adımda SMS şifresiyle onaylarsın.",
+
   "steps_title": "Nasıl çalışır",
   "step_install_title": "İndir, anahtarını gir",
   "step_install_body": "Angaria'yı Mac'ine kur. Denemeyi başlattığında lisans anahtarın e-postana gelir, uygulamaya yapıştırman yeter.",
@@ -34,6 +39,7 @@
   "step_login_body": "e-Arşiv portalına girdiğin kullanıcı kodunu ve şifreni bir kez yaz. Kestiğin faturalar GİB'den gelir, şifren macOS Anahtar Zinciri'nde durur.",
   "step_sign_title": "Kes ve onayla",
   "step_sign_body": "Son faturalarından birini seç ya da boş bir fatura aç. Kontrol et, telefonuna gelen SMS şifresiyle onayla. Fatura GİB'de kesilmiş olur.",
+
   "scene_install_label": "Lisans anahtarı",
   "scene_install_activate": "Etkinleştir",
   "scene_install_active": "Etkin",
@@ -49,6 +55,7 @@
   "scene_sign_submit": "Oluştur ve onayla",
   "scene_sign_sms": "SMS şifren: {code}",
   "scene_sign_signed": "Onaylandı",
+
   "features_title": "Özellikler",
   "feature_start_title": "Geçen faturadan başla",
   "feature_start_body": "Yeni fatura açınca son beş faturan karşına çıkar. Birini seç; alıcı, hizmetler, tutar ve KDV oranı forma gelir.",
@@ -67,6 +74,7 @@
   "screen_customers_alt": "Müşteriler ekranında kayıtlı müşteriler",
   "screen_pdf_alt": "Türkçe ve İngilizce PDF fatura kopyası",
   "screen_rates_alt": "Yeni fatura formunda dövizli tutar ve TCMB kuru",
+
   "privacy_title": "Gizlilik",
   "privacy_lead": "Sunucumuz yok. Takip yok. Analitik yok.",
   "privacy_body": "Mac'in GİB'e doğrudan bağlanır, faturaların bizden geçmez. Müşterilerin, hizmetlerin ve ayarların yalnızca Mac'inde durur. GİB şifren ve lisans anahtarın macOS Anahtar Zinciri'nde saklanır, dosyalarda açık metin olarak tutulmaz.",
@@ -76,10 +84,12 @@
   "privacy_blocked": "Engellenir",
   "privacy_site_note": "Bu site ise ziyaretleri çerez kullanmadan, anonim olarak sayar. Ayrıntılar {link}.",
   "privacy_site_note_link": "gizlilik politikasında",
+
   "host_gib": "e-Arşiv faturaların",
   "host_tcmb": "Döviz kurları",
   "host_polar": "Lisans kontrolü",
   "host_updates": "Güncellemeler",
+
   "pricing_title": "Fiyat",
   "pricing_lead": "Kontör yok. Ön muhasebe aboneliği yok.",
   "pricing_plans": "Ödeme dönemi",
@@ -95,6 +105,7 @@
   "pricing_cancel": "Taahhüt yok, istediğin zaman iptal et",
   "pricing_devices": "Tek lisansla 3 Mac",
   "pricing_note": "Deneme için kart bilgisi istenir. 14 gün dolmadan iptal edersen ücret alınmaz. Ödeme Polar üzerinden alınır.",
+
   "faq_title": "Sık sorulan sorular",
   "faq_audience_q": "Angaria kimler için?",
   "faq_audience_a": "Ayda birkaç e-Arşiv faturası kesen serbest çalışanlar ve şahıs şirketleri için. Yurt dışına hizmet veriyorsan daha da çok işine yarar. Muhasebe programına ihtiyacın yok ama GİB ekranından bıktıysan, Angaria tam bunun için var.",
@@ -120,19 +131,24 @@
   "faq_cancel_a": "Deneme için kart bilgisi istenir ama ilk 14 gün ücret alınmaz. Deneme bitmeden iptal edersen hiç ödeme yapmazsın. Sonra da istediğin zaman iptal edebilirsin; ödediğin dönemin sonuna kadar kullanmaya devam edersin. İade için ya da bir sorun olursa destek@angaria.app adresine yaz.",
   "faq_windows_q": "Windows sürümü var mı?",
   "faq_windows_a": "Henüz yok, Angaria şimdilik yalnızca Mac'te çalışıyor. Windows sürümü planlarımızda; hazır olunca bu sayfada duyuracağız.",
+
   "mcp_meta_title": "MCP ile e-Arşiv faturalarını Claude'a sor · Angaria",
-  "mcp_meta_description": "Angaria'yı Claude'a ve Cursor'a bağla: e-Arşiv faturalarını sor, taslak hazırlat, izin verirsen SMS şifrenle onaylat. MCP sunucusu Mac'inde çalışır.",
+  "mcp_meta_description": "Angaria'yı Claude'a, Cursor'a, Codex'e ve 20'den fazla yapay zekâ uygulamasına bağla: e-Arşiv faturalarını sor, taslak hazırlat, izin verirsen SMS şifrenle onaylat. MCP sunucusu Mac'inde çalışır.",
   "mcp_og_title": "Angaria'yı Claude'a bağla",
+
   "mcp_eyebrow": "MCP",
   "mcp_title": "Angaria'yı Claude'a bağla",
   "mcp_lead": "Faturalarını Claude'a sor, yeni faturanın taslağını ona hazırlat. İzin verirsen telefonuna gelen SMS şifresini Claude'a yazarsın, faturayı o onaylar.",
-  "mcp_note": "Claude Desktop, Claude Code, Cursor ve diğer MCP uygulamalarıyla çalışır. Angaria'ya dahil, ek ücreti yok.",
+  "mcp_note": "Claude, Cursor, Codex, VS Code ve 20'den fazla uygulamaya tek tıkla eklenir. Angaria'ya dahil, ek ücreti yok.",
+
   "mcp_scene_prompt": "Acme için 4.500 USD taslak hazırla",
   "mcp_scene_app": "Angaria",
   "mcp_scene_draft": "Taslak",
   "mcp_scene_reply": "Taslak oluşturuldu, Angaria'da SMS ile onayla.",
+
   "mcp_what_title": "MCP nedir",
   "mcp_what_body": "MCP (Model Context Protocol), Claude gibi yapay zekâ uygulamalarının başka uygulamalarla konuştuğu açık bir standart. Angaria'da MCP'yi açınca Claude faturalarını Angaria'ya sorar. GİB'e yine Angaria bağlanır, Claude yalnızca cevabı görür.",
+
   "mcp_prompts_title": "Neler sorabilirsin",
   "mcp_prompts_lead": "Kendi cümlelerinle yaz. Claude hangi aracı kullanacağını kendisi seçer.",
   "mcp_prompt_list": "Geçen ay Northwind'e kestiğim faturaları listele",
@@ -144,6 +160,7 @@
   "mcp_prompt_sign": "Bu taslağı onayla, SMS şifresini sana yazacağım",
   "mcp_prompt_company": "İkinci şirketimin bu ayki faturalarını listele",
   "mcp_prompt_tools": "Kullandığı araçlar",
+
   "mcp_tools_title": "Araçlar",
   "mcp_tools_lead": "Claude, Angaria'da bu araçları kullanabilir. Onaylayan, silen ve firma bilgilerini değiştiren araçlar yalnızca sen izin verince çalışır.",
   "mcp_tool_list_invoices_title": "Faturaları listele",
@@ -199,6 +216,7 @@
   "mcp_tool_apply_gib_import_title": "Taranan kayıtları ekle",
   "mcp_tool_apply_gib_import_body": "Seçilen müşterileri ve hizmetleri kaydeder. Kayıtlı olanlara dokunmaz.",
   "mcp_tool_gated": "İzin gerekir",
+
   "mcp_safety_title": "Kontrol sende",
   "mcp_safety_local_title": "Mac'inde çalışır",
   "mcp_safety_local_body": "MCP sunucusu Angaria'nın içinde çalışır ve yalnızca bu Mac'ten gelen bağlantıları kabul eder. Arada bizim sunucumuz yok.",
@@ -211,27 +229,30 @@
   "mcp_limits_title": "Bilmen gereken",
   "mcp_limits_shared": "Araçların cevabı, kullandığın yapay zekâ uygulamasına gider. Bir faturayı sorduğunda alıcısı, tutarı ve satırları; müşterilerini listelettiğinde adları, VKN'leri ve adresleri Claude'da Anthropic'e, Cursor'da Cursor'un kullandığı sağlayıcıya gönderilir. Bu verileri o uygulamanın gizlilik koşulları yönetir.",
   "mcp_limits_check": "Yapay zekâ yanılabilir. SMS şifresini vermeden önce alıcıyı, tutarı ve KDV'yi kontrol et: Claude onaylanacak faturaları sana gösterir, Angaria'da da açıp bakabilirsin.",
+
   "mcp_setup_title": "Üç adımda kur",
   "screen_mcp_alt": "Angaria'nın MCP bölümünde açık MCP sunucusu ve Claude Desktop, Claude Code, Cursor için kurulum düğmeleri",
   "mcp_setup_open_title": "MCP'yi aç",
   "mcp_setup_open_body": "Angaria'da soldaki menüden MCP'ye gir ve MCP sunucusunu aç.",
   "mcp_setup_add_title": "Uygulamana ekle",
-  "mcp_setup_add_body": "“Claude Desktop'a ekle” ya da “Cursor'a ekle” düğmesine bas. Angaria ayar dosyasının yedeğini alır ve kendini ekler; sonra uygulamayı kapatıp yeniden aç. Claude Code için “Komutu kopyala” düğmesine bas ve komutu terminalde çalıştır:",
+  "mcp_setup_add_body": "Angaria bu Mac'teki yapay zekâ uygulamalarını bulur. “Ekle” ya da “Tümünü ekle” düğmesine bas: Angaria ayar dosyasının yedeğini alır ve kendini ekler, diğer ayarlarına dokunmaz. Sonra uygulamayı kapatıp yeniden aç. Listede olmayan bir uygulama için “Elle ekle” bölümündeki girdiyi kullan. Claude Code'u terminalden eklemek istersen komut orada:",
   "mcp_setup_add_note": "Angaria Uygulamalar klasöründe olmalı. İndirilenler'den ya da disk görüntüsünden çalışıyorsa önce taşı.",
   "mcp_setup_ask_title": "Sor",
   "mcp_setup_ask_body": "Claude'a faturalarını sor. Claude bir taslak hazırladığında Angaria haber verir; taslağı Angaria'da SMS ile onaylarsın ya da izin verdiysen SMS şifresini Claude'a yazarsın.",
+
   "mcp_clients_title": "Hangi uygulamalarla çalışır",
-  "mcp_client_desktop_name": "Claude Desktop",
-  "mcp_client_desktop_how": "Tek tıkla eklenir",
-  "mcp_client_cursor_name": "Cursor",
-  "mcp_client_cursor_how": "Tek tıkla eklenir",
-  "mcp_client_code_name": "Claude Code",
-  "mcp_client_code_how": "Angaria'nın kopyaladığı komutla eklenir",
+  "mcp_client_claude_name": "Claude Desktop ve Claude Code",
+  "mcp_client_claude_how": "Tek tıkla eklenir",
+  "mcp_client_editors_name": "Cursor, VS Code, Codex, Gemini CLI",
+  "mcp_client_editors_how": "Tek tıkla eklenir",
+  "mcp_client_more_name": "Windsurf, Zed, OpenCode, goose ve diğerleri",
+  "mcp_client_more_how": "Tek tıkla eklenir. Angaria bu Mac'te bulduklarını listeler, kurulu olmayanlara da ekleyebilir.",
   "mcp_client_other_name": "Diğer MCP uygulamaları",
-  "mcp_client_other_how": "mcpServers ayarına yapıştıracağın JSON ile ya da Streamable HTTP ile bağlanır",
+  "mcp_client_other_how": "Angaria'nın gösterdiği JSON girdisiyle ya da Streamable HTTP ile bağlanır",
+
   "mcp_faq_title": "Sık sorulan sorular",
   "mcp_faq_install_q": "Node.js ya da başka bir şey kurmam gerekir mi?",
-  "mcp_faq_install_a": "Hayır. MCP Angaria'nın içinde gelir. Claude Desktop'a ve Cursor'a Angaria kendini ekler; ayar dosyalarına şifre ya da erişim anahtarı yazılmaz.",
+  "mcp_faq_install_a": "Hayır. MCP Angaria'nın içinde gelir. Angaria, Claude'a, Cursor'a ve diğer uygulamalara kendini ekler; ayar dosyalarına şifre ya da erişim anahtarı yazılmaz.",
   "mcp_faq_password_q": "GİB şifrem Claude'a gider mi?",
   "mcp_faq_password_a": "Hayır. GİB şifren macOS Anahtar Zinciri'nde kalır ve GİB'e Angaria bağlanır. Claude yalnızca araçların cevabını görür: faturaların, müşterilerin ve hizmetlerin. SMS şifresini ise sen yazarsan görür.",
   "mcp_faq_sign_q": "Claude benim yerime fatura kesebilir mi?",
@@ -246,7 +267,9 @@
   "mcp_faq_log_a": "Angaria'nın MCP bölümünde. Ajan etkinliği listesi son 200 çağrıyı gösterir: hangi araç, ne zaman, hangi şirkette ve sonucu. Araca verilen bilgiler ve SMS şifreleri tutulmaz. Claude bir faturayı onayladığında ya da bir şeyi sildiğinde Angaria ayrıca haber verir.",
   "mcp_faq_price_q": "MCP için ayrıca ödeme yapar mıyım?",
   "mcp_faq_price_a": "Hayır. MCP Angaria'ya dahil. Araçlar lisansın etkin olduğu sürece çalışır.",
+
   "mcp_cta_title": "Angaria'yı indir, MCP'yi aç",
+
   "footer_made_by": "Angaria, bağımsız bir {studio} ürünüdür.",
   "footer_studio": "Vinena Studio",
   "footer_disclaimer": "Gelir İdaresi Başkanlığı (GİB) ile bir bağı yoktur, GİB tarafından onaylanmamıştır.",
@@ -254,6 +277,7 @@
   "footer_terms": "Koşullar",
   "footer_links": "Site bağlantıları",
   "footer_copyright": "© {year} Vinena Studio",
+
   "thanks_meta_title": "Teşekkürler · Angaria",
   "thanks_title": "Teşekkürler",
   "thanks_lead": "Lisans anahtarın e-postana gönderildi.",
@@ -264,10 +288,13 @@
   "thanks_step_gib": "Ayarlar'da GİB kullanıcı kodunu ve şifreni gir.",
   "thanks_devices": "Aynı anahtarı 3 Mac'te kullanabilirsin.",
   "thanks_help": "E-posta gelmediyse spam klasörüne bak ya da {email} adresine yaz.",
+
   "not_found_title": "Sayfa bulunamadı",
   "not_found_body": "Aradığın sayfa burada yok. Adres yanlış yazılmış ya da sayfa kaldırılmış olabilir.",
   "not_found_home": "Ana sayfaya dön",
+
   "legal_updated": "Son güncelleme: 2 Ekim 2026",
+
   "privacy_page_meta_title": "Gizlilik politikası · Angaria",
   "privacy_page_meta_description": "Angaria uygulaması ve angaria.app hangi kişisel verileri işler, nerede saklar, kimlerle paylaşır.",
   "privacy_page_title": "Gizlilik politikası",
@@ -298,6 +325,7 @@
   "privacy_page_rights_body": "KVKK'nın 11. maddesine göre kişisel verilerinin işlenip işlenmediğini öğrenme, işlendiyse bilgi isteme, düzeltilmesini ya da silinmesini isteme ve işlemeye itiraz etme hakkın var. Başvurunu destek@angaria.app adresine gönderebilirsin; en geç 30 gün içinde yanıt veririz.",
   "privacy_page_changes_title": "Değişiklikler",
   "privacy_page_changes_body": "Bu metni güncellediğimizde yukarıdaki tarihi değiştiririz. Önemli bir değişiklik olursa sitede duyururuz.",
+
   "terms_page_meta_title": "Kullanım koşulları · Angaria",
   "terms_page_meta_description": "Angaria'nın yıllık ve aylık aboneliği, ödeme, ücretsiz deneme, iptal ve kullanım koşulları.",
   "terms_page_title": "Kullanım koşulları",

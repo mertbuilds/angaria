@@ -5,14 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 import { isTauri } from '@tauri-apps/api/core';
 import { useState } from 'react';
 import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
+import { copy } from '@/lib/clipboard.ts';
 import { errorMessage } from '@/lib/gib-errors.ts';
-import { mcpInstall, mcpRotateToken, mcpStatus, mcpToken } from '@/lib/mcp-native.ts';
+import { mcpRotateToken, mcpStatus, mcpToken } from '@/lib/mcp-native.ts';
 import {
-  bridgeLocationProblem,
-  claudeCodeCommand,
   claudeCodeHTTPCommand,
   isValidPort,
-  mcpServersJSON,
   setMcpSettings,
   useMcpServerState,
   useMcpSettings,
@@ -20,6 +18,7 @@ import {
 } from '@/lib/mcp.ts';
 import { useStore } from '@/lib/store.tsx';
 import { McpActionsSection, McpActivitySection, McpToolsSection } from './mcp-agent-sections.tsx';
+import { McpInstallSection } from './mcp-install.tsx';
 
 const styles = create({
   column: {
@@ -65,46 +64,6 @@ const statusTone = {
   starting: 'muted',
 } as const;
 
-async function copy(text: string, done: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success(done);
-  } catch {
-    toast.error('Panoya kopyalanamadı. Tekrar dene.');
-  }
-}
-
-const clientCopy = {
-  'claude-desktop': {
-    added: 'Claude Desktop’a eklendi',
-    present: 'Claude Desktop’ta zaten ekli',
-    restart: 'Claude Desktop’u kapatıp yeniden aç.',
-  },
-  cursor: {
-    added: 'Cursor’a eklendi',
-    present: 'Cursor’da zaten ekli',
-    restart: 'Cursor’u kapatıp yeniden aç.',
-  },
-} as const;
-
-async function install(client: keyof typeof clientCopy) {
-  const text = clientCopy[client];
-  try {
-    const result = await mcpInstall(client);
-    if (result.unchanged) {
-      toast.success(text.present);
-    } else {
-      toast.success(text.added, {
-        description: result.backup
-          ? `${text.restart} Eski ayarların yedeği: ${result.backup.split('/').pop()}`
-          : text.restart,
-      });
-    }
-  } catch (error) {
-    toast.error(errorMessage(error));
-  }
-}
-
 function PortRow() {
   const { port } = useMcpSettings();
   const [draft, setDraft] = useState<string | null>(null);
@@ -146,7 +105,8 @@ function PortRow() {
 
 /**
  * Angaria › MCP: the built-in MCP server's switch and status, what agents
- * may do, one-click setup for MCP clients, the tools, and the agents' calls.
+ * may do, one-click setup for MCP clients (mcp-install.tsx), the tools, and
+ * the agents' calls.
  */
 export function McpPage() {
   const { enabled } = useMcpSettings();
@@ -159,22 +119,7 @@ export function McpPage() {
     queryKey: ['mcp-status'],
     refetchInterval: 5000,
   });
-  const bridgePath = status.data?.bridgeFound ? status.data.bridgePath : null;
-  const problem = bridgePath ? bridgeLocationProblem(bridgePath) : null;
-  const setupReady = bridgePath !== null && problem === null;
   const runningPort = server.kind === 'running' ? server.port : null;
-
-  let setupNote = null;
-  if (!tauri) {
-    setupNote = 'Kurulum yalnızca Angaria uygulamasında çalışır.';
-  } else if (status.data && !status.data.bridgeFound) {
-    setupNote = 'Angaria’nın MCP köprüsü bulunamadı. Angaria’yı yeniden kur.';
-  } else if (problem === 'translocated') {
-    setupNote = 'Angaria İndirilenler’den çalışıyor. Önce Uygulamalar klasörüne taşı, sonra ekle.';
-  } else if (problem === 'volume') {
-    setupNote =
-      'Angaria disk görüntüsünden çalışıyor. Önce Uygulamalar klasörüne taşı, sonra ekle.';
-  }
 
   return (
     <div {...props(styles.page)}>
@@ -204,57 +149,7 @@ export function McpPage() {
 
         <McpActionsSection />
 
-        <SettingsSection
-          description="Uygulamayı bir kez ekle. Angaria kapalıysa uygulama onu açar; MCP sunucusu açık olmalı."
-          title="Kurulum"
-        >
-          {setupNote && (
-            <SettingsRow>
-              <SettingsValue tone="warning">{setupNote}</SettingsValue>
-            </SettingsRow>
-          )}
-          <SettingsRow
-            hint="Ayar dosyasına ekler, önce yedeğini alır. Sonra Claude Desktop’u yeniden aç."
-            label="Claude Desktop"
-          >
-            <Button
-              disabled={!setupReady}
-              onClick={() => void install('claude-desktop')}
-              variant="outline"
-            >
-              Claude Desktop’a ekle
-            </Button>
-          </SettingsRow>
-          <SettingsRow hint="Terminalde çalıştıracağın komutu kopyalar" label="Claude Code">
-            <Button
-              disabled={!setupReady}
-              onClick={() =>
-                bridgePath &&
-                void copy(claudeCodeCommand(bridgePath), 'Komut kopyalandı. Terminalde çalıştır.')
-              }
-              variant="outline"
-            >
-              Komutu kopyala
-            </Button>
-          </SettingsRow>
-          <SettingsRow hint="~/.cursor/mcp.json dosyasına ekler, önce yedeğini alır" label="Cursor">
-            <Button disabled={!setupReady} onClick={() => void install('cursor')} variant="outline">
-              Cursor’a ekle
-            </Button>
-          </SettingsRow>
-          <SettingsRow
-            hint="Uygulamanın mcpServers ayarına yapıştıracağın JSON’u kopyalar"
-            label="Diğer uygulamalar"
-          >
-            <Button
-              disabled={!setupReady}
-              onClick={() => bridgePath && void copy(mcpServersJSON(bridgePath), 'JSON kopyalandı')}
-              variant="outline"
-            >
-              JSON’u kopyala
-            </Button>
-          </SettingsRow>
-        </SettingsSection>
+        <McpInstallSection status={status.data} />
 
         <McpToolsSection />
 

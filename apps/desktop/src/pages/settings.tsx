@@ -31,7 +31,6 @@ import { create, props } from '@stylexjs/stylex';
 import { getVersion } from '@tauri-apps/api/app';
 import {
   CheckIcon,
-  ChevronRightIcon,
   CircleAlertIcon,
   EyeIcon,
   EyeOffIcon,
@@ -40,6 +39,7 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Disclosure } from '@/components/disclosure.tsx';
 import { LicenseCard } from '@/components/license-card.tsx';
 import {
   SettingsField,
@@ -69,7 +69,6 @@ import { IBAN_MASK, TR_PHONE_MASK } from '@/lib/tr-validators.ts';
 import type { Entity, PDFStyle } from '@/lib/types.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
 import { useImportFromGIB } from '@/shell/import-from-gib.tsx';
-import { tones } from '../shell/palette.stylex.ts';
 
 const styles = create({
   column: {
@@ -150,48 +149,6 @@ const styles = create({
   },
   testResultError: {
     color: colors.error,
-  },
-  summary: {
-    '::-webkit-details-marker': {
-      display: 'none',
-    },
-    alignItems: 'center',
-    borderRadius: radius.base,
-    color: colors.fg,
-    cursor: 'pointer',
-    display: 'flex',
-    fontSize: font.sizeSm,
-    fontWeight: font.weightMedium,
-    gap: spacing.s2,
-    listStyle: 'none',
-    outline: {
-      ':focus-visible': `1px solid ${tones.ring}`,
-      default: 'none',
-    },
-    outlineOffset: '4px',
-    paddingInline: spacing.s1,
-    userSelect: 'none',
-  },
-  summaryHint: {
-    color: colors.muted,
-    fontSize: font.sizeXs,
-    fontWeight: font.weightRegular,
-  },
-  summaryIcon: {
-    color: colors.muted,
-    height: '1rem',
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0s',
-      default: '150ms',
-    },
-    transitionProperty: 'transform',
-    width: '1rem',
-  },
-  summaryIconOpen: {
-    transform: 'rotate(90deg)',
-  },
-  advancedBody: {
-    paddingTop: spacing.s3,
   },
 });
 
@@ -416,23 +373,14 @@ const loadEmulatorSeed = import.meta.env.DEV ? () => import('@/dev/emulator-seed
 /** Development only: the local emulator, folded away. Open while it is on. */
 function AdvancedSection() {
   const store = useStore();
-  const [open, setOpen] = useState(() => Boolean(activeGibEmulatorURL));
   const emulator = import.meta.env.DEV && gibEmulatorURL;
   if (!emulator) {
     return null;
   }
 
   return (
-    <details onToggle={(event) => setOpen(event.currentTarget.open)} open={open}>
-      <summary {...props(styles.summary)}>
-        <ChevronRightIcon
-          aria-hidden
-          {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
-        />
-        <span {...props(capStyles.text)}>Gelişmiş</span>
-        <span {...props(styles.summaryHint, capStyles.text)}>Emülatör</span>
-      </summary>
-      <div {...props(styles.advancedBody, styles.column)}>
+    <Disclosure defaultOpen={Boolean(activeGibEmulatorURL)} hint="Emülatör" label="Gelişmiş">
+      <div {...props(styles.column)}>
         <SettingsSection title="Geliştirme">
           <SettingsRow hint={`GİB ve TCMB yerine ${emulator} (pnpm emulate)`} label="Emülatör">
             <Switch
@@ -460,7 +408,7 @@ function AdvancedSection() {
           )}
         </SettingsSection>
       </div>
-    </details>
+    </Disclosure>
   );
 }
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mcp-agents-remove"
+description = "Enables the mcp_agents_remove command without any pre-configured scope."
+commands.allow = ["mcp_agents_remove"]
+
+[[permission]]
+identifier = "deny-mcp-agents-remove"
+description = "Denies the mcp_agents_remove command without any pre-configured scope."
+commands.deny = ["mcp_agents_remove"]
