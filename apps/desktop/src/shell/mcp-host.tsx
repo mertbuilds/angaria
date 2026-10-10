@@ -5,17 +5,22 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   cancelInvoice,
   createDraftInvoice,
+  downloadInvoice,
   fetchTCMBRateTable,
+  forceLogout,
   getDrafts,
   getInvoiceDetail,
   getInvoiceHTML,
+  startSMSSign,
+  verifyAndSign,
 } from '@/lib/angaria.ts';
 import { customerName, defaultPDFLanguage, learnCustomer } from '@/lib/customer.ts';
 import { errorMessage } from '@/lib/gib-errors.ts';
-import { gib, useGIBAccount } from '@/lib/gib.ts';
-import { saveDueDate } from '@/lib/invoice-due-dates.ts';
+import { gib, invoiceDetailQuery, invoiceHTMLQuery } from '@/lib/gib.ts';
+import { dueDateOf, saveDueDate } from '@/lib/invoice-due-dates.ts';
+import { saveAngariaPDF, saveEArchive } from '@/lib/invoice-files.ts';
 import { cleanItems, invoiceDefaults, upsertSavedItems } from '@/lib/invoice-form.ts';
-import { rangeCovering } from '@/lib/invoices.ts';
+import { parseGIBInvoice, rangeCovering } from '@/lib/invoices.ts';
 import { useLicense } from '@/lib/license-context.tsx';
 import {
   mcpRespond,
@@ -25,10 +30,12 @@ import {
   onMcpCancel,
   type McpToolCall,
 } from '@/lib/mcp-native.ts';
-import type { McpToolContext } from '@/lib/mcp-tools.ts';
-import { recordMcpCall, setMcpServerState, useMcpSettings } from '@/lib/mcp.ts';
+import { createMcpState, type McpState } from '@/lib/mcp-state.ts';
+import type { McpAction, McpToolContext } from '@/lib/mcp-tools.ts';
+import { recordMcpActivity, setMcpServerState, useMcpSettings } from '@/lib/mcp.ts';
 import type { GIBAccount } from '@/lib/session-queue.ts';
 import { useStore } from '@/lib/store.tsx';
+import type { Entity, Recipient, Service } from '@/lib/types.ts';
 import { router } from '../router.tsx';
 
 /**
@@ -40,30 +47,52 @@ const QUEUE_DEADLINE_MS = 45_000;
 /** How long a call waits for the launch license check. */
 const LICENSE_WAIT_MS = 20_000;
 
-interface Snapshot {
-  account: GIBAccount;
-  store: ReturnType<typeof useStore>;
-}
+type Store = ReturnType<typeof useStore>;
+
+/** A company's GİB account, as useGIBAccount gives the active one's. */
+const accountOf = (store: Store, entity: Entity): GIBAccount => ({
+  credentials: () => store.getCredentials(entity.id),
+  key: entity.creds.username,
+});
+
+/** Digits only: "123 456 7890" is 1234567890. */
+const digits = (text: string) => text.replaceAll(/\D/g, '');
+
+const signingToast = (operationId: string) => `mcp-sign-${operationId}`;
+
+const go = (to: '/ayarlar' | '/faturalar' | '/hizmetler' | '/musteriler') =>
+  void router.navigate({ to });
 
 /**
  * Runs the built-in MCP server's tools while Angaria › MCP has it on
- * (docs/adr/0009-built-in-mcp-server.md): starts the Rust server with the
- * tool list, runs each `mcp:call` with the active company's store, login and
- * GİB queue, and sends the result back. Mounted outside the license gate, so a
- * locked app still answers with the license error.
+ * (docs/adr/0009-built-in-mcp-server.md, docs/adr/0010-mcp-agent-actions.md):
+ * starts the Rust server with the tool list, runs each `mcp:call` with the
+ * active company's store, login and GİB queue, logs it, and sends the result
+ * back. What an agent signs, deletes or changes shows as a toast. Mounted
+ * outside the license gate, so a locked app still answers with the license
+ * error.
  */
 export function McpHost() {
-  const { enabled, port } = useMcpSettings();
+  const { allowActions, enabled, port } = useMcpSettings();
   const store = useStore();
-  const account = useGIBAccount();
   const queryClient = useQueryClient();
   const { status } = useLicense();
 
   // Calls outlive the render they started in.
-  const latest = useRef({ account, store });
+  const latest = useRef(store);
   useEffect(() => {
-    latest.current = { account, store };
-  }, [account, store]);
+    latest.current = store;
+  }, [store]);
+
+  const actions = useRef(allowActions);
+  const state = useRef<McpState | null>(null);
+  useEffect(() => {
+    actions.current = allowActions;
+    // Switched off: an SMS approval in progress ends and gives the session back.
+    if (!allowActions) {
+      state.current?.signing.endAll('cancelled');
+    }
+  }, [allowActions]);
 
   const license = useRef({ kind: status.kind, waiters: new Set<() => void>() });
   useEffect(() => {
@@ -76,84 +105,228 @@ export function McpHost() {
     }
   }, [status.kind]);
 
+  const onAction = useCallback(
+    (action: McpAction, account: GIBAccount, entity: Entity, mcpState: McpState) => {
+      const refreshInvoices = () =>
+        void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
+      switch (action.kind) {
+        case 'signing-requested':
+          toast('Ajan SMS onayı bekliyor', {
+            cancel: {
+              label: 'Vazgeç',
+              onClick: () => mcpState.signing.end(action.operationId, 'cancelled'),
+            },
+            description: `${entity.name}: ${action.count} taslak için SMS şifresi gönderildi. GİB işlemlerin onay bitene kadar bekler.`,
+            duration: Math.max(1000, action.expiresAt - Date.now()),
+            id: signingToast(action.operationId),
+          });
+          return;
+        case 'signed': {
+          refreshInvoices();
+          const [first] = action.invoices;
+          toast.success(
+            action.invoices.length === 1
+              ? 'Ajan faturayı onayladı'
+              : `Ajan ${action.invoices.length} faturayı onayladı`,
+            {
+              action: first
+                ? {
+                    label: 'Aç',
+                    onClick: () =>
+                      void router.navigate({
+                        params: { ettn: first.uuid },
+                        to: '/faturalar/$ettn',
+                      }),
+                  }
+                : undefined,
+              description: `${entity.name}: ${action.invoices
+                .map((invoice) => invoice.number ?? invoice.uuid)
+                .join(', ')}`,
+            },
+          );
+          return;
+        }
+        case 'draft-deleted':
+          refreshInvoices();
+          toast.success('Ajan bir taslağı sildi', {
+            action: { label: 'Faturalar', onClick: () => go('/faturalar') },
+            description: `${entity.name}: ${action.number ?? action.uuid}`,
+          });
+          return;
+        case 'customer-deleted':
+          toast.success('Ajan bir müşteriyi sildi', {
+            action: { label: 'Müşteriler', onClick: () => go('/musteriler') },
+            description: `${entity.name}: ${action.name}`,
+          });
+          return;
+        case 'service-deleted':
+          toast.success('Ajan bir hizmeti sildi', {
+            action: { label: 'Hizmetler', onClick: () => go('/hizmetler') },
+            description: `${entity.name}: ${action.name}`,
+          });
+          return;
+        case 'company-details-updated':
+          toast.success('Ajan firma bilgilerini değiştirdi', {
+            action: { label: 'Ayarlar', onClick: () => go('/ayarlar') },
+            description: `${entity.name}. PDF’ler yeni bilgilerle çıkar.`,
+          });
+          return;
+        case 'gib-session-closed':
+          toast.success('Ajan GİB oturumunu kapattı', { description: entity.name });
+      }
+    },
+    [queryClient],
+  );
+
   /**
-   * A call's context: the account and store as the call arrived, so a
-   * company switch while it waits never mixes two companies' data.
+   * A call's context for one company: its account, records and setters as the
+   * call arrived, so a company switch while it waits never mixes two
+   * companies' data, and naming another company never switches the app's.
    */
   const contextFor = useCallback(
-    ({ account, store }: Snapshot): McpToolContext => ({
-      client: { cancelInvoice, createDraftInvoice, getDrafts, getInvoiceDetail, getInvoiceHTML },
-      company: () => {
-        const { activeEntity, hasCredentials, savedItems, savedRecipients } = store;
-        return {
-          customers: savedRecipients,
-          hasCredentials,
-          name: activeEntity.name,
-          services: savedItems,
-        };
-      },
-      currencyRate: async (currency, date) => (await fetchTCMBRateTable(date)).rates.get(currency),
-      // The signal drops a waiting task; a started one runs to its end.
-      gib: (task, signal) => gib.run(account, (session) => task(session), { signal }),
-      license: async () => {
-        const state = license.current;
-        if (state.kind === 'checking') {
-          await new Promise<void>((resolve) => {
-            state.waiters.add(resolve);
-            setTimeout(resolve, LICENSE_WAIT_MS);
-          });
-        }
-        if (state.kind === 'checking') {
-          return 'checking';
-        }
-        return state.kind === 'valid' || state.kind === 'grace' ? 'ok' : 'locked';
-      },
-      newId: () => crypto.randomUUID(),
-      now: () => new Date(),
-      // What Yeni fatura does after a draft: the list, the due date, the
-      // customer and services learned. The snapshot's setters write to the
-      // company the draft was made for.
-      onDraftCreated: (draft, values) => {
-        void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
-        if (latest.current.store.activeEntityId === store.activeEntityId) {
-          store.setInvoiceDateRange((range) => rangeCovering(range, draft.date));
-        }
-        if (draft.uuid && values.advancedFields.dueDate) {
-          saveDueDate(draft.uuid, values.advancedFields.dueDate);
-        }
-        store.setSavedItems((saved) =>
-          upsertSavedItems(
-            saved,
-            cleanItems(values.items),
-            store.newId,
-            values.invoiceSettings.currency,
-          ),
-        );
-        const pdfLanguage = values.recipient.pdfLanguage ?? defaultPDFLanguage(values.recipient);
-        store.setSavedRecipients(
-          (customers) =>
-            learnCustomer(
-              customers,
-              values.recipient,
-              invoiceDefaults(values, { date: draft.date, pdfLanguage }),
+    function build(store: Store, mcpState: McpState, entityId: string): McpToolContext {
+      const entity =
+        store.entities.find((candidate) => candidate.id === entityId) ?? store.activeEntity;
+      const account = accountOf(store, entity);
+      const update = (change: (entity: Entity) => Partial<Entity>) =>
+        store.updateEntity(entity.id, (current) => ({ ...current, ...change(current) }));
+      const setCustomers = (change: (customers: Array<Recipient>) => Array<Recipient>) =>
+        update((current) => ({ savedRecipients: change(current.savedRecipients) }));
+      const setServices = (change: (services: Array<Service>) => Array<Service>) =>
+        update((current) => ({ savedItems: change(current.savedItems) }));
+      return {
+        actionsAllowed: () => actions.current,
+        client: {
+          cancelInvoice,
+          createDraftInvoice,
+          getDrafts,
+          getInvoiceDetail,
+          getInvoiceHTML,
+          startSMSSign,
+          verifyAndSign,
+        },
+        companies: () =>
+          store.entities.map(({ companyInfo, id, name }) => ({
+            active: id === store.activeEntityId,
+            gibLogin: store.hasCredentialsFor(id) ? 'ready' : 'needs-login',
+            id,
+            legalName: companyInfo.name,
+            name,
+            taxID: companyInfo.taxID,
+          })),
+        company: () => ({
+          companyInfo: entity.companyInfo,
+          customers: entity.savedRecipients,
+          hasCredentials: store.hasCredentialsFor(entity.id),
+          id: entity.id,
+          name: entity.name,
+          services: entity.savedItems,
+        }),
+        forCompany: (ref) => {
+          const byId = store.entities.find((candidate) => candidate.id === ref);
+          const byTaxID = digits(ref)
+            ? store.entities.filter(
+                (candidate) => digits(candidate.companyInfo.taxID) === digits(ref),
+              )
+            : [];
+          if (!byId && byTaxID.length > 1) {
+            return 'ambiguous';
+          }
+          const found = byId ?? byTaxID[0];
+          return found ? build(store, mcpState, found.id) : null;
+        },
+        currencyRate: async (currency, date) =>
+          (await fetchTCMBRateTable(date)).rates.get(currency),
+        // What İndir does on the invoice detail, with the same queries.
+        download: async ({ format, invoice, language }) => {
+          const { ettn } = invoice;
+          const source = {
+            company: entity.companyInfo,
+            dueDate: dueDateOf(ettn),
+            entityName: entity.name,
+            invoice,
+            readHTML: () =>
+              queryClient.fetchQuery(invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? '')),
+          };
+          if (format === 'angaria-pdf') {
+            const detail = await queryClient.fetchQuery(invoiceDetailQuery(account, ettn));
+            return saveAngariaPDF(source, parseGIBInvoice(detail), language);
+          }
+          return saveEArchive(source, format === 'earsiv-pdf' ? 'pdf' : 'zip', () =>
+            gib.run(account, (session) => downloadInvoice(session, ettn, invoice.onayDurumu ?? '')),
+          );
+        },
+        forceLogout: async () => {
+          const login = await store.getCredentials(entity.id);
+          await forceLogout(login.username, login.password);
+        },
+        // The signal drops a waiting task; a started one runs to its end.
+        gib: (task, signal, options) =>
+          gib.run(account, (session) => task(session), { ...options, signal }),
+        lease: (signal) => gib.lease(account, { signal }),
+        license: async () => {
+          const state = license.current;
+          if (state.kind === 'checking') {
+            await new Promise<void>((resolve) => {
+              state.waiters.add(resolve);
+              setTimeout(resolve, LICENSE_WAIT_MS);
+            });
+          }
+          if (state.kind === 'checking') {
+            return 'checking';
+          }
+          return state.kind === 'valid' || state.kind === 'grace' ? 'ok' : 'locked';
+        },
+        newId: () => crypto.randomUUID(),
+        now: () => new Date(),
+        onAction: (action) => onAction(action, account, entity, mcpState),
+        // What Yeni fatura does after a draft: the list, the due date, the
+        // customer and services learned, for the company the draft was made for.
+        onDraftCreated: (draft, values) => {
+          void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
+          if (latest.current.activeEntityId === entity.id) {
+            latest.current.setInvoiceDateRange((range) => rangeCovering(range, draft.date));
+          }
+          if (draft.uuid && values.advancedFields.dueDate) {
+            saveDueDate(draft.uuid, values.advancedFields.dueDate);
+          }
+          setServices((saved) =>
+            upsertSavedItems(
+              saved,
+              cleanItems(values.items),
               store.newId,
-            ).customers,
-        );
-        toast.success('MCP ile taslak oluşturuldu', {
-          action: draft.uuid
-            ? {
-                label: 'Aç',
-                onClick: () =>
-                  void router.navigate({ params: { ettn: draft.uuid }, to: '/faturalar/$ettn' }),
-              }
-            : undefined,
-          description: `${customerName(values.recipient)}. SMS ile onaylamak için aç.`,
-        });
-      },
-      onDraftDeleted: () =>
-        void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] }),
-    }),
-    [queryClient],
+              values.invoiceSettings.currency,
+            ),
+          );
+          const pdfLanguage = values.recipient.pdfLanguage ?? defaultPDFLanguage(values.recipient);
+          setCustomers(
+            (customers) =>
+              learnCustomer(
+                customers,
+                values.recipient,
+                invoiceDefaults(values, { date: draft.date, pdfLanguage }),
+                store.newId,
+              ).customers,
+          );
+          toast.success('MCP ile taslak oluşturuldu', {
+            action: draft.uuid
+              ? {
+                  label: 'Aç',
+                  onClick: () =>
+                    void router.navigate({ params: { ettn: draft.uuid }, to: '/faturalar/$ettn' }),
+                }
+              : undefined,
+            description: `${entity.name}: ${customerName(values.recipient)}. SMS ile onaylamak için aç.`,
+          });
+        },
+        setCompanyInfo: (change) =>
+          update((current) => ({ companyInfo: change(current.companyInfo) })),
+        setCustomers,
+        setServices,
+        state: mcpState,
+      };
+    },
+    [onAction, queryClient],
   );
 
   useEffect(() => {
@@ -168,6 +341,10 @@ export function McpHost() {
     let disposed = false;
     const unlisten: Array<() => void> = [];
     const running = new Map<number, AbortController>();
+    const mcpState = createMcpState({
+      onSigningEnd: (operation) => toast.dismiss(signingToast(operation.id)),
+    });
+    state.current = mcpState;
 
     async function run({ arguments: args, id, name }: McpToolCall) {
       const controller = new AbortController();
@@ -175,9 +352,19 @@ export function McpHost() {
       const deadline = setTimeout(() => controller.abort(), QUEUE_DEADLINE_MS);
       try {
         // Loaded with the first call or the server's start, not at launch.
-        const { callMcpTool } = await import('@/lib/mcp-tools.ts');
-        const result = await callMcpTool(contextFor(latest.current), name, args, controller.signal);
-        recordMcpCall({ at: new Date(), id, ok: result.isError !== true, tool: name });
+        const { runMcpTool } = await import('@/lib/mcp-tools.ts');
+        const { activity, result } = await runMcpTool(
+          contextFor(latest.current, mcpState, latest.current.activeEntityId),
+          name,
+          args,
+          controller.signal,
+        );
+        recordMcpActivity({
+          ...activity,
+          at: new Date().toISOString(),
+          id: `${Date.now()}-${id}`,
+          tool: name,
+        });
         await mcpRespond(id, result);
       } finally {
         clearTimeout(deadline);
@@ -211,9 +398,14 @@ export function McpHost() {
       for (const stop of unlisten.splice(0)) {
         stop();
       }
-      // Calls still waiting for GİB answer busy; started ones finish.
+      // Calls still waiting for GİB answer busy; started ones finish. An SMS
+      // approval in progress ends and gives the session back.
       for (const controller of running.values()) {
         controller.abort();
+      }
+      mcpState.dispose();
+      if (state.current === mcpState) {
+        state.current = null;
       }
     };
   }, [contextFor, enabled, port]);

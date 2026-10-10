@@ -1,4 +1,4 @@
-import { Badge, Button, Input, Switch, toast } from '@angaria/ui';
+import { Button, Input, Switch, toast } from '@angaria/ui';
 import { spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
@@ -12,16 +12,14 @@ import {
   claudeCodeCommand,
   claudeCodeHTTPCommand,
   isValidPort,
-  MCP_TOOL_COPY,
   mcpServersJSON,
-  mcpToolTitle,
   setMcpSettings,
-  useMcpCalls,
   useMcpServerState,
   useMcpSettings,
   type McpServerState,
 } from '@/lib/mcp.ts';
 import { useStore } from '@/lib/store.tsx';
+import { McpActionsSection, McpActivitySection, McpToolsSection } from './mcp-agent-sections.tsx';
 
 const styles = create({
   column: {
@@ -147,13 +145,12 @@ function PortRow() {
 }
 
 /**
- * Angaria › MCP: the built-in MCP server's switch and status, one-click setup
- * for MCP clients, the tools, and this session's calls.
+ * Angaria › MCP: the built-in MCP server's switch and status, what agents
+ * may do, one-click setup for MCP clients, the tools, and the agents' calls.
  */
 export function McpPage() {
   const { enabled } = useMcpSettings();
   const server = useMcpServerState();
-  const calls = useMcpCalls();
   const { activeEntity } = useStore();
   const tauri = isTauri();
   const status = useQuery({
@@ -183,7 +180,7 @@ export function McpPage() {
     <div {...props(styles.page)}>
       <div {...props(styles.column)}>
         <SettingsSection
-          description="Claude, Cursor gibi yapay zekâ uygulamaları Angaria üzerinden faturalarını listeleyebilir, müşterilerini görebilir ve taslak oluşturabilir. Taslağı yalnızca sen, Angaria’da SMS ile onaylarsın."
+          description="Claude, Cursor gibi yapay zekâ uygulamaları Angaria üzerinden faturalarını listeleyebilir, müşterilerini görebilir ve taslak oluşturabilir. Onaylamak ve silmek için İzinler’deki anahtarı açman gerekir."
           title="MCP sunucusu"
         >
           <SettingsRow hint="Angaria açıkken çalışır, yalnızca bu Mac bağlanabilir" label="MCP">
@@ -197,10 +194,15 @@ export function McpPage() {
           <SettingsRow label="Durum">
             <SettingsValue tone={statusTone[server.kind]}>{statusText(server)}</SettingsValue>
           </SettingsRow>
-          <SettingsRow hint="Araçlar seçili şirketin GİB hesabıyla çalışır" label="Şirket">
+          <SettingsRow
+            hint="Ajan başka bir şirket seçmezse araçlar bu şirketle çalışır"
+            label="Şirket"
+          >
             <SettingsValue>{activeEntity.name}</SettingsValue>
           </SettingsRow>
         </SettingsSection>
+
+        <McpActionsSection />
 
         <SettingsSection
           description="Uygulamayı bir kez ekle. Angaria kapalıysa uygulama onu açar; MCP sunucusu açık olmalı."
@@ -254,39 +256,9 @@ export function McpPage() {
           </SettingsRow>
         </SettingsSection>
 
-        <SettingsSection
-          description="İmzalama aracı yok: yapay zekâ yalnızca taslak oluşturur, taslağı sen onaylarsın."
-          title="Araçlar"
-        >
-          {Object.entries(MCP_TOOL_COPY).map(([name, tool]) => (
-            <SettingsRow hint={tool.description} key={name} label={tool.title}>
-              <SettingsValue tone="muted">{name}</SettingsValue>
-            </SettingsRow>
-          ))}
-        </SettingsSection>
+        <McpToolsSection />
 
-        <SettingsSection
-          description="Yalnızca bu oturumda tutulur. Fatura bilgisi saklanmaz."
-          title="Son çağrılar"
-        >
-          {calls.length === 0 ? (
-            <SettingsRow>
-              <SettingsValue tone="muted">Henüz çağrı yok</SettingsValue>
-            </SettingsRow>
-          ) : (
-            calls.map((call) => (
-              <SettingsRow
-                hint={timeFormat.format(call.at)}
-                key={call.id}
-                label={mcpToolTitle(call.tool)}
-              >
-                <Badge variant={call.ok ? 'secondary' : 'destructive'}>
-                  {call.ok ? 'Tamam' : 'Hata'}
-                </Badge>
-              </SettingsRow>
-            ))
-          )}
-        </SettingsSection>
+        <McpActivitySection />
 
         {status.data && status.data.clients.length > 0 && (
           <SettingsSection title="Bağlanan uygulamalar">

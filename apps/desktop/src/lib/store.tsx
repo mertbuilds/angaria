@@ -317,6 +317,8 @@ interface Store {
   getCredentials: (entityId: string) => Promise<Credentials>;
   /** true when the active entity has a username and a saved password */
   hasCredentials: boolean;
+  /** hasCredentials for any company */
+  hasCredentialsFor: (entityId: string) => boolean;
   /** The Faturalar list's range, Bu ay at launch */
   invoiceDateRange: DateRange;
   /**
@@ -367,6 +369,8 @@ interface Store {
   startBlankInvoice: () => void;
   /** Start a blank invoice form for a saved customer, with its defaults */
   startInvoiceFor: (customer: Recipient) => void;
+  /** Changes any company's data without switching to it (MCP calls that name a company). */
+  updateEntity: (entityId: string, update: (entity: Entity) => Entity) => void;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -618,6 +622,20 @@ function LoadedStoreProvider({
     hasPassword: Boolean(storedCreds.password) || passwordSaved[activeEntity?.id] === true,
   };
   const hasCredentials = Boolean(creds.username && creds.hasPassword);
+
+  const hasCredentialsFor = useCallback(
+    (entityId: string) => {
+      const entity = entities.find((candidate) => candidate.id === entityId);
+      return Boolean(
+        entity?.creds.username && (entity.creds.password || passwordSaved[entityId] === true),
+      );
+    },
+    [entities, passwordSaved],
+  );
+
+  const updateEntity = useCallback((entityId: string, update: (entity: Entity) => Entity) => {
+    setEntities((prev) => prev.map((entity) => (entity.id === entityId ? update(entity) : entity)));
+  }, []);
   const companyInfo = activeEntity?.companyInfo ?? DEFAULT_COMPANY_INFO;
   const savedRecipients = activeEntity?.savedRecipients ?? NO_RECIPIENTS;
   const savedItems = activeEntity?.savedItems ?? [];
@@ -708,6 +726,7 @@ function LoadedStoreProvider({
         flushCredentials: vault.flush,
         creds,
         hasCredentials,
+        hasCredentialsFor,
         getCredentials,
         setCredentials,
         deleteCredentials,
@@ -739,6 +758,7 @@ function LoadedStoreProvider({
         loadFromGIBInvoice,
         markImportOffered,
         newId,
+        updateEntity,
         defaultItemAdvanced: DEFAULT_ITEM_ADVANCED,
       }}
     >

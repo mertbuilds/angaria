@@ -21,15 +21,18 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { createClient } from 'angaria-earsiv-sdk';
 import { fetchTCMBRateTable } from 'angaria-utils';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { createMcpState } from '../src/lib/mcp-state.ts';
 import {
   callMcpTool,
   DRAFT_CREATED,
+  DRAFT_CREATED_SIGNABLE,
   LICENSE_LOCKED,
   mcpToolList,
   type McpToolContext,
 } from '../src/lib/mcp-tools.ts';
+import { MCP_TOOL_COPY } from '../src/lib/mcp.ts';
 import { createSessionQueue } from '../src/lib/session-queue.ts';
-import type { Recipient } from '../src/lib/types.ts';
+import type { CompanyInfo, Recipient, Service } from '../src/lib/types.ts';
 import { toGIB } from '../src/lib/utils.ts';
 
 const TAURI_DIR = join(import.meta.dirname, '../src-tauri');
@@ -59,14 +62,43 @@ const ACME: Recipient = {
 };
 
 const TODAY = toGIB(new Date());
-const TOOL_NAMES = [
-  'list_invoices',
-  'get_invoice',
-  'create_invoice',
-  'cancel_invoice',
-  'list_customers',
-  'list_services',
-];
+const TOOL_NAMES = Object.keys(MCP_TOOL_COPY);
+
+const companyInfo = (name: string, taxID: string): CompanyInfo => ({
+  accountHolder: '',
+  address: '',
+  bankAddress: '',
+  bankName: '',
+  email: '',
+  iban: '',
+  name,
+  phone: '',
+  swiftCode: '',
+  taxID,
+  taxOffice: '',
+});
+
+/**
+ * Two companies on the emulator's two freelancers: `main` is active in the
+ * app, `other` is reached only by naming it.
+ */
+const COMPANIES = {
+  main: {
+    companyInfo: companyInfo('Ana Firma', '10000000146'),
+    customers: [ACME] as Array<Recipient>,
+    name: 'Ana şirket',
+    services: [] as Array<Service>,
+    username: '12345678',
+  },
+  other: {
+    companyInfo: companyInfo('İkinci Firma', '1234567890'),
+    customers: [] as Array<Recipient>,
+    name: 'Şirket 2',
+    services: [] as Array<Service>,
+    username: '87654321',
+  },
+};
+type CompanyId = keyof typeof COMPANIES;
 
 let emulator: RunningEmulator;
 let harness: ChildProcessWithoutNullStreams;
@@ -74,28 +106,64 @@ let dir: string;
 let port: number;
 let token: string;
 let license: 'locked' | 'ok' = 'ok';
+let actions = false;
 const gibLog: Array<string> = [];
 
 beforeAll(async () => {
   emulator = await startEmulator({ log: (line) => gibLog.push(line) });
   const gibClient = createClient({ baseUrl: emulator.url });
   const queue = createSessionQueue(gibClient);
-  const account = {
-    credentials: async () => ({ password: '1', username: '33333301' }),
-    key: '33333301',
+  const state = createMcpState();
+  // What src/shell/mcp-host.tsx builds per company.
+  const contextFor = (id: CompanyId): McpToolContext => {
+    const company = COMPANIES[id];
+    const account = {
+      credentials: async () => ({ password: 'angaria', username: company.username }),
+      key: company.username,
+    };
+    return {
+      actionsAllowed: () => actions,
+      client: gibClient,
+      companies: () =>
+        (Object.keys(COMPANIES) as Array<CompanyId>).map((key) => ({
+          active: key === 'main',
+          gibLogin: 'ready',
+          id: key,
+          legalName: COMPANIES[key].companyInfo.name,
+          name: COMPANIES[key].name,
+          taxID: COMPANIES[key].companyInfo.taxID,
+        })),
+      company: () => ({ ...company, hasCredentials: true, id }),
+      currencyRate: async (currency, date) =>
+        (await fetchTCMBRateTable(date, { baseUrl: emulator.url })).rates.get(currency),
+      download: async () => ({ name: 'fatura.pdf', path: null }),
+      forceLogout: async () => {},
+      forCompany: (ref) => {
+        const found = (Object.keys(COMPANIES) as Array<CompanyId>).find(
+          (key) => key === ref || COMPANIES[key].companyInfo.taxID === ref,
+        );
+        return found ? contextFor(found) : null;
+      },
+      gib: (task, signal, options) => queue.run(account, task, { ...options, signal }),
+      lease: (signal) => queue.lease(account, { signal }),
+      license: async () => license,
+      newId: () => crypto.randomUUID(),
+      now: () => new Date(),
+      onAction: () => {},
+      onDraftCreated: () => {},
+      setCompanyInfo: (update) => {
+        company.companyInfo = update(company.companyInfo);
+      },
+      setCustomers: (update) => {
+        company.customers = update(company.customers);
+      },
+      setServices: (update) => {
+        company.services = update(company.services);
+      },
+      state,
+    };
   };
-  const ctx: McpToolContext = {
-    client: gibClient,
-    company: () => ({ customers: [ACME], hasCredentials: true, name: 'Ana şirket', services: [] }),
-    currencyRate: async (currency, date) =>
-      (await fetchTCMBRateTable(date, { baseUrl: emulator.url })).rates.get(currency),
-    gib: (task, signal) => queue.run(account, task, { signal }),
-    license: async () => license,
-    newId: () => crypto.randomUUID(),
-    now: () => new Date(),
-    onDraftCreated: () => {},
-    onDraftDeleted: () => {},
-  };
+  const ctx = contextFor('main');
 
   dir = await mkdtemp(join(tmpdir(), 'angaria-mcp-e2e-'));
   await writeFile(join(dir, 'tools.json'), JSON.stringify(mcpToolList()));
@@ -223,7 +291,12 @@ describe('Streamable HTTP', () => {
         name: 'create_invoice',
       }),
     );
-    expect(created).toMatchObject({ currency: 'USD', date: TODAY, message: DRAFT_CREATED });
+    expect(created).toMatchObject({
+      company: { id: 'main', name: 'Ana şirket' },
+      currency: 'USD',
+      date: TODAY,
+      message: DRAFT_CREATED,
+    });
     expect(created.uuid).toMatch(/^[\da-f-]{36}$/);
 
     const listed = text(
@@ -314,6 +387,108 @@ describe('stdio bridge', () => {
     license = 'ok';
     expect(locked.isError).toBe(true);
     expect(text(locked).error.message).toBe(LICENSE_LOCKED);
+    await client.close();
+  });
+
+  test('an agent signs a draft with the SMS code the user got, per company', async () => {
+    await fetch(`${emulator.url}/__emulator/sms-code`, {
+      body: JSON.stringify({ code: 'random' }),
+      method: 'POST',
+    });
+    const client = new Client({ name: 'e2e-sign', version: '0.0.0' });
+    await client.connect(
+      new StdioClientTransport({
+        command: BRIDGE,
+        env: { ...getDefaultEnvironment(), ANGARIA_MCP_DIR: dir },
+      }),
+    );
+    const companies = text(await client.callTool({ arguments: {}, name: 'list_companies' }));
+    expect(companies.companies.map((company: { id: string }) => company.id)).toEqual([
+      'main',
+      'other',
+    ]);
+
+    actions = true;
+    const created = text(
+      await client.callTool({
+        arguments: {
+          customerId: 'acme',
+          items: [{ name: 'Retainer', quantity: 1, unitPrice: 900 }],
+        },
+        name: 'create_invoice',
+      }),
+    );
+    expect(created.message).toBe(DRAFT_CREATED_SIGNABLE);
+
+    const requested = text(
+      await client.callTool({
+        arguments: { uuids: [created.uuid] },
+        name: 'request_signing_sms',
+      }),
+    );
+    expect(requested).toMatchObject({ phone: '******4567' });
+
+    // The user reads the code off their phone: the emulator's log of sent codes.
+    const emulatorState = await (await fetch(`${emulator.url}/__emulator/state`)).json();
+    const sms = emulatorState.sms.findLast(
+      (item: { used: boolean; userid: string }) => item.userid === '12345678' && !item.used,
+    );
+    expect(sms.code).toMatch(/^\d{6}$/);
+
+    const wrong = await client.callTool({
+      arguments: {
+        code: sms.code === '000000' ? '111111' : '000000',
+        operationId: requested.operationId,
+      },
+      name: 'sign_invoices',
+    });
+    expect(text(wrong).error).toMatchObject({ attemptsLeft: 2, code: 'sms-code-wrong' });
+
+    // Another company cannot use the operation.
+    const elsewhere = await client.callTool({
+      arguments: { code: sms.code, company: 'other', operationId: requested.operationId },
+      name: 'sign_invoices',
+    });
+    expect(text(elsewhere).error.code).toBe('other-company');
+
+    const signed = text(
+      await client.callTool({
+        arguments: { code: sms.code, operationId: requested.operationId },
+        name: 'sign_invoices',
+      }),
+    );
+    expect(signed).toMatchObject({
+      company: { id: 'main' },
+      invoices: [{ status: 'Onaylı', uuid: created.uuid }],
+      message: 'Fatura onaylandı.',
+    });
+
+    const listed = text(
+      await client.callTool({
+        arguments: { endDate: TODAY, startDate: TODAY, status: 'signed' },
+        name: 'list_invoices',
+      }),
+    );
+    expect(listed.invoices).toContainEqual(
+      expect.objectContaining({ status: 'Onaylı', uuid: created.uuid }),
+    );
+
+    // The other company's invoices, by its VKN, without the main one's.
+    const theirs = text(
+      await client.callTool({
+        arguments: { company: '1234567890', endDate: TODAY, startDate: TODAY },
+        name: 'list_invoices',
+      }),
+    );
+    expect(theirs.company).toMatchObject({ id: 'other', name: 'Şirket 2' });
+    expect(theirs.invoices).not.toContainEqual(expect.objectContaining({ uuid: created.uuid }));
+
+    actions = false;
+    const off = await client.callTool({
+      arguments: { uuids: [created.uuid] },
+      name: 'request_signing_sms',
+    });
+    expect(text(off).error.code).toBe('actions-off');
     await client.close();
   });
 

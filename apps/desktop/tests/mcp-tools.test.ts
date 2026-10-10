@@ -1,177 +1,28 @@
-import { GibError, type DraftRow, type SessionInfo } from 'angaria-earsiv-sdk';
+import { GibError } from 'angaria-earsiv-sdk';
 import { describe, expect, test, vi } from 'vitest';
 import { cleanItems, upsertSavedItems } from '../src/lib/invoice-form.ts';
 import {
+  ACTIONS_OFF,
   callMcpTool,
   DRAFT_CREATED,
+  DRAFT_CREATED_SIGNABLE,
   LICENSE_LOCKED,
   mcpToolList,
   NO_LOGIN,
-  type McpCompany,
-  type McpGIBClient,
-  type McpToolContext,
-  type McpToolResult,
 } from '../src/lib/mcp-tools.ts';
+import { MCP_TOOL_COPY } from '../src/lib/mcp.ts';
 import { ISTISNA_REASONS } from '../src/lib/regulated.ts';
-import { createSessionQueue } from '../src/lib/session-queue.ts';
-import type { Recipient, Service } from '../src/lib/types.ts';
-
-const NOW = new Date(2026, 9, 2, 12, 30, 0);
-const session: SessionInfo = { baseUrl: 'https://test.invalid', cookies: [], token: 't' };
-
-const customer = (fields: Partial<Recipient>): Recipient => ({
-  city: '',
-  country: '',
-  district: '',
-  fullAddress: 'Hauptstraße 42, 10115 Berlin',
-  id: 'acme',
-  name: '',
-  surname: '',
-  taxIDOrTRID: '2222222222',
-  taxOffice: '',
-  title: 'ACME GMBH',
-  ...fields,
-});
-
-const service = (fields: Partial<Service>): Service => ({
-  discountAmount: 0,
-  discountRate: 0,
-  discountReason: '',
-  gtip: '',
-  id: 'engineering',
-  name: 'Engineering Services',
-  quantity: 1,
-  unitPrice: 100,
-  unitType: 'C62',
-  VATRate: 0,
-  ...fields,
-});
-
-const ACME = customer({
-  country: 'Almanya',
-  currency: 'USD',
-  dueDays: 14,
-  invoiceType: 'ISTISNA',
-  istisnaCode: '302',
-  lastInvoicedAt: '2026-09-01T10:00:00.000Z',
-  VATRate: 0,
-});
-
-const ORNEK = customer({
-  city: 'İstanbul',
-  country: 'Türkiye',
-  fullAddress: 'Bağdat Cad. No:123',
-  id: 'ornek',
-  taxIDOrTRID: '1234567890',
-  taxOffice: 'Kadıköy',
-  title: 'ÖRNEK TEKNOLOJİ A.Ş.',
-});
-
-const ROWS: Array<DraftRow> = [
-  {
-    aliciUnvanAdSoyad: 'ACME GMBH',
-    belgeNumarasi: 'GIB2026000000001',
-    belgeTarihi: '01-10-2026',
-    ettn: 'ettn-old',
-    onayDurumu: 'Onaylandı',
-  },
-  {
-    aliciUnvanAdSoyad: 'ÖRNEK TEKNOLOJİ A.Ş.',
-    belgeNumarasi: 'GIB2026000000002',
-    belgeTarihi: '02-10-2026',
-    ettn: 'ettn-draft',
-    onayDurumu: 'Onaylanmadı',
-  },
-];
-
-/** The tools on a real session queue over a fake GİB, with a test company. */
-function setup({
-  company = {},
-  license = 'ok',
-}: { company?: Partial<McpCompany>; license?: 'checking' | 'locked' | 'ok' } = {}) {
-  const log: Array<string> = [];
-  const queue = createSessionQueue({
-    login: vi.fn(async (username: string) => {
-      log.push(`login ${username}`);
-      return session;
-    }),
-    logout: vi.fn(async () => {
-      log.push('logout');
-    }),
-  });
-  const account = {
-    credentials: async () => ({ password: '1', username: '33333301' }),
-    key: '33333301',
-  };
-  const client = {
-    cancelInvoice: vi.fn<McpGIBClient['cancelInvoice']>(async () => ({})),
-    createDraftInvoice: vi.fn<McpGIBClient['createDraftInvoice']>(async (_session, details) => {
-      log.push('create');
-      return { date: details.date, response: {}, uuid: 'ettn-new' };
-    }),
-    getDrafts: vi.fn<McpGIBClient['getDrafts']>(async (_session, start, end) => {
-      log.push(`list ${start} ${end}`);
-      return start === end
-        ? [{ belgeNumarasi: 'GIB2026000000003', ettn: 'ettn-new', onayDurumu: 'Onaylanmadı' }]
-        : ROWS;
-    }),
-    getInvoiceDetail: vi.fn<McpGIBClient['getInvoiceDetail']>(async () => ({})),
-    getInvoiceHTML: vi.fn<McpGIBClient['getInvoiceHTML']>(async () => '<html>fatura</html>'),
-  };
-  let ids = 0;
-  const ctx: McpToolContext = {
-    client,
-    company: () => ({
-      customers: [ORNEK, ACME],
-      hasCredentials: true,
-      name: 'Ana şirket',
-      services: [
-        {
-          currency: 'TRY',
-          discountAmount: 0,
-          discountRate: 0,
-          discountReason: '',
-          gtip: '',
-          id: 's1',
-          name: 'Yazılım Geliştirme Hizmeti',
-          quantity: 1,
-          unitPrice: 5000,
-          unitType: 'HUR',
-          VATRate: 20,
-        },
-      ],
-      ...company,
-    }),
-    currencyRate: vi.fn(async () => 41.523),
-    gib: (task, signal) => queue.run(account, task, { signal }),
-    license: async () => license,
-    newId: () => `id-${++ids}`,
-    now: () => NOW,
-    onDraftCreated: vi.fn(),
-    onDraftDeleted: vi.fn(),
-  };
-  return { account, client, ctx, log, queue };
-}
-
-const body = (result: McpToolResult) => JSON.parse(result.content[0]?.text ?? 'null');
-
-const call = async (ctx: McpToolContext, name: string, args: unknown) => {
-  const result = await callMcpTool(ctx, name, args);
-  return { error: result.isError === true, json: body(result) };
-};
+import { body, call, MAIN, ROWS, service, setup } from './mcp-fixtures.ts';
 
 describe('mcpToolList', () => {
-  test('lists the six tools and no signing tool', () => {
+  test('lists every tool in the MCP page’s order, each scoped to a company', () => {
     const tools = mcpToolList();
-    expect(tools.map((tool) => tool.name)).toEqual([
-      'list_invoices',
-      'get_invoice',
-      'create_invoice',
-      'cancel_invoice',
-      'list_customers',
-      'list_services',
-    ]);
+    expect(tools.map((tool) => tool.name)).toEqual(Object.keys(MCP_TOOL_COPY));
     expect(tools.every((tool) => !('$schema' in tool.inputSchema))).toBe(true);
+    for (const tool of tools) {
+      const properties = (tool.inputSchema as { properties: Record<string, unknown> }).properties;
+      expect('company' in properties, tool.name).toBe(tool.name !== 'list_companies');
+    }
     const create = tools.find((tool) => tool.name === 'create_invoice');
     expect(create?.title).toBe('Taslak oluştur');
     expect(create?.inputSchema).toMatchObject({
@@ -179,6 +30,8 @@ describe('mcpToolList', () => {
       required: ['items'],
       type: 'object',
     });
+    const sign = tools.find((tool) => tool.name === 'sign_invoices');
+    expect(sign?.annotations).toMatchObject({ destructiveHint: true });
   });
 });
 
@@ -195,7 +48,7 @@ describe('list_invoices', () => {
 
     expect(error).toBe(false);
     expect(log).toEqual(['login 33333301', 'screen', 'list 01/10/2026 02/10/2026', 'logout']);
-    expect(json.company).toBe('Ana şirket');
+    expect(json.company).toEqual(MAIN);
     expect(json.invoices).toEqual([
       {
         date: '02/10/2026',
@@ -277,7 +130,7 @@ describe('create_invoice', () => {
 
     expect(error).toBe(false);
     expect(json).toEqual({
-      company: 'Ana şirket',
+      company: MAIN,
       currency: 'USD',
       date: '01/10/2026',
       message: DRAFT_CREATED,
@@ -452,10 +305,15 @@ test('a country in English or an alias becomes GİB’s name; Turkey stays at ho
   });
 });
 
-describe('cancel_invoice', () => {
-  test('deletes an unsigned draft and refuses a signed invoice', async () => {
-    const { client, ctx } = setup();
-    const signed = await call(ctx, 'cancel_invoice', {
+describe('delete_draft', () => {
+  test('needs the actions switch, deletes an unsigned draft and refuses a signed invoice', async () => {
+    const { allowed, client, ctx, log } = setup();
+    const off = await call(ctx, 'delete_draft', { uuid: 'ettn-draft' });
+    expect(off.json.error).toEqual({ code: 'actions-off', message: ACTIONS_OFF });
+    expect(log).toEqual([]);
+
+    allowed.current = true;
+    const signed = await call(ctx, 'delete_draft', {
       date: '01/10/2026',
       reason: 'Hatalı',
       uuid: 'ettn-old',
@@ -464,20 +322,33 @@ describe('cancel_invoice', () => {
     expect(signed.json.error.code).toBe('not-a-draft');
     expect(client.cancelInvoice).not.toHaveBeenCalled();
 
-    const missing = await call(ctx, 'cancel_invoice', { reason: 'Hatalı', uuid: 'nope' });
+    const missing = await call(ctx, 'delete_draft', { uuid: 'nope' });
     expect(missing.json.error.code).toBe('not-found');
 
-    const draft = await call(ctx, 'cancel_invoice', {
-      date: '02/10/2026',
-      reason: 'Hatalı',
-      uuid: 'ettn-draft',
-    });
+    const draft = await call(ctx, 'delete_draft', { date: '02/10/2026', uuid: 'ettn-draft' });
     expect(draft).toEqual({
       error: false,
-      json: { message: 'Taslak silindi.', uuid: 'ettn-draft' },
+      json: { company: MAIN, message: 'Taslak silindi.', uuid: 'ettn-draft' },
     });
-    expect(client.cancelInvoice).toHaveBeenCalledWith(session, 'Hatalı', ROWS[1]);
-    expect(ctx.onDraftDeleted).toHaveBeenCalledTimes(1);
+    expect(client.cancelInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({ token: '33333301' }),
+      'Taslak silindi',
+      ROWS[1],
+    );
+    expect(ctx.onAction).toHaveBeenCalledWith({
+      kind: 'draft-deleted',
+      number: 'GIB2026000000002',
+      uuid: 'ettn-draft',
+    });
+  });
+
+  test('at most ten deletions a minute', async () => {
+    const { ctx } = setup({ actions: true });
+    for (let index = 0; index < 10; index++) {
+      expect((await call(ctx, 'delete_draft', { uuid: 'nope' })).json.error.code).toBe('not-found');
+    }
+    const limited = await call(ctx, 'delete_draft', { uuid: 'nope' });
+    expect(limited.json.error).toMatchObject({ code: 'rate-limit', retryAfterSeconds: 60 });
   });
 });
 
@@ -510,7 +381,11 @@ describe('get_invoice', () => {
 
     const html = await callMcpTool(ctx, 'get_invoice', { format: 'html', uuid: 'ettn-new' });
     expect(html.content[0]?.text).toBe('<html>fatura</html>');
-    expect(client.getInvoiceHTML).toHaveBeenCalledWith(session, 'ettn-new', 'Onaylanmadı');
+    expect(client.getInvoiceHTML).toHaveBeenCalledWith(
+      expect.objectContaining({ token: '33333301' }),
+      'ettn-new',
+      'Onaylanmadı',
+    );
   });
 });
 
@@ -532,6 +407,7 @@ describe('customers and services', () => {
     expect(services.json.services).toEqual([
       {
         currency: 'TRY',
+        id: 's1',
         name: 'Yazılım Geliştirme Hizmeti',
         quantity: 1,
         unitPrice: 5000,
@@ -598,7 +474,7 @@ describe('gates', () => {
       endDate: '02/10/2026',
       startDate: '01/10/2026',
     });
-    expect(list.json.error).toEqual({ code: 'auth', message: NO_LOGIN });
+    expect(list.json.error).toEqual({ code: 'auth', company: MAIN, message: NO_LOGIN });
     expect((await call(ctx, 'list_customers', {})).error).toBe(false);
     expect(log).toEqual([]);
   });
@@ -613,6 +489,7 @@ describe('gates', () => {
     expect(error).toBe(true);
     expect(json.error).toEqual({
       code: 'maintenance',
+      company: MAIN,
       message: 'GİB e-Arşiv portalı şu an bakımda. Biraz sonra tekrar dene.',
     });
   });
@@ -620,5 +497,13 @@ describe('gates', () => {
   test('an unknown tool is an error', async () => {
     const { ctx } = setup();
     expect((await call(ctx, 'sign_invoice', {})).json.error.code).toBe('unknown-tool');
+  });
+
+  test('a draft points to SMS signing over MCP only while actions are allowed', async () => {
+    const { allowed, ctx } = setup();
+    const args = { customerId: 'ornek', items: [{ name: 'X', quantity: 1, unitPrice: 100 }] };
+    expect((await call(ctx, 'create_invoice', args)).json.message).toBe(DRAFT_CREATED);
+    allowed.current = true;
+    expect((await call(ctx, 'create_invoice', args)).json.message).toBe(DRAFT_CREATED_SIGNABLE);
   });
 });

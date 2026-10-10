@@ -1,32 +1,28 @@
-// The built-in MCP server's tools (docs/adr/0009-built-in-mcp-server.md). The
-// Rust server (src-tauri/src/mcp) lists mcpToolList() and hands each
-// tools/call to callMcpTool through src/shell/mcp-host.tsx, so a call runs on
-// the app's GİB session queue with the active company's login and under the
-// app's invoice rules. No tool signs: the user signs a draft by SMS in the
-// app. No Tauri or React imports, so tests inject the GİB client and the store.
+// The built-in MCP server's tools (docs/adr/0009-built-in-mcp-server.md,
+// docs/adr/0010-mcp-agent-actions.md). The Rust server (src-tauri/src/mcp)
+// lists mcpToolList() and hands each tools/call to runMcpTool through
+// src/shell/mcp-host.tsx, so a call runs on the app's GİB session queue with
+// its company's login (the active one unless it names another) and under the
+// app's invoice rules. This file
+// holds the invoice tools and the list; signing, records and the import live
+// beside it. No Tauri or React imports, so tests inject the GİB client and the
+// store.
 import {
-  cancelInvoiceTool,
+  cancelInvoiceInput,
   draftSearchRange,
   findDraftToCancel,
   gibTime,
   invoiceItemInput,
   invoiceUUID,
-  listInvoicesTool,
+  listInvoicesInput,
   pastGIBDate,
   withDiscountChecks,
 } from '@angaria/mcp-server/inputs';
-import { roundKurus, type EarsivClient, type SessionInfo } from 'angaria-earsiv-sdk';
+import { roundKurus, type SessionInfo } from 'angaria-earsiv-sdk';
 import { addDays } from 'date-fns';
 import { z } from 'zod';
-import {
-  byRecentInvoice,
-  COUNTRY_OPTIONS,
-  customerDefaults,
-  customerName,
-  findCustomer,
-} from './customer.ts';
+import { customerName, defaultPDFLanguage, findCustomer } from './customer.ts';
 import { GIB_CURRENCIES, GIB_UNIT_TYPES } from './gib-constants.ts';
-import { describeError } from './gib-errors.ts';
 import {
   applyCustomer,
   discountForRate,
@@ -39,127 +35,55 @@ import {
   toDraftDetails,
   validateInvoice,
 } from './invoice-form.ts';
-import { invoiceStatus, newestFirst, parseGIBInvoice, statusText } from './invoices.ts';
+import {
+  invoiceStatus,
+  matchesStatus,
+  newestFirst,
+  parseGIBInvoice,
+  statusText,
+  type StatusFilter,
+} from './invoices.ts';
+import {
+  defineTool,
+  failure,
+  gibCountry,
+  json,
+  LICENSE_CHECKING,
+  LICENSE_LOCKED,
+  matches,
+  textField,
+  type CreatedDraft,
+  type McpGIBClient,
+  type McpTool,
+  type McpToolContext,
+  type McpToolResult,
+} from './mcp-tool-kit.ts';
+import { IMPORT_TOOLS } from './mcp-tools-import.ts';
+import { RECORD_TOOLS } from './mcp-tools-records.ts';
+import { SIGNING_TOOLS } from './mcp-tools-signing.ts';
 import { MCP_TOOL_COPY, type McpToolName } from './mcp.ts';
-import type { Invoice, InvoiceFormValues, InvoiceItem, Recipient, Service } from './types.ts';
+import type { Invoice, InvoiceFormValues, InvoiceItem, Recipient } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
 
-/** A CallToolResult: JSON text the model reads, isError for a failure. */
-export interface McpToolResult {
-  content: Array<{ text: string; type: 'text' }>;
-  isError?: boolean;
-}
-
-/** The active company, as the tools see it at call time. */
-export interface McpCompany {
-  customers: ReadonlyArray<Recipient>;
-  /** A user code and a saved password */
-  hasCredentials: boolean;
-  name: string;
-  services: ReadonlyArray<Service>;
-}
-
-export type McpGIBClient = Pick<
-  EarsivClient,
-  'cancelInvoice' | 'createDraftInvoice' | 'getDrafts' | 'getInvoiceDetail' | 'getInvoiceHTML'
->;
-
-export interface CreatedDraft {
-  /** DD/MM/YYYY */
-  date: string;
-  number?: string;
-  /** Empty when GİB's list did not show the new draft */
-  uuid: string;
-}
-
-export interface McpToolContext {
-  client: McpGIBClient;
-  company: () => McpCompany;
-  /** TCMB's buying rate for `currency` on an invoice dated `date`, from the previous business day's bulletin. */
-  currencyRate: (currency: string, date: Date) => Promise<number | undefined>;
-  /**
-   * Runs `task` on the app's GİB session queue with the active company's
-   * login. `signal` drops the task while it waits; a started task runs to its
-   * end, so a draft is never half made.
-   */
-  gib: <T>(task: (session: SessionInfo) => Promise<T>, signal?: AbortSignal) => Promise<T>;
-  /** 'checking' when the license check did not settle in time. */
-  license: () => Promise<'checking' | 'locked' | 'ok'>;
-  newId: () => string;
-  now: () => Date;
-  /** The app learns the customer and services, and shows the draft. */
-  onDraftCreated: (draft: CreatedDraft, values: InvoiceFormValues) => void;
-  onDraftDeleted: () => void;
-}
+export {
+  ACTIONS_OFF,
+  LICENSE_LOCKED,
+  NO_LOGIN,
+  type CreatedDraft,
+  type McpAction,
+  type McpCompany,
+  type McpDownloadRequest,
+  type McpGIBClient,
+  type McpToolContext,
+  type McpToolResult,
+} from './mcp-tool-kit.ts';
 
 export const DRAFT_CREATED = 'Taslak oluşturuldu, Angaria’da SMS ile onayla.';
+/** What create_invoice says while agents may sign: the agent can ask for the code. */
+export const DRAFT_CREATED_SIGNABLE =
+  'Taslak oluşturuldu. Onaylamak için request_signing_sms ile SMS şifresi iste ya da Angaria’da SMS ile onayla.';
 const DRAFT_CREATED_UNLISTED =
   'Taslak oluşturuldu ama GİB listesinde görünmedi. Angaria’daki Faturalar’da kontrol et, sonra SMS ile onayla.';
-export const LICENSE_LOCKED =
-  'Angaria kilitli: lisans doğrulanamadı ya da süresi doldu. Angaria’yı açıp lisansını kontrol et.';
-const LICENSE_CHECKING = 'Angaria lisansı hâlâ doğruluyor. Birkaç saniye sonra tekrar dene.';
-export const NO_LOGIN =
-  'Angaria’da GİB hesabı bağlı değil. Ayarlar › GİB hesabı’ndan kullanıcı kodunu ve şifreni gir.';
-const BUSY =
-  'Angaria’da başka bir GİB işlemi sürüyor (SMS onayı gibi) ya da GİB yavaş. Biraz sonra tekrar dene.';
-
-const json = (value: unknown): McpToolResult => ({
-  content: [{ text: JSON.stringify(value, null, 2), type: 'text' }],
-});
-
-const failure = (message: string, extra: Record<string, unknown> = {}): McpToolResult => ({
-  content: [{ text: JSON.stringify({ error: { message, ...extra } }), type: 'text' }],
-  isError: true,
-});
-
-interface McpTool {
-  annotations: { destructiveHint?: boolean; openWorldHint?: boolean; readOnlyHint?: boolean };
-  call: (ctx: McpToolContext, args: unknown, signal?: AbortSignal) => Promise<McpToolResult>;
-  description: string;
-  inputSchema: z.ZodType;
-  name: McpToolName;
-}
-
-/** A tool whose `run` gets valid input; GİB tools first need a login. */
-function defineTool<T extends z.ZodType>({
-  gib,
-  run,
-  ...tool
-}: Omit<McpTool, 'call' | 'inputSchema'> & {
-  gib: boolean;
-  inputSchema: T;
-  run: (ctx: McpToolContext, input: z.output<T>, signal?: AbortSignal) => Promise<McpToolResult>;
-}): McpTool {
-  return {
-    ...tool,
-    call: async (ctx, args, signal) => {
-      const parsed = tool.inputSchema.safeParse(args ?? {});
-      if (!parsed.success) {
-        return failure('Girdi aracın şemasına uymuyor.', {
-          code: 'invalid-input',
-          fields: Object.fromEntries(
-            parsed.error.issues.map((issue) => [issue.path.join('.') || '(girdi)', issue.message]),
-          ),
-        });
-      }
-      if (gib && !ctx.company().hasCredentials) {
-        return failure(NO_LOGIN, { code: 'auth' });
-      }
-      return run(ctx, parsed.data, signal);
-    },
-  };
-}
-
-/** Turkish text folded for search: "musteri" finds "Müşteri". */
-const fold = (text: string) =>
-  text.toLocaleLowerCase('tr').replaceAll('ı', 'i').normalize('NFD').replaceAll(/\p{M}/gu, '');
-
-const matches = (query: string | undefined, ...texts: Array<string>) => {
-  const haystack = fold(texts.join(' '));
-  return (query ? fold(query).split(/\s+/) : []).every((word) => haystack.includes(word));
-};
-
-const textField = (value: unknown) => (typeof value === 'string' ? value : '');
 
 const invoiceRow = (row: Invoice) => ({
   date: row.belgeTarihi?.replaceAll('-', '/'),
@@ -171,25 +95,59 @@ const invoiceRow = (row: Invoice) => ({
   uuid: row.ettn,
 });
 
+const STATUS_FILTER: Record<'cancelled' | 'deleted' | 'draft' | 'signed', StatusFilter> = {
+  cancelled: 'iptal',
+  deleted: 'silindi',
+  draft: 'onaylanmadi',
+  signed: 'onaylandi',
+};
+
 const listInvoices = defineTool({
-  ...listInvoicesTool,
+  annotations: { openWorldHint: true, readOnlyHint: true },
   description:
-    'List e-Arşiv invoices on the GİB portal for a date range of at most 31 days, newest first. Each row has the uuid (ETTN), document number, date, recipient, and status: Taslak (unsigned draft), Onaylı (signed; Onaylı (iptal aşamasında) while a cancellation request waits), İptal edildi (signed, then cancelled) or Silindi (deleted draft).',
+    "List e-Arşiv invoices on the GİB portal for a date range of at most 31 days, newest first. Each row has the uuid (ETTN), document number, date, recipient, and status: Taslak (unsigned draft), Onaylı (signed; Onaylı (iptal aşamasında) while a cancellation request waits), İptal edildi (signed, then cancelled) or Silindi (deleted draft). Filter by status and by words of the recipient's name or VKN/TCKN.",
   gib: true,
+  inputSchema: listInvoicesInput.safeExtend({
+    query: z
+      .string()
+      .optional()
+      .describe("Words of the recipient's name or its VKN/TCKN; all of them must match"),
+    status: z
+      .enum(['draft', 'signed', 'cancelled', 'deleted'])
+      .optional()
+      .describe(
+        'Only invoices with this status: draft (Taslak), signed (Onaylı), cancelled (İptal edildi), deleted (Silindi)',
+      ),
+  }),
   name: 'list_invoices',
-  run: async (ctx, { endDate, startDate }, signal) => {
+  run: async (ctx, { endDate, query, startDate, status }, signal) => {
     const rows = await ctx.gib(
       (session) => ctx.client.getDrafts(session, startDate, endDate),
       signal,
     );
-    return json({
-      company: ctx.company().name,
-      endDate,
-      invoices: newestFirst(rows).map(invoiceRow),
-      startDate,
-    });
+    const invoices = newestFirst(rows)
+      .filter((row) => !status || matchesStatus(row, STATUS_FILTER[status]))
+      .filter((row) => matches(query, row.aliciUnvanAdSoyad ?? '', row.aliciVknTckn ?? ''))
+      .map(invoiceRow);
+    return json({ endDate, invoices, startDate }, `${invoices.length} fatura`);
   },
+  summarize: ({ endDate, startDate }) => `${startDate} ile ${endDate} arası`,
 });
+
+/** An invoice's detail and its list row, which has the status. */
+export async function readInvoice(client: McpGIBClient, session: SessionInfo, uuid: string) {
+  const detail = await client.getInvoiceDetail(session, uuid);
+  const date = textField(detail.faturaTarihi);
+  // The status is on the list row, not in the detail.
+  const rows = date ? await client.getDrafts(session, date, date).catch(() => []) : [];
+  const row = rows.find((candidate) => candidate.ettn === uuid);
+  return { date, detail, row };
+}
+
+export const notFound = (uuid: string) =>
+  failure(`${uuid} ETTN’li fatura GİB’de bulunamadı. ETTN’yi list_invoices ile kontrol et.`, {
+    code: 'not-found',
+  });
 
 const getInvoice = defineTool({
   annotations: { openWorldHint: true, readOnlyHint: true },
@@ -206,49 +164,48 @@ const getInvoice = defineTool({
   name: 'get_invoice',
   run: async (ctx, { format = 'summary', uuid }, signal) => {
     const found = await ctx.gib(async (session) => {
-      const detail = await ctx.client.getInvoiceDetail(session, uuid);
-      const date = textField(detail.faturaTarihi);
-      // The status is on the list row, not in the detail.
-      const rows = date ? await ctx.client.getDrafts(session, date, date).catch(() => []) : [];
-      const row = rows.find((candidate) => candidate.ettn === uuid);
+      const read = await readInvoice(ctx.client, session, uuid);
       const html =
         format === 'html'
-          ? await ctx.client.getInvoiceHTML(session, uuid, row?.onayDurumu ?? 'Onaylanmadı')
+          ? await ctx.client.getInvoiceHTML(session, uuid, read.row?.onayDurumu ?? 'Onaylanmadı')
           : undefined;
-      return { detail, html, row };
+      return { ...read, html };
     }, signal);
+    const number = textField(found.detail.belgeNumarasi) || found.row?.belgeNumarasi;
     if (found.html !== undefined) {
-      return { content: [{ text: found.html, type: 'text' }] };
+      return { activity: number, content: [{ text: found.html, type: 'text' }] };
     }
     const { detail, row } = found;
     const invoice = parseGIBInvoice(detail);
-    return json({
-      company: ctx.company().name,
-      currency: invoice.settings.currency,
-      currencyRate: invoice.settings.currencyRate || undefined,
-      date: textField(detail.faturaTarihi),
-      invoiceType: invoice.settings.invoiceType,
-      items: invoice.items.map(
-        ({ discountAmount, name, quantity, unitPrice, unitType, VATRate }) => ({
-          discountAmount: discountAmount || undefined,
-          name,
-          quantity,
-          unitPrice,
-          unitType,
-          VATRate,
-        }),
-      ),
-      note: invoice.note || undefined,
-      number: textField(detail.belgeNumarasi) || row?.belgeNumarasi,
-      recipient: invoice.recipient,
-      recipientName: customerName(invoice.recipient),
-      status: row ? statusText(invoiceStatus(row)) : undefined,
-      subtotal: roundKurus(invoice.subtotal),
-      time: textField(detail.saat) || undefined,
-      total: roundKurus(invoice.total),
-      uuid,
-      vat: roundKurus(invoice.vat),
-    });
+    return json(
+      {
+        currency: invoice.settings.currency,
+        currencyRate: invoice.settings.currencyRate || undefined,
+        date: found.date,
+        invoiceType: invoice.settings.invoiceType,
+        items: invoice.items.map(
+          ({ discountAmount, name, quantity, unitPrice, unitType, VATRate }) => ({
+            discountAmount: discountAmount || undefined,
+            name,
+            quantity,
+            unitPrice,
+            unitType,
+            VATRate,
+          }),
+        ),
+        note: invoice.note || undefined,
+        number,
+        recipient: invoice.recipient,
+        recipientName: customerName(invoice.recipient),
+        status: row ? statusText(invoiceStatus(row)) : undefined,
+        subtotal: roundKurus(invoice.subtotal),
+        time: textField(detail.saat) || undefined,
+        total: roundKurus(invoice.total),
+        uuid,
+        vat: roundKurus(invoice.vat),
+      },
+      number,
+    );
   },
 });
 
@@ -375,186 +332,335 @@ const EMPTY_RECIPIENT = {
   title: '',
 };
 
-/**
- * GİB's value for a country typed in Turkish or English, its GİB spelling or
- * an alias ("Germany", "ABD", "Türkiye"); '' stays ''. Null when GİB has none.
- */
-function gibCountry(text: string): string | null {
-  const query = fold(text.trim());
-  if (!query) {
-    return '';
-  }
-  return (
-    COUNTRY_OPTIONS.find((country) =>
-      [country.value, country.label, country.en, ...country.aliases].some(
-        (name) => fold(name) === query,
-      ),
-    )?.value ?? null
-  );
-}
-
 const DEFAULT_ISTISNA_CODE = '302';
 
-const createInvoice = defineTool({
-  annotations: { destructiveHint: false, openWorldHint: true },
-  description:
-    "Create an UNSIGNED draft e-Arşiv invoice on GİB for a saved customer (customerId) or a new recipient. Totals and VAT are computed, Angaria's rules apply (Satış or İstisna only, İstisna at 0% VAT), and the customer's defaults fill what is not given. Unit prices are in the invoice's currency and are never converted: convert a saved service's price yourself when its currency differs. The draft is not a legal invoice until the user signs it by SMS in Angaria: tell them to. Returns the draft's uuid and number.",
-  gib: true,
-  inputSchema: createInvoiceInput,
-  name: 'create_invoice',
-  run: async (ctx, input, signal) => {
-    const now = ctx.now();
-    const company = ctx.company();
-    let customer: Recipient;
-    if (input.customerId !== undefined) {
-      const saved = company.customers.find((candidate) => candidate.id === input.customerId);
-      if (!saved) {
-        return failure(
-          'Bu müşteri kayıtlı değil. Kayıtlı müşterileri list_customers ile listele.',
-          {
-            code: 'unknown-customer',
-          },
-        );
-      }
-      customer = saved;
-    } else {
-      const fields = { ...input.recipient };
-      if (fields.country !== undefined) {
-        const country = gibCountry(fields.country);
-        if (country === null) {
-          return failure('Taslak oluşturulmadı: bazı bilgiler eksik ya da hatalı.', {
-            code: 'invalid-invoice',
-            fields: {
-              'recipient.country': `${fields.country} GİB’in ülke listesinde yok. Ülkenin Türkçe ya da İngilizce adını yaz, örneğin Almanya.`,
-            },
-          });
-        }
-        fields.country = country;
-      }
-      const given = { ...EMPTY_RECIPIENT, ...fields, id: ctx.newId() };
-      const saved = findCustomer(company.customers, given.taxIDOrTRID, customerName(given));
-      customer = saved ? { ...saved, ...fields } : given;
-    }
-
-    const date = input.date ?? '';
-    const invoiceDate = parseGIB(date) ?? now;
-    const applied = applyCustomer(
-      {
-        advancedFields: {
-          dueDate: '',
-          irsaliyeNumarasi: '',
-          irsaliyeTarihi: '',
-          manualDate: date,
-          manualTime: input.time ?? '',
-          paymentTotal: '',
-        },
-        invoiceSettings: { currency: 'TRY', currencyRate: '', invoiceType: 'SATIS' },
-        items: [],
-        note: input.note ?? '',
-        recipient: customer,
-      },
-      customer,
-      now,
-    );
-    const invoiceType = input.invoiceType ?? applied.invoiceSettings.invoiceType;
-    const currency = input.currency ?? applied.invoiceSettings.currency;
-    const istisnaCode =
-      invoiceType === 'ISTISNA'
-        ? (input.istisnaCode ??
-          applied.invoiceSettings.istisnaCode ??
-          istisnaReasonInNote(applied.note) ??
-          DEFAULT_ISTISNA_CODE)
-        : undefined;
-    const defaultVAT = invoiceType === 'ISTISNA' ? 0 : (customer.VATRate ?? 20);
-
-    let currencyRate = '';
-    if (currency !== 'TRY') {
-      const rate = input.currencyRate
-        ? Number(input.currencyRate)
-        : await ctx.currencyRate(currency, invoiceDate).catch(() => undefined);
-      if (rate === undefined) {
-        return failure(`TCMB’nin ${currency} kuru alınamadı. Kuru currencyRate ile ver.`, {
-          code: 'currency-rate',
-        });
-      }
-      currencyRate = formatRate(rate);
-    }
-
-    const values: InvoiceFormValues = {
-      ...applied,
-      advancedFields: {
-        ...applied.advancedFields,
-        dueDate:
-          input.dueDays === undefined
-            ? applied.advancedFields.dueDate
-            : toGIB(addDays(invoiceDate, input.dueDays)),
-      },
-      invoiceSettings: { currency, currencyRate, invoiceType, istisnaCode },
-      items: input.items.map((item) => {
-        const line: InvoiceItem = {
-          discountAmount: item.discountAmount ?? 0,
-          discountRate: item.discountRate ?? 0,
-          discountReason: item.discountReason ?? '',
-          gtip: item.gtip ?? '',
-          id: ctx.newId(),
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          unitType: item.unitType ?? 'C62',
-          VATRate: item.VATRate ?? defaultVAT,
-        };
-        // The form keeps the amount a rate gives, as the line's discount.
-        return item.discountAmount === undefined && line.discountRate > 0
-          ? { ...line, discountAmount: discountForRate(line, line.discountRate) }
-          : line;
-      }),
-      note: istisnaNote(istisnaCode ?? null, applied.note),
-    };
-
-    const errors = validateInvoice(values, now)?.fields;
-    if (errors) {
-      return failure('Taslak oluşturulmadı: bazı bilgiler eksik ya da hatalı.', {
-        code: 'invalid-invoice',
-        fields: errors,
+/**
+ * A draft made under Yeni fatura's rules: the customer's defaults fill what
+ * the input leaves out, then the app's validation, then GİB.
+ */
+async function createDraft(
+  ctx: McpToolContext,
+  input: z.output<typeof createInvoiceInput>,
+  signal?: AbortSignal,
+) {
+  const now = ctx.now();
+  const company = ctx.company();
+  let customer: Recipient;
+  if (input.customerId !== undefined) {
+    const saved = company.customers.find((candidate) => candidate.id === input.customerId);
+    if (!saved) {
+      return failure('Bu müşteri kayıtlı değil. Kayıtlı müşterileri list_customers ile listele.', {
+        code: 'unknown-customer',
       });
     }
-    const warnings = invoiceWarnings(values, now);
-
-    const details = toDraftDetails(values, now);
-    const draft = await ctx.gib(async (session): Promise<CreatedDraft> => {
-      const created = await ctx.client.createDraftInvoice(session, details);
-      if (!created.uuid) {
-        return { date: created.date, uuid: '' };
+    customer = saved;
+  } else {
+    const fields = { ...input.recipient };
+    if (fields.country !== undefined) {
+      const country = gibCountry(fields.country);
+      if (country === null) {
+        return failure('Taslak oluşturulmadı: bazı bilgiler eksik ya da hatalı.', {
+          code: 'invalid-invoice',
+          fields: {
+            'recipient.country': `${fields.country} GİB’in ülke listesinde yok. Ülkenin Türkçe ya da İngilizce adını yaz, örneğin Almanya.`,
+          },
+        });
       }
-      // The number is an extra: the draft exists either way.
-      const rows = await ctx.client.getDrafts(session, created.date, created.date).catch(() => []);
-      const number = rows.find((row) => row.ettn === created.uuid)?.belgeNumarasi;
-      return { date: created.date, number, uuid: created.uuid };
-    }, signal);
-    ctx.onDraftCreated(draft, values);
+      fields.country = country;
+    }
+    const given = { ...EMPTY_RECIPIENT, ...fields, id: ctx.newId() };
+    const saved = findCustomer(company.customers, given.taxIDOrTRID, customerName(given));
+    customer = saved ? { ...saved, ...fields } : given;
+  }
 
-    const totals = invoiceTotals(values.items);
-    return json({
-      company: company.name,
+  const date = input.date ?? '';
+  const invoiceDate = parseGIB(date) ?? now;
+  const applied = applyCustomer(
+    {
+      advancedFields: {
+        dueDate: '',
+        irsaliyeNumarasi: '',
+        irsaliyeTarihi: '',
+        manualDate: date,
+        manualTime: input.time ?? '',
+        paymentTotal: '',
+      },
+      invoiceSettings: { currency: 'TRY', currencyRate: '', invoiceType: 'SATIS' },
+      items: [],
+      note: input.note ?? '',
+      recipient: customer,
+    },
+    customer,
+    now,
+  );
+  const invoiceType = input.invoiceType ?? applied.invoiceSettings.invoiceType;
+  const currency = input.currency ?? applied.invoiceSettings.currency;
+  const istisnaCode =
+    invoiceType === 'ISTISNA'
+      ? (input.istisnaCode ??
+        applied.invoiceSettings.istisnaCode ??
+        istisnaReasonInNote(applied.note) ??
+        DEFAULT_ISTISNA_CODE)
+      : undefined;
+  const defaultVAT = invoiceType === 'ISTISNA' ? 0 : (customer.VATRate ?? 20);
+
+  let currencyRate = '';
+  if (currency !== 'TRY') {
+    const rate = input.currencyRate
+      ? Number(input.currencyRate)
+      : await ctx.currencyRate(currency, invoiceDate).catch(() => undefined);
+    if (rate === undefined) {
+      return failure(`TCMB’nin ${currency} kuru alınamadı. Kuru currencyRate ile ver.`, {
+        code: 'currency-rate',
+      });
+    }
+    currencyRate = formatRate(rate);
+  }
+
+  const values: InvoiceFormValues = {
+    ...applied,
+    advancedFields: {
+      ...applied.advancedFields,
+      dueDate:
+        input.dueDays === undefined
+          ? applied.advancedFields.dueDate
+          : toGIB(addDays(invoiceDate, input.dueDays)),
+    },
+    invoiceSettings: { currency, currencyRate, invoiceType, istisnaCode },
+    items: input.items.map((item) => {
+      const line: InvoiceItem = {
+        discountAmount: item.discountAmount ?? 0,
+        discountRate: item.discountRate ?? 0,
+        discountReason: item.discountReason ?? '',
+        gtip: item.gtip ?? '',
+        id: ctx.newId(),
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        unitType: item.unitType ?? 'C62',
+        VATRate: item.VATRate ?? defaultVAT,
+      };
+      // The form keeps the amount a rate gives, as the line's discount.
+      return item.discountAmount === undefined && line.discountRate > 0
+        ? { ...line, discountAmount: discountForRate(line, line.discountRate) }
+        : line;
+    }),
+    note: istisnaNote(istisnaCode ?? null, applied.note),
+  };
+
+  const errors = validateInvoice(values, now)?.fields;
+  if (errors) {
+    return failure('Taslak oluşturulmadı: bazı bilgiler eksik ya da hatalı.', {
+      code: 'invalid-invoice',
+      fields: errors,
+    });
+  }
+  const warnings = invoiceWarnings(values, now);
+
+  const details = toDraftDetails(values, now);
+  const draft = await ctx.gib(async (session): Promise<CreatedDraft> => {
+    const created = await ctx.client.createDraftInvoice(session, details);
+    if (!created.uuid) {
+      return { date: created.date, uuid: '' };
+    }
+    // The number is an extra: the draft exists either way.
+    const rows = await ctx.client.getDrafts(session, created.date, created.date).catch(() => []);
+    const number = rows.find((row) => row.ettn === created.uuid)?.belgeNumarasi;
+    return { date: created.date, number, uuid: created.uuid };
+  }, signal);
+  ctx.onDraftCreated(draft, values);
+
+  const totals = invoiceTotals(values.items);
+  let message = DRAFT_CREATED_UNLISTED;
+  if (draft.uuid) {
+    message = ctx.actionsAllowed() ? DRAFT_CREATED_SIGNABLE : DRAFT_CREATED;
+  }
+  return json(
+    {
       currency,
       date: draft.date,
-      message: draft.uuid ? DRAFT_CREATED : DRAFT_CREATED_UNLISTED,
+      message,
       number: draft.number,
       paymentTotal: paymentTotal(values, totals.total),
       recipient: customerName(values.recipient),
       uuid: draft.uuid || null,
       warnings: Object.keys(warnings).length > 0 ? warnings : undefined,
+    },
+    [draft.number, customerName(values.recipient)].filter(Boolean).join(', '),
+  );
+}
+
+const createInvoice = defineTool({
+  annotations: { destructiveHint: false, openWorldHint: true },
+  description:
+    "Create an UNSIGNED draft e-Arşiv invoice on GİB for a saved customer (customerId) or a new recipient. Totals and VAT are computed, Angaria's rules apply (Satış or İstisna only, İstisna at 0% VAT), and the customer's defaults fill what is not given. Unit prices are in the invoice's currency and are never converted: convert a saved service's price yourself when its currency differs. The draft is not a legal invoice until it is signed: by the user in Angaria, or with request_signing_sms and sign_invoices when the user gives you the SMS code. Returns the draft's uuid and number.",
+  gib: true,
+  inputSchema: createInvoiceInput,
+  name: 'create_invoice',
+  run: createDraft,
+  summarize: (input) =>
+    input.customerId === undefined
+      ? `${input.items.length} satır, yeni alıcı`
+      : `${input.items.length} satır, kayıtlı müşteri`,
+});
+
+const duplicateInvoice = defineTool({
+  annotations: { destructiveHint: false, openWorldHint: true },
+  description:
+    "Tekrar kes: a new UNSIGNED draft from an existing invoice (uuid), as Angaria's Tekrar kes does. The recipient, currency, invoice type, İstisna reason, note and lines carry over; the date is today unless given, and a foreign currency takes TCMB's rate for the new date. Give items to replace the lines (e.g. a new amount). Same rules and result as create_invoice.",
+  gib: true,
+  inputSchema: z.object({
+    date: pastGIBDate
+      .optional()
+      .describe('Invoice date DD/MM/YYYY, not after today. Defaults to today.'),
+    dueDays: z
+      .number()
+      .int()
+      .min(0)
+      .max(365)
+      .optional()
+      .describe("Payment due this many days after the invoice date, printed on Angaria's PDF only"),
+    items: z
+      .array(appItemInput)
+      .min(1)
+      .optional()
+      .describe("Lines for the new draft instead of the source invoice's"),
+    note: z.string().optional().describe("Note for the new draft instead of the source invoice's"),
+    uuid: invoiceUUID.describe('The invoice to repeat, from list_invoices'),
+  }),
+  name: 'duplicate_invoice',
+  run: async (ctx, { date, dueDays, items, note, uuid }, signal) => {
+    const detail = await ctx.gib((session) => ctx.client.getInvoiceDetail(session, uuid), signal);
+    const source = parseGIBInvoice(detail);
+    const { invoiceType } = source.settings;
+    if (invoiceType !== 'SATIS' && invoiceType !== 'ISTISNA') {
+      return failure(
+        'Angaria yalnızca Satış ve İstisna faturası keser. Bu faturayı GİB portalından tekrar kes.',
+        { code: 'unsupported-type' },
+      );
+    }
+    const { city, country, district, fullAddress, name, surname, taxIDOrTRID, taxOffice, title } =
+      source.recipient;
+    const input = createInvoiceInput.safeParse({
+      currency: source.settings.currency,
+      date,
+      dueDays,
+      invoiceType,
+      istisnaCode: invoiceType === 'ISTISNA' ? istisnaReasonInNote(source.note) : undefined,
+      items:
+        items ??
+        source.items.map((item) => ({
+          discountAmount: item.discountAmount || undefined,
+          discountReason: item.discountReason || undefined,
+          gtip: item.gtip || undefined,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          unitType: item.unitType,
+          VATRate: item.VATRate,
+        })),
+      note: note ?? source.note,
+      recipient: {
+        city,
+        country,
+        district,
+        fullAddress,
+        name,
+        surname,
+        taxIDOrTRID: taxIDOrTRID.trim(),
+        taxOffice,
+        title,
+      },
     });
+    if (!input.success) {
+      return failure('Taslak oluşturulmadı: kaynak faturanın bazı bilgileri eksik ya da hatalı.', {
+        code: 'invalid-invoice',
+        fields: Object.fromEntries(
+          input.error.issues.map((issue) => [issue.path.join('.') || '(girdi)', issue.message]),
+        ),
+      });
+    }
+    return createDraft(ctx, input.data, signal);
   },
 });
 
-const cancelInvoice = defineTool({
-  ...cancelInvoiceTool,
+const downloadInvoice = defineTool({
+  annotations: { destructiveHint: false, openWorldHint: true },
   description:
-    'Delete an UNSIGNED draft on GİB by its uuid. Signed (Onaylı) invoices are refused: they are cancelled on the GİB portal.',
+    "Save a signed invoice's document into the user's Downloads folder, as Angaria's İndir does, and return the file's path. 'angaria-pdf' (default): Angaria's own PDF with the company's details and bank account, in Turkish, English or both (default: the customer's language). 'earsiv-pdf': GİB's e-Arşiv page as a PDF. 'earsiv-zip': GİB's own zip. Drafts and deleted drafts have no document; a cancelled invoice has the e-Arşiv ones only. A file of the same name is never overwritten.",
   gib: true,
-  name: 'cancel_invoice',
-  run: async (ctx, { date, reason, uuid }, signal) => {
+  inputSchema: z.object({
+    format: z
+      .enum(['angaria-pdf', 'earsiv-pdf', 'earsiv-zip'])
+      .optional()
+      .describe("'angaria-pdf' (default), 'earsiv-pdf' or 'earsiv-zip'"),
+    language: z
+      .enum(['tr', 'en', 'both'])
+      .optional()
+      .describe("Angaria PDF's language: tr, en or both. Defaults to the customer's."),
+    uuid: invoiceUUID,
+  }),
+  name: 'download_invoice',
+  run: async (ctx, { format = 'angaria-pdf', language, uuid }, signal) => {
+    const { detail, row } = await ctx.gib(
+      (session) => readInvoice(ctx.client, session, uuid),
+      signal,
+    );
+    if (!row?.ettn) {
+      return notFound(uuid);
+    }
+    const status = invoiceStatus(row);
+    if (status.filter !== 'onaylandi' && status.filter !== 'iptal') {
+      return failure(
+        `${status.label} durumundaki faturanın indirilecek bir belgesi yok. Önizleme için get_invoice’ı html ile kullan.`,
+        { code: 'not-signed' },
+      );
+    }
+    if (status.filter === 'iptal' && format === 'angaria-pdf') {
+      return failure(
+        'İptal edilen faturanın Angaria PDF’i yok. earsiv-pdf ile e-Arşiv PDF’ini indir.',
+        {
+          code: 'cancelled',
+        },
+      );
+    }
+    const { recipient } = parseGIBInvoice(detail);
+    const customer = findCustomer(
+      ctx.company().customers,
+      recipient.taxIDOrTRID,
+      customerName(recipient),
+    );
+    const saved = await ctx.download({
+      format,
+      invoice: { ...row, ettn: row.ettn },
+      language: language ?? defaultPDFLanguage(customer ?? recipient),
+    });
+    return json(
+      { file: saved.name, message: 'İndirilenler’e kaydedildi.', path: saved.path, uuid },
+      saved.name,
+    );
+  },
+  summarize: ({ format = 'angaria-pdf' }) =>
+    ({ 'angaria-pdf': 'Angaria PDF', 'earsiv-pdf': 'e-Arşiv PDF', 'earsiv-zip': 'GİB ZIP' })[
+      format
+    ],
+});
+
+const deleteDraft = defineTool({
+  annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: true },
+  description:
+    'Delete an UNSIGNED draft on GİB by its uuid; it shows as Silindi afterwards. Signed (Onaylı) invoices are refused: a signed invoice is cancelled on the GİB portal. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.',
+  gib: true,
+  inputSchema: cancelInvoiceInput.extend({
+    reason: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("Why it is deleted. Defaults to 'Taslak silindi'."),
+  }),
+  limit: { max: 10, windowMs: 60_000 },
+  name: 'delete_draft',
+  run: async (ctx, { date, reason = 'Taslak silindi', uuid }, signal) => {
     const { endDate, startDate } = draftSearchRange(date, ctx.now());
     const found = await ctx.gib(async (session) => {
       const drafts = await ctx.client.getDrafts(session, startDate, endDate);
@@ -576,78 +682,38 @@ const cancelInvoice = defineTool({
         { code: 'not-a-draft' },
       );
     }
-    ctx.onDraftDeleted();
-    return json({ message: 'Taslak silindi.', uuid });
+    const number = found.invoice.belgeNumarasi;
+    ctx.onAction({ kind: 'draft-deleted', number, uuid });
+    return json({ message: 'Taslak silindi.', uuid }, `${number ?? uuid} silindi`);
   },
 });
 
-const searchInput = z.object({
-  query: z.string().optional().describe('Words to look for; all of them must match'),
-});
-
-const listCustomers = defineTool({
-  annotations: { openWorldHint: false, readOnlyHint: true },
-  description:
-    "The active company's saved customers in Angaria, most recently invoiced first, with their invoice defaults. Use a customer's id as create_invoice's customerId.",
-  gib: false,
-  inputSchema: searchInput,
-  name: 'list_customers',
-  run: async (ctx, { query }) => {
-    const { customers, name } = ctx.company();
-    return json({
-      company: name,
-      customers: byRecentInvoice(customers)
-        .filter((customer) => matches(query, customerName(customer), customer.taxIDOrTRID))
-        .map((customer) => ({
-          address: customer.fullAddress,
-          city: customer.city || undefined,
-          country: customer.country || undefined,
-          defaults: { ...customerDefaults(customer), istisnaCode: customer.istisnaCode },
-          district: customer.district || undefined,
-          id: customer.id,
-          lastInvoicedAt: customer.lastInvoicedAt,
-          name: customerName(customer),
-          taxIDOrTRID: customer.taxIDOrTRID,
-          taxOffice: customer.taxOffice || undefined,
-        })),
-    });
-  },
-});
-
-const listServices = defineTool({
-  annotations: { openWorldHint: false, readOnlyHint: true },
-  description:
-    "The active company's saved services (invoice lines) in Angaria with their prices, units and VAT rates, for create_invoice's items. unitPrice is in the service's currency; a service without one was saved before services had a currency, and its price was meant for the invoice's currency. create_invoice does not convert prices.",
-  gib: false,
-  inputSchema: searchInput,
-  name: 'list_services',
-  run: async (ctx, { query }) => {
-    const { name, services } = ctx.company();
-    return json({
-      company: name,
-      services: services
-        .filter((service) => matches(query, service.name))
-        .map((service) => ({
-          currency: service.currency,
-          discountRate: service.discountRate || undefined,
-          name: service.name,
-          quantity: service.quantity,
-          unitPrice: service.unitPrice,
-          unitType: service.unitType,
-          VATRate: service.VATRate,
-        })),
-    });
-  },
-});
-
-const TOOLS: ReadonlyArray<McpTool> = [
+const INVOICE_TOOLS = [
   listInvoices,
   getInvoice,
   createInvoice,
-  cancelInvoice,
-  listCustomers,
-  listServices,
+  duplicateInvoice,
+  downloadInvoice,
+  deleteDraft,
 ];
+
+const BY_NAME = new Map<string, McpTool>(
+  [...INVOICE_TOOLS, ...SIGNING_TOOLS, ...RECORD_TOOLS, ...IMPORT_TOOLS].map((tool) => [
+    tool.name,
+    tool,
+  ]),
+);
+
+/** Every tool, in the MCP page's order. */
+const TOOLS: ReadonlyArray<McpTool> = (Object.keys(MCP_TOOL_COPY) as Array<McpToolName>).map(
+  (name) => {
+    const tool = BY_NAME.get(name);
+    if (!tool) {
+      throw new Error(`MCP tool ${name} is not defined`);
+    }
+    return tool;
+  },
+);
 
 function toJSONSchema(schema: z.ZodType) {
   const result: Record<string, unknown> = z.toJSONSchema(schema, {
@@ -669,34 +735,62 @@ export const mcpToolList = () =>
     title: MCP_TOOL_COPY[tool.name].title,
   }));
 
+/** One call for the activity log: no arguments, codes or secrets. */
+export interface McpCallActivity {
+  /** The company the call acted on, when it got that far */
+  company?: string;
+  ok: boolean;
+  /** The tool's line, or the error the agent got */
+  result: string;
+  summary: string;
+}
+
 /**
- * Runs one tools/call. Every tool needs a license that is valid or in its
- * grace period; failures are Turkish tool errors the model can relay.
+ * Runs one tools/call and says for the activity log what came of it. Every
+ * tool needs a license that is valid or in its grace period; failures are
+ * Turkish tool errors the model can relay.
  */
-export async function callMcpTool(
+export async function runMcpTool(
   ctx: McpToolContext,
   name: string,
   args: unknown,
   signal?: AbortSignal,
-): Promise<McpToolResult> {
+): Promise<{ activity: McpCallActivity; result: McpToolResult }> {
   const tool = TOOLS.find((candidate) => candidate.name === name);
+  const fail = (message: string, code: string) => ({
+    activity: { ok: false, result: message, summary: tool ? MCP_TOOL_COPY[tool.name].title : name },
+    result: failure(message, { code }),
+  });
   if (!tool) {
-    return failure(`Bilinmeyen araç: ${name}`, { code: 'unknown-tool' });
+    return fail(`Bilinmeyen araç: ${name}`, 'unknown-tool');
   }
   const license = await ctx.license();
   if (license !== 'ok') {
-    return failure(license === 'checking' ? LICENSE_CHECKING : LICENSE_LOCKED, {
-      code: 'license',
-    });
+    return fail(license === 'checking' ? LICENSE_CHECKING : LICENSE_LOCKED, 'license');
   }
+  const { company, output, summary } = await tool.call(ctx, args, signal);
+  const { activity, ...result } = output;
+  const ok = result.isError !== true;
+  return {
+    activity: { company, ok, result: ok ? (activity ?? 'Tamam') : errorText(result), summary },
+    result,
+  };
+}
+
+/** The message of a failure() result. */
+function errorText(result: McpToolResult) {
   try {
-    return await tool.call(ctx, args, signal);
-  } catch (error) {
-    // Dropped while it waited in the GİB queue.
-    if (signal?.aborted && error === signal.reason) {
-      return failure(BUSY, { code: 'busy' });
-    }
-    const { code, detail, text } = describeError(error);
-    return failure(text, { code, detail });
+    const message: unknown = JSON.parse(result.content[0]?.text ?? '').error?.message;
+    return typeof message === 'string' ? message : 'Hata';
+  } catch {
+    return 'Hata';
   }
 }
+
+/** runMcpTool's result alone. */
+export const callMcpTool = async (
+  ctx: McpToolContext,
+  name: string,
+  args: unknown,
+  signal?: AbortSignal,
+) => (await runMcpTool(ctx, name, args, signal)).result;
