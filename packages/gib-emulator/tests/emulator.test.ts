@@ -3,11 +3,12 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
-import { messages, type RunningEmulator, startEmulator } from '../src/index.ts';
+import { defaultConfig, messages, type RunningEmulator, startEmulator } from '../src/index.ts';
 
 // Protocol-level checks: raw HTTP in, the portal's exact shapes out.
 
 let emulator: RunningEmulator;
+const seedCount = defaultConfig().seedInvoices.length;
 
 beforeAll(async () => {
   emulator = await startEmulator();
@@ -446,7 +447,35 @@ describe('dispatch', () => {
       vknTckn: '10000000146',
     });
   });
+
+  test('87654321 has over two years of documents, a week at a time', async () => {
+    const state = (await (await admin('GET', '/state')).json()) as {
+      invoices: Array<{ belgeTarihi: string; onayDurumu: string; userid: string }>;
+    };
+    const history = state.invoices.filter((invoice) => invoice.userid === '87654321');
+    const days = history.map(({ belgeTarihi }) => {
+      const [day, month, year] = belgeTarihi.split('-').map(Number);
+      return Date.UTC(year, month - 1, day);
+    });
+    expect((Math.max(...days) - Math.min(...days)) / 86_400_000).toBeGreaterThan(730);
+    expect(new Set(history.map((invoice) => invoice.onayDurumu))).toEqual(
+      new Set(['Onaylandı', 'Onaylanmadı', 'Silinmiş']),
+    );
+
+    const { token } = await login('87654321', 'angaria');
+    const newest = new Date(Math.max(...days));
+    const weekAgo = new Date(newest.getTime() - 6 * 86_400_000);
+    const week = await dispatch(token, 'EARSIV_PORTAL_TASLAKLARI_GETIR', {
+      baslangic: gibDate(weekAgo),
+      bitis: gibDate(newest),
+      hangiTip: '5000/30000',
+    });
+    expect((week.data as Array<unknown>).length).toBeGreaterThan(0);
+  });
 });
+
+const gibDate = (date: Date) =>
+  `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}/${date.getUTCFullYear()}`;
 
 const show = async (token: string, ettn: string) =>
   dispatch(token, 'EARSIV_PORTAL_FATURA_GOSTER', { ettn, onayDurumu: 'Onaylandı' });
@@ -676,7 +705,7 @@ describe('chaos', () => {
       messages.draftCreated,
     );
     const state = (await (await admin('GET', '/state')).json()) as { invoices: Array<unknown> };
-    expect(state.invoices).toHaveLength(5);
+    expect(state.invoices).toHaveLength(seedCount + 1);
   });
 
   test('a 5xx fault answers an HTML error page', async () => {
@@ -841,7 +870,7 @@ describe('access', () => {
     });
     expect(seed.status).toBe(403);
     const state = (await (await admin('GET', '/state')).json()) as { invoices: Array<unknown> };
-    expect(state.invoices).toHaveLength(4);
+    expect(state.invoices).toHaveLength(seedCount);
 
     const local = await raw('/__emulator/state', { headers: { origin: 'http://localhost:5173' } });
     expect(local.status).toBe(200);

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { historyFixtures } from './history.ts';
 
 export type ApprovalStatus = 'Onaylandı' | 'Onaylanmadı' | 'Silinmiş';
 
@@ -29,11 +30,25 @@ export interface EmulatorUser {
   vknTckn: string;
 }
 
+/** One line of a fixture: a service, its quantity and unit price. */
+export interface FixtureLine {
+  name: string;
+  /** Default 1. */
+  quantity?: number;
+  /** GİB's unit code (birim). Default C62, Adet. */
+  unit?: string;
+  unitPrice: number;
+}
+
 /** A document created on start and on reset, for lists that are not empty. */
 export interface InvoiceFixture {
+  /** The recipient's street address. Default a sample address at home or abroad. */
+  address?: string;
   amount?: number;
   /** A cancellation request on a signed document. */
   cancellation?: Cancellation;
+  /** The recipient's city at home. Default İstanbul. */
+  city?: string;
   /** The recipient's country, GİB's name for it. Default Türkiye. */
   country?: string;
   currency?: string;
@@ -41,14 +56,22 @@ export interface InvoiceFixture {
   date?: string;
   /** Days before today, in Turkish time. Default 0. */
   daysAgo?: number;
+  /** The recipient's district at home. Default Kadıköy. */
+  district?: string;
   ettn?: string;
+  /** The one line's name when `items` is absent; its price is `amount`. */
   item?: string;
+  /** The lines, in place of `item` and `amount`. */
+  items?: Array<FixtureLine>;
   note?: string;
   /** TRY per unit of `currency` (dovzTLkur). */
   rate?: number;
   recipient?: string;
   status?: ApprovalStatus;
+  /** A person's last name (an 11-digit `taxID`); `recipient` is then the first name. */
+  surname?: string;
   taxID?: string;
+  taxOffice?: string;
   userid: string;
   vatRate?: number;
 }
@@ -116,8 +139,9 @@ export const makeUser = (
 
 /**
  * 33333301 and 33333302 mirror the test portal's public demo accounts,
- * 33333303 has no phone registered (SMS signing fails), and 12345678 is a
- * production-like freelancer with a few documents already issued.
+ * 33333303 has no phone registered (SMS signing fails), 12345678 is a
+ * production-like freelancer with a few documents already issued, and
+ * 87654321 one with over two years of them (history.ts).
  */
 export const defaultUsers: Array<EmulatorUser> = [
   makeUser({
@@ -164,6 +188,19 @@ export const defaultUsers: Array<EmulatorUser> = [
     userid: '12345678',
     vergiDairesi: 'Kadıköy',
     vknTckn: '10000000146',
+  }),
+  makeUser({
+    ad: 'Ece',
+    cadde: 'Kordon Boyu Cad. No:7 D:3',
+    ePostaAdresi: 'ece@example.com',
+    il: 'İzmir',
+    ilce: 'Konak',
+    password: 'angaria',
+    soyad: 'Kaya',
+    telefon: '5329876543',
+    userid: '87654321',
+    vergiDairesi: 'Konak',
+    vknTckn: '34567890170',
   }),
 ];
 
@@ -222,6 +259,7 @@ const defaultSeedInvoices: Array<InvoiceFixture> = [
     userid: '12345678',
     vatRate: 20,
   },
+  ...historyFixtures('87654321'),
 ];
 
 export const defaultConfig = (): EmulatorConfig => ({

@@ -16,12 +16,13 @@ It runs under `node --watch` and restarts when its code changes, so a pull or a 
 
 Every SMS code, created draft, login and force logout is logged in the terminal.
 
-| User       | Password  | Notes                                                                                                                         |
-| ---------- | --------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `33333301` | `1`       | Like GİB's public demo account. Phone `5550000001`.                                                                           |
-| `33333302` | `1`       | Second demo account, phone `5550000002`.                                                                                      |
-| `33333303` | `1`       | No registered phone: SMS signing fails.                                                                                       |
-| `12345678` | `angaria` | Production-like freelancer (TCKN): two signed İSTİSNA invoices (USD, EUR), a cancelled one and a deleted draft in past weeks. |
+| User       | Password  | Notes                                                                                                                                                                                                                                                                    |
+| ---------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `33333301` | `1`       | Like GİB's public demo account. Phone `5550000001`.                                                                                                                                                                                                                      |
+| `33333302` | `1`       | Second demo account, phone `5550000002`.                                                                                                                                                                                                                                 |
+| `33333303` | `1`       | No registered phone: SMS signing fails.                                                                                                                                                                                                                                  |
+| `12345678` | `angaria` | Production-like freelancer (TCKN): two signed İSTİSNA invoices (USD, EUR), a cancelled one and a deleted draft in past weeks.                                                                                                                                            |
+| `87654321` | `angaria` | Freelancer with over two years of documents (`src/history.ts`): signed invoices to customers at home and abroad (several on 2222222222) in TRY, USD and EUR, repeated services with a newer price, multi-line invoices, drafts, a cancelled invoice and a deleted draft. |
 
 The SMS code is `123456` unless configured.
 
@@ -143,7 +144,7 @@ No auth, so the emulator guards it in other ways. Every request must name a loop
 | `POST /__emulator/lock`            | `{ "userid": "33333301" }`: a session opened elsewhere holds the lock.                                                                                                 |
 | `POST /__emulator/expire`          | `{ "userid"?: ... }`: end sessions as if they timed out.                                                                                                               |
 
-Seed invoices: `cancellation` (`pending`, `accepted`, `rejected`) puts a cancellation request on a signed invoice ([Statuses](#statuses)); `country`, `rate` (`dovzTLkur`) and `note` fill the draft.
+Seed invoices: `cancellation` (`pending`, `accepted`, `rejected`) puts a cancellation request on a signed invoice ([Statuses](#statuses)); `country`, `rate` (`dovzTLkur`) and `note` fill the draft; `items` (`[{ name, quantity?, unit?, unitPrice }]`) replaces `item` and `amount` with several lines; `surname`, `address`, `city`, `district` and `taxOffice` fill the buyer.
 
 Fault kinds: `5xx` (HTML error page, `status` default 503), `error` (GİB's error envelope with `text`), `maintenance` (the maintenance HTML page, HTTP 200), `text` (HTTP 200 with `text` in `data` and no error flag, the failure PR #1 taught the SDK to catch).
 
