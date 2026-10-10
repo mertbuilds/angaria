@@ -6,6 +6,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { errorMessage } from '@/lib/gib-errors.ts';
 import { openCheckout, openCustomerPortal, useLicense } from '@/lib/license-context.tsx';
 import { normalizeLicenseKey, type LicenseStatus } from '@/lib/license.ts';
+import appIcon from '../assets/app-icon.png';
 import { shell } from '../shell/shell.stylex.ts';
 
 type LockedStatus = Exclude<LicenseStatus, { kind: 'grace' } | { kind: 'valid' }>;
@@ -72,6 +73,12 @@ const styles = create({
     pointerEvents: 'none',
     position: 'fixed',
     zIndex: 50,
+  },
+  brand: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
   },
   column: {
     display: 'flex',
@@ -166,6 +173,11 @@ const styles = create({
   wide: {
     width: '100%',
   },
+  icon: {
+    display: 'block',
+    height: '64px',
+    width: '64px',
+  },
   wordmark: {
     fontSize: '28px',
   },
@@ -228,7 +240,10 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
       <DragRegion />
       <div {...props(styles.column)}>
         <div {...props(styles.header)}>
-          <Wordmark style={styles.wordmark} />
+          <div {...props(styles.brand)}>
+            <img alt={''} src={appIcon} {...props(styles.icon)} />
+            <Wordmark style={styles.wordmark} />
+          </div>
           <div {...props(styles.copy)}>
             <h1 {...props(styles.title)}>{copy.title}</h1>
             <p {...props(styles.description)}>{copy.description}</p>
