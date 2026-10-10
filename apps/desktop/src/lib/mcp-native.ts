@@ -19,11 +19,26 @@ export interface McpStatus {
   running: boolean;
 }
 
-export interface McpInstalled {
-  backup: string | null;
+/** An MCP client Angaria can add itself to (src-tauri/src/mcp/agents). */
+export interface McpAgent {
+  configPath: string;
+  /** Why its config could not be read */
+  error: string | null;
+  id: string;
+  /** The client looks installed on this Mac */
+  installed: boolean;
+  name: string;
+  /** Its config already has an "angaria" server */
+  ourServerInstalled: boolean;
+}
+
+export interface McpAgentResult {
+  /** The file was written; false when it already was as asked */
+  changed: boolean;
+  error: string | null;
+  id: string;
   path: string;
-  /** The config already had Angaria: nothing was written */
-  unchanged: boolean;
+  success: boolean;
 }
 
 export interface McpToolCall {
@@ -40,8 +55,11 @@ export const mcpRespond = (id: number, result: McpToolResult) =>
   invoke<void>('mcp_respond', { id, result });
 export const mcpToken = () => invoke<string>('mcp_token');
 export const mcpRotateToken = () => invoke<string>('mcp_rotate_token');
-export const mcpInstall = (client: 'claude-desktop' | 'cursor') =>
-  invoke<McpInstalled>('mcp_install', { client });
+export const mcpAgents = () => invoke<Array<McpAgent>>('mcp_agents');
+export const mcpAgentsAdd = (ids: ReadonlyArray<string>) =>
+  invoke<Array<McpAgentResult>>('mcp_agents_add', { ids });
+export const mcpAgentsRemove = (ids: ReadonlyArray<string>) =>
+  invoke<Array<McpAgentResult>>('mcp_agents_remove', { ids });
 
 /** Calls the server hands to the webview; resolves to the unlisten function. */
 export const onMcpCall = (handler: (call: McpToolCall) => void) =>
