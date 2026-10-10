@@ -48,6 +48,8 @@ export const colors = defineConsts({
  * changing what the shared variables mean.
  */
 export const optional = defineConsts({
+  /** Fill of inline code: a faint tint of the text color over any surface. */
+  codeBackground: 'var(--code-background, color-mix(in oklab, var(--foreground) 8%, transparent))',
   /** Fill of text fields and select triggers. */
   inputBackground: 'var(--input-background, transparent)',
   /** A field's border under the pointer: a step stronger than `--input`. */

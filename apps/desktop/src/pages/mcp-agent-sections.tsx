@@ -1,4 +1,6 @@
-import { Badge, Button, Switch } from '@angaria/ui';
+import { Badge, Button, Code, Switch } from '@angaria/ui';
+import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
 import { useState } from 'react';
 import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
 import {
@@ -9,6 +11,7 @@ import {
   setMcpSettings,
   useMcpActivity,
   useMcpSettings,
+  type McpActivity,
   type McpToolName,
 } from '@/lib/mcp.ts';
 
@@ -66,10 +69,70 @@ export function McpToolsSection() {
               {allowActions ? 'İzin verildi' : 'İzin gerekir'}
             </Badge>
           )}
-          <SettingsValue tone="muted">{name}</SettingsValue>
+          <Code>{name}</Code>
         </SettingsRow>
       ))}
     </SettingsSection>
+  );
+}
+
+const styles = create({
+  entry: {
+    display: 'flex',
+    flex: 1,
+    flexDirection: 'column',
+    gap: '2px',
+    minWidth: 0,
+  },
+  head: {
+    alignItems: 'baseline',
+    display: 'flex',
+    gap: spacing.s2,
+  },
+  meta: {
+    color: colors.muted,
+    fontSize: font.sizeXs,
+    lineHeight: 1.5,
+  },
+  failed: {
+    color: colors.error,
+  },
+  result: {
+    color: colors.fg,
+    fontSize: font.sizeXs,
+    lineHeight: 1.5,
+    overflowWrap: 'anywhere',
+  },
+  time: {
+    color: colors.muted,
+    fontSize: font.sizeXs,
+    fontVariantNumeric: 'tabular-nums',
+    marginInlineStart: 'auto',
+    whiteSpace: 'nowrap',
+  },
+  title: {
+    color: colors.fg,
+    fontSize: font.sizeSm,
+    lineHeight: 1.4,
+  },
+});
+
+/** One call: the tool, when, for which company, what was asked, what came of it. */
+function ActivityEntry({ entry }: { entry: McpActivity }) {
+  return (
+    <div {...props(styles.entry)}>
+      <div {...props(styles.head)}>
+        <span {...props(styles.title)}>{mcpToolTitle(entry.tool)}</span>
+        <Code>{entry.tool}</Code>
+        <time dateTime={entry.at} {...props(styles.time)}>
+          {timeFormat.format(new Date(entry.at))}
+        </time>
+      </div>
+      <span {...props(styles.meta)}>
+        {[entry.company, entry.summary].filter(Boolean).join(' · ')}
+      </span>
+      <span {...props(styles.result, !entry.ok && styles.failed)}>{entry.result}</span>
+    </div>
   );
 }
 
@@ -89,15 +152,8 @@ export function McpActivitySection() {
       ) : (
         <>
           {activity.slice(0, shown).map((entry) => (
-            <SettingsRow
-              align="top"
-              hint={[timeFormat.format(new Date(entry.at)), entry.company, entry.summary]
-                .filter(Boolean)
-                .join(' · ')}
-              key={entry.id}
-              label={mcpToolTitle(entry.tool)}
-            >
-              <SettingsValue tone={entry.ok ? 'muted' : 'error'}>{entry.result}</SettingsValue>
+            <SettingsRow key={entry.id}>
+              <ActivityEntry entry={entry} />
             </SettingsRow>
           ))}
           <SettingsRow>
