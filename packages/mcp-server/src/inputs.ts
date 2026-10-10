@@ -98,6 +98,25 @@ export const cancelInvoiceInput = z.object({
   uuid: invoiceUUID,
 });
 
+/** At most this many drafts are signed with one SMS şifresi. */
+const MAX_SIGN_BATCH = 20;
+
+export const signingRequestInput = z.object({
+  uuids: z
+    .array(invoiceUUID)
+    .min(1)
+    .max(MAX_SIGN_BATCH)
+    .refine((uuids) => new Set(uuids).size === uuids.length, 'Each uuid only once')
+    .describe(`Uuids (ETTN) of the unsigned drafts to sign, at most ${MAX_SIGN_BATCH}`),
+});
+
+export const signInvoicesInput = z.object({
+  code: z
+    .string()
+    .describe('The 6 digit SMS code (SMS şifresi) the user received and typed to you'),
+  operationId: z.string().min(1).describe('operationId from request_signing_sms'),
+});
+
 export interface ToolDefinition<T extends z.ZodType> {
   annotations: { destructiveHint?: boolean; openWorldHint?: boolean; readOnlyHint?: boolean };
   description: string;

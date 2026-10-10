@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { MCP_TOOLS } from '../lib/mcp.ts';
 import { Route as McpRoute } from '../routes/mcp.tsx';
 import { stubObservers } from '../test/observers.ts';
 import { SiteHeader } from './site-header.tsx';
@@ -73,20 +74,21 @@ describe('header', () => {
 });
 
 describe('/mcp', () => {
-  test('lists the six tools and no signing tool', async () => {
+  test('lists every tool, marking the ones that need the app’s permission', async () => {
     await renderSite('/mcp');
 
     const tools = await screen.findByRole('heading', { level: 2, name: 'Araçlar' });
     const list = tools.closest('section')?.querySelector('dl');
-    expect(Array.from(list?.querySelectorAll('code') ?? [], (code) => code.textContent)).toEqual([
-      'list_invoices',
-      'get_invoice',
-      'create_invoice',
-      'cancel_invoice',
-      'list_customers',
-      'list_services',
-    ]);
-    expect(screen.getByText(/Faturayı onaylayan bir araç yok/)).toBeVisible();
+    const names = Array.from(list?.querySelectorAll('code') ?? [], (code) => code.textContent);
+    expect(names).toEqual(MCP_TOOLS.map((tool) => tool.name));
+    expect(names).toContain('sign_invoices');
+    const gated = Array.from(list?.querySelectorAll('dt') ?? []).filter((term) =>
+      term.textContent?.includes('İzin gerekir'),
+    );
+    expect(gated.map((term) => term.querySelector('code')?.textContent)).toEqual(
+      MCP_TOOLS.filter((tool) => 'gated' in tool).map((tool) => tool.name),
+    );
+    expect(screen.getByText(/yalnızca sen izin verince çalışır/)).toBeVisible();
   });
 
   test('says what leaves the Mac and how to set it up', async () => {

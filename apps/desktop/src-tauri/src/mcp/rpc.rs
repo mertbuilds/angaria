@@ -27,10 +27,14 @@ const UNSUPPORTED_VERSION: i64 = -32022;
 
 pub const SERVER_NAME: &str = "angaria";
 
-const INSTRUCTIONS: &str = "Angaria manages GİB e-Arşiv invoices for a Turkish freelancer, \
-with the GİB account of the company selected in the Angaria app. create_invoice only creates \
-an unsigned draft: it becomes a legal invoice once the user signs it by SMS in Angaria, and no \
-tool signs. Dates are DD/MM/YYYY. Tool messages are in Turkish; relay them to the user.";
+const INSTRUCTIONS: &str = "Angaria manages GİB e-Arşiv invoices for Turkish freelancers. Tools act on \
+the company active in the Angaria app unless they name another (company: an id or VKN/TCKN from \
+list_companies); naming one never switches the app. create_invoice and duplicate_invoice create \
+unsigned drafts. A draft becomes a legal invoice once signed: request_signing_sms has GİB text the \
+user an SMS code, and sign_invoices signs with the code the user gives you. Signing, deleting and \
+changing company details work only while the user has allowed agent actions in Angaria; otherwise \
+those tools say so. Never sign without the user's code for that request. Dates are DD/MM/YYYY. Tool \
+messages are in Turkish; relay them to the user.";
 
 /// The MCP headers of a request, as sent.
 #[derive(Debug, Default)]
@@ -452,6 +456,11 @@ mod tests {
     assert_eq!(body["result"]["capabilities"]["tools"]["listChanged"], false);
     assert!(body["result"].get("resultType").is_none());
     assert_eq!(clients[0].name, "claude-ai");
+    // Agents learn the signing flow and the company argument up front.
+    let instructions = body["result"]["instructions"].as_str().unwrap();
+    for name in ["request_signing_sms", "sign_invoices", "list_companies"] {
+      assert!(instructions.contains(name), "{name}");
+    }
   }
 
   #[test]

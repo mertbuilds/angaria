@@ -43,12 +43,9 @@ import {
   useGIBAccount,
 } from '@/lib/gib.ts';
 import { dueDateOf } from '@/lib/invoice-due-dates.ts';
-import { buildEArchiveFilename } from '@/lib/invoice-pdf-i18n.ts';
-import { readQRValue } from '@/lib/invoice-preview.ts';
+import { saveAngariaPDF, saveEArchive } from '@/lib/invoice-files.ts';
 import { PAGE_WIDTH } from '@/lib/invoice-zoom.ts';
 import { invoiceStatus, parseGIBInvoice } from '@/lib/invoices.ts';
-import { htmlToPDF } from '@/lib/native.ts';
-import { saveFile } from '@/lib/save-file.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
@@ -354,33 +351,20 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
     parseGIBInvoice(await fetchForeground(queryClient, invoiceDetailQuery(account, ettn)));
   const refreshList = () => queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
 
+  const files = {
+    company: companyInfo,
+    dueDate: dueDateOf(ettn),
+    entityName: activeEntity.name,
+    invoice,
+    // The page the pane shows: GİB's HTML, QR code drawn in, no scripts.
+    readHTML: () =>
+      queryClient.fetchQuery(invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? '')),
+  };
+
   const pdf = useMutation({
     mutationFn: async (language: PDFLanguage) => {
       toastPreparing('PDF hazırlanıyor…', `pdf-${ettn}`);
-      const { items, note, recipient, settings, subtotal, vat } = await readDetail();
-      // The QR code's text sits in GİB's preview, which the pane shows already.
-      const html = await queryClient.fetchQuery(
-        invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
-      );
-      // react-pdf is large, so it loads with the first PDF.
-      const { downloadInvoicePDF } = await import('@/components/invoice-pdf.tsx');
-      return downloadInvoicePDF({
-        company: companyInfo,
-        date: invoice.belgeTarihi ?? '',
-        dueDate: dueDateOf(ettn),
-        entityName: activeEntity.name,
-        ettn,
-        gibNumber: invoice.belgeNumarasi,
-        grandTotal: subtotal,
-        items: items.map((item, index) => ({ ...item, id: String(index) })),
-        language,
-        note,
-        qrValue: readQRValue(html),
-        recipient: { ...recipient, id: '' },
-        settings,
-        total: subtotal + vat,
-        totalVAT: vat,
-      });
+      return saveAngariaPDF(files, await readDetail(), language);
     },
     // Errors get the app-wide toast; this one only replaces the spinner.
     onError: () => toast.dismiss(`pdf-${ettn}`),
@@ -393,27 +377,9 @@ function InvoicePane({ invoice }: { invoice: Invoice & { ettn: string } }) {
         file === 'pdf' ? 'e-Arşiv PDF hazırlanıyor…' : 'GİB’den alınıyor…',
         `earsiv-${ettn}`,
       );
-      const filename = buildEArchiveFilename(
-        {
-          companyName: companyInfo.name,
-          date: invoice.belgeTarihi ?? '',
-          entityName: activeEntity.name,
-          gibNumber: invoice.belgeNumarasi,
-          recipientTitle: invoice.aliciUnvanAdSoyad ?? '',
-        },
-        file,
+      return saveEArchive(files, file, () =>
+        gib.run(account, (session) => downloadInvoice(session, ettn, invoice.onayDurumu ?? '')),
       );
-      if (file === 'zip') {
-        const zip = await gib.run(account, (session) =>
-          downloadInvoice(session, ettn, invoice.onayDurumu ?? ''),
-        );
-        return saveFile(new Blob([zip], { type: 'application/zip' }), filename);
-      }
-      // The page the pane shows: GİB's HTML, QR code drawn in, no scripts.
-      const html = await queryClient.fetchQuery(
-        invoiceHTMLQuery(account, ettn, invoice.onayDurumu ?? ''),
-      );
-      return saveFile(new Blob([await htmlToPDF(html)], { type: 'application/pdf' }), filename);
     },
     onError: () => toast.dismiss(`earsiv-${ettn}`),
     onSuccess: (file) => toastDownloaded(`earsiv-${ettn}`, 'e-Arşiv faturası kaydedildi', file),

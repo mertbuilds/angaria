@@ -1,4 +1,4 @@
-import { Button, capStyles, toast } from '@angaria/ui';
+import { Button, capStyles, Code, toast } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -41,7 +41,7 @@ const styles = create({
     borderRadius: radius.base,
     color: colors.fg,
     flex: 1,
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontFamily: font.mono,
     fontSize: font.sizeXs,
     lineHeight: 1.5,
     margin: 0,
@@ -127,7 +127,7 @@ function AgentRow({
         agent.error ? (
           <span {...props(styles.hintError)}>{agent.error}</span>
         ) : (
-          shortPath(agent.configPath)
+          <Code>{shortPath(agent.configPath)}</Code>
         )
       }
       label={agent.name}

@@ -1,6 +1,6 @@
 # 0009. Built-in MCP server, tools in the webview, no signing tool
 
-Accepted, 2026-10-02.
+Accepted, 2026-10-02. The "no signing tool" part and the tool list are superseded by `0010-mcp-agent-actions.md` (2026-10-10).
 
 ## Context
 

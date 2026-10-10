@@ -52,6 +52,8 @@ export const spacing = defineVars({
 /** Suisse Intl in two weights only: 400 and 500. Headings use 500, never bold. */
 export const font = defineVars({
   family: 'var(--font-sans)',
+  /** Technical values (addresses, ports, paths, tool names, commands): the system's mono. */
+  mono: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace",
   sizeLg: '20px',
   sizeMd: '16px',
   sizeSm: '14px',

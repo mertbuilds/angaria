@@ -23,6 +23,7 @@ import {
   CardTitle,
   Checkbox,
   ChoiceChips,
+  Code,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -951,7 +952,7 @@ function Showcase() {
         </Table>
       </Section>
 
-      <Section title="ScrollArea, Separator, Skeleton, Kbd">
+      <Section title="ScrollArea, Separator, Skeleton, Kbd, Code">
         <div {...props(styles.row)}>
           <ScrollArea style={styles.scrollBox}>
             <div {...props(styles.scrollInner)}>
@@ -970,6 +971,9 @@ function Showcase() {
               <Kbd>⌘</Kbd>
               <Kbd>K</Kbd>
             </KbdGroup>
+            <span>
+              Çalışıyor, <Code>127.0.0.1:41234</Code>
+            </span>
           </div>
         </div>
       </Section>

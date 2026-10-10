@@ -49,6 +49,14 @@ import {
 } from '@/components/settings-section.tsx';
 import { ThirdPartyNoticesRow } from '@/components/third-party-notices.tsx';
 import { forceLogout } from '@/lib/angaria.ts';
+import {
+  bankFields,
+  companyFieldError,
+  companyFields,
+  normalizeCompanyField,
+  type CompanyField,
+  type CompanyFieldKind,
+} from '@/lib/company-fields.ts';
 import { LOGO_TYPES, readLogo } from '@/lib/company-logo.ts';
 import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
 import { describeError, toastError } from '@/lib/gib-errors.ts';
@@ -58,17 +66,8 @@ import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/pal
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import { ibanBankName } from '@/lib/tr-banks.ts';
-import {
-  IBAN_MASK,
-  isValidEmail,
-  isValidSWIFT,
-  isValidTCKN,
-  isValidTRIBAN,
-  isValidVKN,
-  normalizeIBAN,
-  TR_PHONE_MASK,
-} from '@/lib/tr-validators.ts';
-import type { CompanyInfo, Entity, PDFStyle } from '@/lib/types.ts';
+import { IBAN_MASK, TR_PHONE_MASK } from '@/lib/tr-validators.ts';
+import type { Entity, PDFStyle } from '@/lib/types.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
 import { useImportFromGIB } from '@/shell/import-from-gib.tsx';
 
@@ -527,33 +526,6 @@ function CompaniesSection() {
   );
 }
 
-/** How a company field is typed and checked. */
-type CompanyFieldKind = 'email' | 'iban' | 'phone' | 'swift' | 'taxID' | 'text' | 'textarea';
-
-interface CompanyField {
-  key: Exclude<keyof CompanyInfo, 'logo' | 'pdfStyle'>;
-  kind?: CompanyFieldKind;
-  label: string;
-  placeholder: string;
-}
-
-const companyFields: Array<CompanyField> = [
-  { key: 'name', label: 'Firma adı ya da unvan', placeholder: 'Firma Adı A.Ş.' },
-  { key: 'taxID', kind: 'taxID', label: 'VKN / TCKN', placeholder: '1234567890' },
-  { key: 'taxOffice', label: 'Vergi dairesi', placeholder: 'Kadıköy' },
-  { key: 'address', kind: 'textarea', label: 'Adres', placeholder: 'Tam adres' },
-  { key: 'phone', kind: 'phone', label: 'Telefon', placeholder: '+90 532 123 45 67' },
-  { key: 'email', kind: 'email', label: 'E-posta', placeholder: 'info@firma.com' },
-];
-
-const bankFields: Array<CompanyField> = [
-  { key: 'bankName', label: 'Banka adı', placeholder: 'Ziraat Bankası' },
-  { key: 'accountHolder', label: 'Hesap sahibi', placeholder: 'Ad Soyad' },
-  { key: 'iban', kind: 'iban', label: 'IBAN', placeholder: 'TR00 0000 0000 0000 0000 0000 00' },
-  { key: 'swiftCode', kind: 'swift', label: 'SWIFT kodu', placeholder: 'TCZBTR2AXXX' },
-  { key: 'bankAddress', kind: 'textarea', label: 'Banka adresi', placeholder: 'Banka şube adresi' },
-];
-
 /** Letters and digits only, up to 11, upper-cased as typed: a SWIFT/BIC code. */
 const SWIFT_MASK: MaskitoOptions = { mask: /^[0-9A-Z]{0,11}$/ };
 
@@ -562,63 +534,6 @@ const masks: Partial<Record<CompanyFieldKind, MaskitoOptions>> = {
   phone: TR_PHONE_MASK,
   swift: SWIFT_MASK,
 };
-
-const PHONE_SHAPE = /^\+90 \d{3} \d{3} \d{2} \d{2}$/;
-
-/** What is wrong with a company field's value, in the user's words. Empty is fine. */
-function companyFieldError(kind: CompanyFieldKind, value: string) {
-  const text = value.trim();
-  if (!text) {
-    return undefined;
-  }
-  switch (kind) {
-    case 'email':
-      return isValidEmail(text) ? undefined : 'E-postayı ad@firma.com biçiminde yaz';
-    case 'iban':
-      if (!/^TR\d{24}$/.test(normalizeIBAN(text))) {
-        return 'IBAN, TR ve 24 rakamdan oluşur. Eksik ya da fazla haneyi düzelt.';
-      }
-      return isValidTRIBAN(text)
-        ? undefined
-        : 'Bu IBAN’ın kontrol haneleri tutmuyor. Numarayı kontrol et.';
-    case 'phone':
-      return PHONE_SHAPE.test(text) ? undefined : 'Telefonu +90 532 123 45 67 biçiminde yaz';
-    case 'swift':
-      return isValidSWIFT(text)
-        ? undefined
-        : 'SWIFT kodu 8 ya da 11 harf ve rakamdan oluşur. Örnek: TCZBTR2AXXX';
-    case 'taxID': {
-      const id = text.replaceAll(/\s/g, '');
-      if (!/^\d{10,11}$/.test(id)) {
-        return 'VKN 10, TCKN 11 haneli olur. Yalnızca rakam yaz.';
-      }
-      if (id.length === 10) {
-        return isValidVKN(id)
-          ? undefined
-          : 'Bu VKN’nin kontrol hanesi tutmuyor. Numarayı kontrol et.';
-      }
-      return isValidTCKN(id)
-        ? undefined
-        : 'Bu TCKN’nin kontrol haneleri tutmuyor. Numarayı kontrol et.';
-    }
-    default:
-      return undefined;
-  }
-}
-
-/** The value a field keeps once it is left: spaces out of a tax ID, a bare +90 cleared. */
-function normalizeCompanyField(kind: CompanyFieldKind, value: string) {
-  switch (kind) {
-    case 'email':
-      return value.trim();
-    case 'phone':
-      return /^\+?9?0?\s*$/.test(value) ? '' : value;
-    case 'taxID':
-      return value.replaceAll(/\s/g, '');
-    default:
-      return value;
-  }
-}
 
 /** One company field: checked once it is left, then on every change, so a fix clears it. */
 function CompanyFieldRow({ field }: { field: CompanyField }) {

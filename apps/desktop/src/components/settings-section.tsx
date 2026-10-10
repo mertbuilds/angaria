@@ -30,6 +30,11 @@ const styles = create({
     gap: spacing.s1,
     minWidth: 0,
   },
+  // A compact field at the row's end, its message under it, aligned to it.
+  fieldEnd: {
+    alignItems: 'flex-end',
+    textAlign: 'end',
+  },
   group: {
     backgroundColor: tones.card,
     borderRadius: radius.base,
@@ -195,11 +200,14 @@ export function SettingsRow({
  * the note. `children` gets the ids to put in the field's aria-describedby.
  */
 export function SettingsField({
+  align = 'start',
   children,
   error,
   id,
   note,
 }: {
+  /** `end` for a compact field that sits at the row's end. */
+  align?: 'end' | 'start';
   children: (describedBy: string | undefined) => ReactNode;
   error?: string | undefined;
   id: string;
@@ -207,7 +215,7 @@ export function SettingsField({
 }) {
   const describedBy = error ? `${id}-error` : note ? `${id}-note` : undefined;
   return (
-    <div {...props(styles.field)}>
+    <div {...props(styles.field, align === 'end' && styles.fieldEnd)}>
       {children(describedBy)}
       {error ? (
         <FieldError id={`${id}-error`} style={styles.fieldMessage}>

@@ -79,6 +79,23 @@ export interface ScanProgress {
  */
 export const SCAN_CONCURRENCY = 2;
 
+/** Calls stay apart by this much on GİB's session, so a long scan does not flood the portal. */
+export const IMPORT_PACE_MS = 150;
+
+/** Waits `ms`; rejects with the signal's reason once it aborts. */
+export const pause = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason);
+      },
+      { once: true },
+    );
+  });
+
 /** A call whose session ran out goes again once, on a fresh login. */
 async function retryExpired<T>(call: () => Promise<T>): Promise<T> {
   try {

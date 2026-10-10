@@ -1,25 +1,28 @@
-import { Badge, Button, Input, Switch, toast } from '@angaria/ui';
-import { spacing } from '@angaria/ui/tokens.stylex';
+import { Button, Code, Input, Switch, toast } from '@angaria/ui';
+import { font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
 import { isTauri } from '@tauri-apps/api/core';
 import { useState } from 'react';
-import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
+import {
+  SettingsField,
+  SettingsRow,
+  SettingsSection,
+  SettingsValue,
+} from '@/components/settings-section.tsx';
 import { copy } from '@/lib/clipboard.ts';
 import { errorMessage } from '@/lib/gib-errors.ts';
 import { mcpRotateToken, mcpStatus, mcpToken } from '@/lib/mcp-native.ts';
 import {
   claudeCodeHTTPCommand,
   isValidPort,
-  MCP_TOOL_COPY,
-  mcpToolTitle,
   setMcpSettings,
-  useMcpCalls,
   useMcpServerState,
   useMcpSettings,
   type McpServerState,
 } from '@/lib/mcp.ts';
 import { useStore } from '@/lib/store.tsx';
+import { McpActionsSection, McpActivitySection, McpToolsSection } from './mcp-agent-sections.tsx';
 import { McpInstallSection } from './mcp-install.tsx';
 
 const styles = create({
@@ -34,9 +37,13 @@ const styles = create({
     paddingBlock: spacing.s8,
     paddingInline: spacing.s6,
   },
+  // Five digits in the mono of Code, at the row's end.
   port: {
+    fontFamily: font.mono,
     fontVariantNumeric: 'tabular-nums',
-    maxWidth: '8rem',
+    paddingInline: spacing.s3,
+    textAlign: 'end',
+    width: `calc(5ch + 2 * ${spacing.s3} + 2px)`,
   },
 });
 
@@ -53,7 +60,11 @@ function statusText(state: McpServerState) {
     case 'off':
       return 'Kapalı';
     case 'running':
-      return `Çalışıyor, 127.0.0.1:${state.port}`;
+      return (
+        <>
+          Çalışıyor, <Code>127.0.0.1:{state.port}</Code>
+        </>
+      );
     case 'starting':
       return 'Başlatılıyor…';
   }
@@ -66,53 +77,99 @@ const statusTone = {
   starting: 'muted',
 } as const;
 
+/** The port as typed: digits only, at most five. */
+const portDigits = (text: string) => text.replaceAll(/\D/g, '').slice(0, 5);
+
+/**
+ * Port: a technical value in the mono of `Code`, five digits wide. A typed
+ * port is kept on Enter or leaving the field when it is 1024 to 65535; Esc
+ * puts the saved one back. While the server runs on the next free port, the
+ * hint says which.
+ */
 function PortRow() {
   const { port } = useMcpSettings();
+  const server = useMcpServerState();
   const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState<string | undefined>();
   const value = draft ?? String(port);
-  const invalid = draft !== null && !isValidPort(Number(draft));
+  const fallback = server.kind === 'running' && server.port !== port ? server.port : null;
 
   const apply = () => {
-    if (draft !== null && !invalid) {
-      setMcpSettings({ port: Number(draft) });
+    if (draft === null) {
+      return;
     }
+    if (!isValidPort(Number(draft))) {
+      setError('1024 ile 65535 arasında bir port yaz');
+      return;
+    }
+    setMcpSettings({ port: Number(draft) });
     setDraft(null);
+    setError(undefined);
+  };
+
+  const revert = () => {
+    setDraft(null);
+    setError(undefined);
   };
 
   return (
     <SettingsRow
+      align="top"
       hint={
-        invalid ? '1024 ile 65535 arasında bir sayı yaz' : 'Doluysa sonraki boş port kullanılır'
+        fallback === null ? (
+          'Doluysa sonraki boş port kullanılır'
+        ) : (
+          <>
+            <Code>{port}</Code> dolu, şu an <Code>{fallback}</Code> kullanılıyor
+          </>
+        )
       }
       htmlFor="mcp-port"
       label="Port"
     >
-      <Input
-        aria-invalid={invalid || undefined}
-        id="mcp-port"
-        inputMode="numeric"
-        onBlur={apply}
-        onChange={(event) => setDraft(event.target.value.replaceAll(/\D/g, ''))}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            apply();
-          }
-        }}
-        style={styles.port}
-        value={value}
-      />
+      <SettingsField align="end" error={error} id="mcp-port">
+        {(describedBy) => (
+          <Input
+            aria-describedby={describedBy}
+            aria-invalid={error ? true : undefined}
+            autoComplete="off"
+            id="mcp-port"
+            inputMode="numeric"
+            maxLength={5}
+            onBlur={apply}
+            onChange={(event) => {
+              setDraft(portDigits(event.target.value));
+              // A fix clears the error as it is typed.
+              if (error && isValidPort(Number(portDigits(event.target.value)))) {
+                setError(undefined);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                apply();
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                revert();
+              }
+            }}
+            spellCheck={false}
+            style={styles.port}
+            value={value}
+          />
+        )}
+      </SettingsField>
     </SettingsRow>
   );
 }
 
 /**
- * Angaria › MCP: the built-in MCP server's switch and status, one-click setup
- * for MCP clients (mcp-install.tsx), the tools, and this session's calls.
+ * Angaria › MCP: the built-in MCP server's switch and status, what agents
+ * may do, one-click setup for MCP clients (mcp-install.tsx), the tools, and
+ * the agents' calls.
  */
 export function McpPage() {
   const { enabled } = useMcpSettings();
   const server = useMcpServerState();
-  const calls = useMcpCalls();
   const { activeEntity } = useStore();
   const tauri = isTauri();
   const status = useQuery({
@@ -127,7 +184,7 @@ export function McpPage() {
     <div {...props(styles.page)}>
       <div {...props(styles.column)}>
         <SettingsSection
-          description="Claude, Cursor gibi yapay zekâ uygulamaları Angaria üzerinden faturalarını listeleyebilir, müşterilerini görebilir ve taslak oluşturabilir. Taslağı yalnızca sen, Angaria’da SMS ile onaylarsın."
+          description="Claude, Cursor gibi yapay zekâ uygulamaları Angaria üzerinden faturalarını listeleyebilir, müşterilerini görebilir ve taslak oluşturabilir. Onaylamak ve silmek için İzinler’deki anahtarı açman gerekir."
           title="MCP sunucusu"
         >
           <SettingsRow hint="Angaria açıkken çalışır, yalnızca bu Mac bağlanabilir" label="MCP">
@@ -141,46 +198,21 @@ export function McpPage() {
           <SettingsRow label="Durum">
             <SettingsValue tone={statusTone[server.kind]}>{statusText(server)}</SettingsValue>
           </SettingsRow>
-          <SettingsRow hint="Araçlar seçili şirketin GİB hesabıyla çalışır" label="Şirket">
+          <SettingsRow
+            hint="Ajan başka bir şirket seçmezse araçlar bu şirketle çalışır"
+            label="Şirket"
+          >
             <SettingsValue>{activeEntity.name}</SettingsValue>
           </SettingsRow>
         </SettingsSection>
 
+        <McpActionsSection />
+
         <McpInstallSection status={status.data} />
 
-        <SettingsSection
-          description="İmzalama aracı yok: yapay zekâ yalnızca taslak oluşturur, taslağı sen onaylarsın."
-          title="Araçlar"
-        >
-          {Object.entries(MCP_TOOL_COPY).map(([name, tool]) => (
-            <SettingsRow hint={tool.description} key={name} label={tool.title}>
-              <SettingsValue tone="muted">{name}</SettingsValue>
-            </SettingsRow>
-          ))}
-        </SettingsSection>
+        <McpToolsSection />
 
-        <SettingsSection
-          description="Yalnızca bu oturumda tutulur. Fatura bilgisi saklanmaz."
-          title="Son çağrılar"
-        >
-          {calls.length === 0 ? (
-            <SettingsRow>
-              <SettingsValue tone="muted">Henüz çağrı yok</SettingsValue>
-            </SettingsRow>
-          ) : (
-            calls.map((call) => (
-              <SettingsRow
-                hint={timeFormat.format(call.at)}
-                key={call.id}
-                label={mcpToolTitle(call.tool)}
-              >
-                <Badge variant={call.ok ? 'secondary' : 'destructive'}>
-                  {call.ok ? 'Tamam' : 'Hata'}
-                </Badge>
-              </SettingsRow>
-            ))
-          )}
-        </SettingsSection>
+        <McpActivitySection />
 
         {status.data && status.data.clients.length > 0 && (
           <SettingsSection title="Bağlanan uygulamalar">
