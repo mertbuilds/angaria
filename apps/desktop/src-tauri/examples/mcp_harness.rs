@@ -2,6 +2,8 @@
 //! (apps/desktop/tests/mcp.e2e.ts). Tool calls go out on stdout as JSON lines
 //! (`{"id","name","arguments"}`) and their results come back on stdin
 //! (`{"id","result"}`), where the test runs them with the app's tool code.
+//! `{"reload":true}` on stdin acts like the webview reloading (the calls it
+//! ran are dropped, new ones wait) until `{"ready":true}`.
 //!
 //!   mcp_harness --dir <data dir> --tools <tools.json> [--port 0]
 //!
@@ -14,12 +16,13 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use angaria_lib::mcp::files;
-use angaria_lib::mcp::server::{self, Pending, ServerOptions, ToolCall, ToolHost};
+use angaria_lib::mcp::server::{self, HostGate, Pending, ServerOptions, ToolCall, ToolHost};
 use serde_json::{json, Value};
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 
 struct StdioHost {
   pending: Pending,
+  gate: HostGate,
   out: Mutex<io::Stdout>,
 }
 
@@ -42,6 +45,10 @@ impl ToolHost for StdioHost {
     self.pending.remove(id);
     self.send(&json!({ "cancel": id }));
   }
+
+  fn ready(&self) -> watch::Receiver<bool> {
+    self.gate.subscribe()
+  }
 }
 
 fn argument(name: &str) -> Option<String> {
@@ -61,6 +68,7 @@ async fn main() {
 
   let host = Arc::new(StdioHost {
     pending: Pending::default(),
+    gate: HostGate::new(true),
     out: Mutex::new(io::stdout()),
   });
   let running = server::start(ServerOptions {
@@ -84,7 +92,12 @@ async fn main() {
       let Ok(message) = serde_json::from_str::<Value>(&line) else {
         continue;
       };
-      if let Some(id) = message["id"].as_u64() {
+      if message["reload"] == true {
+        reader.gate.set(false);
+        reader.pending.clear();
+      } else if message["ready"] == true {
+        reader.gate.set(true);
+      } else if let Some(id) = message["id"].as_u64() {
         reader.pending.resolve(id, message["result"].clone());
       }
     }

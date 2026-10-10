@@ -6,6 +6,7 @@
 pub mod agents;
 mod awake;
 pub mod files;
+pub mod inputs;
 pub mod rpc;
 pub mod server;
 
@@ -15,11 +16,11 @@ use std::sync::{Arc, Mutex as SyncMutex};
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{oneshot, watch, Mutex};
 
 use agents::{AgentResult, AgentStatus, Env};
 use files::Settings;
-use server::{ClientSeen, Pending, RunningServer, ServerOptions, ToolCall, ToolHost};
+use server::{ClientSeen, HostGate, Pending, RunningServer, ServerOptions, ToolCall, ToolHost};
 
 /// The stdio bridge next to the app's executable (bundle.externalBin).
 pub const BRIDGE_NAME: &str = if cfg!(windows) {
@@ -30,10 +31,13 @@ pub const BRIDGE_NAME: &str = if cfg!(windows) {
 /// Ports tried from the chosen one on when it is taken.
 const PORT_ATTEMPTS: u16 = 10;
 
-/// Sends tool calls to the webview and waits for `mcp_respond`.
+/// Sends tool calls to the webview and waits for `mcp_respond`. Ready once
+/// the webview started the server (its listeners are up), away from the
+/// moment its page reloads until it starts it again.
 struct WebviewHost {
   app: AppHandle,
   pending: Pending,
+  gate: HostGate,
 }
 
 impl ToolHost for WebviewHost {
@@ -50,6 +54,10 @@ impl ToolHost for WebviewHost {
   fn cancel(&self, id: u64) {
     self.pending.remove(id);
     let _ = self.app.emit("mcp:cancel", id);
+  }
+
+  fn ready(&self) -> watch::Receiver<bool> {
+    self.gate.subscribe()
   }
 }
 
@@ -79,6 +87,7 @@ impl McpState {
       host: Arc::new(WebviewHost {
         app,
         pending: Pending::default(),
+        gate: HostGate::new(false),
       }),
       dir,
       settings: SyncMutex::new(settings),
@@ -102,6 +111,13 @@ impl McpState {
     // A Mac app without a visible window naps; agents' calls must not wait for it.
     *self.awake.lock().unwrap() = port.map(|_| awake::Awake::begin());
     crate::tray::refresh(&self.host.app);
+  }
+
+  /// The webview's page is loading (a reload, Vite's included): the calls it
+  /// ran are gone with it, and new ones wait until it starts the server again.
+  pub fn page_loading(&self) {
+    self.host.gate.set(false);
+    self.host.pending.clear();
   }
 
   /// The app is quitting: the bridge must not find the port in mcp.json.
@@ -153,6 +169,8 @@ pub async fn mcp_start(
   if port < 1024 {
     return Err("Port 1024 ile 65535 arasında olmalı.".into());
   }
+  // The webview listens for calls before it starts the server.
+  state.host.gate.set(true);
   let mut slot = state.server.lock().await;
   if let Some(running) = slot.as_ref() {
     if running.requested_port == port {

@@ -86,6 +86,7 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-foundation",
  "objc2-web-kit",
+ "regex",
  "serde",
  "serde_json",
  "serde_norway",
