@@ -1,9 +1,13 @@
 /* Desktop page rules on top of @angaria/ui/base.css. The StyleX build output
    is appended to this CSS asset. */
 
-/* No rubber-band scrolling past the window edges, like a native macOS app. */
+/* The window never scrolls, like a native macOS app: the shell fills it and
+   only its own regions scroll. No rubber-band past the window edges either. */
 html,
-body {
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
   overscroll-behavior: none;
 }
 

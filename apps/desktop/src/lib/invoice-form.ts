@@ -445,25 +445,55 @@ export function toPDFData(
 }
 
 /**
+ * The ways a reason's sentence shows in a note: the whole sentence, and its
+ * first part alone ("302 - 11/1-a Hizmet ihracatı."), which older invoices and
+ * hand-written GİB notes carry. Whole sentences come first, so a first part is
+ * only found on its own.
+ */
+const REASON_TEXTS = [
+  ...ISTISNA_REASONS.map((reason) => ({ code: reason.code, text: reason.sentence })),
+  ...ISTISNA_REASONS.flatMap((reason) => {
+    const end = reason.sentence.indexOf('. ');
+    return end === -1 ? [] : [{ code: reason.code, text: reason.sentence.slice(0, end + 1) }];
+  }),
+];
+
+/** The code of the İstisna reason whose sentence (whole or its first part) is in `note`. */
+export function istisnaReasonInNote(note: string): string | undefined {
+  return REASON_TEXTS.find(({ text }) => note.includes(text))?.code;
+}
+
+/** Stands in for a found sentence while the note is rewritten. */
+const MARK = '\uE000';
+
+/**
  * The note with the sentence of the İstisna reason `code` (regulated.ts): it
- * replaces any reason's sentence already in the note, found by its exact text,
- * or goes before the note. Without a known code the sentence is taken out. A
- * sentence the user edited is no longer recognized and stays as typed.
+ * replaces the first reason sentence already in the note, whole or its first
+ * part, and drops any other, or goes before the note. Without a known code the
+ * sentences are taken out. Running it again changes nothing, so the note never
+ * carries a reason twice. A sentence the user edited is no longer recognized
+ * and stays as typed.
  */
 export function istisnaNote(code: string | null | undefined, note: string): string {
   const next = ISTISNA_REASONS.find((reason) => reason.code === code)?.sentence;
-  const current = ISTISNA_REASONS.find((reason) => note.includes(reason.sentence))?.sentence;
-  if (current) {
-    if (next) {
-      return note.replace(current, next);
+  let marked = note;
+  for (const { text } of REASON_TEXTS) {
+    marked = marked.replaceAll(text, MARK);
+  }
+  const at = marked.indexOf(MARK);
+  if (at === -1) {
+    if (!next) {
+      return note;
     }
-    const at = note.indexOf(current);
-    return (note.slice(0, at) + note.slice(at + current.length).trimStart()).trimEnd();
+    return note ? `${next}\n${note}` : next;
   }
-  if (!next) {
-    return note;
+  // Later sentences go with the line break and spaces before them.
+  const rest = marked.slice(at + 1).replaceAll(/\n?[^\S\n]*\uE000/g, '');
+  const before = marked.slice(0, at);
+  if (next) {
+    return before + next + rest;
   }
-  return note ? `${next}\n${note}` : next;
+  return (before + rest.trimStart()).trimEnd();
 }
 
 /**

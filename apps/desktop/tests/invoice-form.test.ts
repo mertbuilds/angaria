@@ -12,6 +12,7 @@ import {
   invoiceWarnings,
   isBlankForm,
   istisnaNote,
+  istisnaReasonInNote,
   lineTotals,
   normalizeTime,
   parseDecimal,
@@ -606,6 +607,39 @@ describe('istisnaNote', () => {
       `${sentence('302')}\n302 - hizmet ihracatı`,
     );
   });
+
+  const short = '302 - 11/1-a Hizmet ihracatı.';
+
+  test('takes the first part of a sentence for the whole one', () => {
+    expect(istisnaReasonInNote(short)).toBe('302');
+    expect(istisnaReasonInNote(`Ekim hizmeti\n301 - 11/1-a Mal ihracatı.`)).toBe('301');
+    expect(istisnaReasonInNote(sentence('350'))).toBe('350');
+    expect(istisnaReasonInNote('302 - hizmet ihracatı')).toBeUndefined();
+    // A reissued invoice with only the first part gets the whole sentence once.
+    expect(istisnaNote('302', short)).toBe(sentence('302'));
+    expect(istisnaNote('302', `${short}\nEkim hizmeti`)).toBe(`${sentence('302')}\nEkim hizmeti`);
+    expect(istisnaNote('301', `Ekim hizmeti\n${short}`)).toBe(`Ekim hizmeti\n${sentence('301')}`);
+    expect(istisnaNote(null, `${short}\nEkim hizmeti`)).toBe('Ekim hizmeti');
+  });
+
+  test('keeps one sentence when the note already carries two', () => {
+    expect(istisnaNote('302', `${sentence('302')}\n${short}`)).toBe(sentence('302'));
+    expect(istisnaNote('301', `${sentence('302')}\nEkim hizmeti\n${short}`)).toBe(
+      `${sentence('301')}\nEkim hizmeti`,
+    );
+    expect(istisnaNote(null, `${sentence('302')}\n${short}\nEkim hizmeti`)).toBe('Ekim hizmeti');
+  });
+
+  test('adds nothing more however the reason changes', () => {
+    let note = `Ekim hizmeti\n${short}`;
+    for (const code of ['302', '301', '350', '302', null, '302', '302']) {
+      note = istisnaNote(code, note);
+      expect(note.split('\n').filter((line) => istisnaReasonInNote(line)).length).toBe(
+        code ? 1 : 0,
+      );
+    }
+    expect(note).toBe(`${sentence('302')}\nEkim hizmeti`);
+  });
 });
 
 describe('applyCustomer', () => {
@@ -649,6 +683,15 @@ describe('applyCustomer', () => {
     expect(next.invoiceSettings.istisnaCode).toBe('302');
     expect(next.note).toBe(`${sentence('302')}\nEkim hizmeti`);
     expect(applyCustomer(next, { ...abroad, istisnaCode: '302' }, today).note).toBe(next.note);
+  });
+
+  test('completes the short sentence of a reissued note instead of adding another', () => {
+    const values = form({ note: '302 - 11/1-a Hizmet ihracatı.' });
+    const next = applyCustomer(values, { ...abroad, istisnaCode: '302' }, today);
+    expect(next.note).toBe(sentence('302'));
+    expect(applyCustomer(next, { ...abroad, istisnaCode: '301' }, today).note).toBe(
+      sentence('301'),
+    );
   });
 
   test('leaves the reason and the note out of a Satış invoice', () => {

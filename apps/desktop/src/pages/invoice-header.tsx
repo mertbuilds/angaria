@@ -22,7 +22,12 @@ import { useEffect, useEffectEvent, useMemo, type ReactNode } from 'react';
 import { FieldFrame, useFieldContext, useFieldError } from '@/lib/form-field.tsx';
 import { GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { TCMB_RATE_ERROR } from '@/lib/gib-errors.ts';
-import { CURRENCY_OPTIONS, formatRate, istisnaNote } from '@/lib/invoice-form.ts';
+import {
+  CURRENCY_OPTIONS,
+  formatRate,
+  istisnaNote,
+  istisnaReasonInNote,
+} from '@/lib/invoice-form.ts';
 import { DUE_DAY_PRESETS, ISTISNA_REASONS, SUPPORTED_INVOICE_TYPES } from '@/lib/regulated.ts';
 import { cite, ruleMessage } from '@/lib/rule-sources.ts';
 import { RuleText } from '@/lib/rule-text.tsx';
@@ -117,10 +122,6 @@ export const CURRENCY_CHOICES = PINNED_CURRENCIES.map((value) => ({ label: value
 const OTHER_CURRENCIES = CURRENCY_OPTIONS.filter(
   (option) => !PINNED_CURRENCIES.includes(option.value),
 );
-
-/** The code of the İstisna reason whose sentence the note carries. */
-const reasonInNote = (note: string) =>
-  ISTISNA_REASONS.find((reason) => note.includes(reason.sentence))?.code;
 
 /**
  * The days from the invoice date to `dueDate` when they are one of the Son
@@ -333,7 +334,7 @@ export function InvoiceSection({
   /** An İstisna invoice's reason (its own, the note's, else 302) and its sentence in the note. */
   const applyIstisnaReason = () => {
     const { invoiceSettings, note } = form.state.values;
-    const code = invoiceSettings.istisnaCode ?? reasonInNote(note) ?? DEFAULT_ISTISNA_CODE;
+    const code = invoiceSettings.istisnaCode ?? istisnaReasonInNote(note) ?? DEFAULT_ISTISNA_CODE;
     if (invoiceSettings.istisnaCode !== code) {
       form.setFieldValue('invoiceSettings.istisnaCode', code, { dontRunListeners: true });
     }
@@ -352,7 +353,7 @@ export function InvoiceSection({
     }
   }, [invoiceType, istisnaCode]);
 
-  const sentenceInNote = reasonInNote(values.note) !== undefined;
+  const sentenceInNote = istisnaReasonInNote(values.note) !== undefined;
   const typeDescription =
     invoiceType === 'SATIS' && sentenceInNote ? (
       <button

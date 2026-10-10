@@ -64,6 +64,9 @@ const styles = create({
     // Room for a 0.6875rem key icon (theme.css) inside the square.
     paddingInline: '0.1875rem',
     pointerEvents: 'none',
+    // Holds the hidden key names: without a positioned ancestor they lay out
+    // against the page and stretch it past any scroll region they sit in.
+    position: 'relative',
     userSelect: 'none',
     // Centered on the text around it, whatever the key shows: an icon has no
     // baseline to line up.

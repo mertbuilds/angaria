@@ -32,6 +32,8 @@ const styles = create({
     fontFamily: font.family,
     height: '100vh',
     overflow: 'hidden',
+    // Clips anything absolutely placed inside, so it never stretches the page.
+    position: 'relative',
   },
 });
 
