@@ -444,10 +444,6 @@ export function toPDFData(
   };
 }
 
-/** The code of the İstisna reason whose sentence the note carries. */
-export const istisnaReasonInNote = (note: string) =>
-  ISTISNA_REASONS.find((reason) => note.includes(reason.sentence))?.code;
-
 /**
  * The ways a reason's sentence shows in a note: the whole sentence, and its
  * first part alone ("302 - 11/1-a Hizmet ihracatı."), which older invoices and
