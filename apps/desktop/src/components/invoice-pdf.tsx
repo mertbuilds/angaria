@@ -12,7 +12,13 @@ import {
 } from '@react-pdf/renderer';
 import { encode } from 'uqr';
 import { PDF_FONT_FILES } from '@/components/invoice-pdf-fonts.ts';
-import { invoiceTotals, lineTotals, parseDecimal, vatByRate } from '@/lib/invoice-form.ts';
+import {
+  invoiceTotals,
+  lineTotals,
+  parseDecimal,
+  roundKurus,
+  vatByRate,
+} from '@/lib/invoice-form.ts';
 import {
   BILINGUAL_SEPARATOR,
   buildInvoicePDFFilename,
@@ -22,11 +28,13 @@ import {
   formatPDFNumber,
   formatPDFPercent,
   formatPDFQuantityUnit,
+  formatPDFRate,
   PDF_LABELS,
   pdfUpper,
   resolvePDFStyle,
   type PDFLabels,
 } from '@/lib/invoice-pdf-i18n.ts';
+import { printableInvoice } from '@/lib/pdf-text.ts';
 import { saveFile } from '@/lib/save-file.ts';
 import type {
   CompanyInfo,
@@ -197,9 +205,13 @@ function invoiceView(data: InvoicePDFData) {
       ? [
           {
             label: t.exchangeRate,
-            value: `1 ${currency} = ${formatPDFNumber(language, rate, 4)} TRY`,
+            value: `1 ${currency} = ${formatPDFRate(language, rate)} TRY`,
           },
-          { label: t.totalInTRY, value: formatPDFAmount(language, 'TRY', data.total * rate) },
+          {
+            label: t.totalInTRY,
+            // As GİB counts it: the total in kuruş, times the rate, rounded to kuruş.
+            value: formatPDFAmount(language, 'TRY', roundKurus(roundKurus(data.total) * rate)),
+          },
         ]
       : [],
     meta: [
@@ -817,10 +829,16 @@ async function loadFonts() {
 
 let lastRender: Promise<unknown> = Promise.resolve();
 
+/** Whether the PDF's text font has a glyph for a character (read after loadFonts). */
+function textFontCovers(codePoint: number) {
+  const font = Font.getRegisteredFonts()[TEXT]?.sources[0]?.data;
+  return font ? font.hasGlyphForCodePoint(codePoint) : true;
+}
+
 export function renderInvoicePDF(data: InvoicePDFData): Promise<Blob> {
   const render = lastRender.then(async () => {
     await loadFonts();
-    return pdf(<InvoicePDFDocument data={data} />).toBlob();
+    return pdf(<InvoicePDFDocument data={printableInvoice(data, textFontCovers)} />).toBlob();
   });
   lastRender = render.catch(() => {});
   return render;
@@ -834,6 +852,7 @@ export async function downloadInvoicePDF(data: InvoicePDFData, filename?: string
         companyName: data.company.name,
         date: data.date,
         entityName: data.entityName,
+        gibNumber: data.gibNumber,
         language: data.language,
         recipientTitle: data.recipient.title,
       }),

@@ -34,8 +34,10 @@ const text = (record: Record<string, unknown>, key: string) => {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
 };
 
+/** A stored number: "41.2850" as sent, or typed the Turkish way, "41,2850" or "1.234,56". */
 const amount = (value: unknown) => {
-  const parsed = Number(value);
+  const text = String(value ?? '').trim();
+  const parsed = Number(text.includes(',') ? text.replaceAll('.', '').replace(',', '.') : text);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
