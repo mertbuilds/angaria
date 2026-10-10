@@ -6,8 +6,12 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { errorMessage } from '@/lib/gib-errors.ts';
 import { openCheckout, openCustomerPortal, useLicense } from '@/lib/license-context.tsx';
 import { normalizeLicenseKey, type LicenseStatus } from '@/lib/license.ts';
-import appIcon from '../assets/app-icon.png';
+import devAppIcon from '../assets/app-icon-dev.png';
+import releaseAppIcon from '../assets/app-icon.png';
 import { shell } from '../shell/shell.stylex.ts';
+
+// Green in dev, like the Dock icon (src-tauri/tauri.dev.conf.json).
+const appIcon = import.meta.env.DEV ? devAppIcon : releaseAppIcon;
 
 type LockedStatus = Exclude<LicenseStatus, { kind: 'grace' } | { kind: 'valid' }>;
 

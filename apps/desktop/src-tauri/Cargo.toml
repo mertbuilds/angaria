@@ -8,12 +8,19 @@ repository = "https://github.com/vinenastudio/angaria"
 publish = false
 edition = "2021"
 rust-version = "1.77.2"
+default-run = "Angaria"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 # mcp-bridge: the angaria-mcp stdio bridge the app bundles (bundle.externalBin).
 [workspace]
 members = ["mcp-bridge"]
+
+# The executable is named like the app: macOS shows it in the Dock for `tauri dev`
+# (target/debug/Angaria) and in CFBundleExecutable of the bundle.
+[[bin]]
+name = "Angaria"
+path = "src/main.rs"
 
 [lib]
 name = "angaria_lib"
