@@ -172,6 +172,14 @@ describe('formatPDFCountry', () => {
     );
   });
 
+  test('prints a stored full name in the PDF language', () => {
+    expect(formatPDFCountry('tr', 'Amerika Birleşik Devletleri')).toBe(
+      'Amerika Birleşik Devletleri',
+    );
+    expect(formatPDFCountry('en', 'Amerika Birleşik Devletleri')).toBe('United States');
+    expect(formatPDFCountry('en', 'Birleşik Krallık')).toBe('United Kingdom');
+  });
+
   test('names a country both languages share once, and prints unknown values as given', () => {
     expect(formatPDFCountry('both', 'Andorra')).toBe('Andorra');
     expect(formatPDFCountry('both', 'Almanya')).toBe('Almanya / Germany');

@@ -28,7 +28,7 @@ export const SAMPLE_COMPANY: Omit<CompanyInfo, 'logo' | 'pdfStyle'> = {
 export const sampleCustomers = (newId: () => string): Array<Recipient> => [
   {
     city: 'New York',
-    country: 'Amerika Birleşik Dev',
+    country: 'Amerika Birleşik Devletleri',
     currency: 'USD',
     district: '',
     fullAddress: '350 Fifth Avenue\nNew York, NY 10118',

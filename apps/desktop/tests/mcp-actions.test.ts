@@ -340,6 +340,22 @@ describe('customers', () => {
     expect(ctx.onAction).toHaveBeenCalledWith({ kind: 'customer-deleted', name: 'HAFEN GMBH' });
     expect((await call(ctx, 'get_customer', { id })).json.error.code).toBe('unknown-customer');
   });
+
+  test('keep and show the full country name', async () => {
+    const { ctx } = setup();
+    const created = await call(ctx, 'create_customer', {
+      country: 'USA',
+      taxIDOrTRID: '2222222222',
+      title: 'NORTHWIND LLC',
+    });
+    expect(created.json.customer.country).toBe('Amerika Birleşik Devletleri');
+    const { id } = created.json.customer;
+    expect((await call(ctx, 'get_customer', { id })).json.country).toBe(
+      'Amerika Birleşik Devletleri',
+    );
+    const listed = await call(ctx, 'list_customers', { query: 'northwind' });
+    expect(listed.json.customers[0].country).toBe('Amerika Birleşik Devletleri');
+  });
 });
 
 describe('services', () => {

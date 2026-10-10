@@ -1,6 +1,5 @@
-import { GIB_COUNTRIES, GIB_COUNTRY_ALIASES } from './gib-constants.ts';
+import { findCountry, fullCountryName } from './countries.ts';
 import { resolvePDFLanguage } from './invoice-pdf-i18n.ts';
-import { matchesWords } from './tr-cities.ts';
 import { isTaxIDPlaceholder, isValidTCKN, isValidVKN } from './tr-validators.ts';
 import type { PDFLanguage, Recipient } from './types.ts';
 
@@ -133,6 +132,7 @@ export function learnCustomer(
   const learned = {
     ...recipientDetails(recipient),
     ...Object.fromEntries(known),
+    country: fullCountryName(recipient.country),
     lastInvoicedAt: now.toISOString(),
   };
   const saved = findCustomer(customers, recipient.taxIDOrTRID, customerName(recipient));
@@ -142,9 +142,27 @@ export function learnCustomer(
   return {
     added: false,
     customers: customers.map((customer) =>
-      customer.id === saved.id ? { ...customer, ...learned } : customer,
+      customer.id === saved.id
+        ? { ...customer, ...learned, country: keptCountry(customer.country, learned.country) }
+        : customer,
     ),
   };
+}
+
+/**
+ * The saved country after an invoice names `country`: a name GİB cut short of
+ * the saved one never replaces it, while another country in GİB's list does.
+ */
+const keptCountry = (saved: string, country: string) =>
+  country && !findCountry(country) && saved.startsWith(country) ? saved : country;
+
+/** A customer saved with GİB's cut country name, by the full name when one country fits. */
+export function withFullCountry<Customer extends Pick<Recipient, 'country'>>(customer: Customer) {
+  if (!customer.country) {
+    return customer;
+  }
+  const country = fullCountryName(customer.country);
+  return country === customer.country ? customer : { ...customer, country };
 }
 
 /** Spaces, dots and dashes removed: a pasted "123 456 78 90" is 1234567890. */
@@ -222,30 +240,3 @@ export function countryError(customer: Pick<Recipient, 'country' | 'taxIDOrTRID'
     ? 'Yurt dışı müşteri için Türkiye dışında bir ülke seç'
     : null;
 }
-
-export interface CountryOption {
-  aliases: ReadonlyArray<string>;
-  en: string;
-  /** The full Turkish name. */
-  label: string;
-  /** What GİB stores and the payload sends, cut at 20 characters. */
-  value: string;
-}
-
-/** GİB's countries for a picker: Türkiye first, then the rest by Turkish name. */
-export const COUNTRY_OPTIONS: ReadonlyArray<CountryOption> = GIB_COUNTRIES.map(
-  ({ en, label, value }) => ({ aliases: GIB_COUNTRY_ALIASES[value] ?? [], en, label, value }),
-).toSorted((a, b) =>
-  a.value === 'Türkiye' ? -1 : b.value === 'Türkiye' ? 1 : a.label.localeCompare(b.label, 'tr'),
-);
-
-/** A GİB country `value` by its full Turkish name ("Amerika Birleşik Devletleri"). */
-export const countryLabel = (value: string) =>
-  COUNTRY_OPTIONS.find((country) => country.value === value)?.label ?? value;
-
-/**
- * Whether the typed words start the country's Turkish or English name, GİB's
- * spelling or an alias: "usa", "abd" and "united" all find the United States.
- */
-export const matchesCountry = (country: CountryOption, query: string) =>
-  matchesWords(query, country.label, country.en, country.value, ...country.aliases);

@@ -2,6 +2,7 @@ import { roundKurus } from 'angaria-earsiv-sdk';
 import { addDays, differenceInCalendarDays } from 'date-fns';
 import type { InvoicePDFData } from '@/components/invoice-pdf.tsx';
 import type { InvoiceDetails } from './angaria.ts';
+import { gibCountryValue } from './countries.ts';
 import {
   countryError,
   customerDefaults,
@@ -347,7 +348,7 @@ export function toDraftDetails(values: InvoiceFormValues, now = new Date()): Inv
     name: recipient.name,
     surname: recipient.surname,
     fullAddress: recipient.fullAddress,
-    country: recipient.country || undefined,
+    country: gibCountryValue(recipient.country) || undefined,
     city: recipient.city || undefined,
     district: recipient.district || undefined,
     items: items.map((item) => {

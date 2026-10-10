@@ -596,7 +596,8 @@ describe('invoice page', () => {
       aliciUnvan: 'NORTHWIND LLC',
       bulvarcaddesokak: '350 Fifth Avenue',
       sehir: ' ',
-      ulke: 'Amerika Birleşik Dev',
+      // GİB keeps 20 characters of the country.
+      ulke: 'Amerika Birleşik Devletleri',
       vknTckn: '2222222222',
     });
     const html = await page(token, row.ettn);

@@ -16,7 +16,7 @@ import {
   LEGACY_CREDS_STORAGE_KEY,
   migrateCredentials,
 } from './credentials.ts';
-import { customerName, findCustomer } from './customer.ts';
+import { customerName, findCustomer, withFullCountry } from './customer.ts';
 import { applyCustomer } from './invoice-form.ts';
 import { parseGIBInvoice, presetRange, type DateRange } from './invoices.ts';
 import { reportKeychainError } from './keychain-error.ts';
@@ -50,7 +50,7 @@ const SEED_RECIPIENTS: Array<Recipient> = [
     name: '',
     surname: '',
     fullAddress: '500 Westover Dr #10034\nSanford, NC 27330',
-    country: 'Amerika Birleşik Dev',
+    country: 'Amerika Birleşik Devletleri',
     city: '',
     district: '',
   },
@@ -229,23 +229,29 @@ function makeDefaultEntity(index: number, seedData = true): Entity {
  * (removed 2026-10-01) are not among them: the startup save (prepareCredentials)
  * writes the companies back without them, so stored ones go silently. Services
  * saved before they had a currency take the one their invoices were in, when
- * the customers tell it (withServiceCurrencies).
+ * the customers tell it (withServiceCurrencies). Customers saved with GİB's
+ * cut country name ("Amerika Birleşik Dev") take the full one (withFullCountry).
  */
 function loadEntities(): Array<Entity> {
   const stored = loadLocal<Array<Entity> | null>(ENTITIES_STORAGE_KEY, null);
   if (Array.isArray(stored) && stored.length > 0) {
-    return stored.map((entity, index) => ({
-      id: entity.id || newId(),
-      name: entity.name || makeEntityName(index),
-      creds: loadCreds(entity.creds),
-      companyInfo: entity.companyInfo ?? { ...DEFAULT_COMPANY_INFO },
-      ...(entity.importOffered ? { importOffered: true } : {}),
-      savedRecipients: entity.savedRecipients ?? [],
-      savedItems: withServiceCurrencies(entity.savedItems ?? [], entity.savedRecipients ?? []),
-    }));
+    return stored.map((entity, index) => {
+      const savedRecipients = (entity.savedRecipients ?? []).map(withFullCountry);
+      return {
+        id: entity.id || newId(),
+        name: entity.name || makeEntityName(index),
+        creds: loadCreds(entity.creds),
+        companyInfo: entity.companyInfo ?? { ...DEFAULT_COMPANY_INFO },
+        ...(entity.importOffered ? { importOffered: true } : {}),
+        savedRecipients,
+        savedItems: withServiceCurrencies(entity.savedItems ?? [], savedRecipients),
+      };
+    });
   }
 
-  const savedRecipients = loadLocal('fatura-saved-recipients', SEED_RECIPIENTS);
+  const savedRecipients = loadLocal('fatura-saved-recipients', SEED_RECIPIENTS).map(
+    withFullCountry,
+  );
   return [
     {
       ...makeDefaultEntity(0, false),

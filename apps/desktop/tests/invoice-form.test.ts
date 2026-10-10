@@ -488,6 +488,11 @@ describe('invoiceWarnings', () => {
   });
 });
 
+/** The country toDraftDetails sends GİB for a form with `country`. */
+const sentCountry = (country: string) =>
+  toDraftDetails(form({ recipient: { ...form().recipient, country } }), new Date(2026, 9, 1))
+    .country;
+
 describe('toDraftDetails', () => {
   const now = new Date(2026, 9, 1, 14, 30, 5);
 
@@ -555,9 +560,11 @@ describe('toDraftDetails', () => {
     expect(line).toMatchObject({ birimFiyat: '33.3333', fiyat: '100.00', kdvTutari: '20.00' });
   });
 
-  test("sends GİB's country value, not the PDF's full name", () => {
-    const values = form({ recipient: { ...form().recipient, country: 'Amerika Birleşik Dev' } });
-    expect(toDraftDetails(values, now).country).toBe('Amerika Birleşik Dev');
+  test("sends GİB's country value, not the full name the form keeps", () => {
+    expect(sentCountry('Amerika Birleşik Devletleri')).toBe('Amerika Birleşik Dev');
+    expect(sentCountry('Birleşik Krallık')).toBe('Birleşik Krallik');
+    expect(sentCountry('Amerika Birleşik Dev')).toBe('Amerika Birleşik Dev');
+    expect(sentCountry('')).toBeUndefined();
   });
 
   test('sends no rate for lira and fills in date and time', () => {
@@ -646,7 +653,7 @@ describe('applyCustomer', () => {
   const abroad: Recipient = {
     ...form().recipient,
     city: '',
-    country: 'Amerika Birleşik Dev',
+    country: 'Amerika Birleşik Devletleri',
     fullAddress: '500 Westover Dr',
     id: 'plastic',
     taxIDOrTRID: '2222222222',

@@ -3,6 +3,7 @@
 // them directly.
 
 import { addDays, subMonths } from 'date-fns';
+import { fullCountryName } from './countries.ts';
 import { previousMonthRange } from './reissue.ts';
 import type { Invoice, InvoiceItem, InvoiceSettings, Recipient } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
@@ -246,7 +247,7 @@ export function parseGIBInvoice(detail: Record<string, unknown>): GIBInvoice {
     note: str(detail.not),
     recipient: {
       city: str(detail.sehir).trim(),
-      country: str(detail.ulke),
+      country: fullCountryName(str(detail.ulke)),
       district: str(detail.mahalleSemtIlce),
       fullAddress: str(detail.bulvarcaddesokak),
       name: str(detail.aliciAdi),

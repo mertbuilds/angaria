@@ -158,3 +158,54 @@ test('services saved before they had a currency take the one the invoices were i
   expect(second.savedItems[0]).not.toHaveProperty('currency');
   act(() => root.unmount());
 });
+
+const saved = (id: string, country: string) => ({
+  city: '',
+  country,
+  district: '',
+  fullAddress: '',
+  id,
+  name: '',
+  surname: '',
+  taxIDOrTRID: '2222222222',
+  taxOffice: '',
+  title: id,
+});
+
+test("customers saved with GİB's cut country name load with the full one", async () => {
+  storage.clear();
+  storage.set(
+    'fatura-entities',
+    JSON.stringify([
+      {
+        creds: { username: '' },
+        id: 'a',
+        name: 'Ana şirket',
+        savedRecipients: [
+          saved('us', 'Amerika Birleşik Dev'),
+          saved('de', 'Almanya'),
+          saved('odd', 'Amerika'),
+        ],
+      },
+    ]),
+  );
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  await act(async () =>
+    root.render(
+      <StoreProvider>
+        <CredsReader onCreds={() => {}} />
+      </StoreProvider>,
+    ),
+  );
+  await settle();
+
+  const [entity] = JSON.parse(storage.get('fatura-entities') ?? '[]');
+  expect(entity.savedRecipients.map(({ country }: { country: string }) => country)).toEqual([
+    'Amerika Birleşik Devletleri',
+    'Almanya',
+    'Amerika',
+  ]);
+  act(() => root.unmount());
+});
