@@ -86,6 +86,15 @@ function mergeCookies(existing: Array<string>, incoming: Array<string>): Array<s
   return [...map.values()];
 }
 
+/** The portal account's own taxpayer: the seller on every invoice it issues. */
+export interface UserInfo {
+  /** Unvan, else "Ad Soyad" */
+  name: string;
+  /** VKN (10 digits) or TCKN (11 digits) */
+  taxID: string;
+  taxOffice: string;
+}
+
 export interface EarsivClient {
   cancelInvoice(
     session: SessionInfo,
@@ -116,6 +125,8 @@ export interface EarsivClient {
   getInvoiceDetail(session: SessionInfo, ettn: string): Promise<Record<string, unknown>>;
   getInvoiceHTML(session: SessionInfo, uuid: string, onayDurumu: string): Promise<string>;
   getSigningPhone(session: SessionInfo): Promise<string>;
+  /** Kullanıcı bilgileri: the account's VKN / TCKN, unvan or name, and tax office. */
+  getUserInfo(session: SessionInfo): Promise<UserInfo>;
   getUUID(session: SessionInfo): Promise<string>;
   login(username: string, password: string): Promise<SessionInfo>;
   logout(session: SessionInfo): Promise<void>;
@@ -754,6 +765,21 @@ export function createClient(options?: ClientOptions): EarsivClient {
     return data?.telefon ?? '';
   }
 
+  async function getUserInfo(session: SessionInfo): Promise<UserInfo> {
+    const result = await dispatch(
+      session,
+      'EARSIV_PORTAL_KULLANICI_BILGILERI_GETIR',
+      'RG_KULLANICI',
+    );
+    const data = isRecord(result.data) ? result.data : {};
+    const text = (key: string) => (typeof data[key] === 'string' ? data[key].trim() : '');
+    return {
+      name: text('unvan') || [text('ad'), text('soyad')].filter(Boolean).join(' '),
+      taxID: text('vknTckn'),
+      taxOffice: text('vergiDairesi'),
+    };
+  }
+
   async function requestSigningSMS(session: SessionInfo, phone: string): Promise<string> {
     const result = await dispatch(
       session,
@@ -825,6 +851,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     getDrafts,
     signInvoiceHSM,
     getSigningPhone,
+    getUserInfo,
     requestSigningSMS,
     verifyAndSign,
     startSMSSign,
