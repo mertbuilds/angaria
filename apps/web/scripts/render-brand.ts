@@ -38,7 +38,7 @@ body { align-items: center; background: #ffffff; color: #000000; display: flex; 
 .icon { display: block; height: 176px; position: relative; width: 176px; }
 .wordmark { font-size: 64px; letter-spacing: -0.02em; line-height: 1; margin-top: 36px; position: relative; }
 .tagline { font-size: 34px; letter-spacing: -0.02em; line-height: 1.2; margin-top: 24px; position: relative; text-align: center; color: #555555; }
-</style><div class="dots"></div><img class="icon" src="${dataUrl(iconFile, 'image/png')}" alt=""><div class="wordmark">angaria</div><div class="tagline">${tagline}</div>`;
+</style><div class="dots"></div><img class="icon" src="${dataUrl(iconFile, 'image/png')}" alt=""><div class="wordmark">Angaria</div><div class="tagline">${tagline}</div>`;
 
 const browser = await chromium.launch();
 try {

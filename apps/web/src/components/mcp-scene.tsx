@@ -71,8 +71,6 @@ const styles = create({
     height: 14,
     justifyContent: 'center',
     lineHeight: 1,
-    // The lowercase a sits low in its line box; up a pixel it looks centered.
-    paddingBlockEnd: 1,
     width: 14,
   },
   // GİB's draft status, as the app's outline badge shows it.
@@ -187,7 +185,7 @@ export function McpScene() {
             {m.mcp_scene_prompt()}
           </span>
           <div data-part="tool" {...props(scene.at(13, 62), scene.size(236, 26), styles.tool)}>
-            <span {...props(styles.appIcon)}>{'a'}</span>
+            <span {...props(styles.appIcon)}>{'A'}</span>
             <span>{m.mcp_scene_app()}</span>
             <span {...props(scene.muted)}>{mcpToolTitle('create_invoice')}</span>
             <span {...props(styles.status)}>
