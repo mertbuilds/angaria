@@ -11,6 +11,7 @@ import {
   companyFields,
   normalizeCompanyField,
 } from './company-fields.ts';
+import { taxIDOwner, taxIDTaken } from './company-identity.ts';
 import {
   byRecentInvoice,
   countryError,
@@ -482,7 +483,7 @@ const getCompanyDetails = defineTool({
 const updateCompanyDetails = defineTool({
   annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
   description:
-    "Change the active company's details that Angaria's PDF prints, the IBAN included. Only the fields given change; '' clears one. Checked as in Ayarlar (VKN/TCKN check digits, IBAN, SWIFT, phone as +90 532 123 45 67, e-mail). Every PDF from then on prints them, so change the IBAN only when the user asked for exactly that. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.",
+    "Change the active company's details that Angaria's PDF prints, the IBAN included. Only the fields given change; '' clears one. Checked as in Ayarlar (VKN/TCKN check digits, a VKN/TCKN another company in Angaria has is refused, IBAN, SWIFT, phone as +90 532 123 45 67, e-mail). Every PDF from then on prints them, so change the IBAN only when the user asked for exactly that. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.",
   gib: false,
   inputSchema: z.object({
     accountHolder: z.string().optional().describe('Hesap sahibi: the bank account holder'),
@@ -519,6 +520,16 @@ const updateCompanyDetails = defineTool({
     }
     if (Object.keys(fields).length > 0) {
       return failure(NOT_SAVED, { code: 'invalid-input', fields });
+    }
+    const { taxID } = patch;
+    const owner = taxID ? taxIDOwner(ctx.companies(), ctx.company().id, taxID) : undefined;
+    if (taxID && owner) {
+      const message = taxIDTaken(taxID, owner);
+      return failure(message, {
+        code: 'duplicate-tax-id',
+        fields: { taxID: message },
+        owner: { id: owner.id, name: owner.name },
+      });
     }
     if (input.pdfStyle) {
       patch.pdfStyle = input.pdfStyle;

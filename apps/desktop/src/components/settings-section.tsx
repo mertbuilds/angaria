@@ -217,11 +217,13 @@ export function SettingsRow({
 /**
  * A row's field with its message under it: the error once there is one, else
  * the note. `children` gets the ids to put in the field's aria-describedby.
+ * `errorAction` (a link button) follows the error's text.
  */
 export function SettingsField({
   align = 'start',
   children,
   error,
+  errorAction,
   id,
   note,
 }: {
@@ -229,6 +231,7 @@ export function SettingsField({
   align?: 'end' | 'start';
   children: (describedBy: string | undefined) => ReactNode;
   error?: string | undefined;
+  errorAction?: ReactNode;
   id: string;
   note?: ReactNode;
 }) {
@@ -239,6 +242,7 @@ export function SettingsField({
       {error ? (
         <FieldError id={`${id}-error`} style={styles.fieldMessage}>
           {error}
+          {errorAction && <> {errorAction}</>}
         </FieldError>
       ) : (
         note && (
