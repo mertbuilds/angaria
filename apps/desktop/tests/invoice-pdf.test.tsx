@@ -111,14 +111,19 @@ test.each(PDF_STYLES)('%s breaks a long invoice over pages', async (style) => {
 });
 
 test.each(
-  PDF_STYLES.flatMap((style) => [
-    [style, 'tr', 'Amerika Birleşik Devletleri'],
-    [style, 'en', 'United States'],
-    [style, 'both', 'Amerika Birleşik Devletleri / United States'],
-  ]),
-)('%s %s prints the full name of a country GİB cuts short', async (style, language, country) => {
-  const recipient = { ...data.recipient, country: 'Amerika Birleşik Dev' };
-  const runs = pdfRuns(await render(language as PDFLanguage, style as PDFStyle, { recipient }));
-  expect(runs).toContain(country);
-  expect(runs).not.toContain('Amerika Birleşik Dev');
-});
+  PDF_STYLES.flatMap((style) =>
+    ['Amerika Birleşik Devletleri', 'Amerika Birleşik Dev'].flatMap((stored) => [
+      [style, 'tr', stored, 'Amerika Birleşik Devletleri'],
+      [style, 'en', stored, 'United States'],
+      [style, 'both', stored, 'Amerika Birleşik Devletleri / United States'],
+    ]),
+  ),
+)(
+  '%s %s prints the full name of a country saved as %s',
+  async (style, language, stored, country) => {
+    const recipient = { ...data.recipient, country: stored };
+    const runs = pdfRuns(await render(language as PDFLanguage, style as PDFStyle, { recipient }));
+    expect(runs).toContain(country);
+    expect(runs).not.toContain('Amerika Birleşik Dev');
+  },
+);

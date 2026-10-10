@@ -5,7 +5,7 @@
 // No Tauri or React imports, so tests inject the GİB client and the store.
 import type { EarsivClient, SessionInfo } from 'angaria-earsiv-sdk';
 import { z } from 'zod';
-import { COUNTRY_OPTIONS } from './customer.ts';
+import { COUNTRY_OPTIONS } from './countries.ts';
 import { describeError } from './gib-errors.ts';
 import type { McpState } from './mcp-state.ts';
 import { isGatedTool, MCP_TOOL_COPY, type McpToolName } from './mcp.ts';
@@ -332,8 +332,9 @@ export const matches = (query: string | undefined, ...texts: Array<string>) => {
 export const textField = (value: unknown) => (typeof value === 'string' ? value : '');
 
 /**
- * GİB's value for a country typed in Turkish or English, its GİB spelling or
- * an alias ("Germany", "ABD", "Türkiye"); '' stays ''. Null when GİB has none.
+ * The full Turkish name of a country in GİB's list, typed in Turkish or
+ * English, its GİB spelling or an alias ("Germany", "ABD", "Türkiye"); ''
+ * stays ''. Null when GİB has none.
  */
 export function gibCountry(text: string): string | null {
   const query = fold(text.trim());
@@ -342,7 +343,7 @@ export function gibCountry(text: string): string | null {
   }
   return (
     COUNTRY_OPTIONS.find((country) =>
-      [country.value, country.label, country.en, ...country.aliases].some(
+      [country.gib, country.label, country.en, ...country.aliases].some(
         (name) => fold(name) === query,
       ),
     )?.value ?? null

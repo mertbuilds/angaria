@@ -231,6 +231,9 @@ describe('parseGIBInvoice', () => {
       title: 'ÖRNEK TEKNOLOJİ A.Ş.',
     });
     expect(invoice.settings).toEqual({ currency: 'USD', currencyRate: '', invoiceType: 'SATIS' });
+    expect(parseGIBInvoice({ ...detail, ulke: 'Amerika Birleşik Dev' }).recipient.country).toBe(
+      'Amerika Birleşik Devletleri',
+    );
     expect(invoice.items).toEqual([
       {
         discountAmount: 100,

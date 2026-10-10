@@ -32,9 +32,9 @@ import { useNavigate } from '@tanstack/react-router';
 import { FilePlusIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useId, useRef, useState, type RefObject } from 'react';
 import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
+import { fullCountryName } from '@/lib/countries.ts';
 import {
   countryError,
-  countryLabel,
   customerDefaults,
   customerName,
   DEFAULT_DUE_DAYS,
@@ -696,7 +696,7 @@ export function CustomersPage() {
               query={query}
               row={(customer) => ({
                 subtitle:
-                  [customer.taxIDOrTRID, customer.city || countryLabel(customer.country)]
+                  [customer.taxIDOrTRID, customer.city || fullCountryName(customer.country)]
                     .filter(Boolean)
                     .join(' · ') || 'VKN / TCKN eklenmedi',
                 title: displayName(customer),

@@ -56,6 +56,9 @@ export const fail = (ctx: PortalContext, text: string, type = '4') =>
 
 const sessionCookie = (value: string) => `JSESSIONID=${value}; Path=/; HttpOnly`;
 
+/** How many characters of the recipient's country GİB stores. */
+const COUNTRY_LENGTH = 20;
+
 const str = (value: unknown) => (typeof value === 'string' ? value : '');
 
 const records = (value: unknown) =>
@@ -227,7 +230,13 @@ function createDraft(ctx: CommandContext, data: Record<string, unknown>): Reply 
   const now = ctx.now();
   const ettn = timeUUID(now);
   const belgeNumarasi = nextDocumentNumber(ctx.state, ctx.user.userid, day.year);
-  const payload = { ...data, belgeNumarasi, faturaUuid: ettn };
+  // GİB keeps 20 characters of the country: "Amerika Birleşik Dev".
+  const payload = {
+    ...data,
+    belgeNumarasi,
+    faturaUuid: ettn,
+    ...(typeof data.ulke === 'string' && { ulke: data.ulke.slice(0, COUNTRY_LENGTH) }),
+  };
   ctx.state.invoices.set(ettn, {
     aliciUnvanAdSoyad: recipientName(payload),
     aliciVknTckn: str(data.vknTckn),

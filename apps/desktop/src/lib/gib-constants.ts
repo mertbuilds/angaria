@@ -1,8 +1,8 @@
 /**
  * GİB's country list. `value` is what GİB stores and the payload sends. GİB
  * cuts names at 20 characters ("Amerika Birleşik Dev") and spells some without
- * Turkish letters, so `label` is the full Turkish name and `en` the English
- * one, for our PDF.
+ * Turkish letters, so `label` is the full Turkish name Angaria stores and shows,
+ * and `en` the English one, for our PDF.
  */
 export const GIB_COUNTRIES = [
   { value: 'Türkiye', label: 'Türkiye', en: 'Turkey' },

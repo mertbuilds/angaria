@@ -272,7 +272,7 @@ describe('create_invoice', () => {
   });
 });
 
-test('a country in English or an alias becomes GİB’s name; Turkey stays at home', async () => {
+test('a country in English or an alias goes to GİB by GİB’s name; Turkey stays at home', async () => {
   const { client, ctx } = setup();
   await call(ctx, 'create_invoice', {
     currency: 'TRY',
@@ -288,6 +288,9 @@ test('a country in English or an alias becomes GİB’s name; Turkey stays at ho
     country: 'Amerika Birleşik Dev',
     invoiceType: 'ISTISNA',
   });
+  expect(vi.mocked(ctx.onDraftCreated).mock.calls[0]?.[1].recipient.country).toBe(
+    'Amerika Birleşik Devletleri',
+  );
 
   await call(ctx, 'create_invoice', {
     items: [{ name: 'X', quantity: 1, unitPrice: 100 }],

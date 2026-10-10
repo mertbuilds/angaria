@@ -18,19 +18,21 @@ import { CheckIcon, PlusIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import {
-  byRecentInvoice,
   COUNTRY_OPTIONS,
-  countryLabel,
+  fullCountryName,
+  matchesCountry,
+  type CountryOption,
+} from '@/lib/countries.ts';
+import {
+  byRecentInvoice,
   customerName,
   findCustomer,
   findCustomerByTaxID,
   FOREIGN_TAX_ID,
   isForeignCustomer,
-  matchesCountry,
   normalizeTaxID,
   taxIDKind,
   UNDISCLOSED_TCKN,
-  type CountryOption,
   type TaxIDKind,
 } from '@/lib/customer.ts';
 import { FieldFrame, useFieldContext, useFieldError } from '@/lib/form-field.tsx';
@@ -146,7 +148,7 @@ export const displayName = (customer: Recipient) => customerName(customer) || UN
 /** A saved customer's muted tag in a list: its country abroad, else its VKN / TCKN. */
 const customerTag = (customer: Recipient) =>
   customer.taxIDOrTRID.trim() === FOREIGN_TAX_ID
-    ? countryLabel(customer.country)
+    ? fullCountryName(customer.country)
     : customer.taxIDOrTRID;
 
 /** The country's English name in a list, when it differs from the Turkish one. */
@@ -300,8 +302,8 @@ export function SuggestInput({
 
 /**
  * Ülke outside a form (Müşteriler), like Yeni fatura's ComboboxField: the
- * Turkish name shows, the English name and aliases match too, GİB's `value`
- * is stored, and it can be cleared.
+ * Turkish name shows and is stored, the English name and aliases match too,
+ * and it can be cleared.
  */
 export function CountryCombobox({
   describedBy,

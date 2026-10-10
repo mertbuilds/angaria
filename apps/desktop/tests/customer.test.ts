@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
   byRecentInvoice,
-  COUNTRY_OPTIONS,
   countryError,
   customerDefaults,
   customerName,
@@ -9,11 +8,11 @@ import {
   findCustomerByTaxID,
   isForeignCustomer,
   learnCustomer,
-  matchesCountry,
   nameError,
   normalizeTaxID,
   taxIDError,
   taxIDKind,
+  withFullCountry,
 } from '../src/lib/customer.ts';
 import type { Recipient } from '../src/lib/types.ts';
 
@@ -128,38 +127,6 @@ describe('countryError', () => {
   test('leaves a customer at home alone', () => {
     expect(countryError(customer({ taxIDOrTRID: VKN }))).toBeNull();
     expect(countryError(customer({ country: 'Türkiye', taxIDOrTRID: VKN }))).toBeNull();
-  });
-});
-
-/** The GİB values of the countries a typed query finds. */
-const findCountries = (query: string) =>
-  COUNTRY_OPTIONS.filter((country) => matchesCountry(country, query)).map(
-    (country) => country.value,
-  );
-
-describe('countries', () => {
-  test('pin Türkiye and keep one option per GİB value', () => {
-    expect(COUNTRY_OPTIONS[0]?.value).toBe('Türkiye');
-    const values = COUNTRY_OPTIONS.map((country) => country.value);
-    expect(new Set(values).size).toBe(values.length);
-  });
-
-  test("match the Turkish name, the English name and aliases, and keep GİB's value", () => {
-    expect(findCountries('usa')).toEqual(['Amerika Birleşik Dev']);
-    expect(findCountries('United States')).toContain('Amerika Birleşik Dev');
-    expect(findCountries('abd')).toContain('Amerika Birleşik Dev');
-    expect(findCountries('uk')).toEqual(['Birleşik Krallik', 'Ukrayna']);
-    expect(findCountries('ingiltere')).toEqual(['Birleşik Krallik']);
-    expect(findCountries('birleşik krallık')).toEqual(['Birleşik Krallik']);
-    expect(findCountries('germany')).toEqual(['Almanya']);
-    expect(findCountries('ALMANYA')).toEqual(['Almanya']);
-  });
-
-  test('match the start of a word, not any letters inside it', () => {
-    expect(findCountries('us')).not.toContain('Avustralya');
-    expect(findCountries('kore')).toEqual(
-      expect.arrayContaining(['Güney Kore Cumhuriye', 'Kuzey Kore Demokrati']),
-    );
   });
 });
 
@@ -340,5 +307,54 @@ describe('learnCustomer', () => {
       now,
     );
     expect(byRecentInvoice(customers).map((saved) => saved.id)).toEqual(['plastic', 'ornek']);
+  });
+
+  test("saves the full country name for GİB's cut one", () => {
+    const recipient = customer({ country: 'Amerika Birleşik Dev', taxIDOrTRID: '2222222222' });
+    const added = learnCustomer([], { ...recipient, title: 'NEW LLC' }, {}, () => 'new', now);
+    expect(added.customers[0]?.country).toBe('Amerika Birleşik Devletleri');
+    const updated = learnCustomer(
+      [plastic],
+      { ...plastic, country: 'Amerika Birleşik Dev' },
+      {},
+      () => 'new',
+      now,
+    );
+    expect(updated.customers[0]?.country).toBe('Amerika Birleşik Devletleri');
+  });
+
+  test('never replaces a saved country with a cut of it', () => {
+    const saved = { ...plastic, country: 'Republic of Atlantis Federation' };
+    const { customers } = learnCustomer(
+      [saved],
+      { ...saved, country: 'Republic of Atlantis' },
+      {},
+      () => 'new',
+      now,
+    );
+    expect(customers[0]?.country).toBe('Republic of Atlantis Federation');
+    const moved = learnCustomer([saved], { ...saved, country: 'Almanya' }, {}, () => 'new', now);
+    expect(moved.customers[0]?.country).toBe('Almanya');
+    const congo = { ...plastic, country: 'Kongo Demokratik Cumhuriyeti' };
+    const other = learnCustomer([congo], { ...congo, country: 'Kongo' }, {}, () => 'new', now);
+    expect(other.customers[0]?.country).toBe('Kongo');
+  });
+});
+
+describe('withFullCountry', () => {
+  test("repairs a customer saved with GİB's cut country name", () => {
+    const saved = customer({ country: 'Amerika Birleşik Dev', id: 'plastic' });
+    expect(withFullCountry(saved)).toEqual({ ...saved, country: 'Amerika Birleşik Devletleri' });
+    expect(withFullCountry(customer({ country: 'Birleşik Krallik' })).country).toBe(
+      'Birleşik Krallık',
+    );
+  });
+
+  test('leaves a full or unknown name as it is', () => {
+    const full = customer({ country: 'Almanya' });
+    expect(withFullCountry(full)).toBe(full);
+    const empty = customer({ country: '' });
+    expect(withFullCountry(empty)).toBe(empty);
+    expect(withFullCountry(customer({ country: 'Amerika' })).country).toBe('Amerika');
   });
 });

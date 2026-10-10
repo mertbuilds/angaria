@@ -18,7 +18,8 @@ import { create, props } from '@stylexjs/stylex';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { getDrafts, getInvoiceDetail } from '@/lib/angaria.ts';
-import { countryLabel, taxIDKind } from '@/lib/customer.ts';
+import { fullCountryName } from '@/lib/countries.ts';
+import { taxIDKind } from '@/lib/customer.ts';
 import {
   applyImport,
   DEFAULT_IMPORT_PERIOD,
@@ -176,7 +177,7 @@ function progressText(progress: ScanProgress | null) {
 function customerSubtitle(taxID: string, country: string) {
   const kind = taxIDKind(taxID);
   if (kind === 'foreign') {
-    return `Yurt dışı · ${countryLabel(country)}`;
+    return `Yurt dışı · ${fullCountryName(country)}`;
   }
   return kind === 'vkn' ? `VKN ${taxID}` : `TCKN ${taxID}`;
 }

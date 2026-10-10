@@ -1,4 +1,5 @@
-import { GIB_COUNTRIES, GIB_UNIT_TYPES } from './gib-constants.ts';
+import { findCountry } from './countries.ts';
+import { GIB_UNIT_TYPES } from './gib-constants.ts';
 import type { PDFLanguage, PDFStyle } from './types.ts';
 
 export const PDF_LANGUAGES: ReadonlyArray<PDFLanguage> = ['tr', 'en', 'both'];
@@ -265,15 +266,13 @@ export function formatPDFQuantityUnit(
   return `${amount} ${unit}`;
 }
 
-const COUNTRIES = new Map(GIB_COUNTRIES.map((country) => [country.value, country]));
-
 /**
- * A GİB country by its full name: "Amerika Birleşik Devletleri" for GİB's
- * "Amerika Birleşik Dev", "United States" in English, both on a bilingual PDF
- * (once when they match). A value outside GİB's list prints as it is.
+ * A country by its full name: "Amerika Birleşik Devletleri" (also for GİB's
+ * "Amerika Birleşik Dev"), "United States" in English, both on a bilingual PDF
+ * (once when they match). A name outside GİB's list prints as it is.
  */
 export function formatPDFCountry(language: PDFLanguage, country: string): string {
-  const names = COUNTRIES.get(country);
+  const names = findCountry(country);
   if (!names) {
     return country;
   }

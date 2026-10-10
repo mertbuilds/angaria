@@ -411,6 +411,15 @@ describe('applyImport', () => {
     expect(new Date(result.customers[0].lastInvoicedAt ?? '').getDate()).toBe(1);
   });
 
+  test("saves the full country name for GİB's cut one", () => {
+    const chosen = importCandidates(
+      [scanned('a', '01/03/2026', { country: 'Amerika Birleşik Dev', taxID: '2222222222' })],
+      { customers: [], services: [] },
+    );
+    const [learned] = applyImport({ customers: [], services: [] }, chosen, newId).customers;
+    expect(learned.country).toBe('Amerika Birleşik Devletleri');
+  });
+
   test('a customer at home gets a Turkish PDF and no due date when none was kept', () => {
     const chosen = importCandidates([scanned('a', '01/03/2026')], { customers: [], services: [] });
     const [learned] = applyImport({ customers: [], services: [] }, chosen, newId).customers;
