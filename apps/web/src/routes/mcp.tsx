@@ -3,6 +3,7 @@ import { create, props } from '@stylexjs/stylex';
 import { createFileRoute } from '@tanstack/react-router';
 import { KeyRound, Laptop, MessageSquareLock, Power, type LucideIcon } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
+import { AppIcon } from '../components/app-icon.tsx';
 import { CheckoutButton, DownloadButton } from '../components/cta.tsx';
 import { McpScene } from '../components/mcp-scene.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
@@ -460,6 +461,9 @@ function McpPage() {
         aria-labelledby="basla"
         style={[layout.section, styles.section, styles.centered]}
       >
+        <Reveal index={0}>
+          <AppIcon size={64} />
+        </Reveal>
         <Reveal index={0}>
           <SectionHeading centered id="basla">
             {m.mcp_cta_title()}
