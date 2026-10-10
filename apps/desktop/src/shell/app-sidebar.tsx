@@ -15,6 +15,7 @@ import { create, props } from '@stylexjs/stylex';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import { SearchIcon } from 'lucide-react';
 import { useStore } from '@/lib/store.tsx';
+import appIcon from '../assets/app-icon.png';
 import { EntitySwitcher } from './entity-switcher.tsx';
 import { sections, type Section } from './nav.ts';
 import { tones } from './palette.stylex.ts';
@@ -59,7 +60,7 @@ function SectionItem({ section }: { section: Section }) {
 }
 
 /**
- * The app's source list: wordmark under the traffic lights, ⌘K search, the
+ * The app's source list: icon and wordmark under the traffic lights, ⌘K search, the
  * sections, then Ayarlar at the foot, and the company switcher once there are
  * two companies (Ayarlar › Şirketler adds them).
  */
@@ -70,7 +71,7 @@ export function AppSidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
   return (
     <Sidebar>
       <SidebarHeader data-tauri-drag-region style={styles.header}>
-        <Wordmark style={styles.wordmark} />
+        <Wordmark icon={appIcon} style={styles.wordmark} />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
