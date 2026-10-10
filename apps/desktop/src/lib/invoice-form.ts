@@ -12,6 +12,7 @@ import {
 } from './customer.ts';
 import { GIB_CURRENCIES } from './gib-constants.ts';
 import { INVOICE_WINDOW_DAYS, ISTISNA_REASONS, SUPPORTED_INVOICE_TYPES } from './regulated.ts';
+import { cite, ruleMessage } from './rule-sources.ts';
 import type {
   CompanyInfo,
   InvoiceFormValues,
@@ -191,7 +192,12 @@ export const CURRENCY_OPTIONS = [
 ].map((currency) => ({ label: `${currency.value} · ${currency.label}`, value: currency.value }));
 
 /** KDV Kanunu 11/1-a: an exempt export carries no KDV. */
-export const ISTISNA_VAT_ERROR = 'İstisna faturada KDV oranı %0 olmalı';
+export const ISTISNA_VAT_RULE = ruleMessage(
+  'İstisna faturada KDV oranı %0 olmalı (',
+  cite('exportExemption', 'KDV Kanunu 11/1-a'),
+  ')',
+);
+export const ISTISNA_VAT_ERROR = ISTISNA_VAT_RULE.text;
 
 /**
  * Field errors in Turkish, keyed by field name (TanStack Form's form-level
@@ -237,12 +243,6 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
     fields['advancedFields.manualDate'] = 'Fatura tarihi bugünden sonra olamaz';
   }
   const invoiceDate = parseGIB(advancedFields.manualDate) ?? today;
-  const irsaliyeDate = parseGIB(advancedFields.irsaliyeTarihi);
-  if (isAfterToday(advancedFields.irsaliyeTarihi, today)) {
-    fields['advancedFields.irsaliyeTarihi'] = 'İrsaliye tarihi bugünden sonra olamaz';
-  } else if (irsaliyeDate && differenceInCalendarDays(irsaliyeDate, invoiceDate) > 0) {
-    fields['advancedFields.irsaliyeTarihi'] = 'İrsaliye tarihi fatura tarihinden sonra olamaz';
-  }
   const dueDate = parseGIB(advancedFields.dueDate);
   if (dueDate && differenceInCalendarDays(dueDate, invoiceDate) < 0) {
     fields['advancedFields.dueDate'] = 'Son ödeme tarihi fatura tarihinden önce olamaz';
@@ -289,7 +289,12 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
 }
 
 /** VUK 231/5's warning on an invoice date older than the window. */
-export const INVOICE_WINDOW_WARNING = `Bu tarih ${INVOICE_WINDOW_DAYS} günden eski. VUK 231/5'e göre fatura, hizmetten sonraki ${INVOICE_WINDOW_DAYS} gün içinde kesilmeli.`;
+export const INVOICE_WINDOW_RULE = ruleMessage(
+  `Bu tarih ${INVOICE_WINDOW_DAYS} günden eski. `,
+  cite('invoiceWindow', 'VUK 231/5'),
+  `'e göre fatura, hizmetten sonraki ${INVOICE_WINDOW_DAYS} gün içinde kesilmeli.`,
+);
+export const INVOICE_WINDOW_WARNING = INVOICE_WINDOW_RULE.text;
 
 /**
  * Rules worth a second look that never block the invoice, keyed by field name
@@ -302,11 +307,20 @@ export function invoiceWarnings(values: InvoiceFormValues, today = new Date()) {
   if (invoiceDate && differenceInCalendarDays(today, invoiceDate) > INVOICE_WINDOW_DAYS) {
     fields['advancedFields.manualDate'] = INVOICE_WINDOW_WARNING;
   }
+  // No text sets the irsaliye date against today or the invoice date: a slip, not a rule.
+  const irsaliyeDate = parseGIB(values.advancedFields.irsaliyeTarihi);
+  if (isAfterToday(values.advancedFields.irsaliyeTarihi, today)) {
+    fields['advancedFields.irsaliyeTarihi'] =
+      'İrsaliye tarihi bugünden sonra görünüyor. Kontrol et.';
+  } else if (irsaliyeDate && differenceInCalendarDays(irsaliyeDate, invoiceDate ?? today) > 0) {
+    fields['advancedFields.irsaliyeTarihi'] =
+      'İrsaliye tarihi fatura tarihinden sonra görünüyor. Kontrol et.';
+  }
   if (values.invoiceSettings.invoiceType === 'SATIS') {
     values.items.forEach((item, index) => {
       if (item.VATRate === 0) {
         fields[`items[${index}].VATRate`] =
-          '%0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota yaz.';
+          '%0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.';
       }
     });
   }

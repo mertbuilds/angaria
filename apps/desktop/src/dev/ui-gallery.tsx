@@ -94,6 +94,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   Skeleton,
+  SourceLink,
   SplitButton,
   Switch,
   Table,
@@ -440,8 +441,7 @@ function GalleryChoices() {
         <Readout value={vat} />
         {vat === 0 && (
           <FieldWarning id={`${id}-vat-warning`}>
-            %0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota
-            yaz.
+            %0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.
           </FieldWarning>
         )}
       </Field>
@@ -671,8 +671,11 @@ function Showcase() {
             <FieldLabel htmlFor="gallery-date">Fatura tarihi</FieldLabel>
             <Input defaultValue="18.09.2026" id="gallery-date" />
             <FieldWarning>
-              Bu tarih 7 günden eski. VUK 231/5’e göre fatura, hizmetten sonraki 7 gün içinde
-              kesilmeli.
+              Bu tarih 7 günden eski.{' '}
+              <SourceLink href="https://www.gib.gov.tr/mevzuat/kanun/434" label="VUK md. 231/5">
+                VUK 231/5
+              </SourceLink>
+              ’e göre fatura, hizmetten sonraki 7 gün içinde kesilmeli.
             </FieldWarning>
           </Field>
           <Field>

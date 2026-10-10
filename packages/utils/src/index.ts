@@ -2,13 +2,6 @@ const TCMB_BASE = 'https://www.tcmb.gov.tr/kurlar';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/**
- * Which TCMB bulletin an invoice dated D uses. 'previous': the one TCMB
- * published on the business day before D (at 15:30), which the Resmî Gazete
- * carries on D. 'same': the one published on D itself.
- */
-export type TCMBRateDay = 'previous' | 'same';
-
 /** One TCMB bulletin's forex buying rates, per one unit of each currency. */
 export interface TCMBRateTable {
   /** The day TCMB published the bulletin (a holiday falls back to the day before). */
@@ -19,8 +12,9 @@ export interface TCMBRateTable {
 }
 
 /**
- * Fetch the TCMB bulletin for an invoice dated `baseDate` (default today), by
- * `rateDay` (default 'previous'). Weekends and holidays have no bulletin, so it
+ * Fetch the TCMB bulletin for an invoice dated `baseDate` (default today): the
+ * one TCMB published on the business day before it (at 15:30), which the
+ * Resmî Gazete carries on that day (KDV Genel Uygulama Tebliği III/A-1.1). Weekends and holidays have no bulletin, so it
  * walks back up to 7 days to the last one. The time of day plays no part: only
  * the date counts.
  */
@@ -30,15 +24,13 @@ export async function fetchTCMBRateTable(
     /** TCMB origin, e.g. the local GİB emulator, which also serves /kurlar. */
     baseUrl?: string;
     fetch?: typeof globalThis.fetch;
-    rateDay?: TCMBRateDay;
   },
 ): Promise<TCMBRateTable> {
   const fetchFn = options?.fetch ?? globalThis.fetch;
   const base = options?.baseUrl ? `${options.baseUrl.replace(/\/+$/, '')}/kurlar` : TCMB_BASE;
   const day = baseDate ?? new Date();
   const validFor = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-  const first = options?.rateDay === 'same' ? 0 : 1;
-  for (let i = first; i < first + 7; i++) {
+  for (let i = 1; i < 8; i++) {
     const date = new Date(validFor.getFullYear(), validFor.getMonth(), validFor.getDate() - i);
     const d = pad(date.getDate());
     const m = pad(date.getMonth() + 1);

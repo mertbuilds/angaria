@@ -75,7 +75,7 @@ export interface CreatedDraft {
 export interface McpToolContext {
   client: McpGIBClient;
   company: () => McpCompany;
-  /** TCMB's buying rate for `currency` on an invoice dated `date`, by the Kur günü setting. */
+  /** TCMB's buying rate for `currency` on an invoice dated `date`, from the previous business day's bulletin. */
   currencyRate: (currency: string, date: Date) => Promise<number | undefined>;
   /**
    * Runs `task` on the app's GİB session queue with the active company's

@@ -124,7 +124,8 @@ test('İstisna sets every VAT rate to 0 and locks the chips; Satış gives the r
   expect(items().map((item) => item.VATRate)).toEqual([0, 0]);
   expect(byId('items[0].VATRate').textContent).toContain('%0');
   const description = document.querySelector('[id="items[0].VATRate-description"]');
-  expect(description?.textContent).toBe('İstisna faturada KDV %0 Kaynak: KDV Kanunu md. 11/1-a');
+  expect(description?.textContent).toBe('İstisna faturada KDV %0 (KDV Kanunu 11/1-a)');
+  expect(description?.querySelector('a')?.textContent).toBe('KDV Kanunu 11/1-a');
   expect(description?.querySelector('a')?.getAttribute('href')).toMatch(
     /^https:\/\/www\.mevzuat\.gov\.tr\/mevzuat\?MevzuatNo=3065&/,
   );
@@ -273,7 +274,7 @@ describe('a saved service in another currency', () => {
   test('converts at TCMB’s rate on a lira invoice and says so until typed over', async () => {
     saveServices([service({ currency: 'USD', discountAmount: 10 })]);
     const queryClient = new QueryClient();
-    queryClient.setQueryData(['tcmb-rates', '', 'previous'], TCMB);
+    queryClient.setQueryData(['tcmb-rates', ''], TCMB);
     await mount([row({ name: '' })], queryClient);
 
     await pick(0, 'Engineering Services');
@@ -288,7 +289,7 @@ describe('a saved service in another currency', () => {
     const usd = service({ currency: 'USD' });
     saveServices([usd]);
     const queryClient = new QueryClient();
-    queryClient.setQueryData(['tcmb-rates', '', 'previous'], TCMB);
+    queryClient.setQueryData(['tcmb-rates', ''], TCMB);
     await mount([row({ name: '' })], queryClient);
 
     await pick(0, 'Engineering Services');

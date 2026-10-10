@@ -1,15 +1,11 @@
-import { toast, type FieldSourceProps } from '@angaria/ui';
-import { openUrl } from '@tauri-apps/plugin-opener';
-import type { ReactNode } from 'react';
-import { INVOICE_WINDOW_WARNING, ISTISNA_VAT_ERROR } from './invoice-form.ts';
-
 // The official texts Yeni fatura's rules come from, each read against the rule
-// on `verifiedAt`. A message that cites a rule shows its source as a Kaynak link,
-// opened in the system browser. Only these hosts are in the opener's scope
+// on `verifiedAt`. A message that cites a rule marks the words that cite it,
+// and those words link to the official text, opened in the system browser
+// (src/lib/rule-text.tsx). Only these hosts are in the opener's scope
 // (src-tauri/capabilities/default.json).
 
 export interface RuleSource {
-  /** Short name of the rule, shown on the link. */
+  /** Full name of the rule, in the link's accessible name. */
   label: string;
   url: string;
   /** When the rule was last read against the official text, YYYY-MM-DD. */
@@ -48,24 +44,26 @@ export type RuleSourceID = keyof typeof RULE_SOURCES;
 /** The hosts a rule source may link to, exactly, no subdomains. */
 export const RULE_SOURCE_HOSTS: ReadonlyArray<string> = ['www.gib.gov.tr', 'www.mevzuat.gov.tr'];
 
-function openRuleSource(url: string) {
-  openUrl(url).catch(() => toast.error('Sayfa tarayıcıda açılamadı. Tekrar dene.'));
+/** The words of a message that cite `rule`. */
+export interface RuleCitation {
+  rule: RuleSourceID;
+  text: string;
 }
 
-/** A rule's source as a FieldWarning, FieldError or FieldSource takes it. */
-export function ruleSourceLink(id: RuleSourceID): FieldSourceProps {
-  const { label, url } = RULE_SOURCES[id];
-  return { href: url, label, onOpen: openRuleSource };
+/** A message whose citing words link to the rule's official text. */
+export interface RuleMessage {
+  parts: ReadonlyArray<RuleCitation | string>;
+  /** The plain text, as validators, warnings and MCP tools carry it. */
+  text: string;
 }
 
-// invoiceWarnings' and validateInvoice's messages that cite a rule.
-const MESSAGE_SOURCES: ReadonlyMap<string, RuleSourceID> = new Map([
-  [INVOICE_WINDOW_WARNING, 'invoiceWindow'],
-  [ISTISNA_VAT_ERROR, 'exportExemption'],
-]);
+/** Marks `text` as the words that cite `rule`. */
+export const cite = (rule: RuleSourceID, text: string): RuleCitation => ({ rule, text });
 
-/** The source of a warning or error that cites a rule, else undefined. */
-export function messageSource(message: ReactNode): FieldSourceProps | undefined {
-  const id = typeof message === 'string' ? MESSAGE_SOURCES.get(message) : undefined;
-  return id && ruleSourceLink(id);
+/** A message from plain text and citations, in reading order. */
+export function ruleMessage(...parts: Array<RuleCitation | string>): RuleMessage {
+  return {
+    parts,
+    text: parts.map((part) => (typeof part === 'string' ? part : part.text)).join(''),
+  };
 }

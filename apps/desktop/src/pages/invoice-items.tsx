@@ -28,9 +28,9 @@ import {
   lineTotals,
   parseDecimal,
 } from '@/lib/invoice-form.ts';
-import { useRateDay } from '@/lib/rate-day.ts';
 import { COMMON_UNITS, VAT_RATE_PRESETS } from '@/lib/regulated.ts';
-import { ruleSourceLink } from '@/lib/rule-sources.ts';
+import { cite, ruleMessage } from '@/lib/rule-sources.ts';
+import { RuleText } from '@/lib/rule-text.tsx';
 import {
   conversionHint,
   convertAmount,
@@ -261,6 +261,13 @@ export const UNIT_OPTIONS: ReadonlyArray<ChoiceOption<string>> = COMMON_UNITS.ma
   label: unitLabel(code),
   value: code,
 }));
+
+/** KDV's hint on an İstisna invoice. */
+const ISTISNA_VAT_HINT = ruleMessage(
+  'İstisna faturada KDV %0 (',
+  cite('exportExemption', 'KDV Kanunu 11/1-a'),
+  ')',
+);
 
 /** A rate typed with or without its sign: "18", "%18" and "18%" are 18. */
 const parsePercent = (text: string) => parseDecimal(text.replace('%', ''));
@@ -629,7 +636,7 @@ function ItemRow({
             {(field) => (
               <field.ChoiceField
                 compact
-                description={istisna ? 'İstisna faturada KDV %0' : undefined}
+                description={istisna ? <RuleText message={ISTISNA_VAT_HINT} /> : undefined}
                 disabled={istisna}
                 label="KDV"
                 options={VAT_OPTIONS}
@@ -647,7 +654,6 @@ function ItemRow({
                   ),
                 }}
                 size="sm"
-                source={istisna ? ruleSourceLink('exportExemption') : undefined}
                 style={styles.vat}
                 warning={vatWarning}
               />
@@ -659,7 +665,7 @@ function ItemRow({
             {(field) => (
               <field.MaskedField
                 compact
-                description="Yalnızca mal ihracatında gerekir"
+                description="Mal ihracatında gerekir"
                 inputMode="numeric"
                 isValid={(value) => value.replaceAll(/\D/g, '').length === 12}
                 label="GTİP"
@@ -789,11 +795,10 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
     (state) => state.values.advancedFields.currencyRateManual === true,
   );
   const rateDate = useFormState(form.store, (state) => state.values.advancedFields.manualDate);
-  const rateDay = useRateDay();
   // A service priced in a foreign currency other than the invoice's needs
   // TCMB's rate for it, a lira invoice too. The header's rate shares the query.
   const tcmb = useQuery({
-    ...tcmbRatesQuery(rateDate, rateDay),
+    ...tcmbRatesQuery(rateDate),
     enabled: savedItems.some(
       (service) =>
         service.currency !== undefined &&

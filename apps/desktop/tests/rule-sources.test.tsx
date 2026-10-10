@@ -5,12 +5,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import capabilities from '../src-tauri/capabilities/default.json';
 import { INVOICE_WINDOW_WARNING, ISTISNA_VAT_ERROR } from '../src/lib/invoice-form.ts';
-import {
-  messageSource,
-  RULE_SOURCE_HOSTS,
-  RULE_SOURCES,
-  ruleSourceLink,
-} from '../src/lib/rule-sources.ts';
+import { RULE_SOURCE_HOSTS, RULE_SOURCES } from '../src/lib/rule-sources.ts';
+import { findRuleMessage, MessageText } from '../src/lib/rule-text.tsx';
 
 const opener = vi.hoisted(() => ({ openUrl: vi.fn(async (_url: string) => {}) }));
 vi.mock('@tauri-apps/plugin-opener', () => opener);
@@ -71,28 +67,34 @@ test('the opener may open exactly the rule hosts besides Polar and the site', ()
   expect([...used].toSorted()).toEqual([...RULE_SOURCE_HOSTS].toSorted());
 });
 
-test('the rule messages carry their sources, other messages none', () => {
-  expect(messageSource(INVOICE_WINDOW_WARNING)?.label).toBe('VUK md. 231/5');
-  expect(messageSource(ISTISNA_VAT_ERROR)?.label).toBe('KDV Kanunu md. 11/1-a');
-  expect(messageSource('Hizmet adını yaz')).toBeUndefined();
+/** A message's citing words, each with the full name of its rule. */
+const cited = (message: string) =>
+  findRuleMessage(message)?.parts.flatMap((part) =>
+    typeof part === 'string' ? [] : [[part.text, RULE_SOURCES[part.rule].label]],
+  );
+
+test('the rule messages cite their sources, other messages none', () => {
+  expect(cited(INVOICE_WINDOW_WARNING)).toEqual([['VUK 231/5', 'VUK md. 231/5']]);
+  expect(cited(ISTISNA_VAT_ERROR)).toEqual([['KDV Kanunu 11/1-a', 'KDV Kanunu md. 11/1-a']]);
+  expect(findRuleMessage('Hizmet adını yaz')).toBeUndefined();
   // Not cited until verified against the official text: see the rule-sources table.
   expect(
-    messageSource(
-      '%0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota yaz.',
-    ),
+    findRuleMessage('%0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.'),
   ).toBeUndefined();
 });
 
-test('a warning with a source links it and opens it in the system browser', () => {
+test('a warning links the words that cite its rule and opens them in the system browser', () => {
   act(() =>
     root?.render(
-      <FieldWarning source={ruleSourceLink('invoiceWindow')}>
-        {INVOICE_WINDOW_WARNING}
+      <FieldWarning>
+        <MessageText>{INVOICE_WINDOW_WARNING}</MessageText>
       </FieldWarning>,
     ),
   );
+  expect(host?.textContent).toBe(INVOICE_WINDOW_WARNING);
   const link = host?.querySelector('a');
-  expect(link?.textContent).toBe('Kaynak: VUK md. 231/5');
+  expect(link?.textContent).toBe('VUK 231/5');
+  expect(link?.getAttribute('aria-label')).toBe('VUK 231/5 (VUK md. 231/5), resmî metni aç');
   expect(link?.getAttribute('href')).toBe(RULE_SOURCES.invoiceWindow.url);
 
   const click = new MouseEvent('click', { bubbles: true, cancelable: true });
@@ -101,18 +103,22 @@ test('a warning with a source links it and opens it in the system browser', () =
   expect(opener.openUrl).toHaveBeenCalledWith(RULE_SOURCES.invoiceWindow.url);
 });
 
-test('an error with a source links it; without one, no link', () => {
+test('an error that cites a rule links its words; another error has no link', () => {
   act(() =>
     root?.render(
       <>
-        <FieldError source={ruleSourceLink('exportExemption')}>{ISTISNA_VAT_ERROR}</FieldError>
-        <FieldError>Hizmet adını yaz</FieldError>
+        <FieldError>
+          <MessageText>{ISTISNA_VAT_ERROR}</MessageText>
+        </FieldError>
+        <FieldError>
+          <MessageText>Hizmet adını yaz</MessageText>
+        </FieldError>
       </>,
     ),
   );
   const links = host?.querySelectorAll('a') ?? [];
   expect(links).toHaveLength(1);
-  expect(links[0]?.textContent).toBe('Kaynak: KDV Kanunu md. 11/1-a');
+  expect(links[0]?.textContent).toBe('KDV Kanunu 11/1-a');
   // A real link: reachable by Tab and opened by Enter.
   expect(links[0]?.tabIndex).toBe(0);
 });

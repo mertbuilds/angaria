@@ -346,7 +346,7 @@ describe('create_invoice', () => {
     expect(istisnaVAT.error).toBe(true);
     expect(istisnaVAT.json.error.code).toBe('invalid-invoice');
     expect(istisnaVAT.json.error.fields).toEqual({
-      'items[0].VATRate': 'İstisna faturada KDV oranı %0 olmalı',
+      'items[0].VATRate': 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)',
     });
 
     const badVKN = await call(ctx, 'create_invoice', {

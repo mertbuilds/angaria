@@ -63,11 +63,14 @@ export function AdvancedSection({
   currency,
   form,
   total,
+  warnings,
 }: {
   currency: string;
   form: InvoiceForm;
   /** The invoice total, the amount due while Ödenecek tutar is empty. */
   total: number;
+  /** invoiceWarnings of the form, keyed by field name. */
+  warnings: Record<string, string>;
 }) {
   const advanced = form.state.values.advancedFields;
   const [open, setOpen] = useState(() =>
@@ -111,7 +114,12 @@ export function AdvancedSection({
             {(field) => <field.TextField label="İrsaliye numarası" />}
           </form.AppField>
           <form.AppField name="advancedFields.irsaliyeTarihi">
-            {(field) => <field.DateField label="İrsaliye tarihi" />}
+            {(field) => (
+              <field.DateField
+                label="İrsaliye tarihi"
+                warning={warnings['advancedFields.irsaliyeTarihi']}
+              />
+            )}
           </form.AppField>
         </div>
       </details>

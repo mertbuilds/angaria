@@ -2,7 +2,6 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { fetchTCMBRateTable } from '@/lib/angaria.ts';
 import { formatRate } from '@/lib/invoice-form.ts';
-import { useRateDay, type RateDay } from '@/lib/rate-day.ts';
 import type { InvoiceFormValues } from '@/lib/types.ts';
 import { parseGIB } from '@/lib/utils.ts';
 import type { InvoiceForm } from './use-invoice-form.ts';
@@ -20,18 +19,18 @@ export type RateDescription =
 
 /**
  * TCMB's bulletin for an invoice dated `rateDate` (GİB's format, empty:
- * today) by the Kur günü setting.
+ * today): the previous business day's.
  */
-export const tcmbRatesQuery = (rateDate: string, rateDay: RateDay) =>
+export const tcmbRatesQuery = (rateDate: string) =>
   queryOptions({
-    queryFn: () => fetchTCMBRateTable(parseGIB(rateDate), rateDay),
-    queryKey: ['tcmb-rates', rateDate, rateDay],
+    queryFn: () => fetchTCMBRateTable(parseGIB(rateDate)),
+    queryKey: ['tcmb-rates', rateDate],
     staleTime: 5 * 60 * 1000,
   });
 
 /**
- * TCMB's buying rate for the invoice's currency and date, from the bulletin
- * the Kur günü setting picks. It fills the rate field until the user types one;
+ * TCMB's buying rate for the invoice's currency and date, from the previous
+ * business day's bulletin. It fills the rate field until the user types one;
  * while it is loading, failed or not published, the field is empty, so another
  * day's rate never goes to GİB.
  */
@@ -40,8 +39,7 @@ export function useCurrencyRate(form: InvoiceForm, values: InvoiceFormValues) {
   const foreign = currency !== 'TRY';
   const rateDate = values.advancedFields.manualDate;
   const rateManual = values.advancedFields.currencyRateManual === true;
-  const rateDay = useRateDay();
-  const rates = useQuery({ ...tcmbRatesQuery(rateDate, rateDay), enabled: foreign });
+  const rates = useQuery({ ...tcmbRatesQuery(rateDate), enabled: foreign });
   const tcmbRate = foreign ? rates.data?.rates.get(currency) : undefined;
 
   useEffect(() => {

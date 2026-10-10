@@ -261,10 +261,10 @@ describe('dates and times', () => {
 
 /** validateInvoice's errors for an irsaliye date and an invoice date (empty: today). */
 const irsaliye = (irsaliyeTarihi: string, manualDate: string) =>
-  validateInvoice(
+  invoiceWarnings(
     form({ advancedFields: { ...form().advancedFields, irsaliyeTarihi, manualDate } }),
     today,
-  )?.fields;
+  );
 
 /** validateInvoice's errors for a due date (and an invoice date, empty: today). */
 const due = (dueDate: string, manualDate = '') =>
@@ -390,7 +390,7 @@ describe('validateInvoice', () => {
       today,
     );
     expect(result?.fields).toEqual({
-      'items[1].VATRate': 'İstisna faturada KDV oranı %0 olmalı',
+      'items[1].VATRate': 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)',
     });
   });
 
@@ -404,15 +404,6 @@ describe('validateInvoice', () => {
       });
     },
   );
-
-  test('refuses an irsaliye dated after the invoice', () => {
-    expect(irsaliye('28/09/2026', '28/09/2026')).toBeUndefined();
-    expect(irsaliye('27/09/2026', '28/09/2026')).toBeUndefined();
-    expect(irsaliye('29/09/2026', '28/09/2026')).toEqual({
-      'advancedFields.irsaliyeTarihi': 'İrsaliye tarihi fatura tarihinden sonra olamaz',
-    });
-    expect(irsaliye('01/10/2026', '')).toBeUndefined();
-  });
 
   test('never says lütfen, geçerli or geçersiz, and uses no em dash', () => {
     const result = validateInvoice(
@@ -460,11 +451,34 @@ describe('invoiceWarnings', () => {
     });
   });
 
+  test('warns about an irsaliye dated after the invoice or today, never blocks it', () => {
+    expect(irsaliye('28/09/2026', '28/09/2026')).toEqual({});
+    expect(irsaliye('27/09/2026', '28/09/2026')).toEqual({});
+    expect(irsaliye('29/09/2026', '28/09/2026')).toEqual({
+      'advancedFields.irsaliyeTarihi':
+        'İrsaliye tarihi fatura tarihinden sonra görünüyor. Kontrol et.',
+    });
+    expect(irsaliye('01/10/2026', '')).toEqual({});
+    expect(irsaliye('02/10/2026', '')).toEqual({
+      'advancedFields.irsaliyeTarihi': 'İrsaliye tarihi bugünden sonra görünüyor. Kontrol et.',
+    });
+    const blocked = validateInvoice(
+      form({
+        advancedFields: {
+          ...form().advancedFields,
+          irsaliyeTarihi: '02/10/2026',
+          manualDate: '28/09/2026',
+        },
+      }),
+      today,
+    );
+    expect(blocked).toBeUndefined();
+  });
+
   test('warns about a 0% line on a Satış invoice only', () => {
     const items = [item(), item({ VATRate: 0 })];
     expect(invoiceWarnings(form({ items }), today)).toEqual({
-      'items[1].VATRate':
-        '%0 KDV için istisna gerekçesi gerekir. Fatura tipini İstisna yap ya da gerekçeyi nota yaz.',
+      'items[1].VATRate': '%0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.',
     });
     const istisna = { currency: 'TRY', currencyRate: '', invoiceType: 'ISTISNA' };
     expect(

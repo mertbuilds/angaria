@@ -4,7 +4,7 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import { create, props as stylexProps } from '@stylexjs/stylex';
 import { CircleAlertIcon, TriangleAlertIcon } from 'lucide-react';
 import { useMemo } from 'react';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps } from 'react';
 import { capStyles } from '../lib/cap-text.tsx';
 import { colors } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
@@ -124,13 +124,12 @@ const styles = create({
     minWidth: 0,
     padding: 0,
   },
-  // Quiet next to the message: muted, underlined, the message's own size.
-  source: {
+  // The words of a message that cite a rule: the message's own color, a dashed
+  // underline that turns solid on hover and focus.
+  sourceLink: {
     borderRadius: '0.125rem',
-    color: {
-      ':hover': colors.foreground,
-      default: colors.mutedForeground,
-    },
+    color: 'inherit',
+    cursor: 'pointer',
     outlineColor: colors.ring,
     outlineOffset: '2px',
     outlineStyle: {
@@ -139,8 +138,13 @@ const styles = create({
     },
     outlineWidth: '2px',
     textDecorationLine: 'underline',
-    textUnderlineOffset: '2px',
-    whiteSpace: 'nowrap',
+    textDecorationStyle: {
+      ':focus-visible': 'solid',
+      ':hover': 'solid',
+      default: 'dashed',
+    },
+    textDecorationThickness: '1px',
+    textUnderlineOffset: '3px',
   },
   title: {
     alignItems: 'center',
@@ -281,20 +285,25 @@ const FieldSeparator = ({ children, className, style, ...props }: StyleXElementP
   );
 };
 
-/** The official text a message's rule comes from. */
-interface FieldSourceProps {
+interface SourceLinkProps {
+  /** The words of the message that cite the rule, such as "VUK 231/5". */
+  children: string;
   href: string;
-  /** Short name of the rule, such as "VUK md. 231/5". */
+  /** Full name of the rule, such as "VUK md. 231/5". */
   label: string;
   /** Opens `href` instead of the link's default, such as in the system browser. */
   onOpen?: ((href: string) => void) | undefined;
 }
 
-/** A quiet "Kaynak" link to the official text, for a message that cites a rule. */
-const FieldSource = ({ href, label, onOpen }: FieldSourceProps) => (
+/**
+ * The words of a message that cite a rule, as a link to its official text. The
+ * accessible name starts with the words shown.
+ */
+const SourceLink = ({ children, href, label, onOpen }: SourceLinkProps) => (
   <a
-    {...stylexProps(styles.source)}
-    data-slot="field-source"
+    {...stylexProps(styles.sourceLink)}
+    aria-label={`${label.includes(children) ? label : `${children} (${label})`}, resmî metni aç`}
+    data-slot="source-link"
     href={href}
     onClick={(event) => {
       if (onOpen) {
@@ -305,19 +314,9 @@ const FieldSource = ({ href, label, onOpen }: FieldSourceProps) => (
     rel="noreferrer"
     target="_blank"
   >
-    {`Kaynak: ${label}`}
+    {children}
   </a>
 );
-
-/** A message's text, then its source link when it has one. */
-const withSource = (content: ReactNode, source: FieldSourceProps | undefined) =>
-  source ? (
-    <>
-      {content} <FieldSource {...source} />
-    </>
-  ) : (
-    content
-  );
 
 /**
  * A field's error: an icon and the text. Point the control's aria-describedby
@@ -329,13 +328,10 @@ const FieldError = ({
   children,
   className,
   errors,
-  source,
   style,
   ...props
 }: StyleXElementProps<'div'> & {
   errors?: Array<{ message?: string | undefined } | undefined> | undefined;
-  /** The official text the error's rule comes from. */
-  source?: FieldSourceProps | undefined;
 }) => {
   const content = useMemo(() => {
     if (children) {
@@ -368,7 +364,7 @@ const FieldError = ({
       {...props}
     >
       <CircleAlertIcon aria-hidden {...stylexProps(styles.icon)} />
-      <div {...stylexProps(capStyles.text)}>{withSource(content, source)}</div>
+      <div {...stylexProps(capStyles.text)}>{content}</div>
     </div>
   );
 };
@@ -377,16 +373,7 @@ const FieldError = ({
  * A rule the value breaks that does not block, such as a date older than seven
  * days: an amber icon and the text, announced politely.
  */
-const FieldWarning = ({
-  children,
-  className,
-  source,
-  style,
-  ...props
-}: StyleXElementProps<'div'> & {
-  /** The official text the warning's rule comes from. */
-  source?: FieldSourceProps | undefined;
-}) => {
+const FieldWarning = ({ children, className, style, ...props }: StyleXElementProps<'div'>) => {
   if (!children) {
     return null;
   }
@@ -398,7 +385,7 @@ const FieldWarning = ({
       {...props}
     >
       <TriangleAlertIcon aria-hidden {...stylexProps(styles.icon)} />
-      <div {...stylexProps(capStyles.text)}>{withSource(children, source)}</div>
+      <div {...stylexProps(capStyles.text)}>{children}</div>
     </div>
   );
 };
@@ -413,8 +400,8 @@ export {
   FieldLegend,
   FieldSeparator,
   FieldSet,
-  FieldSource,
-  type FieldSourceProps,
   FieldTitle,
   FieldWarning,
+  SourceLink,
+  type SourceLinkProps,
 };
