@@ -1,34 +1,76 @@
-<!doctype html><html><head><meta charset="utf-8"><style>
-/* The install window's background, rendered to background.png and
-   background@2x.png by render-background.sh.
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      /* The install window's background, rendered to background.png and
+      background@2x.png by render-background.sh.
 
-   No text: Finder names the two icons itself. The dots are the site's hero
-   grid (apps/web/src/components/hero.tsx): the text colour at 24%, 22px apart,
-   fading toward the edges. The arrow is the site's blue.
+      No text: Finder names the two icons itself. The dots are the site's hero
+      grid (apps/web/src/components/hero.tsx): the text colour at 24%, 22px apart,
+      fading toward the edges. The arrow is the site's blue.
 
-   The art is taller than the window, so it fills the content area whatever
-   chrome Finder shows. Keep the icon centres below in step with
-   bundle.macOS.dmg in tauri.conf.json (appPosition, applicationFolderPosition;
-   settings.py reads them from there), then run render-background.sh. */
-:root{--ground:#ffffff;--dot:rgb(0 0 0 / 0.24);--arrow:#0098f2;--app-x:180px;--folder-x:480px;--icon-y:180px}
-html,body{margin:0;padding:0}
-#c{position:relative;width:660px;height:480px;overflow:hidden;background:var(--ground)}
-#dots{position:absolute;inset:0;
-  background-image:radial-gradient(circle,var(--dot) 1px,transparent 1.5px);
-  background-size:22px 22px;background-position:0 calc(var(--icon-y) - 11px);
-  -webkit-mask-image:radial-gradient(ellipse 50% 46% at 50% calc(var(--icon-y) + 10px),#000 30%,transparent 100%);
-  mask-image:radial-gradient(ellipse 50% 46% at 50% calc(var(--icon-y) + 10px),#000 30%,transparent 100%)}
-/* From just past the app icon's edge to just before the folder's (icons are 128px). */
-#arrow{position:absolute;left:calc(var(--app-x) + 84px);top:calc(var(--icon-y) - 12px);
-  width:calc(var(--folder-x) - var(--app-x) - 168px);height:24px;display:block}
-</style></head><body>
-  <div id="c">
-    <div id="dots"></div>
-    <svg id="arrow" viewBox="0 0 132 24" fill="none">
-      <g stroke="var(--arrow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M2 12 H128"/>
-        <path d="M118 3 L128 12 L118 21"/>
-      </g>
-    </svg>
-  </div>
-</body></html>
+      The art is taller than the window, so it fills the content area whatever
+      chrome Finder shows. Keep the icon centres below in step with
+      bundle.macOS.dmg in tauri.conf.json (appPosition, applicationFolderPosition;
+      settings.py reads them from there), then run render-background.sh. */
+      :root {
+        --ground: #ffffff;
+        --dot: rgb(0 0 0 / 0.24);
+        --arrow: #0098f2;
+        --app-x: 180px;
+        --folder-x: 480px;
+        --icon-y: 180px;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #c {
+        position: relative;
+        width: 660px;
+        height: 480px;
+        overflow: hidden;
+        background: var(--ground);
+      }
+      #dots {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.5px);
+        background-size: 22px 22px;
+        background-position: 0 calc(var(--icon-y) - 11px);
+        -webkit-mask-image: radial-gradient(
+          ellipse 50% 46% at 50% calc(var(--icon-y) + 10px),
+          #000 30%,
+          transparent 100%
+        );
+        mask-image: radial-gradient(
+          ellipse 50% 46% at 50% calc(var(--icon-y) + 10px),
+          #000 30%,
+          transparent 100%
+        );
+      }
+      /* From just past the app icon's edge to just before the folder's (icons are 128px). */
+      #arrow {
+        position: absolute;
+        left: calc(var(--app-x) + 84px);
+        top: calc(var(--icon-y) - 12px);
+        width: calc(var(--folder-x) - var(--app-x) - 168px);
+        height: 24px;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="c">
+      <div id="dots"></div>
+      <svg id="arrow" viewBox="0 0 132 24" fill="none">
+        <g stroke="var(--arrow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12 H128" />
+          <path d="M118 3 L128 12 L118 21" />
+        </g>
+      </svg>
+    </div>
+  </body>
+</html>
