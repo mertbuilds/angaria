@@ -20,7 +20,13 @@ From the master it writes:
 - the site's favicon, manifest icons and app icon (apps/web/public), and the
   apple-touch-icon, which iOS rounds itself, so it is a full square: the tile
   scaled up, its rim cut off and its blue carried out to the edges.
+
+It also writes the dev icon, the tile in green so a `tauri dev` build is told
+apart from a release at a glance: the files `bundle.icon` of
+src-tauri/tauri.dev.conf.json names (apps/desktop/src-tauri/icons/dev) and
+src/assets/app-icon-dev.png.
 """
+import json
 import shutil
 import subprocess
 import sys
@@ -35,12 +41,19 @@ ROOT = Path(__file__).resolve().parent.parent
 ICONS = ROOT / "apps/desktop/src-tauri/icons"
 MASTER = ICONS / "source/angaria-icon.png"
 DESKTOP_ASSET = ROOT / "apps/desktop/src/assets/app-icon.png"
+DEV_ICONS = ICONS / "dev"
+DEV_DESKTOP_ASSET = ROOT / "apps/desktop/src/assets/app-icon-dev.png"
 WEB = ROOT / "apps/web/public"
 
 SIZE = 1024
 # Apple's macOS icon grid: the tile is 824 of the 1024 canvas, centred.
 GRID_TILE = 824
 # The Windows files `tauri icon` writes; every other file follows the macOS grid.
+# The dev icon: the tile's blue (OKLCH hue about 255) turned to green, its
+# chroma a little lower, so the green stays in sRGB without going flat.
+DEV_HUE = 155
+DEV_CHROMA = 0.85
+BLUE_HUE = 255
 WINDOWS_FILES = ["icon.ico", "StoreLogo.png", *(f.name for f in ICONS.glob("Square*Logo.png"))]
 
 
@@ -102,6 +115,63 @@ def full_square(master: Image.Image, size: int) -> Image.Image:
     return image.resize((size, size), Image.LANCZOS, box=(inset, inset, work - inset, work - inset))
 
 
+SRGB_TO_LMS = np.array(
+    [
+        [0.4122214708, 0.5363325363, 0.0514459929],
+        [0.2119034982, 0.6806995451, 0.1073969566],
+        [0.0883024619, 0.2817188376, 0.6299787005],
+    ]
+)
+LMS_TO_OKLAB = np.array(
+    [
+        [0.2104542553, 0.7936177850, -0.0040720468],
+        [1.9779984951, -2.4285922050, 0.4505937099],
+        [0.0259040371, 0.7827717662, -0.8086757660],
+    ]
+)
+
+
+def oklab_to_linear(lab: np.ndarray) -> np.ndarray:
+    return (lab @ np.linalg.inv(LMS_TO_OKLAB).T) ** 3 @ np.linalg.inv(SRGB_TO_LMS).T
+
+
+def green(master: Image.Image) -> Image.Image:
+    """The tile in green: hue turned in OKLCH at the same lightness.
+
+    Near-grey pixels (the white A and its shading) keep their colour; the
+    turn fades in with chroma. Colours outside sRGB lose chroma until they fit.
+    """
+    pixels = np.asarray(master).astype(np.float64) / 255
+    rgb, alpha = pixels[..., :3], pixels[..., 3:]
+    linear = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    lab = np.cbrt(linear @ SRGB_TO_LMS.T) @ LMS_TO_OKLAB.T
+    lightness = lab[..., 0]
+    chroma = np.hypot(lab[..., 1], lab[..., 2])
+    weight = np.clip((chroma - 0.02) / 0.04, 0, 1)
+    weight = weight * weight * (3 - 2 * weight)
+    hue = np.arctan2(lab[..., 2], lab[..., 1]) + weight * np.deg2rad(DEV_HUE - BLUE_HUE)
+    chroma = chroma * (1 + weight * (DEV_CHROMA - 1))
+
+    def to_linear(c: np.ndarray) -> np.ndarray:
+        return oklab_to_linear(np.stack([lightness, c * np.cos(hue), c * np.sin(hue)], -1))
+
+    def in_gamut(c: np.ndarray) -> np.ndarray:
+        out = to_linear(c)
+        return np.all((out >= -1e-6) & (out <= 1 + 1e-6), -1)
+
+    low, high = np.zeros_like(chroma), chroma.copy()
+    for _ in range(20):
+        mid = (low + high) / 2
+        fits = in_gamut(mid)
+        low, high = np.where(fits, mid, low), np.where(fits, high, mid)
+    chroma = np.where(in_gamut(chroma), chroma, low)
+
+    linear = np.clip(to_linear(chroma), 0, 1)
+    rgb = np.where(linear <= 0.0031308, linear * 12.92, 1.055 * linear ** (1 / 2.4) - 0.055)
+    out = np.concatenate([rgb, alpha], -1) * 255
+    return Image.fromarray(np.clip(out + 0.5, 0, 255).astype(np.uint8), "RGBA")
+
+
 def tauri_icon(source: Image.Image, out: Path) -> None:
     src = out / "source.png"
     source.save(src)
@@ -115,24 +185,32 @@ def tauri_icon(source: Image.Image, out: Path) -> None:
         sys.exit(f"tauri icon failed:\n{result.stdout}{result.stderr}")
 
 
-def build() -> None:
-    master = Image.open(MASTER).convert("RGBA")
-    existing = {f.name for f in ICONS.iterdir() if f.is_file()}
+def tauri_icons(master: Image.Image, icons: Path, names: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         grid, bleed = Path(tmp, "grid"), Path(tmp, "bleed")
         grid.mkdir()
         bleed.mkdir()
         tauri_icon(on_grid(master), grid)
         tauri_icon(master, bleed)
-        # Only the files the app already ships: `tauri icon` also writes the
-        # iOS and Android sets, which this app has no use for.
-        for name in sorted(existing):
+        icons.mkdir(parents=True, exist_ok=True)
+        for name in sorted(names):
             source = bleed if name in WINDOWS_FILES else grid
-            shutil.copyfile(source / "icons" / name, ICONS / name)
-    print(f"wrote {len(existing)} files in {ICONS.relative_to(ROOT)}")
+            shutil.copyfile(source / "icons" / name, icons / name)
+    print(f"wrote {len(names)} files in {icons.relative_to(ROOT)}")
+
+
+def build() -> None:
+    master = Image.open(MASTER).convert("RGBA")
+    # Only the files the app already ships: `tauri icon` also writes the
+    # iOS and Android sets, which this app has no use for.
+    tauri_icons(master, ICONS, [f.name for f in ICONS.iterdir() if f.is_file()])
+    dev = green(master)
+    dev_config = json.loads((ICONS.parent / "tauri.dev.conf.json").read_text())
+    tauri_icons(dev, DEV_ICONS, [Path(icon).name for icon in dev_config["bundle"]["icon"]])
 
     outputs = {
         DESKTOP_ASSET: resized(master, 256),
+        DEV_DESKTOP_ASSET: resized(dev, 256),
         WEB / "favicon.png": resized(master, 32),
         WEB / "icon-192.png": resized(master, 192),
         WEB / "icon-512.png": resized(master, 512),
