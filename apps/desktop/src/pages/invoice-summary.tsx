@@ -12,7 +12,7 @@ import {
 import { useEffect, useRef, type ReactNode } from 'react';
 import { PDFLanguageToggle } from '@/components/pdf-language-toggle.tsx';
 import { invoiceTotals, paymentTotal, roundKurus } from '@/lib/invoice-form.ts';
-import { messageSource } from '@/lib/rule-sources.ts';
+import { MessageText } from '@/lib/rule-text.tsx';
 import type { InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
 import { formatMoney, formatNumber } from '@/shell/searchable-list.tsx';
@@ -302,8 +302,8 @@ export function SummaryPanel({
       {warnings.length > 0 && (
         <div {...props(styles.warnings)}>
           {warnings.map((warning) => (
-            <FieldWarning key={warning} source={messageSource(warning)}>
-              {warning}
+            <FieldWarning key={warning}>
+              <MessageText>{warning}</MessageText>
             </FieldWarning>
           ))}
         </div>

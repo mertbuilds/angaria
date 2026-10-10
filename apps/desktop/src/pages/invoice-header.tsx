@@ -24,7 +24,8 @@ import { GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { TCMB_RATE_ERROR } from '@/lib/gib-errors.ts';
 import { CURRENCY_OPTIONS, formatRate, istisnaNote } from '@/lib/invoice-form.ts';
 import { DUE_DAY_PRESETS, ISTISNA_REASONS, SUPPORTED_INVOICE_TYPES } from '@/lib/regulated.ts';
-import { ruleSourceLink } from '@/lib/rule-sources.ts';
+import { cite, ruleMessage } from '@/lib/rule-sources.ts';
+import { RuleText } from '@/lib/rule-text.tsx';
 import { gibToCalendarDate } from '@/lib/tr-date.ts';
 import type { InvoiceFormValues } from '@/lib/types.ts';
 import { parseGIB, shortDate, toGIB } from '@/lib/utils.ts';
@@ -134,6 +135,12 @@ function presetDueDays(invoiceDate: string, dueDate: string) {
   return DUE_DAY_PRESETS.includes(days) ? days : undefined;
 }
 
+/** Under İstisna nedeni for 301 and 302. */
+const EXPORT_REASON_HINT = ruleMessage(
+  cite('exportExemption', 'KDV Kanunu 11/1-a'),
+  ' gerekçe cümlesi notun başına yazılır',
+);
+
 /** The rate field's caption: where the rate comes from, or why it is missing. */
 function rateCaption(description: RateDescription | null): ReactNode {
   switch (description?.kind) {
@@ -145,7 +152,15 @@ function rateCaption(description: RateDescription | null): ReactNode {
       return 'TCMB bu para birimi için kur yayınlamıyor. Kuru elle gir.';
     case 'tcmb': {
       const { publishedOn, validFor } = description;
-      return `TCMB döviz alış, ${shortDate(publishedOn)} bülteni (${shortDate(validFor)} için)`;
+      // The previous business day's bulletin is the one the Resmî Gazete of the invoice date carries.
+      return (
+        <RuleText
+          message={ruleMessage(
+            cite('exchangeRate', 'TCMB döviz alış'),
+            `, ${shortDate(publishedOn)} bülteni (${shortDate(validFor)} için)`,
+          )}
+        />
+      );
     }
     case 'loading':
       return 'TCMB kuru alınıyor…';
@@ -174,10 +189,6 @@ function CurrencyRateField({
         format={formatRate}
         label="Döviz kuru"
         placeholder="0,0000"
-        source={
-          // The previous business day's bulletin is the one the Resmî Gazete of the invoice date carries.
-          rateDescription?.kind === 'tcmb' ? ruleSourceLink('exchangeRate') : undefined
-        }
         step={0.01}
         suffix="₺"
       />
@@ -438,13 +449,14 @@ export function InvoiceSection({
             {(field) => (
               <field.SelectField
                 description={
-                  istisnaCode === '350'
-                    ? 'Nedenini nota, cümlenin arkasına yaz'
-                    : 'Gerekçe cümlesi notun başına yazılır'
+                  istisnaCode === '350' ? (
+                    'Nedenini nota, cümlenin arkasına yaz'
+                  ) : (
+                    <RuleText message={EXPORT_REASON_HINT} />
+                  )
                 }
                 items={ISTISNA_REASON_OPTIONS}
                 label="İstisna nedeni"
-                source={istisnaCode === '350' ? undefined : ruleSourceLink('exportExemption')}
               />
             )}
           </form.AppField>

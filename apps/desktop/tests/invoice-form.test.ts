@@ -390,7 +390,7 @@ describe('validateInvoice', () => {
       today,
     );
     expect(result?.fields).toEqual({
-      'items[1].VATRate': 'İstisna faturada KDV oranı %0 olmalı',
+      'items[1].VATRate': 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)',
     });
   });
 

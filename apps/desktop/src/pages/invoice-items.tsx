@@ -29,7 +29,8 @@ import {
   parseDecimal,
 } from '@/lib/invoice-form.ts';
 import { COMMON_UNITS, VAT_RATE_PRESETS } from '@/lib/regulated.ts';
-import { ruleSourceLink } from '@/lib/rule-sources.ts';
+import { cite, ruleMessage } from '@/lib/rule-sources.ts';
+import { RuleText } from '@/lib/rule-text.tsx';
 import {
   conversionHint,
   convertAmount,
@@ -260,6 +261,13 @@ export const UNIT_OPTIONS: ReadonlyArray<ChoiceOption<string>> = COMMON_UNITS.ma
   label: unitLabel(code),
   value: code,
 }));
+
+/** KDV's hint on an İstisna invoice. */
+const ISTISNA_VAT_HINT = ruleMessage(
+  'İstisna faturada KDV %0 (',
+  cite('exportExemption', 'KDV Kanunu 11/1-a'),
+  ')',
+);
 
 /** A rate typed with or without its sign: "18", "%18" and "18%" are 18. */
 const parsePercent = (text: string) => parseDecimal(text.replace('%', ''));
@@ -628,7 +636,7 @@ function ItemRow({
             {(field) => (
               <field.ChoiceField
                 compact
-                description={istisna ? 'İstisna faturada KDV %0' : undefined}
+                description={istisna ? <RuleText message={ISTISNA_VAT_HINT} /> : undefined}
                 disabled={istisna}
                 label="KDV"
                 options={VAT_OPTIONS}
@@ -646,7 +654,6 @@ function ItemRow({
                   ),
                 }}
                 size="sm"
-                source={istisna ? ruleSourceLink('exportExemption') : undefined}
                 style={styles.vat}
                 warning={vatWarning}
               />

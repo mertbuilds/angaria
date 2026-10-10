@@ -12,6 +12,7 @@ import {
 } from './customer.ts';
 import { GIB_CURRENCIES } from './gib-constants.ts';
 import { INVOICE_WINDOW_DAYS, ISTISNA_REASONS, SUPPORTED_INVOICE_TYPES } from './regulated.ts';
+import { cite, ruleMessage } from './rule-sources.ts';
 import type {
   CompanyInfo,
   InvoiceFormValues,
@@ -191,7 +192,12 @@ export const CURRENCY_OPTIONS = [
 ].map((currency) => ({ label: `${currency.value} · ${currency.label}`, value: currency.value }));
 
 /** KDV Kanunu 11/1-a: an exempt export carries no KDV. */
-export const ISTISNA_VAT_ERROR = 'İstisna faturada KDV oranı %0 olmalı';
+export const ISTISNA_VAT_RULE = ruleMessage(
+  'İstisna faturada KDV oranı %0 olmalı (',
+  cite('exportExemption', 'KDV Kanunu 11/1-a'),
+  ')',
+);
+export const ISTISNA_VAT_ERROR = ISTISNA_VAT_RULE.text;
 
 /**
  * Field errors in Turkish, keyed by field name (TanStack Form's form-level
@@ -283,7 +289,12 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
 }
 
 /** VUK 231/5's warning on an invoice date older than the window. */
-export const INVOICE_WINDOW_WARNING = `Bu tarih ${INVOICE_WINDOW_DAYS} günden eski. VUK 231/5'e göre fatura, hizmetten sonraki ${INVOICE_WINDOW_DAYS} gün içinde kesilmeli.`;
+export const INVOICE_WINDOW_RULE = ruleMessage(
+  `Bu tarih ${INVOICE_WINDOW_DAYS} günden eski. `,
+  cite('invoiceWindow', 'VUK 231/5'),
+  `'e göre fatura, hizmetten sonraki ${INVOICE_WINDOW_DAYS} gün içinde kesilmeli.`,
+);
+export const INVOICE_WINDOW_WARNING = INVOICE_WINDOW_RULE.text;
 
 /**
  * Rules worth a second look that never block the invoice, keyed by field name

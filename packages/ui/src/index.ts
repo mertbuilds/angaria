@@ -96,10 +96,10 @@ export {
   FieldLegend,
   FieldSeparator,
   FieldSet,
-  FieldSource,
-  type FieldSourceProps,
   FieldTitle,
   FieldWarning,
+  SourceLink,
+  type SourceLinkProps,
 } from './ui/field.tsx';
 export { Input, type InputProps } from './ui/input.tsx';
 export { Kbd, KbdGroup } from './ui/kbd.tsx';
