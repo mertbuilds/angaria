@@ -1,4 +1,4 @@
-# angaria
+# Angaria
 
 Tauri desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers. Read `docs/relaunch.md` first: it holds the product, repo layout, design, and go-live decisions for the relaunch.
 

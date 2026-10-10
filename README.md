@@ -1,4 +1,4 @@
-# angaria
+# Angaria
 
 Desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers.
 
