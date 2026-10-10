@@ -4,6 +4,7 @@
 
 import { addDays, subMonths } from 'date-fns';
 import { fullCountryName } from './countries.ts';
+import { formatRate, invoiceTotals, roundKurus } from './invoice-form.ts';
 import { previousMonthRange } from './reissue.ts';
 import type { Invoice, InvoiceItem, InvoiceSettings, Recipient } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
@@ -203,10 +204,31 @@ export function recentInvoices(invoices: Iterable<Invoice>, count: number): Arra
 }
 
 const str = (value: unknown, fallback = '') => (typeof value === 'string' ? value : fallback);
-const num = (value: unknown) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+
+/**
+ * A number from GİB's invoice detail. GİB keeps what was sent, so it comes as
+ * a number or as text: "41.2850" and "1250.50" (a dot is the decimal point),
+ * or typed the Turkish way, "41,2850" and "1.234,56" (a comma is the decimal
+ * point, dots group thousands). Anything else is null.
+ */
+export function parseGIBNumber(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const text = value.trim();
+  let normalized: string | null = null;
+  if (/^-?\d+(?:\.\d+)?$/.test(text)) {
+    normalized = text;
+  } else if (/^-?(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d+)?$/.test(text)) {
+    normalized = text.replaceAll('.', '').replace(',', '.');
+  }
+  return normalized === null ? null : Number(normalized);
+}
+
+const num = (value: unknown) => parseGIBNumber(value) ?? 0;
 
 export interface GIBInvoice {
   items: Array<Omit<InvoiceItem, 'id'>>;
@@ -236,11 +258,11 @@ export function parseGIBInvoice(detail: Record<string, unknown>): GIBInvoice {
     unitType: str(row.birim, 'C62'),
     VATRate: num(row.kdvOrani),
   }));
-  const lineNet = (item: (typeof items)[number]) =>
-    item.quantity * item.unitPrice - item.discountAmount;
-  const subtotal = items.reduce((sum, item) => sum + lineNet(item), 0);
-  const vat = items.reduce((sum, item) => sum + lineNet(item) * (item.VATRate / 100), 0);
-  const rate = String(detail.dovzTLkur ?? '');
+  // GİB's own totals, else the sums of the rows rounded to kuruş as GİB rounds them.
+  const totals = invoiceTotals(items.map((item, index) => ({ ...item, id: String(index) })));
+  const subtotal = parseGIBNumber(detail.matrah) ?? totals.net;
+  const vat = parseGIBNumber(detail.hesaplanankdv) ?? totals.vat;
+  const rate = parseGIBNumber(detail.dovzTLkur);
 
   return {
     items,
@@ -258,12 +280,13 @@ export function parseGIBInvoice(detail: Record<string, unknown>): GIBInvoice {
     },
     settings: {
       currency: str(detail.paraBirimi, 'TRY'),
-      currencyRate: rate === '0' ? '' : rate,
+      // As the rate field writes it ("41,2850"), so parseDecimal reads it back.
+      currencyRate: rate && rate > 0 ? formatRate(rate) : '',
       invoiceType: str(detail.faturaTipi, 'SATIS'),
     },
     subtotal,
     // GİB's own payable amount when it sent one (it accounts for withholdings).
-    total: detail.odenecekTutar == null ? subtotal + vat : num(detail.odenecekTutar),
+    total: parseGIBNumber(detail.odenecekTutar) ?? roundKurus(subtotal + vat),
     vat,
   };
 }

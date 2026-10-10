@@ -7,6 +7,7 @@ import {
   formatAmount,
   formatDecimal,
   formatRate,
+  gibRate,
   invoiceDefaults,
   invoiceTotals,
   invoiceWarnings,
@@ -24,6 +25,7 @@ import {
   upsertSavedItems,
   validateInvoice,
   vatByRate,
+  vatRateWarning,
 } from '../src/lib/invoice-form.ts';
 import { ISTISNA_REASONS } from '../src/lib/regulated.ts';
 import type {
@@ -161,9 +163,19 @@ describe('formatAmount', () => {
   });
 });
 
-test('formatRate shows four Turkish decimals', () => {
+test('formatRate shows four to six Turkish decimals', () => {
   expect(formatRate(41.5)).toBe('41,5000');
-  expect(formatRate(1234.56789)).toBe('1234,5679');
+  expect(formatRate(1234.56789)).toBe('1234,56789');
+  // TCMB quotes JPY per 100 units: 30,9677 is 0,309677 per yen.
+  expect(formatRate(30.9677 / 100)).toBe('0,309677');
+  expect(formatRate(0.12345678)).toBe('0,123457');
+});
+
+test('gibRate sends four to six decimals with a decimal point', () => {
+  expect(gibRate(41.285)).toBe('41.2850');
+  expect(gibRate(45.3952)).toBe('45.3952');
+  expect(gibRate(30.9677 / 100)).toBe('0.309677');
+  expect(gibRate(0.03641)).toBe('0.03641');
 });
 
 describe('invoiceTotals', () => {
@@ -485,6 +497,18 @@ describe('invoiceWarnings', () => {
     expect(
       invoiceWarnings(form({ invoiceSettings: istisna, items: [item({ VATRate: 0 })] }), today),
     ).toEqual({});
+  });
+
+  test('warns about a VAT rate outside %1, %10 and %20 on a Satış invoice, without blocking it', () => {
+    const items = [item({ VATRate: 18 }), item({ VATRate: 8 }), item({ VATRate: 10 })];
+    expect(invoiceWarnings(form({ items }), today)).toEqual({
+      'items[0].VATRate': vatRateWarning(18),
+      'items[1].VATRate': vatRateWarning(8),
+    });
+    expect(vatRateWarning(18)).toBe(
+      'KDV oranları 10 Temmuz 2023’ten beri %1, %10 ve %20. %18 doğru mu, kontrol et.',
+    );
+    expect(validateInvoice(form({ items }), today)).toBeUndefined();
   });
 });
 

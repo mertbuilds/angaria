@@ -1,6 +1,8 @@
 // İndir's files for a signed invoice, saved into ~/Downloads: Angaria's PDF
 // and GİB's own document (the e-Arşiv PDF of GİB's page, GİB's zip). The
 // invoice detail and the MCP tool download_invoice both save through here.
+import type { InvoicePDFData } from '../components/invoice-pdf.tsx';
+import { roundKurus } from './invoice-form.ts';
 import { buildEArchiveFilename } from './invoice-pdf-i18n.ts';
 import { readQRValue } from './invoice-preview.ts';
 import type { GIBInvoice } from './invoices.ts';
@@ -18,17 +20,14 @@ export interface InvoiceFileSource {
   readHTML: () => Promise<string>;
 }
 
-/** Angaria's PDF of the invoice in `language`. */
-export async function saveAngariaPDF(
-  { company, dueDate, entityName, invoice, readHTML }: InvoiceFileSource,
+/** Angaria's PDF data for an invoice read from GİB, with GİB's rounded totals. */
+export function gibInvoicePDFData(
+  { company, dueDate, entityName, invoice }: Omit<InvoiceFileSource, 'readHTML'>,
   { items, note, recipient, settings, subtotal, vat }: GIBInvoice,
   language: PDFLanguage,
-): Promise<SavedFile> {
-  // The QR code's text sits in GİB's page.
-  const html = await readHTML();
-  // react-pdf is large, so it loads with the first PDF.
-  const { downloadInvoicePDF } = await import('../components/invoice-pdf.tsx');
-  return downloadInvoicePDF({
+  qrValue?: string,
+): InvoicePDFData {
+  return {
     company,
     date: invoice.belgeTarihi ?? '',
     dueDate,
@@ -39,12 +38,25 @@ export async function saveAngariaPDF(
     items: items.map((item, index) => ({ ...item, id: String(index) })),
     language,
     note,
-    qrValue: readQRValue(html),
+    qrValue,
     recipient: { ...recipient, id: '' },
     settings,
-    total: subtotal + vat,
+    total: roundKurus(subtotal + vat),
     totalVAT: vat,
-  });
+  };
+}
+
+/** Angaria's PDF of the invoice in `language`. */
+export async function saveAngariaPDF(
+  source: InvoiceFileSource,
+  invoice: GIBInvoice,
+  language: PDFLanguage,
+): Promise<SavedFile> {
+  // The QR code's text sits in GİB's page.
+  const html = await source.readHTML();
+  // react-pdf is large, so it loads with the first PDF.
+  const { downloadInvoicePDF } = await import('../components/invoice-pdf.tsx');
+  return downloadInvoicePDF(gibInvoicePDFData(source, invoice, language, readQRValue(html)));
 }
 
 /** GİB's document: the PDF of GİB's page, or GİB's zip from `readZip`. */
