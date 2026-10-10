@@ -16,7 +16,7 @@ import {
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { addDays, differenceInCalendarDays, isSameDay } from 'date-fns';
+import { addDays, differenceInCalendarDays } from 'date-fns';
 import { ChevronDownIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useMemo, type ReactNode } from 'react';
 import { FieldFrame, useFieldContext, useFieldError } from '@/lib/form-field.tsx';
@@ -145,10 +145,7 @@ function rateCaption(description: RateDescription | null): ReactNode {
       return 'TCMB bu para birimi için kur yayınlamıyor. Kuru elle gir.';
     case 'tcmb': {
       const { publishedOn, validFor } = description;
-      const bulletin = `TCMB döviz alış, ${shortDate(publishedOn)} bülteni`;
-      return isSameDay(publishedOn, validFor)
-        ? bulletin
-        : `${bulletin} (${shortDate(validFor)} için)`;
+      return `TCMB döviz alış, ${shortDate(publishedOn)} bülteni (${shortDate(validFor)} için)`;
     }
     case 'loading':
       return 'TCMB kuru alınıyor…';
@@ -179,10 +176,7 @@ function CurrencyRateField({
         placeholder="0,0000"
         source={
           // The previous business day's bulletin is the one the Resmî Gazete of the invoice date carries.
-          rateDescription?.kind === 'tcmb' &&
-          !isSameDay(rateDescription.publishedOn, rateDescription.validFor)
-            ? ruleSourceLink('exchangeRate')
-            : undefined
+          rateDescription?.kind === 'tcmb' ? ruleSourceLink('exchangeRate') : undefined
         }
         step={0.01}
         suffix="₺"

@@ -17,7 +17,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  FieldSource,
   Input,
   MaskedInput,
   Switch,
@@ -55,15 +54,6 @@ import { describeError, toastError } from '@/lib/gib-errors.ts';
 import { gib, useGIBAccount } from '@/lib/gib.ts';
 import { PDF_STYLES, resolvePDFStyle } from '@/lib/invoice-pdf-i18n.ts';
 import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/palette.ts';
-import {
-  DEFAULT_RATE_DAY,
-  rateDayChoices,
-  readRateDay,
-  setRateDay,
-  useRateDay,
-  type RateDay,
-} from '@/lib/rate-day.ts';
-import { ruleSourceLink } from '@/lib/rule-sources.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import { ibanBankName } from '@/lib/tr-banks.ts';
@@ -404,60 +394,17 @@ function GibAccountSection() {
   );
 }
 
-const rateDayCopy: Record<RateDay, { description: string; label: string }> = {
-  previous: {
-    description: 'TCMB’nin fatura tarihinden önceki iş günü açıkladığı kur',
-    label: 'Önceki iş günü',
-  },
-  same: {
-    description: 'TCMB’nin fatura tarihinde açıkladığı kur',
-    label: 'Fatura günü',
-  },
-};
-
-const rateDayOptions: ReadonlyArray<ChoiceOption<RateDay>> = rateDayChoices.map((choice) => ({
-  ...rateDayCopy[choice],
-  value: choice,
-}));
-
-function RateDayRow() {
-  const rateDay = useRateDay();
-
-  return (
-    <SettingsRow
-      hint={
-        <>
-          Önceki iş günü önerilir: TCMB’nin bir gün önce açıkladığı kur, fatura gününün kurudur{' '}
-          <FieldSource {...ruleSourceLink('exchangeRate')} />
-        </>
-      }
-      id="rate-day"
-      label="Kur günü"
-    >
-      <ChoiceChips
-        aria-describedby="rate-day-hint"
-        aria-labelledby="rate-day-label"
-        onValueChange={(choice) => choice && setRateDay(choice)}
-        options={rateDayOptions}
-        value={rateDay}
-      />
-    </SettingsRow>
-  );
-}
-
 // Dev only, like the emulator: sample data for its empty fields.
 const loadEmulatorSeed = import.meta.env.DEV ? () => import('@/dev/emulator-seed.ts') : null;
 
-/**
- * Settings few people need, folded away: the TCMB rate day, and in
- * development the local emulator. Open while either is changed, so it shows.
- */
+/** Development only: the local emulator, folded away. Open while it is on. */
 function AdvancedSection() {
   const store = useStore();
-  const [open, setOpen] = useState(
-    () => Boolean(activeGibEmulatorURL) || readRateDay() !== DEFAULT_RATE_DAY,
-  );
+  const [open, setOpen] = useState(() => Boolean(activeGibEmulatorURL));
   const emulator = import.meta.env.DEV && gibEmulatorURL;
+  if (!emulator) {
+    return null;
+  }
 
   return (
     <details onToggle={(event) => setOpen(event.currentTarget.open)} open={open}>
@@ -467,45 +414,35 @@ function AdvancedSection() {
           {...props(styles.summaryIcon, open && styles.summaryIconOpen)}
         />
         <span {...props(capStyles.text)}>Gelişmiş</span>
-        <span {...props(styles.summaryHint, capStyles.text)}>
-          {emulator ? 'Kur günü, emülatör' : 'Kur günü'}
-        </span>
+        <span {...props(styles.summaryHint, capStyles.text)}>Emülatör</span>
       </summary>
       <div {...props(styles.advancedBody, styles.column)}>
-        <SettingsSection
-          description="Döviz faturanın kuru, TCMB’nin döviz alış kurundan alınır."
-          title="Döviz kuru"
-        >
-          <RateDayRow />
-        </SettingsSection>
-        {emulator && (
-          <SettingsSection title="Geliştirme">
-            <SettingsRow hint={`GİB ve TCMB yerine ${emulator} (pnpm emulate)`} label="Emülatör">
-              <Switch
-                aria-label="Emülatör"
-                checked={Boolean(activeGibEmulatorURL)}
-                onCheckedChange={setGibEmulator}
-              />
-            </SettingsRow>
-            {activeGibEmulatorURL && (
-              <SettingsRow
-                hint="Boş GİB, firma ve banka alanlarını örnek bilgilerle doldurur, müşteri yoksa iki örnek ekler"
-                label="Örnek veriler"
+        <SettingsSection title="Geliştirme">
+          <SettingsRow hint={`GİB ve TCMB yerine ${emulator} (pnpm emulate)`} label="Emülatör">
+            <Switch
+              aria-label="Emülatör"
+              checked={Boolean(activeGibEmulatorURL)}
+              onCheckedChange={setGibEmulator}
+            />
+          </SettingsRow>
+          {activeGibEmulatorURL && (
+            <SettingsRow
+              hint="Boş GİB, firma ve banka alanlarını örnek bilgilerle doldurur, müşteri yoksa iki örnek ekler"
+              label="Örnek veriler"
+            >
+              <Button
+                onClick={() =>
+                  void loadEmulatorSeed?.().then(({ fillEmulatorSamples }) =>
+                    fillEmulatorSamples(store),
+                  )
+                }
+                variant="outline"
               >
-                <Button
-                  onClick={() =>
-                    void loadEmulatorSeed?.().then(({ fillEmulatorSamples }) =>
-                      fillEmulatorSamples(store),
-                    )
-                  }
-                  variant="outline"
-                >
-                  Örnek verileri doldur
-                </Button>
-              </SettingsRow>
-            )}
-          </SettingsSection>
-        )}
+                Örnek verileri doldur
+              </Button>
+            </SettingsRow>
+          )}
+        </SettingsSection>
       </div>
     </details>
   );

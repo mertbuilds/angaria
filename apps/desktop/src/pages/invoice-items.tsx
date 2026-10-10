@@ -28,7 +28,6 @@ import {
   lineTotals,
   parseDecimal,
 } from '@/lib/invoice-form.ts';
-import { useRateDay } from '@/lib/rate-day.ts';
 import { COMMON_UNITS, VAT_RATE_PRESETS } from '@/lib/regulated.ts';
 import { ruleSourceLink } from '@/lib/rule-sources.ts';
 import {
@@ -789,11 +788,10 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
     (state) => state.values.advancedFields.currencyRateManual === true,
   );
   const rateDate = useFormState(form.store, (state) => state.values.advancedFields.manualDate);
-  const rateDay = useRateDay();
   // A service priced in a foreign currency other than the invoice's needs
   // TCMB's rate for it, a lira invoice too. The header's rate shares the query.
   const tcmb = useQuery({
-    ...tcmbRatesQuery(rateDate, rateDay),
+    ...tcmbRatesQuery(rateDate),
     enabled: savedItems.some(
       (service) =>
         service.currency !== undefined &&

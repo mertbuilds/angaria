@@ -46,18 +46,6 @@ test('by default takes the bulletin of the day before, which is valid on the inv
   expect(table.validFor).toEqual(new Date(2026, 8, 30));
 });
 
-test("rateDay 'same' takes the bulletin of the invoice date", async () => {
-  const { fetch, urls } = recordingFetch();
-  const table = await fetchTCMBRateTable(new Date(2026, 8, 30), {
-    baseUrl: emulator.url,
-    fetch,
-    rateDay: 'same',
-  });
-  expect(files(urls)).toEqual(['30092026.xml']);
-  expect(table.publishedOn).toEqual(new Date(2026, 8, 30));
-  expect(table.validFor).toEqual(new Date(2026, 8, 30));
-});
-
 test('walks back over a weekend to the last bulletin', async () => {
   // Monday 28 September: Friday's bulletin is the one valid on Monday.
   const previous = recordingFetch();
@@ -68,15 +56,6 @@ test('walks back over a weekend to the last bulletin', async () => {
   expect(files(previous.urls)).toEqual(['27092026.xml', '26092026.xml', '25092026.xml']);
   expect(table.publishedOn).toEqual(new Date(2026, 8, 25));
   expect(table.validFor).toEqual(new Date(2026, 8, 28));
-
-  const same = recordingFetch();
-  const sunday = await fetchTCMBRateTable(new Date(2026, 8, 27), {
-    baseUrl: emulator.url,
-    fetch: same.fetch,
-    rateDay: 'same',
-  });
-  expect(files(same.urls)).toEqual(['27092026.xml', '26092026.xml', '25092026.xml']);
-  expect(sunday.publishedOn).toEqual(new Date(2026, 8, 25));
 });
 
 describe('the time of day', () => {
@@ -95,16 +74,11 @@ describe('the time of day', () => {
   });
 
   /** The table asked for at `time` of day, the app's clock set to the same time. */
-  async function tableAt(
-    time: keyof typeof clocks,
-    date: Date | undefined,
-    rateDay?: 'previous' | 'same',
-  ) {
+  async function tableAt(time: keyof typeof clocks, date: Date | undefined) {
     vi.useFakeTimers({ now: clocks[time], toFake: ['Date'] });
     try {
       const { publishedOn, rates, validFor } = await fetchTCMBRateTable(date, {
         baseUrl: emulators[time]?.url,
-        rateDay,
       });
       return { publishedOn, rates: Object.fromEntries(rates), validFor };
     } finally {
@@ -121,13 +95,9 @@ describe('the time of day', () => {
     }
   });
 
-  test('does not change the rate for a back-dated invoice, in either mode', async () => {
-    for (const rateDay of ['previous', 'same'] as const) {
-      const date = new Date(2026, 8, 30);
-      expect(await tableAt('afternoon', date, rateDay)).toEqual(
-        await tableAt('morning', date, rateDay),
-      );
-    }
+  test('does not change the rate for a back-dated invoice', async () => {
+    const date = new Date(2026, 8, 30);
+    expect(await tableAt('afternoon', date)).toEqual(await tableAt('morning', date));
   });
 });
 
@@ -136,9 +106,8 @@ test('quotes JPY per unit, not per 100 units', async () => {
   const per100 = Number(
     /CurrencyCode="JPY">[\s\S]*?<ForexBuying>([\d.]+)<\/ForexBuying>/.exec(xml)?.[1],
   );
-  const { rates } = await fetchTCMBRateTable(new Date(2026, 8, 29), {
+  const { rates } = await fetchTCMBRateTable(new Date(2026, 8, 30), {
     baseUrl: emulator.url,
-    rateDay: 'same',
   });
   expect(per100).toBeGreaterThan(0);
   expect(rates.get('JPY')).toBeCloseTo(per100 / 100, 8);

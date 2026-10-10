@@ -273,7 +273,7 @@ describe('a saved service in another currency', () => {
   test('converts at TCMB’s rate on a lira invoice and says so until typed over', async () => {
     saveServices([service({ currency: 'USD', discountAmount: 10 })]);
     const queryClient = new QueryClient();
-    queryClient.setQueryData(['tcmb-rates', '', 'previous'], TCMB);
+    queryClient.setQueryData(['tcmb-rates', ''], TCMB);
     await mount([row({ name: '' })], queryClient);
 
     await pick(0, 'Engineering Services');
@@ -288,7 +288,7 @@ describe('a saved service in another currency', () => {
     const usd = service({ currency: 'USD' });
     saveServices([usd]);
     const queryClient = new QueryClient();
-    queryClient.setQueryData(['tcmb-rates', '', 'previous'], TCMB);
+    queryClient.setQueryData(['tcmb-rates', ''], TCMB);
     await mount([row({ name: '' })], queryClient);
 
     await pick(0, 'Engineering Services');

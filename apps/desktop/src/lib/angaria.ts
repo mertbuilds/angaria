@@ -3,7 +3,6 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { createClient } from 'angaria-earsiv-sdk';
 import { fetchTCMBRateTable as _fetchTCMBRateTable } from 'angaria-utils';
 import { activeGibEmulatorURL } from './gib-emulator.ts';
-import { readRateDay, type RateDay } from './rate-day.ts';
 
 export type { InvoiceDetails } from 'angaria-earsiv-sdk';
 
@@ -46,8 +45,8 @@ export const cancelInvoice = (...args: Parameters<typeof client.cancelInvoice>) 
   client.cancelInvoice(...args);
 
 /**
- * The TCMB bulletin for an invoice dated `baseDate` (default today), by the
- * Kur günü setting unless `rateDay` is given. Put `rateDay` in the query key.
+ * The TCMB bulletin for an invoice dated `baseDate` (default today): the one
+ * published on the business day before it.
  */
-export const fetchTCMBRateTable = (baseDate?: Date, rateDay: RateDay = readRateDay()) =>
-  _fetchTCMBRateTable(baseDate, { baseUrl: activeGibEmulatorURL, fetch: hostFetch, rateDay });
+export const fetchTCMBRateTable = (baseDate?: Date) =>
+  _fetchTCMBRateTable(baseDate, { baseUrl: activeGibEmulatorURL, fetch: hostFetch });
