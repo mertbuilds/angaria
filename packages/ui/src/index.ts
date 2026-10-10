@@ -121,6 +121,7 @@ export {
   PopoverTitle,
   PopoverTrigger,
 } from './ui/popover.tsx';
+export { Progress, type ProgressProps } from './ui/progress.tsx';
 export { ScrollArea, ScrollBar } from './ui/scroll-area.tsx';
 export {
   Select,

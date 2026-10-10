@@ -8,9 +8,10 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@angaria/ui';
-import { Building2Icon, FilePlusIcon, PaletteIcon, RepeatIcon } from 'lucide-react';
+import { Building2Icon, FileDownIcon, FilePlusIcon, PaletteIcon, RepeatIcon } from 'lucide-react';
 import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/palette.ts';
 import { useStore } from '@/lib/store.tsx';
+import { useImportFromGIB } from './import-from-gib.tsx';
 import { sections } from './nav.ts';
 import { useAppActions } from './use-app-actions.ts';
 
@@ -39,6 +40,7 @@ export function CommandPalette({
   open: boolean;
 }) {
   const { goTo, newInvoice, reissueLastMonth } = useAppActions();
+  const importFromGIB = useImportFromGIB();
   const { activeEntityId, entities, setActiveEntityId } = useStore();
   const otherEntities = entities.filter((entity) => entity.id !== activeEntityId);
   const palette = usePalette();
@@ -62,6 +64,13 @@ export function CommandPalette({
           <CommandItem keywords={['kopyala', 'aylık', 'tekrarla']} onSelect={run(reissueLastMonth)}>
             <RepeatIcon />
             Geçen ayın faturasını tekrar kes
+          </CommandItem>
+          <CommandItem
+            keywords={['müşteri', 'hizmet', 'eski', 'içe aktar', 'al', 'gib']}
+            onSelect={run(importFromGIB)}
+          >
+            <FileDownIcon />
+            Faturalardan içe aktar
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />

@@ -27,6 +27,7 @@ const uiDependencies = [
   'merge-props',
   'otp-field',
   'popover',
+  'progress',
   'radio',
   'radio-group',
   'scroll-area',

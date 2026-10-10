@@ -7,6 +7,7 @@ export {
   defaultUsers,
   type EmulatorConfig,
   type EmulatorUser,
+  type FixtureLine,
   type InvoiceFixture,
   type PartialConfig,
 } from './config.ts';

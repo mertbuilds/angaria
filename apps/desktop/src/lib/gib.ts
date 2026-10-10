@@ -7,8 +7,27 @@ import { createSessionQueue, type GIBAccount } from './session-queue.ts';
 import { useStore } from './store.tsx';
 import type { Invoice } from './types.ts';
 
+const loginListeners = new Set<(username: string) => void>();
+
 /** The app's one GİB session queue: run every GİB call through it. */
-export const gib = createSessionQueue({ login, logout });
+export const gib = createSessionQueue({
+  login: async (username, password) => {
+    const session = await login(username, password);
+    for (const listener of loginListeners) {
+      listener(username);
+    }
+    return session;
+  },
+  logout,
+});
+
+/** Calls `listener` with the user code after each login GİB accepts. Returns the unsubscribe. */
+export function onGIBLogin(listener: (username: string) => void) {
+  loginListeners.add(listener);
+  return () => {
+    loginListeners.delete(listener);
+  };
+}
 
 /**
  * The active company's GİB account. Its key also scopes the cached GİB data

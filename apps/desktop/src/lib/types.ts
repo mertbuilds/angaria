@@ -145,6 +145,8 @@ export interface CompanyInfo {
 export interface EntityData {
   companyInfo: CompanyInfo;
   creds: StoredCredentials;
+  /** true once the import from past invoices was offered, after the company's first GİB login. */
+  importOffered?: boolean;
   savedItems: Array<Service>;
   savedRecipients: Array<Recipient>;
 }
