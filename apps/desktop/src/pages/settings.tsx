@@ -69,6 +69,7 @@ import {
 } from '@/lib/tr-validators.ts';
 import type { CompanyInfo, Entity, PDFStyle } from '@/lib/types.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
+import { useImportFromGIB } from '@/shell/import-from-gib.tsx';
 import { tones } from '../shell/palette.stylex.ts';
 
 const styles = create({
@@ -388,6 +389,22 @@ function GibAccountSection() {
           variant="outline"
         >
           {loggingOut ? 'Kapatılıyor…' : 'Oturumu kapat'}
+        </Button>
+      </SettingsRow>
+    </SettingsSection>
+  );
+}
+
+function DataSection() {
+  const importFromGIB = useImportFromGIB();
+  return (
+    <SettingsSection title="Veriler">
+      <SettingsRow
+        hint="GİB’deki onaylı faturalarından müşteri ve hizmetlerini kaydeder"
+        label="Eski faturalar"
+      >
+        <Button onClick={importFromGIB} variant="outline">
+          Faturalardan içe aktar
         </Button>
       </SettingsRow>
     </SettingsSection>
@@ -1012,6 +1029,7 @@ export function SettingsPage() {
     <div {...props(styles.page)}>
       <div {...props(styles.column)}>
         <GibAccountSection />
+        <DataSection />
         <CompaniesSection />
         <SettingsSection
           description="PDF faturalarda satıcı bilgisi olarak görünür."

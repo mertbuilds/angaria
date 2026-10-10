@@ -239,6 +239,7 @@ function loadEntities(): Array<Entity> {
       name: entity.name || makeEntityName(index),
       creds: loadCreds(entity.creds),
       companyInfo: entity.companyInfo ?? { ...DEFAULT_COMPANY_INFO },
+      ...(entity.importOffered ? { importOffered: true } : {}),
       savedRecipients: entity.savedRecipients ?? [],
       savedItems: withServiceCurrencies(entity.savedItems ?? [], entity.savedRecipients ?? []),
     }));
@@ -334,6 +335,8 @@ interface Store {
   items: Array<InvoiceItem>;
   /** Load a GIB invoice into the form; a saved customer's due date applies */
   loadFromGIBInvoice: (data: Record<string, unknown>) => void;
+  /** Remembers that the company was offered the import from past invoices. */
+  markImportOffered: (entityId: string) => void;
   newId: () => string;
   note: string;
   recipient: Recipient;
@@ -505,6 +508,12 @@ function LoadedStoreProvider({
     },
     [entities],
   );
+
+  const markImportOffered = useCallback((entityId: string) => {
+    setEntities((prev) =>
+      prev.map((entity) => (entity.id === entityId ? { ...entity, importOffered: true } : entity)),
+    );
+  }, []);
 
   const updateCreds = useCallback(
     (entityId: string, updater: (creds: StoredCredentials) => StoredCredentials) => {
@@ -728,6 +737,7 @@ function LoadedStoreProvider({
         startBlankInvoice,
         startInvoiceFor,
         loadFromGIBInvoice,
+        markImportOffered,
         newId,
         defaultItemAdvanced: DEFAULT_ITEM_ADVANCED,
       }}

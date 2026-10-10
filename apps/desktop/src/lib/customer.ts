@@ -84,7 +84,7 @@ export const recipientDetails = ({
 });
 
 // Turkish capitals, with İ as I: "Plastic" and "PLASTIC" are one name.
-const nameKey = (name: string) =>
+export const nameKey = (name: string) =>
   name.trim().replaceAll(/\s+/g, ' ').toLocaleUpperCase('tr').replaceAll('İ', 'I');
 
 /**

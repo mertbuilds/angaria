@@ -444,6 +444,10 @@ export function toPDFData(
   };
 }
 
+/** The code of the İstisna reason whose sentence the note carries. */
+export const istisnaReasonInNote = (note: string) =>
+  ISTISNA_REASONS.find((reason) => note.includes(reason.sentence))?.code;
+
 /**
  * The note with the sentence of the İstisna reason `code` (regulated.ts): it
  * replaces any reason's sentence already in the note, found by its exact text,

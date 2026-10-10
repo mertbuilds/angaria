@@ -6,6 +6,7 @@ import { useStore } from '@/lib/store.tsx';
 import { AppSidebar } from './app-sidebar.tsx';
 import { CommandPalette } from './command-palette.tsx';
 import { CredentialsGuard } from './credentials-guard.tsx';
+import { ImportFromGIBProvider } from './import-from-gib.tsx';
 import { tones } from './palette.stylex.ts';
 import { shell } from './shell.stylex.ts';
 import { useShortcuts } from './use-shortcuts.ts';
@@ -72,12 +73,14 @@ function ShellLayout() {
 
 /**
  * The root route: sidebar, the routed main area, the ⌘K palette and the
- * shortcuts, inside the credentials guard.
+ * shortcuts, inside the credentials guard, with the import from past invoices.
  */
 export function AppShell() {
   return (
     <CredentialsGuard>
-      <ShellLayout />
+      <ImportFromGIBProvider>
+        <ShellLayout />
+      </ImportFromGIBProvider>
     </CredentialsGuard>
   );
 }
