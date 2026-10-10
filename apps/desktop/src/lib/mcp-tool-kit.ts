@@ -138,7 +138,7 @@ export interface McpToolContext {
 }
 
 export const LICENSE_LOCKED =
-  'Angaria kilitli: lisans doğrulanamadı ya da süresi doldu. Angaria’yı açıp lisansını kontrol et.';
+  'Angaria kilitli: lisans etkin değil, doğrulanamadı ya da süresi doldu. Angaria’yı aç ve lisansını kontrol et.';
 export const LICENSE_CHECKING = 'Angaria lisansı hâlâ doğruluyor. Birkaç saniye sonra tekrar dene.';
 export const NO_LOGIN =
   'Bu şirketin GİB hesabı Angaria’da bağlı değil. Angaria’da şirketi seçip Ayarlar › GİB hesabı’ndan kullanıcı kodunu ve şifreni gir.';

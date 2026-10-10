@@ -21,6 +21,11 @@ From the master it writes:
   apple-touch-icon, which iOS rounds itself, so it is a full square: the tile
   scaled up, its rim cut off and its blue carried out to the edges.
 
+It also draws the menu bar icon (apps/desktop/src-tauri/icons/tray): the A
+of the master as a flat shape, its counter and the paper's two lines cut out,
+black on transparent, which macOS tints for light and dark menu bars (a
+template image). 36px for the 18pt menu bar icon on a Retina screen.
+
 It also writes the dev icon, the tile in green so a `tauri dev` build is told
 apart from a release at a glance: the files `bundle.icon` of
 src-tauri/tauri.dev.conf.json names (apps/desktop/src-tauri/icons/dev) and
@@ -34,7 +39,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +48,10 @@ MASTER = ICONS / "source/angaria-icon.png"
 DESKTOP_ASSET = ROOT / "apps/desktop/src/assets/app-icon.png"
 DEV_ICONS = ICONS / "dev"
 DEV_DESKTOP_ASSET = ROOT / "apps/desktop/src/assets/app-icon-dev.png"
+TRAY_ICON = ICONS / "tray/tray-template.png"
+# The menu bar draws the icon 18pt tall (tray-icon); the A is 16pt of it, like the system's icons.
+TRAY_SIZE = 36
+TRAY_GLYPH = 32
 WEB = ROOT / "apps/web/public"
 
 SIZE = 1024
@@ -172,6 +181,50 @@ def green(master: Image.Image) -> Image.Image:
     return Image.fromarray(np.clip(out + 0.5, 0, 255).astype(np.uint8), "RGBA")
 
 
+def tray_template() -> Image.Image:
+    """The A traced by hand over the master's 1024 grid, corners rounded."""
+    scale = 2
+    work = SIZE * scale
+
+    def polygon(points: list[tuple[int, int]]) -> np.ndarray:
+        image = Image.new("L", (work, work), 0)
+        ImageDraw.Draw(image).polygon([(x * scale, y * scale) for x, y in points], fill=255)
+        return np.asarray(image) > 127
+
+    def rounded(mask: np.ndarray, radius: int) -> np.ndarray:
+        inside = ndimage.distance_transform_edt(mask) > radius * scale
+        return ndimage.distance_transform_edt(~inside) <= radius * scale
+
+    def slot(x0: int, y0: int, x1: int, y1: int) -> np.ndarray:
+        image = Image.new("L", (work, work), 0)
+        box = [x0 * scale, y0 * scale, x1 * scale, y1 * scale]
+        ImageDraw.Draw(image).rounded_rectangle(box, radius=(y1 - y0) * scale // 2, fill=255)
+        return np.asarray(image) > 127
+
+    # The left leg, the flat top, the right leg, and the notch where the
+    # ribbon folds under the left leg.
+    outer = rounded(
+        polygon([(145, 830), (395, 185), (565, 165), (870, 840), (575, 850), (375, 712), (325, 840)]),
+        38,
+    )
+    counter = rounded(polygon([(512, 395), (600, 582), (410, 590)]), 14)
+    # The paper's lines, thicker than the master's so they survive 18pt.
+    glyph = outer & ~counter & ~slot(505, 640, 748, 684) & ~slot(530, 714, 718, 758)
+
+    ys, xs = np.where(glyph)
+    side = max(xs.max() + 1 - xs.min(), ys.max() + 1 - ys.min())
+    cx, cy = (xs.min() + xs.max() + 1) / 2, (ys.min() + ys.max() + 1) / 2
+    box = (cx - side / 2, cy - side / 2, cx + side / 2, cy + side / 2)
+    alpha = Image.fromarray((glyph * 255).astype(np.uint8)).resize(
+        (TRAY_GLYPH, TRAY_GLYPH), Image.LANCZOS, box=box
+    )
+    black = Image.new("L", alpha.size, 0)
+    icon = Image.new("RGBA", (TRAY_SIZE, TRAY_SIZE), (0, 0, 0, 0))
+    offset = (TRAY_SIZE - TRAY_GLYPH) // 2
+    icon.alpha_composite(Image.merge("RGBA", [black, black, black, alpha]), (offset, offset))
+    return icon
+
+
 def tauri_icon(source: Image.Image, out: Path) -> None:
     src = out / "source.png"
     source.save(src)
@@ -216,6 +269,7 @@ def build() -> None:
         WEB / "icon-512.png": resized(master, 512),
         WEB / "app-icon.png": resized(master, 256),
         WEB / "apple-touch-icon.png": full_square(master, 180),
+        TRAY_ICON: tray_template(),
     }
     for path, image in outputs.items():
         path.parent.mkdir(parents=True, exist_ok=True)

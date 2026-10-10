@@ -3,7 +3,8 @@
 //! into the running Angaria app (src/mcp in the app crate) and writes the
 //! answer back. The port and the bearer token come from the app's `mcp.json`,
 //! so a client's config holds no secret. When Angaria is closed, the bridge
-//! opens it (macOS) and waits for its server.
+//! opens it in the background (macOS: no window, no Dock icon) and waits for
+//! its server (docs/adr/0012-mcp-in-the-background.md).
 
 use std::collections::HashMap;
 use std::env;
@@ -20,18 +21,22 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 const APP_ID: &str = "com.vinena.angaria";
-/// The app writes it (src/mcp/files.rs): `{ "token": "...", "port": 41234 }`.
+/// The app writes it (src/mcp/files.rs):
+/// `{ "token": "...", "port": 41234, "settings": { "enabled": true, ... } }`.
 const STATE_FILE: &str = "mcp.json";
 /// Overrides where `mcp.json` is looked for (tests).
 const DIR_ENV: &str = "ANGARIA_MCP_DIR";
 const META_VERSION: &str = "io.modelcontextprotocol/protocolVersion";
 /// How long a freshly opened Angaria gets to start its server.
-const LAUNCH_WAIT: Duration = Duration::from_secs(20);
+const LAUNCH_WAIT: Duration = Duration::from_secs(15);
+/// The arguments of a background launch (src/background.rs in the app).
+const LAUNCH_ARGS: [&str; 2] = ["--background", "--for-mcp"];
 const LAUNCH_AGAIN_AFTER: Duration = Duration::from_secs(60);
 /// Longer than the server's own wait for a tool (120 seconds).
 const READ_TIMEOUT: Duration = Duration::from_secs(150);
 const INTERNAL_ERROR: i64 = -32603;
 
+const MCP_OFF: &str = "Angaria’da MCP kapalı. Angaria › MCP’den aç.";
 const NOT_REACHABLE: &str =
   "Angaria’ya bağlanılamadı. Angaria’yı aç ve MCP bölümünde MCP sunucusunu aç.";
 const CONNECTION_LOST: &str =
@@ -60,14 +65,43 @@ struct Target {
   token: String,
 }
 
-/// The running server's port and token; none while the server is off.
-fn read_target(dir: &Path) -> Option<Target> {
-  let text = fs::read_to_string(dir.join(STATE_FILE)).ok()?;
-  let value: Value = serde_json::from_str(&text).ok()?;
-  Some(Target {
-    port: u16::try_from(value["port"].as_u64()?).ok()?,
-    token: value["token"].as_str()?.to_string(),
-  })
+/// What `mcp.json` says: the running server, and whether MCP is switched on.
+#[derive(Default)]
+struct AppState {
+  target: Option<Target>,
+  /// None before the app first saved its settings.
+  enabled: Option<bool>,
+}
+
+fn read_state(dir: &Path) -> AppState {
+  let Some(value) = fs::read_to_string(dir.join(STATE_FILE))
+    .ok()
+    .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+  else {
+    return AppState::default();
+  };
+  let target = (|| {
+    Some(Target {
+      port: u16::try_from(value["port"].as_u64()?).ok()?,
+      token: value["token"].as_str()?.to_string(),
+    })
+  })();
+  AppState {
+    target,
+    enabled: value["settings"]["enabled"].as_bool(),
+  }
+}
+
+/// Opens Angaria in the background: `open -g -j` neither shows nor
+/// activates it, and the app keeps its window hidden for `--background`.
+fn open_in_background(bundle: &Path) -> bool {
+  Command::new("open")
+    .args(["-g", "-j", "-a"])
+    .arg(bundle)
+    .arg("--args")
+    .args(LAUNCH_ARGS)
+    .status()
+    .is_ok_and(|status| status.success())
 }
 
 /// The .app bundle this binary sits in (Contents/MacOS/angaria-mcp).
@@ -199,9 +233,12 @@ fn error_reply(id: Value, message: &str) -> Value {
   json!({ "jsonrpc": "2.0", "id": id, "error": { "code": INTERNAL_ERROR, "message": message } })
 }
 
+type Launcher = Box<dyn Fn() -> bool + Send + Sync>;
+
 struct Bridge {
   dir: Option<PathBuf>,
-  bundle: Option<PathBuf>,
+  /// Opens Angaria; false when it cannot (no app bundle around the bridge).
+  launcher: Launcher,
   /// The legacy protocol version `initialize` agreed on.
   negotiated: Mutex<Option<String>>,
   launched_at: Mutex<Option<Instant>>,
@@ -219,25 +256,30 @@ struct Flight {
 
 impl Bridge {
   fn new(dir: Option<PathBuf>, bundle: Option<PathBuf>) -> Self {
+    let launcher: Launcher = match bundle {
+      Some(bundle) => Box::new(move || open_in_background(&bundle)),
+      None => Box::new(|| false),
+    };
+    Self::with_launcher(dir, launcher)
+  }
+
+  fn with_launcher(dir: Option<PathBuf>, launcher: Launcher) -> Self {
     Self {
       dir,
-      bundle,
+      launcher,
       negotiated: Mutex::new(None),
       launched_at: Mutex::new(None),
       flights: Mutex::new(HashMap::new()),
     }
   }
 
-  fn target(&self) -> Option<Target> {
-    self.dir.as_deref().and_then(read_target)
+  fn state(&self) -> AppState {
+    self.dir.as_deref().map(read_state).unwrap_or_default()
   }
 
   /// Opens Angaria in the background, at most once a minute. True while it
   /// may still be starting, so the caller waits for its server.
   fn launch(&self) -> bool {
-    let Some(bundle) = &self.bundle else {
-      return false;
-    };
     let mut launched_at = self.launched_at.lock().unwrap();
     match *launched_at {
       Some(at) if at.elapsed() < LAUNCH_WAIT => return true,
@@ -245,12 +287,11 @@ impl Bridge {
       Some(at) if at.elapsed() < LAUNCH_AGAIN_AFTER => return false,
       _ => {}
     }
-    *launched_at = Some(Instant::now());
-    Command::new("open")
-      .arg("-g")
-      .arg(bundle)
-      .status()
-      .is_ok_and(|status| status.success())
+    let launched = (self.launcher)();
+    if launched {
+      *launched_at = Some(Instant::now());
+    }
+    launched
   }
 
   fn is_cancelled(&self, key: &str) -> bool {
@@ -289,7 +330,8 @@ impl Bridge {
   }
 
   /// Posts request `key`, opening Angaria and waiting for its server when
-  /// nothing listens. Never sends again once a connection was open.
+  /// nothing listens, unless its MCP switch is off. Never sends again once a
+  /// connection was open.
   fn send(
     &self,
     key: &str,
@@ -306,12 +348,16 @@ impl Bridge {
     if self.is_cancelled(key) {
       return Err(NOT_REACHABLE);
     }
-    if let Some(target) = self.target() {
+    let state = self.state();
+    if let Some(target) = state.target {
       match attempt(&target) {
         Ok(response) => return Ok(response),
         Err(PostError::Lost) => return Err(CONNECTION_LOST),
         Err(PostError::Connect) => {}
       }
+    }
+    if state.enabled == Some(false) {
+      return Err(MCP_OFF);
     }
     if !self.launch() {
       return Err(NOT_REACHABLE);
@@ -319,12 +365,17 @@ impl Bridge {
     let deadline = Instant::now() + LAUNCH_WAIT;
     while Instant::now() < deadline && !self.is_cancelled(key) {
       thread::sleep(Duration::from_millis(250));
-      if let Some(target) = self.target() {
+      let state = self.state();
+      if let Some(target) = state.target {
         match attempt(&target) {
           Ok(response) => return Ok(response),
           Err(PostError::Lost) => return Err(CONNECTION_LOST),
           Err(PostError::Connect) => {}
         }
+      }
+      // A first launch learns the switch from the app's webview.
+      if state.enabled == Some(false) {
+        return Err(MCP_OFF);
       }
     }
     Err(NOT_REACHABLE)
@@ -343,7 +394,7 @@ impl Bridge {
         return None;
       }
       // A notification goes to a running server only: it never opens Angaria.
-      if let Some(target) = self.target() {
+      if let Some(target) = self.state().target {
         let _ = post(&target, &headers, message.to_string().as_bytes(), |_| {});
       }
       return None;
@@ -508,10 +559,18 @@ mod tests {
     let dir = env::temp_dir().join(format!("angaria-bridge-{}", std::process::id()));
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join(STATE_FILE), r#"{"token":"abc","port":41234}"#).unwrap();
-    let target = read_target(&dir).unwrap();
+    let state = read_state(&dir);
+    let target = state.target.unwrap();
     assert_eq!((target.port, target.token.as_str()), (41234, "abc"));
-    fs::write(dir.join(STATE_FILE), r#"{"token":"abc","port":null}"#).unwrap();
-    assert!(read_target(&dir).is_none());
+    assert_eq!(state.enabled, None);
+    fs::write(
+      dir.join(STATE_FILE),
+      r#"{"token":"abc","port":null,"settings":{"enabled":false}}"#,
+    )
+    .unwrap();
+    let state = read_state(&dir);
+    assert!(state.target.is_none());
+    assert_eq!(state.enabled, Some(false));
     fs::remove_dir_all(dir).unwrap();
   }
 
@@ -589,5 +648,116 @@ mod tests {
     assert_eq!(reply["error"]["message"], NOT_REACHABLE);
     let note = json!({ "jsonrpc": "2.0", "method": "notifications/initialized" });
     assert!(bridge.forward(&note).is_none());
+  }
+
+  /// A server that answers one request with `reply` and returns what it read.
+  fn answer_once(reply: Value) -> (u16, thread::JoinHandle<String>) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+      let (mut stream, _) = listener.accept().unwrap();
+      let mut seen = Vec::new();
+      let mut buffer = [0u8; 4096];
+      loop {
+        let read = stream.read(&mut buffer).unwrap();
+        seen.extend_from_slice(&buffer[..read]);
+        let Some(head_end) = find(&seen, b"\r\n\r\n") else {
+          continue;
+        };
+        let head = String::from_utf8_lossy(&seen[..head_end]).to_lowercase();
+        let length: usize = head
+          .lines()
+          .find_map(|line| line.strip_prefix("content-length:"))
+          .map_or(0, |value| value.trim().parse().unwrap());
+        if read == 0 || seen.len() >= head_end + 4 + length {
+          break;
+        }
+      }
+      let body = reply.to_string();
+      write!(
+        stream,
+        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{body}",
+        body.len()
+      )
+      .unwrap();
+      String::from_utf8(seen).unwrap()
+    });
+    (port, server)
+  }
+
+  fn empty_dir(name: &str, content: &str) -> PathBuf {
+    let dir = env::temp_dir().join(format!("angaria-bridge-{name}-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join(STATE_FILE), content).unwrap();
+    dir
+  }
+
+  #[test]
+  fn a_cold_start_opens_angaria_and_forwards_once_its_server_listens() {
+    let reply = json!({ "jsonrpc": "2.0", "id": 9, "result": { "tools": [] } });
+    let (port, server) = answer_once(reply.clone());
+    // Never opened before: no port, no settings.
+    let dir = empty_dir("cold", r#"{"token":"abc"}"#);
+    let launches = Arc::new(Mutex::new(0));
+    let launcher: Launcher = {
+      let (dir, launches) = (dir.clone(), launches.clone());
+      Box::new(move || {
+        *launches.lock().unwrap() += 1;
+        // The app starts a moment later and writes its port.
+        let (dir, state) = (
+          dir.clone(),
+          format!(r#"{{"token":"abc","port":{port},"settings":{{"enabled":true}}}}"#),
+        );
+        thread::spawn(move || {
+          thread::sleep(Duration::from_millis(300));
+          fs::write(dir.join(STATE_FILE), state).unwrap();
+        });
+        true
+      })
+    };
+    let bridge = Bridge::with_launcher(Some(dir.clone()), launcher);
+    let request = json!({ "jsonrpc": "2.0", "id": 9, "method": "tools/list" });
+    assert_eq!(bridge.forward(&request), Some(reply));
+    assert_eq!(*launches.lock().unwrap(), 1);
+    assert!(server.join().unwrap().contains("Authorization: Bearer abc"));
+    fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn mcp_switched_off_is_an_error_without_opening_angaria() {
+    let dir = empty_dir("off", r#"{"token":"abc","settings":{"enabled":false}}"#);
+    let bridge = Bridge::with_launcher(
+      Some(dir.clone()),
+      Box::new(|| panic!("opened Angaria with MCP off")),
+    );
+    let request = json!({ "jsonrpc": "2.0", "id": 3, "method": "tools/list" });
+    let reply = bridge.forward(&request).unwrap();
+    assert_eq!(reply["id"], 3);
+    assert_eq!(reply["error"]["message"], MCP_OFF);
+    fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn a_first_launch_that_finds_mcp_off_answers_at_once() {
+    let dir = empty_dir("first-off", r#"{"token":"abc"}"#);
+    let launcher: Launcher = {
+      let dir = dir.clone();
+      // The webview saves its settings: MCP was never switched on.
+      Box::new(move || {
+        fs::write(
+          dir.join(STATE_FILE),
+          r#"{"token":"abc","settings":{"enabled":false}}"#,
+        )
+        .unwrap();
+        true
+      })
+    };
+    let bridge = Bridge::with_launcher(Some(dir.clone()), launcher);
+    let started = Instant::now();
+    let request = json!({ "jsonrpc": "2.0", "id": 4, "method": "tools/list" });
+    assert_eq!(bridge.forward(&request).unwrap()["error"]["message"], MCP_OFF);
+    assert!(started.elapsed() < Duration::from_secs(2));
+    fs::remove_dir_all(dir).unwrap();
   }
 }

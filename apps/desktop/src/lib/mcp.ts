@@ -1,7 +1,9 @@
 // The built-in MCP server's switches, port and activity log, and the setup
 // snippets the MCP page copies. The server runs in Rust (src-tauri/src/mcp),
 // the tools in the webview (mcp-tools.ts, wired by src/shell/mcp-host.tsx).
-// No Tauri imports, so tests can use it directly.
+// In the app the settings live in Rust, which needs them before the webview
+// loads (docs/adr/0012-mcp-in-the-background.md); menu-bar.ts connects the
+// two. No Tauri imports, so tests can use it directly.
 import { useSyncExternalStore } from 'react';
 
 export const MCP_DEFAULT_PORT = 41_234;
@@ -15,6 +17,8 @@ export interface McpSettings {
   allowActions: boolean;
   enabled: boolean;
   port: number;
+  /** The menu bar icon; MCP works without it. */
+  showInMenuBar: boolean;
 }
 
 type SettingsStorage = Pick<Storage, 'getItem' | 'setItem'>;
@@ -23,30 +27,43 @@ const DEFAULT_SETTINGS: McpSettings = {
   allowActions: false,
   enabled: false,
   port: MCP_DEFAULT_PORT,
+  showInMenuBar: true,
 };
 
 export const isValidPort = (port: number) =>
   Number.isInteger(port) && port >= 1024 && port <= 65_535;
 
-/** The saved settings; off on port 41234, agent actions off, until changed. */
+/** Settings as saved, by this or an older version: what it cannot read takes the default. */
+export function toMcpSettings(stored: unknown): McpSettings {
+  if (typeof stored !== 'object' || stored === null) {
+    return DEFAULT_SETTINGS;
+  }
+  const { allowActions, enabled, port, showInMenuBar } = stored as Partial<McpSettings>;
+  return {
+    allowActions: allowActions === true,
+    enabled: enabled === true,
+    port: typeof port === 'number' && isValidPort(port) ? port : MCP_DEFAULT_PORT,
+    showInMenuBar: showInMenuBar !== false,
+  };
+}
+
+/**
+ * The settings saved in localStorage; off on port 41234, agent actions off,
+ * the menu bar icon on, until changed. In the app, Rust's copy wins.
+ */
 export function readMcpSettings(storage?: SettingsStorage): McpSettings {
   try {
-    const stored: unknown = JSON.parse(
-      (storage ?? localStorage).getItem(SETTINGS_STORAGE_KEY) ?? '',
-    );
-    if (typeof stored !== 'object' || stored === null) {
-      return DEFAULT_SETTINGS;
-    }
-    const { allowActions, enabled, port } = stored as Partial<McpSettings>;
-    return {
-      allowActions: allowActions === true,
-      enabled: enabled === true,
-      port: typeof port === 'number' && isValidPort(port) ? port : MCP_DEFAULT_PORT,
-    };
+    return toMcpSettings(JSON.parse((storage ?? localStorage).getItem(SETTINGS_STORAGE_KEY) ?? ''));
   } catch {
     return DEFAULT_SETTINGS;
   }
 }
+
+const sameSettings = (a: McpSettings, b: McpSettings) =>
+  a.allowActions === b.allowActions &&
+  a.enabled === b.enabled &&
+  a.port === b.port &&
+  a.showInMenuBar === b.showInMenuBar;
 
 /**
  * A tool call as the MCP page lists it. The summary and result are the tool's
@@ -103,6 +120,8 @@ export type McpServerState =
 // Read on first use, not on import.
 let settings: McpSettings | null = null;
 const currentSettings = () => (settings ??= readMcpSettings());
+/** Where the app saves a change (Rust, through menu-bar.ts). */
+let saveSettings: ((settings: McpSettings) => void) | null = null;
 let serverState: McpServerState = { kind: 'off' };
 let activity: ReadonlyArray<McpActivity> | null = null;
 const currentActivity = () => (activity ??= readMcpActivity());
@@ -121,14 +140,34 @@ function subscribe(onChange: () => void) {
   };
 }
 
-export function setMcpSettings(next: Partial<McpSettings>, storage?: SettingsStorage) {
-  settings = { ...currentSettings(), ...next };
+function storeSettings(next: McpSettings, storage?: SettingsStorage) {
+  settings = next;
   try {
-    (storage ?? localStorage).setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    // The app's copy for the first render; Rust's wins once read.
+    (storage ?? localStorage).setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next));
   } catch {
     // No storage: the choice lasts until the app quits.
   }
   notify();
+}
+
+/** A change made here: the MCP page, a test. */
+export function setMcpSettings(next: Partial<McpSettings>, storage?: SettingsStorage) {
+  const changed = { ...currentSettings(), ...next };
+  storeSettings(changed, storage);
+  saveSettings?.(changed);
+}
+
+/** The settings as the app saved them: at launch, and on a change from the menu bar. */
+export function replaceMcpSettings(next: McpSettings, storage?: SettingsStorage) {
+  if (!sameSettings(currentSettings(), next)) {
+    storeSettings(next, storage);
+  }
+}
+
+/** Sends every later change to `save`; null stops. */
+export function onMcpSettingsChange(save: ((settings: McpSettings) => void) | null) {
+  saveSettings = save;
 }
 
 export function setMcpServerState(state: McpServerState) {
@@ -152,6 +191,11 @@ export function recordMcpActivity(entry: McpActivity, storage?: SettingsStorage)
 }
 
 export const clearMcpActivity = (storage?: SettingsStorage) => saveActivity([], storage);
+
+export const getMcpSettings = currentSettings;
+export const getMcpActivity = currentActivity;
+/** Calls `onChange` after any change to the settings, the server or the log. */
+export const subscribeMcp = subscribe;
 
 export const useMcpSettings = () => useSyncExternalStore(subscribe, currentSettings);
 export const useMcpServerState = () => useSyncExternalStore(subscribe, () => serverState);
@@ -282,6 +326,32 @@ export const mcpToolTitle = (name: string) => MCP_TOOL_COPY[name as McpToolName]
 
 /** Whether the tool needs Ajanlar onaylayabilir ve silebilir. */
 export const isGatedTool = (name: McpToolName) => 'gated' in MCP_TOOL_COPY[name];
+
+/** How many calls the menu bar lists. */
+export const MENU_BAR_ACTIVITY_SIZE = 5;
+
+/** One call as the menu bar lists it (src-tauri/src/tray.rs, TrayActivity). */
+export interface McpMenuBarActivity {
+  /** ms since the epoch */
+  at: number;
+  company: string | null;
+  ok: boolean;
+  result: string;
+  title: string;
+}
+
+/** The newest calls for the menu bar, with the tools' Turkish titles. */
+export const menuBarActivity = (entries: ReadonlyArray<McpActivity>): Array<McpMenuBarActivity> =>
+  entries
+    .filter((entry) => Number.isFinite(Date.parse(entry.at)))
+    .slice(0, MENU_BAR_ACTIVITY_SIZE)
+    .map((entry) => ({
+      at: Date.parse(entry.at),
+      company: entry.company ?? null,
+      ok: entry.ok,
+      result: entry.result,
+      title: mcpToolTitle(entry.tool),
+    }));
 
 /** A path or text as one single-quoted shell word. */
 export const shellQuote = (text: string) => `'${text.replaceAll("'", String.raw`'\''`)}'`;

@@ -34,13 +34,17 @@ tauri-build = { version = "2.5.6", features = [] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.10.3", features = [] }
+# tray-icon, image-png: the menu bar icon (src/tray.rs).
+tauri = { version = "2.10.3", features = ["tray-icon", "image-png"] }
 tauri-plugin-log = "2"
 tauri-plugin-http = "2"
 # Tilde: newer minors need tauri 2.12, the app is on 2.10.
 tauri-plugin-opener = "~2.5"
 tauri-plugin-os = "~2.3"
 tauri-plugin-process = "2"
+# Girişte başlat: a LaunchAgent that starts the app with --background.
+# Tilde: newer minors need tauri 2.12.
+tauri-plugin-autostart = "~2.5"
 keyring = { version = "3", features = ["apple-native", "windows-native"] }
 # The built-in MCP server (src/mcp): already in the tree through tauri and reqwest.
 base64 = "0.22"
@@ -68,7 +72,8 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-updater = "2"
 
-# The e-Arşiv PDF (src/pdf.rs): WebKit's createPDF. Already in the tree through wry.
+# The e-Arşiv PDF (src/pdf.rs): WebKit's createPDF; NSProcessInfo keeps App Nap
+# away while MCP runs (src/mcp/awake.rs). Already in the tree through wry.
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
 objc2 = "0.6"
@@ -80,6 +85,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "NSData",
   "NSError",
+  "NSProcessInfo",
   "NSString",
   "NSValue",
 ] }
