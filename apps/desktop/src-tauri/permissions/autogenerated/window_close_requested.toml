@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-window-close-requested"
+description = "Enables the window_close_requested command without any pre-configured scope."
+commands.allow = ["window_close_requested"]
+
+[[permission]]
+identifier = "deny-window-close-requested"
+description = "Denies the window_close_requested command without any pre-configured scope."
+commands.deny = ["window_close_requested"]

@@ -1,9 +1,12 @@
+mod background;
 mod downloads;
 pub mod mcp;
 pub mod pdf;
 mod secrets;
+mod tray;
 
 use tauri::Manager;
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -12,6 +15,10 @@ pub fn run() {
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_process::init())
+    .plugin(tauri_plugin_autostart::init(
+      MacosLauncher::LaunchAgent,
+      Some(vec![background::BACKGROUND_ARG]),
+    ))
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -22,10 +29,28 @@ pub fn run() {
       }
       let store = secrets::VaultStore::for_build(|| app.path().app_data_dir())?;
       app.manage(store);
+      let launch = background::parse_args(std::env::args());
+      app.manage(background::Background::new(launch));
       app.manage(mcp::McpState::new(
         app.handle().clone(),
         app.path().app_data_dir()?,
       ));
+      tray::create(app.handle())?;
+      // The login item names the app by its path: a moved app gets it renewed.
+      let autolaunch = app.autolaunch();
+      if autolaunch.is_enabled().unwrap_or(false) {
+        if let Err(error) = autolaunch.enable() {
+          log::error!("could not renew launch at login: {error}");
+        }
+      }
+      // The window starts hidden (tauri.conf.json); a background launch keeps
+      // it so, without a Dock icon, and the webview still loads for MCP.
+      if launch.background {
+        #[cfg(target_os = "macos")]
+        app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+      } else {
+        background::show_window(app.handle(), None);
+      }
       #[cfg(desktop)]
       app
         .handle()
@@ -46,14 +71,29 @@ pub fn run() {
       mcp::mcp_agents,
       mcp::mcp_agents_add,
       mcp::mcp_agents_remove,
+      mcp::mcp_settings,
+      mcp::mcp_set_settings,
+      tray::tray_set_activity,
+      background::window_close_requested,
       pdf::html_to_pdf,
       downloads::save_download
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application")
-    .run(|app, event| {
-      if let (tauri::RunEvent::Exit, Some(mcp)) = (event, app.try_state::<mcp::McpState>()) {
-        mcp.forget_port();
+    .run(|app, event| match event {
+      // Opened from a background launch: quits when MCP turned out to be off.
+      tauri::RunEvent::Ready => {
+        let settings = app.state::<mcp::McpState>().settings();
+        background::settings_changed(app, settings.as_ref());
       }
+      // The Dock icon, Finder, Spotlight or `open` while the app runs.
+      #[cfg(target_os = "macos")]
+      tauri::RunEvent::Reopen { .. } => background::show_window(app, None),
+      tauri::RunEvent::Exit => {
+        if let Some(mcp) = app.try_state::<mcp::McpState>() {
+          mcp.forget_port();
+        }
+      }
+      _ => {}
     });
 }

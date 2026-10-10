@@ -47,6 +47,8 @@ const styles = create({
   },
 });
 
+const MENU_BAR_LABEL = 'Menü çubuğunda göster';
+
 const timeFormat = new Intl.DateTimeFormat('tr-TR', {
   hour: '2-digit',
   minute: '2-digit',
@@ -168,7 +170,7 @@ function PortRow() {
  * the agents' calls.
  */
 export function McpPage() {
-  const { enabled } = useMcpSettings();
+  const { enabled, showInMenuBar } = useMcpSettings();
   const server = useMcpServerState();
   const { activeEntity } = useStore();
   const tauri = isTauri();
@@ -184,15 +186,29 @@ export function McpPage() {
     <div {...props(styles.page)}>
       <div {...props(styles.column)}>
         <SettingsSection
-          description="Claude, Cursor gibi yapay zekâ uygulamaları Angaria üzerinden faturalarını listeleyebilir, müşterilerini görebilir ve taslak oluşturabilir. Onaylamak ve silmek için İzinler’deki anahtarı açman gerekir."
+          description="Claude, Cursor gibi yapay zekâ uygulamaları Angaria üzerinden faturalarını listeleyebilir, müşterilerini görebilir ve taslak oluşturabilir. Onaylamak ve silmek için İzinler’deki anahtarı açman gerekir. Pencereyi kapatınca Angaria menü çubuğunda çalışmaya devam eder; ajan çağırınca kapalı Angaria arka planda açılır."
           title="MCP sunucusu"
         >
-          <SettingsRow hint="Angaria açıkken çalışır, yalnızca bu Mac bağlanabilir" label="MCP">
+          <SettingsRow
+            hint="Angaria kapalıyken de çalışır, yalnızca bu Mac bağlanabilir"
+            label="MCP"
+          >
             <Switch
               aria-label="MCP sunucusu"
               checked={enabled}
               disabled={!tauri}
               onCheckedChange={(checked) => setMcpSettings({ enabled: checked })}
+            />
+          </SettingsRow>
+          <SettingsRow
+            hint="Gizlersen MCP arka planda çalışmaya devam eder. Ayarları değiştirmek için Angaria’yı Finder’dan ya da Spotlight’tan aç."
+            label={MENU_BAR_LABEL}
+          >
+            <Switch
+              aria-label={MENU_BAR_LABEL}
+              checked={showInMenuBar}
+              disabled={!tauri}
+              onCheckedChange={(checked) => setMcpSettings({ showInMenuBar: checked })}
             />
           </SettingsRow>
           <SettingsRow label="Durum">

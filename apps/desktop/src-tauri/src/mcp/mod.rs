@@ -4,12 +4,13 @@
 //! out as the `mcp:call` event and comes back through `mcp_respond`.
 
 pub mod agents;
+mod awake;
 pub mod files;
 pub mod rpc;
 pub mod server;
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as SyncMutex};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -17,6 +18,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{oneshot, Mutex};
 
 use agents::{AgentResult, AgentStatus, Env};
+use files::Settings;
 use server::{ClientSeen, Pending, RunningServer, ServerOptions, ToolCall, ToolHost};
 
 /// The stdio bridge next to the app's executable (bundle.externalBin).
@@ -51,14 +53,27 @@ impl ToolHost for WebviewHost {
   }
 }
 
+/// What the menu bar shows of the server.
+#[derive(Default)]
+struct RunState {
+  port: Option<u16>,
+  failed: bool,
+}
+
 pub struct McpState {
   server: Mutex<Option<RunningServer>>,
   host: Arc<WebviewHost>,
   dir: PathBuf,
+  /// The MCP page's settings, read from mcp.json at launch (before the
+  /// webview loads) and kept there on every change.
+  settings: SyncMutex<Option<Settings>>,
+  run: SyncMutex<RunState>,
+  awake: SyncMutex<Option<awake::Awake>>,
 }
 
 impl McpState {
   pub fn new(app: AppHandle, dir: PathBuf) -> Self {
+    let settings = files::read_settings(&dir);
     Self {
       server: Mutex::new(None),
       host: Arc::new(WebviewHost {
@@ -66,7 +81,27 @@ impl McpState {
         pending: Pending::default(),
       }),
       dir,
+      settings: SyncMutex::new(settings),
+      run: SyncMutex::default(),
+      awake: SyncMutex::new(None),
     }
+  }
+
+  pub fn settings(&self) -> Option<Settings> {
+    self.settings.lock().unwrap().clone()
+  }
+
+  /// The port the server listens on, and whether its last start failed.
+  pub fn run_state(&self) -> (Option<u16>, bool) {
+    let run = self.run.lock().unwrap();
+    (run.port, run.failed)
+  }
+
+  fn set_run_state(&self, port: Option<u16>, failed: bool) {
+    *self.run.lock().unwrap() = RunState { port, failed };
+    // A Mac app without a visible window naps; agents' calls must not wait for it.
+    *self.awake.lock().unwrap() = port.map(|_| awake::Awake::begin());
+    crate::tray::refresh(&self.host.app);
   }
 
   /// The app is quitting: the bridge must not find the port in mcp.json.
@@ -128,8 +163,18 @@ pub async fn mcp_start(
   if let Some(running) = slot.take() {
     let port = running.port();
     running.stop().await;
+    state.set_run_state(None, false);
     files::clear_port(&state.dir, port)?;
   }
+  let started = start_server(&state, port, tools).await;
+  let running = started.inspect_err(|_| state.set_run_state(None, true))?;
+  state.set_run_state(Some(running.port()), false);
+  let status = status_of(Some(&running));
+  *slot = Some(running);
+  Ok(status)
+}
+
+async fn start_server(state: &McpState, port: u16, tools: Value) -> Result<RunningServer, String> {
   let token = files::ensure_token(&state.dir)
     .map_err(|error| format!("MCP erişim anahtarı kaydedilemedi: {error}"))?;
   let host: Arc<dyn ToolHost> = state.host.clone();
@@ -153,9 +198,7 @@ pub async fn mcp_start(
     running.stop().await;
     return Err(format!("MCP sunucusunun bilgisi kaydedilemedi: {error}"));
   }
-  let status = status_of(Some(&running));
-  *slot = Some(running);
-  Ok(status)
+  Ok(running)
 }
 
 #[tauri::command]
@@ -166,7 +209,34 @@ pub async fn mcp_stop(state: State<'_, McpState>) -> Result<(), String> {
     running.stop().await;
     files::clear_port(&state.dir, port)?;
   }
+  state.set_run_state(None, false);
   Ok(())
+}
+
+/// Saves the MCP settings, tells the webview, and updates the menu bar; the
+/// window hidden, the app quits when nothing is left for it to do.
+pub fn apply_settings(app: &AppHandle, settings: Settings) -> Result<(), String> {
+  let state = app.state::<McpState>();
+  files::write_settings(&state.dir, &settings)?;
+  *state.settings.lock().unwrap() = Some(settings.clone());
+  let _ = app.emit("mcp:settings", &settings);
+  crate::tray::refresh(app);
+  crate::background::settings_changed(app, Some(&settings));
+  Ok(())
+}
+
+/// The saved settings; null before the webview first saved them.
+#[tauri::command]
+pub fn mcp_settings(state: State<'_, McpState>) -> Option<Settings> {
+  state.settings()
+}
+
+#[tauri::command]
+pub fn mcp_set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
+  if settings.port < 1024 {
+    return Err("Port 1024 ile 65535 arasında olmalı.".into());
+  }
+  apply_settings(&app, settings)
 }
 
 #[tauri::command]

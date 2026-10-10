@@ -6,6 +6,12 @@ export const vaultWrite = (json: string) => invoke<void>('vault_write', { json }
 export const secretGet = (key: string) => invoke<string | null>('secret_get', { key });
 export const secretDelete = (key: string) => invoke<void>('secret_delete', { key });
 
+/**
+ * The window is about to close: Rust hides it instead while MCP is on
+ * (src-tauri/src/background.rs) and answers true.
+ */
+export const windowCloseRequested = () => invoke<boolean>('window_close_requested');
+
 /** GİB's invoice page as an A4-wide PDF, drawn by WebKit on this Mac (src-tauri/src/pdf.rs). */
 export async function htmlToPDF(html: string): Promise<ArrayBuffer> {
   if (!isTauri()) {

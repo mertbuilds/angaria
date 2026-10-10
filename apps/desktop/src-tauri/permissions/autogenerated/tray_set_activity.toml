@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tray-set-activity"
+description = "Enables the tray_set_activity command without any pre-configured scope."
+commands.allow = ["tray_set_activity"]
+
+[[permission]]
+identifier = "deny-tray-set-activity"
+description = "Denies the tray_set_activity command without any pre-configured scope."
+commands.deny = ["tray_set_activity"]
