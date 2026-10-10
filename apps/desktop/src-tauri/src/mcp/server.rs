@@ -331,7 +331,7 @@ async fn run_tool(shared: &Shared, name: String, arguments: Value) -> Value {
     }
     Ok(Err(_)) => {
       call.answered = true;
-      rpc::tool_error("Angaria bu aracı çalıştıramadı. Angaria açık mı?")
+      rpc::tool_error("Angaria bu aracı çalıştıramadı. Tekrar dene.")
     }
     // The guard cancels the call at the host.
     Err(_) => rpc::tool_error(
