@@ -22,10 +22,12 @@ import { countryLabel, taxIDKind } from '@/lib/customer.ts';
 import {
   applyImport,
   DEFAULT_IMPORT_PERIOD,
+  IMPORT_PACE_MS,
   IMPORT_PERIODS,
   importCandidates,
   importRange,
   importWeeks,
+  pause,
   scanInvoices,
   type ImportCandidates,
   type ImportPeriod,
@@ -141,22 +143,6 @@ const styles = create({
     gap: spacing.s4,
   },
 });
-
-/** Calls stay apart by this much on GİB's session, so a long scan does not flood the portal. */
-const PACE_MS = 150;
-
-const pause = (ms: number, signal: AbortSignal) =>
-  new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        reject(signal.reason);
-      },
-      { once: true },
-    );
-  });
 
 const periodOptions: ReadonlyArray<ChoiceOption<ImportPeriod>> = IMPORT_PERIODS.map(
   ({ label, value }) => ({ label, value }),
@@ -312,7 +298,7 @@ export function ImportFromGIBDialog({
         gib.run(
           account,
           async (session) => {
-            await pause(PACE_MS, signal);
+            await pause(IMPORT_PACE_MS, signal);
             const detail = await getInvoiceDetail(session, ettn);
             queryClient.setQueryData(invoiceDetailQuery(account, ettn).queryKey, detail);
             return detail;
@@ -323,7 +309,7 @@ export function ImportFromGIBDialog({
         gib.run(
           account,
           async (session) => {
-            await pause(PACE_MS, signal);
+            await pause(IMPORT_PACE_MS, signal);
             return (await getDrafts(session, week.start, week.end, { signal })) as Array<Invoice>;
           },
           { background: true, signal },

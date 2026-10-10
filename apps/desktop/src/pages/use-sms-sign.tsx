@@ -20,9 +20,7 @@ import { startSMSSign, verifyAndSign } from '@/lib/angaria.ts';
 import { describeError, toastError, type UserError } from '@/lib/gib-errors.ts';
 import { gib, useGIBAccount } from '@/lib/gib.ts';
 import type { SessionLease } from '@/lib/session-queue.ts';
-
-/** GİB's SMS şifresi has six digits. */
-const CODE_LENGTH = 6;
+import { SMS_CODE_LENGTH as CODE_LENGTH, smsCodeError } from '@/lib/sms-code.ts';
 
 /** How long a sent code is waited for before a new one can be asked for. */
 const RESEND_DELAY_MS = 60_000;
@@ -104,10 +102,9 @@ function SMSCodeForm({
     if (busy.current) {
       return;
     }
-    if (value.length < CODE_LENGTH) {
-      setError({
-        text: value ? `SMS şifresinin ${CODE_LENGTH} hanesini de gir` : 'SMS şifresini gir',
-      });
+    const problem = smsCodeError(value);
+    if (problem) {
+      setError({ text: problem });
       setFocusRequest({ slot: value.length });
       return;
     }
