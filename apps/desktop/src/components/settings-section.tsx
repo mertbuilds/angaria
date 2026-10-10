@@ -5,13 +5,20 @@ import type { ReactNode } from 'react';
 import { tones } from '../shell/palette.stylex.ts';
 
 const styles = create({
+  // As wide as its contents, up to 70% of the row (a longer value ellipsizes):
+  // the label and hint take the rest.
   control: {
     alignItems: 'center',
     display: 'flex',
-    flex: 1,
+    flex: '0 0 auto',
     gap: spacing.s2,
     justifyContent: 'flex-end',
+    maxWidth: '70%',
     minWidth: 0,
+  },
+  controlFill: {
+    flex: 1,
+    maxWidth: 'none',
   },
   description: {
     color: colors.muted,
@@ -68,10 +75,14 @@ const styles = create({
   },
   label: {
     display: 'flex',
+    flex: '1 1 13rem',
     flexDirection: 'column',
-    flexShrink: 0,
     gap: '2px',
-    width: '13rem',
+    minWidth: 0,
+  },
+  // Beside a field that fills the row.
+  labelFixed: {
+    flex: '0 0 13rem',
   },
   labelTop: {
     paddingTop: spacing.s2,
@@ -150,14 +161,17 @@ export function SettingsSection({
 }
 
 /**
- * One row: label and hint on the left, the control on the right. Pass
- * `htmlFor` when the control is a form field, `align="top"` for tall controls.
+ * One row: label and hint on the left, taking the row's free width, the
+ * control on the right at its own width. Pass `htmlFor` when the control is a
+ * form field, `fill` when that field fills the row (the label then keeps a
+ * fixed width), `align="top"` for tall controls.
  * A control named by aria-labelledby (a chip group) passes `id`: the label is
  * then `{id}-label` and the hint `{id}-hint`.
  */
 export function SettingsRow({
   align = 'center',
   children,
+  fill = false,
   hint,
   htmlFor,
   id,
@@ -165,6 +179,7 @@ export function SettingsRow({
 }: {
   align?: 'center' | 'top';
   children?: ReactNode;
+  fill?: boolean;
   hint?: ReactNode;
   htmlFor?: string;
   id?: string;
@@ -173,7 +188,9 @@ export function SettingsRow({
   return (
     <div {...props(styles.row, align === 'top' && styles.rowTop)}>
       {label !== undefined && (
-        <div {...props(styles.label, align === 'top' && styles.labelTop)}>
+        <div
+          {...props(styles.label, fill && styles.labelFixed, align === 'top' && styles.labelTop)}
+        >
           {htmlFor ? (
             <label htmlFor={htmlFor} {...props(styles.labelText)}>
               {label}
@@ -190,7 +207,9 @@ export function SettingsRow({
           )}
         </div>
       )}
-      <div {...props(styles.control)}>{children}</div>
+      <div {...props(styles.control, (fill || label === undefined) && styles.controlFill)}>
+        {children}
+      </div>
     </div>
   );
 }
