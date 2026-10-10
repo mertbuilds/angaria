@@ -263,20 +263,35 @@ function bulletinNumber(day: Day, extraHolidays: Array<string>) {
 
 const hash = (text: string) => [...text].reduce((sum, char) => sum * 31 + char.charCodeAt(0), 7);
 
-/** Forex buying rate for one unit group (`unit` units) on `day`. */
+/** Forex buying rate in Turkish lira for one unit group (`unit` units) on `day`, always positive. */
 function buyingRate(currency: CurrencyInfo, day: Day) {
   const days = dayNumber(day) - dayNumber({ day: 1, month: 1, year: 2026 });
-  const drift = 1 + 0.00035 * days + 0.004 * Math.sin(days * 0.7 + (hash(currency.code) % 100));
+  // Rises from 2026 on and falls toward zero before it, never below.
+  const trend = days >= 0 ? 1 + 0.00035 * days : Math.exp(0.00035 * days);
+  const drift = trend + 0.004 * trend * Math.sin(days * 0.7 + (hash(currency.code) % 100));
   return currency.base * drift;
 }
 
-/** Four decimals, five below 1 (RUB, PKR, KRW, KZT), as TCMB writes them. */
-const fixed = (value: number) => value.toFixed(value < 1 ? 5 : 4);
+/** TCMB's archive starts with this bulletin. */
+const FIRST_BULLETIN: Day = { day: 16, month: 4, year: 1996 };
+
+/** Bulletins before this day are in old lira (TRL), a million to the new one. */
+const NEW_LIRA: Day = { day: 1, month: 1, year: 2005 };
+
+/**
+ * A rate as TCMB writes it on `day`: four decimals, five below 1 (RUB, PKR,
+ * KRW, KZT); in old lira, whole numbers.
+ */
+const rateText = (day: Day) => (value: number) =>
+  dayNumber(day) < dayNumber(NEW_LIRA)
+    ? String(Math.round(value * 1_000_000))
+    : value.toFixed(value < 1 ? 5 : 4);
 
 const element = (name: string, value: string) =>
   value ? `<${name}>${value}</${name}>` : `<${name}/>`;
 
 function currencyXML(currency: CurrencyInfo, usd: number, day: Day) {
+  const fixed = rateText(day);
   const buying = buyingRate(currency, day);
   const perUnit = buying / currency.unit;
   const crossUSD = currency.code === 'USD' || currency.crossOther ? '' : (usd / perUnit).toFixed(4);
@@ -303,7 +318,7 @@ function sdrXML(usd: number, day: Day) {
 \t\t<Unit>${SDR.unit}</Unit>
 \t\t<Isim>${SDR.isim}</Isim>
 \t\t<CurrencyName>${SDR.name}</CurrencyName>
-\t\t<ForexBuying>${fixed(buying)}</ForexBuying>
+\t\t<ForexBuying>${rateText(day)(buying)}</ForexBuying>
 \t\t<ForexSelling/>
 \t\t<BanknoteBuying/>
 \t\t<BanknoteSelling/>
@@ -358,8 +373,8 @@ export function latestBulletin(now: Date, extraHolidays: Array<string>): Day {
 
 /**
  * Answers a /kurlar/... path. `today.xml` is the latest bulletin; a dated
- * file exists only for a bulletin day up to the latest one, under its own
- * month.
+ * file exists only for a bulletin day from 16 April 1996 up to the latest one,
+ * under its own month.
  */
 export function tcmbReply(path: string, now: Date, extraHolidays: Array<string>): TCMBReply {
   const latest = latestBulletin(now, extraHolidays);
@@ -374,6 +389,7 @@ export function tcmbReply(path: string, now: Date, extraHolidays: Array<string>)
     match[1] !== String(day.year) ||
     Number(match[2]) !== day.month ||
     dayNumber(day) > dayNumber(latest) ||
+    dayNumber(day) < dayNumber(FIRST_BULLETIN) ||
     !isBulletinDay(day, extraHolidays)
   ) {
     return { body: NOT_FOUND_HTML, status: 404 };

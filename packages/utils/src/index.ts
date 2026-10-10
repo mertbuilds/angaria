@@ -2,6 +2,27 @@ const TCMB_BASE = 'https://www.tcmb.gov.tr/kurlar';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/** Why there is no rate for the date, in Turkish, for the user and agents. */
+export class TCMBRateError extends Error {
+  override name = 'TCMBRateError';
+}
+
+/**
+ * The first invoice date with a rate in Turkish lira. TCMB's archive starts on
+ * 16 April 1996, but its bulletins are in old lira (TRL, a million times
+ * more) until 31 December 2004; the first in new lira is 3 January 2005's,
+ * valid on 4 January.
+ */
+export const TCMB_FIRST_INVOICE_DATE = new Date(2005, 0, 4);
+
+/** The rate for one unit (TCMB quotes JPY per 100), or undefined for a missing or broken value. */
+function perUnit(unitText: string | null | undefined, buyingText: string | null | undefined) {
+  const unit = Number(unitText?.trim() || '1');
+  const buying = Number(buyingText?.trim() || Number.NaN);
+  const rate = buying / unit;
+  return unit > 0 && Number.isFinite(rate) && rate > 0 ? rate : undefined;
+}
+
 /** One TCMB bulletin's forex buying rates, per one unit of each currency. */
 export interface TCMBRateTable {
   /** The day TCMB published the bulletin (a holiday falls back to the day before). */
@@ -30,6 +51,11 @@ export async function fetchTCMBRateTable(
   const base = options?.baseUrl ? `${options.baseUrl.replace(/\/+$/, '')}/kurlar` : TCMB_BASE;
   const day = baseDate ?? new Date();
   const validFor = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+  if (Number.isNaN(validFor.getTime()) || validFor < TCMB_FIRST_INVOICE_DATE) {
+    throw new TCMBRateError(
+      'TCMB’nin bu tarih için Türk lirası kuru yok: kurlar 04/01/2005 ve sonrası tarihli faturalar için var.',
+    );
+  }
   for (let i = 1; i < 8; i++) {
     const date = new Date(validFor.getFullYear(), validFor.getMonth(), validFor.getDate() - i);
     const d = pad(date.getDate());
@@ -45,17 +71,21 @@ export async function fetchTCMBRateTable(
     const rates = new Map<string, number>();
     for (const node of doc.querySelectorAll('Currency')) {
       const code = node.getAttribute('CurrencyCode');
-      const unit = Number(node.querySelector('Unit')?.textContent) || 1;
-      const buying = Number(node.querySelector('ForexBuying')?.textContent);
-      if (code && buying) {
-        rates.set(code, buying / unit);
+      const rate = perUnit(
+        node.querySelector('Unit')?.textContent,
+        node.querySelector('ForexBuying')?.textContent,
+      );
+      if (code && rate !== undefined) {
+        rates.set(code, rate);
       }
     }
     if (rates.size > 0) {
       return { publishedOn: date, rates, validFor };
     }
   }
-  throw new Error('TCMB kur verisi bulunamadı');
+  throw new TCMBRateError(
+    `${pad(validFor.getDate())}/${pad(validFor.getMonth() + 1)}/${validFor.getFullYear()} tarihli fatura için TCMB kur bülteni bulunamadı.`,
+  );
 }
 
 /** The rates of fetchTCMBRateTable's bulletin. */

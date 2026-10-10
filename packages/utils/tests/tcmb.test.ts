@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { type RunningEmulator, startEmulator } from '@angaria/gib-emulator';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
-import { fetchTCMBRateTable } from '../src';
+import { fetchTCMBRateTable, TCMBRateError } from '../src';
 
 // fetchTCMBRateTable against the TCMB feed of the GİB emulator. jsdom gives
 // the DOMParser the app has in the webview.
@@ -111,4 +111,46 @@ test('quotes JPY per unit, not per 100 units', async () => {
   });
   expect(per100).toBeGreaterThan(0);
   expect(rates.get('JPY')).toBeCloseTo(per100 / 100, 8);
+});
+
+describe('dates without a lira rate', () => {
+  test('refuses an invoice date before 4 January 2005 without asking TCMB', async () => {
+    const { fetch, urls } = recordingFetch();
+    for (const date of [new Date(1990, 0, 1), new Date(2004, 11, 31), new Date(2005, 0, 3)]) {
+      const error = await fetchTCMBRateTable(date, { baseUrl: emulator.url, fetch }).catch(
+        (error: unknown) => error,
+      );
+      expect(error).toBeInstanceOf(TCMBRateError);
+      expect((error as Error).message).toContain('04/01/2005');
+    }
+    expect(urls).toEqual([]);
+  });
+
+  test('names the date when no bulletin was published in the week before it', async () => {
+    const fetch = (() =>
+      Promise.resolve(new Response('', { status: 404 }))) as typeof globalThis.fetch;
+    await expect(fetchTCMBRateTable(new Date(2026, 8, 30), { fetch })).rejects.toThrow(
+      new TCMBRateError('30/09/2026 tarihli fatura için TCMB kur bülteni bulunamadı.'),
+    );
+  });
+});
+
+const currency = (code: string, unit: string, buying: string) =>
+  `<Currency CurrencyCode="${code}"><Unit>${unit}</Unit><ForexBuying>${buying}</ForexBuying></Currency>`;
+
+test('skips a currency whose rate is missing, zero, negative or has a broken unit', async () => {
+  const xml = `<Tarih_Date>${[
+    currency('USD', '1', '41.2850'),
+    currency('JPY', '100', '27.6543'),
+    currency('EUR', '1', '-0.9949'),
+    currency('GBP', '1', '0'),
+    currency('CHF', '1', ''),
+    currency('SEK', '0', '4.38'),
+    currency('NOK', 'x', '4.12'),
+  ].join('')}</Tarih_Date>`;
+  const fetch = (() => Promise.resolve(new Response(xml))) as typeof globalThis.fetch;
+  const { rates } = await fetchTCMBRateTable(new Date(2026, 8, 30), { fetch });
+  expect([...rates.keys()]).toEqual(['USD', 'JPY']);
+  expect(rates.get('USD')).toBe(41.285);
+  expect(rates.get('JPY')).toBeCloseTo(0.276543, 10);
 });

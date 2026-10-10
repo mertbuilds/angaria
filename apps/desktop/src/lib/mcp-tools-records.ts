@@ -4,6 +4,7 @@
 // prints, TCMB's rate and the GİB login. They check what the screens check;
 // deleting and changing the company details need Ajanlar onaylayabilir ve
 // silebilir. No credential is ever read or returned.
+import { TCMBRateError } from 'angaria-utils';
 import { z } from 'zod';
 import {
   bankFields,
@@ -567,7 +568,12 @@ const getExchangeRate = defineTool({
     if (!day) {
       return failure('Tarihi GG/AA/YYYY biçiminde yaz.', { code: 'invalid-input' });
     }
-    const rate = await ctx.currencyRate(currency, day).catch(() => undefined);
+    const rate = await ctx
+      .currencyRate(currency, day)
+      .catch((error: unknown) => (error instanceof TCMBRateError ? error : undefined));
+    if (rate instanceof TCMBRateError) {
+      return failure(rate.message, { code: 'currency-rate' });
+    }
     if (rate === undefined) {
       return failure(`TCMB’nin ${currency} kuru alınamadı. Biraz sonra tekrar dene.`, {
         code: 'currency-rate',

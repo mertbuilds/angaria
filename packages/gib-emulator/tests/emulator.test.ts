@@ -646,6 +646,19 @@ describe('invoice page', () => {
     expect(html).toContain('Not: </b>350 - Diğerleri.<br>');
   });
 
+  test('reads a rate and amounts stored the Turkish way as well as with a decimal point', async () => {
+    const { token } = await login();
+    for (const [dovzTLkur, odenecekTutar] of [
+      ['41.2850', '4500.00'],
+      ['41,2850', '4.500,00'],
+    ]) {
+      const row = await createDraft(token, { dovzTLkur, odenecekTutar, paraBirimi: 'USD' });
+      const lira = totals(await page(token, row.ettn));
+      expect(lira).toContainEqual(['D&ouml;viz Kuru', '41,2850']);
+      expect(lira).toContainEqual(['&Ouml;denecek Tutar(TL)', '185.782,50 TL']);
+    }
+  });
+
   test('a cancelled invoice carries the İPTAL EDİLMİŞ watermark, a pending or rejected request does not', async () => {
     const { token } = await login();
     const cancelled = await seed({ cancellation: 'accepted' });
@@ -800,6 +813,27 @@ describe('TCMB', () => {
     expect((await get('202610/01102026.xml')).status).toBe(404);
     expect((await get('202608/29092026.xml')).status).toBe(404);
     expect((await get('202509/29092025.xml')).status).toBe(200);
+  });
+
+  test('starts its archive on 16 April 1996, in old lira until 2005, never below zero', async () => {
+    expect((await get('199001/02011990.xml')).status).toBe(404);
+    expect((await get('199604/15041996.xml')).status).toBe(404);
+    const rates = async (path: string) => {
+      const xml = await (await get(path)).text();
+      return [...xml.matchAll(/<ForexBuying>([^<]*)<\/ForexBuying>/g)].map((match) => match[1]);
+    };
+    const old = await rates('199604/16041996.xml');
+    expect(old.length).toBeGreaterThan(0);
+    for (const rate of old) {
+      expect(rate).toMatch(/^[1-9]\d*$/);
+    }
+    for (const rate of [
+      ...(await rates('201801/02012018.xml')),
+      ...(await rates('200501/03012005.xml')),
+    ]) {
+      expect(rate).toMatch(/^\d+\.\d{4,5}$/);
+      expect(Number(rate)).toBeGreaterThan(0);
+    }
   });
 
   test("today's bulletin appears at 15:30", async () => {
