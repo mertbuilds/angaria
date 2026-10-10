@@ -5,8 +5,8 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import type { ComponentProps } from 'react';
 import { customClassName } from '../lib/utils.stylex.ts';
 
-/** The brand is the word: always lowercase, never translated. */
-const WORDMARK = 'angaria';
+/** The brand is the word: always `Angaria` with a capital A, never translated. */
+const WORDMARK = 'Angaria';
 
 const styles = create({
   root: {
@@ -18,7 +18,6 @@ const styles = create({
     fontWeight: 500,
     letterSpacing: '-0.02em',
     lineHeight: 1,
-    textTransform: 'lowercase',
     whiteSpace: 'nowrap',
   },
 });
@@ -27,7 +26,7 @@ export type WordmarkProps = Omit<ComponentProps<'span'>, 'children' | 'style'> &
   style?: StyleXStyles | undefined;
 };
 
-/** Lowercase `angaria` in Suisse Intl Medium. Size it with `style` (fontSize). */
+/** `Angaria` in Suisse Intl Medium. Size it with `style` (fontSize). */
 const Wordmark = ({ className, style, ...props }: WordmarkProps) => (
   <span
     data-slot="wordmark"
