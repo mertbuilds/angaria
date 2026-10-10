@@ -24,6 +24,7 @@ import { GIB_INVOICE_TYPES } from '@/lib/gib-constants.ts';
 import { TCMB_RATE_ERROR } from '@/lib/gib-errors.ts';
 import { CURRENCY_OPTIONS, formatRate, istisnaNote } from '@/lib/invoice-form.ts';
 import { DUE_DAY_PRESETS, ISTISNA_REASONS, SUPPORTED_INVOICE_TYPES } from '@/lib/regulated.ts';
+import { ruleSourceLink } from '@/lib/rule-sources.ts';
 import { gibToCalendarDate } from '@/lib/tr-date.ts';
 import type { InvoiceFormValues } from '@/lib/types.ts';
 import { parseGIB, shortDate, toGIB } from '@/lib/utils.ts';
@@ -176,6 +177,13 @@ function CurrencyRateField({
         format={formatRate}
         label="Döviz kuru"
         placeholder="0,0000"
+        source={
+          // The previous business day's bulletin is the one the Resmî Gazete of the invoice date carries.
+          rateDescription?.kind === 'tcmb' &&
+          !isSameDay(rateDescription.publishedOn, rateDescription.validFor)
+            ? ruleSourceLink('exchangeRate')
+            : undefined
+        }
         step={0.01}
         suffix="₺"
       />
@@ -442,6 +450,7 @@ export function InvoiceSection({
                 }
                 items={ISTISNA_REASON_OPTIONS}
                 label="İstisna nedeni"
+                source={istisnaCode === '350' ? undefined : ruleSourceLink('exportExemption')}
               />
             )}
           </form.AppField>

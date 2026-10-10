@@ -47,6 +47,12 @@
         },
         {
           "url": "https://angaria.app/*"
+        },
+        {
+          "url": "https://www.gib.gov.tr/*"
+        },
+        {
+          "url": "https://www.mevzuat.gov.tr/*"
         }
       ]
     },

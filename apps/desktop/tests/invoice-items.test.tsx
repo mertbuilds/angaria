@@ -123,8 +123,10 @@ test('İstisna sets every VAT rate to 0 and locks the chips; Satış gives the r
   await act(async () => form.setFieldValue('invoiceSettings.invoiceType', 'ISTISNA'));
   expect(items().map((item) => item.VATRate)).toEqual([0, 0]);
   expect(byId('items[0].VATRate').textContent).toContain('%0');
-  expect(document.querySelector('[id="items[0].VATRate-description"]')?.textContent).toBe(
-    'İstisna faturada KDV %0',
+  const description = document.querySelector('[id="items[0].VATRate-description"]');
+  expect(description?.textContent).toBe('İstisna faturada KDV %0 Kaynak: KDV Kanunu md. 11/1-a');
+  expect(description?.querySelector('a')?.getAttribute('href')).toMatch(
+    /^https:\/\/www\.mevzuat\.gov\.tr\/mevzuat\?MevzuatNo=3065&/,
   );
   expect(byId('items[0].gtip')).toBeTruthy();
 
