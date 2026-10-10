@@ -14,6 +14,7 @@ import {
   startSMSSign,
   verifyAndSign,
 } from '@/lib/angaria.ts';
+import { companyKeys, resolveCompany } from '@/lib/company-identity.ts';
 import { customerName, defaultPDFLanguage, learnCustomer } from '@/lib/customer.ts';
 import { errorMessage } from '@/lib/gib-errors.ts';
 import { gib, invoiceDetailQuery, invoiceHTMLQuery } from '@/lib/gib.ts';
@@ -54,9 +55,6 @@ const accountOf = (store: Store, entity: Entity): GIBAccount => ({
   credentials: () => store.getCredentials(entity.id),
   key: entity.creds.username,
 });
-
-/** Digits only: "123 456 7890" is 1234567890. */
-const digits = (text: string) => text.replaceAll(/\D/g, '');
 
 const signingToast = (operationId: string) => `mcp-sign-${operationId}`;
 
@@ -223,17 +221,8 @@ export function McpHost() {
           services: entity.savedItems,
         }),
         forCompany: (ref) => {
-          const byId = store.entities.find((candidate) => candidate.id === ref);
-          const byTaxID = digits(ref)
-            ? store.entities.filter(
-                (candidate) => digits(candidate.companyInfo.taxID) === digits(ref),
-              )
-            : [];
-          if (!byId && byTaxID.length > 1) {
-            return 'ambiguous';
-          }
-          const found = byId ?? byTaxID[0];
-          return found ? build(store, mcpState, found.id) : null;
+          const found = resolveCompany(companyKeys(store.entities), ref);
+          return found === null || found === 'ambiguous' ? found : build(store, mcpState, found.id);
         },
         currencyRate: async (currency, date) =>
           (await fetchTCMBRateTable(date)).rates.get(currency),

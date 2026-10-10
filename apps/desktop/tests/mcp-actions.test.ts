@@ -1,6 +1,7 @@
 import { GibError } from 'angaria-earsiv-sdk';
 import { describe, expect, test, vi } from 'vitest';
 import { SIGNING_TTL_MS } from '../src/lib/mcp-state.ts';
+import { AMBIGUOUS_COMPANY } from '../src/lib/mcp-tool-kit.ts';
 import { maskPhone } from '../src/lib/mcp-tools-signing.ts';
 import { ACTIONS_OFF, callMcpTool, runMcpTool } from '../src/lib/mcp-tools.ts';
 import { body, call, MAIN, NOW, OTHER, setup } from './mcp-fixtures.ts';
@@ -397,6 +398,43 @@ describe('company details', () => {
     });
     expect(good.json.details).toMatchObject({ bankName: 'Ziraat Bankası', pdfStyle: 'classic' });
     expect(ctx.onAction).toHaveBeenCalledWith({ kind: 'company-details-updated' });
+  });
+
+  test('a VKN / TCKN another company has is refused with Ayarlar’ message', async () => {
+    const { companies, ctx } = setup({ actions: true });
+    const taken = await call(ctx, 'update_company_details', {
+      name: 'Yeni Ad',
+      taxID: '123 456 7890',
+    });
+    expect(taken.error).toBe(true);
+    expect(taken.json.error).toMatchObject({
+      code: 'duplicate-tax-id',
+      fields: { taxID: 'Bu VKN zaten Şirket 2 için kayıtlı.' },
+      message: 'Bu VKN zaten Şirket 2 için kayıtlı.',
+      owner: { id: 'other', name: 'Şirket 2' },
+    });
+    expect(companies.main.companyInfo).toMatchObject({ name: 'Ana Firma', taxID: '10000000146' });
+
+    // Its own VKN again is no conflict.
+    const same = await call(ctx, 'update_company_details', { taxID: '10000000146' });
+    expect(same.error).toBe(false);
+  });
+});
+
+describe('companies sharing a VKN / TCKN (stored before it was refused)', () => {
+  test('naming one by that VKN asks for the id, which still works', async () => {
+    const { companies, ctx } = setup();
+    companies.other.companyInfo.taxID = '10000000146';
+
+    const byTaxID = await call(ctx, 'list_customers', { company: '10000000146' });
+    expect(byTaxID.json.error).toEqual({
+      code: 'ambiguous-company',
+      message: AMBIGUOUS_COMPANY,
+    });
+
+    const byId = await call(ctx, 'list_customers', { company: 'other' });
+    expect(byId.json.company).toEqual({ ...OTHER, taxID: '10000000146' });
+    expect(byId.json.customers.map((row: { id: string }) => row.id)).toEqual(['beta']);
   });
 });
 

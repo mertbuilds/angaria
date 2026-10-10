@@ -143,7 +143,7 @@ export const LICENSE_CHECKING = 'Angaria lisansı hâlâ doğruluyor. Birkaç sa
 export const NO_LOGIN =
   'Bu şirketin GİB hesabı Angaria’da bağlı değil. Angaria’da şirketi seçip Ayarlar › GİB hesabı’ndan kullanıcı kodunu ve şifreni gir.';
 export const UNKNOWN_COMPANY = 'Bu şirket Angaria’da yok. Şirketleri list_companies ile listele.';
-const AMBIGUOUS_COMPANY =
+export const AMBIGUOUS_COMPANY =
   'Bu VKN / TCKN’yle birden fazla şirket var. Şirketi list_companies’teki id’siyle ver.';
 export const BUSY =
   'Angaria’da başka bir GİB işlemi sürüyor (SMS onayı gibi) ya da GİB yavaş. Biraz sonra tekrar dene.';
@@ -269,9 +269,10 @@ export function defineTool<T extends z.ZodObject>({
       const ctx = ref === undefined ? base : base.forCompany(ref);
       if (ctx === null || ctx === 'ambiguous') {
         return {
-          output: failure(ctx === null ? UNKNOWN_COMPANY : AMBIGUOUS_COMPANY, {
-            code: 'unknown-company',
-          }),
+          output:
+            ctx === null
+              ? failure(UNKNOWN_COMPANY, { code: 'unknown-company' })
+              : failure(AMBIGUOUS_COMPANY, { code: 'ambiguous-company' }),
           summary: title,
         };
       }

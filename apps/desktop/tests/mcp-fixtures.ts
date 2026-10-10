@@ -2,6 +2,7 @@
 // companies, for tests/mcp-*.test.ts.
 import type { DraftRow, SessionInfo } from 'angaria-earsiv-sdk';
 import { vi } from 'vitest';
+import { resolveCompany } from '../src/lib/company-identity.ts';
 import { createMcpState, type McpStateOptions } from '../src/lib/mcp-state.ts';
 import type { McpCompany, McpGIBClient, McpToolContext } from '../src/lib/mcp-tool-kit.ts';
 import { callMcpTool, type McpToolResult } from '../src/lib/mcp-tools.ts';
@@ -209,10 +210,11 @@ export function setup({
         })),
       company: target,
       forCompany: (ref) => {
-        const found = Object.values(companies).filter(
-          (entry) => entry.id === ref || entry.companyInfo.taxID === ref,
+        const found = resolveCompany(
+          Object.values(companies).map((entry) => ({ ...entry, taxID: entry.companyInfo.taxID })),
+          ref,
         );
-        return found.length > 1 ? 'ambiguous' : found[0] ? contextFor(found[0].id) : null;
+        return found === null || found === 'ambiguous' ? found : contextFor(found.id);
       },
       gib: (task, signal, options) => queue.run(account, task, { ...options, signal }),
       lease: (signal) => queue.lease(account, { signal }),

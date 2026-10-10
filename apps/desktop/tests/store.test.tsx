@@ -2,6 +2,7 @@
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
+import { companyKeys, taxIDOwner } from '../src/lib/company-identity.ts';
 import { vaultRead } from '../src/lib/native.ts';
 import { StoreProvider, useStore } from '../src/lib/store.tsx';
 
@@ -156,5 +157,58 @@ test('services saved before they had a currency take the one the invoices were i
   ]);
   // The customers disagree: the service keeps no currency until edited.
   expect(second.savedItems[0]).not.toHaveProperty('currency');
+  act(() => root.unmount());
+});
+
+function SharedReader({ onLoad }: { onLoad: (shared: Array<string>) => void }) {
+  const { entities } = useStore();
+
+  useEffect(() => {
+    const companies = companyKeys(entities);
+    onLoad(
+      companies
+        .filter((company) => taxIDOwner(companies, company.id, company.taxID))
+        .map((company) => company.id),
+    );
+  }, [entities, onLoad]);
+
+  return null;
+}
+
+const details = (taxID: string) => ({ name: 'Deniz Yılmaz Yazılım', taxID });
+
+test('companies stored with one VKN load as they are, both found sharing it', async () => {
+  storage.clear();
+  storage.set(
+    'fatura-entities',
+    JSON.stringify([
+      { companyInfo: details('10000000146'), creds: { username: '' }, id: 'a', name: 'Ana Varlık' },
+      {
+        companyInfo: details('100 000 001 46'),
+        creds: { username: '' },
+        id: 'b',
+        name: 'Şirket 2',
+      },
+      { companyInfo: details('1234567890'), creds: { username: '' }, id: 'c', name: 'Şirket 3' },
+    ]),
+  );
+  let shared: Array<string> = [];
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  await act(async () =>
+    root.render(
+      <StoreProvider>
+        <SharedReader onLoad={(ids) => (shared = ids)} />
+      </StoreProvider>,
+    ),
+  );
+  await settle();
+
+  expect(shared).toEqual(['a', 'b']);
+  const stored = JSON.parse(storage.get('fatura-entities') ?? '[]');
+  expect(
+    stored.map((entity: { companyInfo: { taxID: string } }) => entity.companyInfo.taxID),
+  ).toEqual(['10000000146', '100 000 001 46', '1234567890']);
   act(() => root.unmount());
 });

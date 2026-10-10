@@ -57,6 +57,16 @@ import {
   type CompanyField,
   type CompanyFieldKind,
 } from '@/lib/company-fields.ts';
+import {
+  companyKeys,
+  GIB_USER_SHARED,
+  gibUserOwner,
+  gibUserTaken,
+  taxIDOwner,
+  taxIDShared,
+  taxIDTaken,
+  type CompanyKey,
+} from '@/lib/company-identity.ts';
 import { LOGO_TYPES, readLogo } from '@/lib/company-logo.ts';
 import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
 import { describeError, toastError } from '@/lib/gib-errors.ts';
@@ -283,18 +293,7 @@ function GibAccountSection() {
       <SettingsRow label="Şirket">
         <SettingsValue>{activeEntity.name}</SettingsValue>
       </SettingsRow>
-      <SettingsRow fill htmlFor="gib-username" label="Kullanıcı kodu">
-        <Input
-          autoComplete="off"
-          id="gib-username"
-          onChange={(event) =>
-            void setCredentials(activeEntityId, { username: event.target.value })
-          }
-          placeholder="e-Arşiv kullanıcı kodu"
-          spellCheck={false}
-          value={creds.username}
-        />
-      </SettingsRow>
+      <GibUsernameRow key={activeEntityId} />
       <SettingsRow fill htmlFor="gib-password" label="Şifre">
         <div {...props(styles.password)}>
           <Input
@@ -349,6 +348,61 @@ function GibAccountSection() {
         </Button>
       </SettingsRow>
     </SettingsSection>
+  );
+}
+
+/** Switches to the company that already has the VKN or user code. */
+function SwitchToCompany({ company }: { company: CompanyKey }) {
+  const { setActiveEntityId } = useStore();
+  return (
+    <Button onClick={() => setActiveEntityId(company.id)} style={styles.noteLink} variant="link">
+      Şirkete geç: {company.name}
+    </Button>
+  );
+}
+
+/**
+ * The GİB user code. One another company has is shown with its error and
+ * never saved: the company keeps the code it had when the field was entered.
+ */
+function GibUsernameRow() {
+  const { activeEntityId, creds, entities, setCredentials } = useStore();
+  const [taken, setTaken] = useState<string | null>(null);
+  const before = useRef(creds.username);
+  const value = taken ?? creds.username;
+  const owner = gibUserOwner(companyKeys(entities), activeEntityId, value);
+  const error = owner && (taken === null ? GIB_USER_SHARED : gibUserTaken(owner));
+
+  function handleChange(next: string) {
+    const nextOwner = gibUserOwner(companyKeys(entities), activeEntityId, next);
+    setTaken(nextOwner ? next : null);
+    void setCredentials(activeEntityId, { username: nextOwner ? before.current : next });
+  }
+
+  return (
+    <SettingsRow align="top" fill htmlFor="gib-username" label="Kullanıcı kodu">
+      <SettingsField
+        error={error}
+        errorAction={owner && <SwitchToCompany company={owner} />}
+        id="gib-username"
+      >
+        {(describedBy) => (
+          <Input
+            aria-describedby={describedBy}
+            aria-invalid={error ? true : undefined}
+            autoComplete="off"
+            id="gib-username"
+            onChange={(event) => handleChange(event.target.value)}
+            onFocus={() => {
+              before.current = creds.username;
+            }}
+            placeholder="e-Arşiv kullanıcı kodu"
+            spellCheck={false}
+            value={value}
+          />
+        )}
+      </SettingsField>
+    </SettingsRow>
   );
 }
 
@@ -535,17 +589,33 @@ const masks: Partial<Record<CompanyFieldKind, MaskitoOptions>> = {
   swift: SWIFT_MASK,
 };
 
-/** One company field: checked once it is left, then on every change, so a fix clears it. */
+/**
+ * One company field: checked once it is left, then on every change, so a fix
+ * clears it. A VKN / TCKN another company has shows its error at once and is
+ * never saved: the company keeps the one it had when the field was entered.
+ */
 function CompanyFieldRow({ field }: { field: CompanyField }) {
-  const { companyInfo, setCompanyInfo } = useStore();
+  const { activeEntityId, companyInfo, entities, setCompanyInfo } = useStore();
   const [left, setLeft] = useState(false);
+  const [taken, setTaken] = useState<string | null>(null);
+  const before = useRef(companyInfo[field.key]);
   const id = `company-${field.key}`;
   const kind = field.kind ?? 'text';
-  const value = companyInfo[field.key];
-  const error = left ? companyFieldError(kind, value) : undefined;
+  const value = taken ?? companyInfo[field.key];
+  const ownerOf = (taxID: string) =>
+    kind === 'taxID' ? taxIDOwner(companyKeys(entities), activeEntityId, taxID) : undefined;
+  const owner = ownerOf(value);
+  let error = left ? companyFieldError(kind, value) : undefined;
+  if (owner) {
+    error = taken === null ? taxIDShared(value) : taxIDTaken(value, owner);
+  }
   const mask = masks[kind];
 
-  const setValue = (next: string) => setCompanyInfo((info) => ({ ...info, [field.key]: next }));
+  const setValue = (next: string) => {
+    const nextOwner = ownerOf(next);
+    setTaken(nextOwner ? next : null);
+    setCompanyInfo((info) => ({ ...info, [field.key]: nextOwner ? before.current : next }));
+  };
 
   const handleBlur = () => {
     setLeft(true);
@@ -576,13 +646,21 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
 
   return (
     <SettingsRow align={kind === 'text' ? 'center' : 'top'} fill htmlFor={id} label={field.label}>
-      <SettingsField error={error} id={id} note={note}>
+      <SettingsField
+        error={error}
+        errorAction={owner && <SwitchToCompany company={owner} />}
+        id={id}
+        note={note}
+      >
         {(describedBy) => {
           const control = {
             'aria-describedby': describedBy,
             'aria-invalid': error ? true : undefined,
             id,
             onBlur: handleBlur,
+            onFocus: () => {
+              before.current = companyInfo[field.key];
+            },
             placeholder: field.placeholder,
           };
           if (kind === 'textarea') {
