@@ -26,5 +26,5 @@ Where Angaria differs from add-mcp 2.4.1, on purpose:
 
 - Over 20 clients with one click, without Node, and the code that writes users' config files is ours to test (`cargo test`: every client round-trips; formats, comments, foreign entries, missing and malformed files).
 - The table goes stale as clients move their configs. Resync by diffing add-mcp's sources against the version named in the module doc (`scripts/sync-add-mcp.md`), then update the doc, this ADR's list of differences and `THIRD_PARTY_NOTICES.md`.
-- Claude Code rewrites `~/.claude.json` itself while it runs; an add made then can be lost to its next write. Elle ekle keeps the `claude mcp add` command for that case.
+- Claude Code rewrites `~/.claude.json` itself while it runs, so an edit made then can be lost to its next write. When the `claude` CLI is found (`~/.claude/local`, `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, then `command -v claude` in the login shell, 3 seconds at most), Angaria runs `claude mcp add --scope user` / `claude mcp remove --scope user` instead (`agents/claude.rs`) and edits the file only when the CLI is missing or fails. Elle ekle keeps the command too.
 - Apache-2.0 asks for the license and notice with the ported code: `THIRD_PARTY_NOTICES.md` at the repository root, and the module doc names the source.

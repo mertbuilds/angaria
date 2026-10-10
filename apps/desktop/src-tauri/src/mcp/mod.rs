@@ -205,7 +205,7 @@ fn agent_env(state: &McpState) -> Result<Env, String> {
     .path()
     .home_dir()
     .map_err(|error| error.to_string())?;
-  Ok(Env::new(home).with_process_vars())
+  Ok(Env::new(home).with_process_vars().with_system_paths())
 }
 
 /// The MCP clients Angaria knows, whether each is installed and has Angaria.
@@ -224,17 +224,23 @@ pub async fn mcp_agents_add(
   if !bridge.is_file() {
     return Err("Angaria’nın MCP köprüsü bulunamadı. Angaria’yı yeniden kur.".into());
   }
-  let bridge = bridge.to_str().ok_or("Angaria’nın yolu okunamadı.")?;
+  let bridge = bridge
+    .to_str()
+    .ok_or("Angaria’nın yolu okunamadı.")?
+    .to_string();
   let env = agent_env(&state)?;
-  Ok(
+  // The claude CLI can take seconds: off the async workers.
+  tauri::async_runtime::spawn_blocking(move || {
     ids
       .iter()
       .map(|id| match agents::find(id) {
-        Some(agent) => agents::upsert_server(agent, &env, bridge),
+        Some(agent) => agents::upsert_server(agent, &env, &bridge),
         None => agents::unknown(id),
       })
-      .collect(),
-  )
+      .collect()
+  })
+  .await
+  .map_err(|error| error.to_string())
 }
 
 /// Takes Angaria out of each client in `ids`.
@@ -244,13 +250,15 @@ pub async fn mcp_agents_remove(
   ids: Vec<String>,
 ) -> Result<Vec<AgentResult>, String> {
   let env = agent_env(&state)?;
-  Ok(
+  tauri::async_runtime::spawn_blocking(move || {
     ids
       .iter()
       .map(|id| match agents::find(id) {
         Some(agent) => agents::remove_server(agent, &env),
         None => agents::unknown(id),
       })
-      .collect(),
-  )
+      .collect()
+  })
+  .await
+  .map_err(|error| error.to_string())
 }

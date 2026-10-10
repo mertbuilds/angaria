@@ -11,6 +11,7 @@
 //! and how to resync: docs/adr/0011-mcp-clients-from-add-mcp.md and
 //! scripts/sync-add-mcp.md.
 
+mod claude;
 mod json;
 mod table;
 mod toml;
@@ -313,7 +314,11 @@ fn upsert_at(agent: &Agent, path: &Path, bridge: &str) -> Result<bool, String> {
 /// Everything else in the file stays.
 pub fn upsert_server(agent: &Agent, env: &Env, bridge: &str) -> AgentResult {
   let path = (agent.config)(env);
-  result(agent.id, &path, upsert_at(agent, &path, bridge))
+  let through_cli = (agent.id == "claude-code")
+    .then(|| claude::upsert(env, &path, bridge))
+    .flatten();
+  let outcome = through_cli.unwrap_or_else(|| upsert_at(agent, &path, bridge));
+  result(agent.id, &path, outcome)
 }
 
 fn remove_at(agent: &Agent, path: &Path) -> Result<bool, String> {
@@ -341,7 +346,11 @@ fn remove_at(agent: &Agent, path: &Path) -> Result<bool, String> {
 /// Takes "angaria" out of `agent`'s config; nothing else changes.
 pub fn remove_server(agent: &Agent, env: &Env) -> AgentResult {
   let path = (agent.config)(env);
-  result(agent.id, &path, remove_at(agent, &path))
+  let through_cli = (agent.id == "claude-code")
+    .then(|| claude::remove(env, &path))
+    .flatten();
+  let outcome = through_cli.unwrap_or_else(|| remove_at(agent, &path));
+  result(agent.id, &path, outcome)
 }
 
 #[cfg(test)]

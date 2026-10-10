@@ -22,6 +22,8 @@ const VARS: [&str; 8] = [
 pub struct Env {
   home: PathBuf,
   vars: Vec<(&'static str, PathBuf)>,
+  /// Looks for programs outside the home folder too (claude.rs).
+  system: bool,
 }
 
 impl Env {
@@ -29,6 +31,7 @@ impl Env {
     Self {
       home,
       vars: Vec::new(),
+      system: false,
     }
   }
 
@@ -40,6 +43,21 @@ impl Env {
       }
     }
     self
+  }
+
+  /// Also looks for programs in system folders and the login shell's PATH.
+  /// Tests leave it off, so they never run a real program.
+  pub fn with_system_paths(mut self) -> Self {
+    self.system = true;
+    self
+  }
+
+  pub(super) fn home_dir(&self) -> &Path {
+    &self.home
+  }
+
+  pub(super) fn system(&self) -> bool {
+    self.system
   }
 
   #[cfg(test)]
