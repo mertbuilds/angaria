@@ -11,12 +11,15 @@ const styles = create({
     flexShrink: 0,
     gap: spacing.s2,
   },
+  // Positioned, so absolutely placed content scrolls and clips with it
+  // instead of laying out against the window.
   content: {
     display: 'flex',
     flex: 1,
     flexDirection: 'column',
     minHeight: 0,
     minWidth: 0,
+    position: 'relative',
   },
   root: {
     display: 'flex',
