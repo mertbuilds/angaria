@@ -658,7 +658,7 @@ function ItemRow({
             {(field) => (
               <field.MaskedField
                 compact
-                description="Yalnızca mal ihracatında gerekir"
+                description="Mal ihracatında gerekir"
                 inputMode="numeric"
                 isValid={(value) => value.replaceAll(/\D/g, '').length === 12}
                 label="GTİP"
