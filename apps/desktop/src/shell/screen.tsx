@@ -1,6 +1,6 @@
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { tones } from './palette.stylex.ts';
 import { shell } from './shell.stylex.ts';
 
@@ -47,7 +47,8 @@ const styles = create({
   toolbar: {
     alignItems: 'center',
     backgroundColor: colors.bg,
-    borderBottomColor: 'transparent',
+    // The hairline every divider in the app uses.
+    borderBottomColor: tones.divider,
     borderBottomStyle: 'solid',
     borderBottomWidth: '1px',
     boxSizing: 'border-box',
@@ -56,15 +57,7 @@ const styles = create({
     gap: spacing.s3,
     height: shell.toolbarHeight,
     paddingInline: spacing.s4,
-    transitionDuration: {
-      '@media (prefers-reduced-motion: reduce)': '0s',
-      default: '150ms',
-    },
-    transitionProperty: 'border-bottom-color',
     userSelect: 'none',
-  },
-  toolbarScrolled: {
-    borderBottomColor: tones.divider,
   },
 });
 
@@ -87,15 +80,12 @@ export interface ScreenProps {
  * One route's main area: a 52px toolbar (title, toolbar slot, actions) over
  * the content. The toolbar is the window's drag region under the macOS
  * overlay titlebar; its empty parts and the title drag, its controls do not.
- * It has no rule of its own: a hairline shows under it once the content
- * scrolls, like a macOS window.
+ * A hairline parts it from the content.
  */
 export function Screen({ actions, children, scroll = true, title, toolbar }: ScreenProps) {
-  const [scrolled, setScrolled] = useState(false);
-
   return (
     <section {...props(styles.root)}>
-      <header data-tauri-drag-region {...props(styles.toolbar, scrolled && styles.toolbarScrolled)}>
+      <header data-tauri-drag-region {...props(styles.toolbar)}>
         <h1 data-tauri-drag-region {...props(styles.title)}>
           {title}
         </h1>
@@ -103,12 +93,7 @@ export function Screen({ actions, children, scroll = true, title, toolbar }: Scr
         <div data-tauri-drag-region {...props(styles.spacer)} />
         {actions && <div {...props(styles.actions)}>{actions}</div>}
       </header>
-      <div
-        onScroll={scroll ? (event) => setScrolled(event.currentTarget.scrollTop > 0) : undefined}
-        {...props(styles.content, scroll && styles.scroll)}
-      >
-        {children}
-      </div>
+      <div {...props(styles.content, scroll && styles.scroll)}>{children}</div>
     </section>
   );
 }
