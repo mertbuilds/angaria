@@ -47,6 +47,7 @@ import {
   SettingsSection,
   SettingsValue,
 } from '@/components/settings-section.tsx';
+import { ThirdPartyNoticesRow } from '@/components/third-party-notices.tsx';
 import { forceLogout } from '@/lib/angaria.ts';
 import { LOGO_TYPES, readLogo } from '@/lib/company-logo.ts';
 import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-emulator.ts';
@@ -968,6 +969,7 @@ function AboutSection() {
           </Button>
         )}
       </SettingsRow>
+      <ThirdPartyNoticesRow />
     </SettingsSection>
   );
 }
