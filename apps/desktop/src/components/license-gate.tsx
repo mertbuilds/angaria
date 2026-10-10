@@ -3,15 +3,11 @@ import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { LoaderCircleIcon, TriangleAlertIcon } from 'lucide-react';
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { appIcon } from '@/lib/app-icon.ts';
 import { errorMessage } from '@/lib/gib-errors.ts';
 import { openCheckout, openCustomerPortal, useLicense } from '@/lib/license-context.tsx';
 import { normalizeLicenseKey, type LicenseStatus } from '@/lib/license.ts';
-import devAppIcon from '../assets/app-icon-dev.png';
-import releaseAppIcon from '../assets/app-icon.png';
 import { shell } from '../shell/shell.stylex.ts';
-
-// Green in dev, like the Dock icon (src-tauri/tauri.dev.conf.json).
-const appIcon = import.meta.env.DEV ? devAppIcon : releaseAppIcon;
 
 type LockedStatus = Exclude<LicenseStatus, { kind: 'grace' } | { kind: 'valid' }>;
 
