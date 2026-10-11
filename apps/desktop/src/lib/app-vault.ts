@@ -11,16 +11,19 @@ export const vault = createVault({
 
 /**
  * Writes a pending password change before the window closes. While MCP is
- * on, Rust hides the window instead and the webview stays for the tools.
+ * on, Rust hides the window instead and the webview stays for the tools;
+ * otherwise the app quits with the window, after `beforeQuit`.
  */
-export function flushVaultOnClose() {
+export function flushVaultOnClose(beforeQuit: () => Promise<void>) {
   if (isTauri()) {
-    // flush never rejects, so the window always closes or hides.
+    // flush and beforeQuit never reject, so the window always closes or hides.
     void getCurrentWindow().onCloseRequested(async (event) => {
       await vault.flush();
       if (await windowCloseRequested().catch(() => false)) {
         event.preventDefault();
+        return;
       }
+      await beforeQuit();
     });
   }
 }

@@ -2,6 +2,7 @@ mod background;
 mod downloads;
 pub mod mcp;
 pub mod pdf;
+mod quit;
 mod secrets;
 mod tray;
 
@@ -31,6 +32,9 @@ pub fn run() {
       app.manage(store);
       let launch = background::parse_args(std::env::args());
       app.manage(background::Background::new(launch));
+      app.manage(quit::Quit::default());
+      #[cfg(target_os = "macos")]
+      quit::set_menu(app.handle())?;
       app.manage(mcp::McpState::new(
         app.handle().clone(),
         app.path().app_data_dir()?,
@@ -83,6 +87,7 @@ pub fn run() {
       mcp::mcp_set_settings,
       tray::tray_set_activity,
       background::window_close_requested,
+      quit::quit_ready,
       pdf::html_to_pdf,
       downloads::save_download
     ])
@@ -97,6 +102,8 @@ pub fn run() {
       // The Dock icon, Finder, Spotlight or `open` while the app runs.
       #[cfg(target_os = "macos")]
       tauri::RunEvent::Reopen { .. } => background::show_window(app, None),
+      // Çık, ⌘Q and a background quit wait for the webview's GİB logout.
+      tauri::RunEvent::ExitRequested { code, api, .. } => quit::exit_requested(app, code, &api),
       tauri::RunEvent::Exit => {
         if let Some(mcp) = app.try_state::<mcp::McpState>() {
           mcp.forget_port();

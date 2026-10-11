@@ -33,6 +33,7 @@ fn main() {
       "mcp_set_settings",
       "tray_set_activity",
       "window_close_requested",
+      "quit_ready",
       "html_to_pdf",
       "save_download",
     ]),

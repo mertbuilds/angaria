@@ -3,6 +3,7 @@ import { TCMBRateError } from 'angaria-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { SIGNING_TTL_MS } from '../src/lib/mcp-state.ts';
 import { AMBIGUOUS_COMPANY } from '../src/lib/mcp-tool-kit.ts';
+import { SCAN_WAIT_MS } from '../src/lib/mcp-tools-import.ts';
 import { maskPhone } from '../src/lib/mcp-tools-signing.ts';
 import { ACTIONS_OFF, callMcpTool, runMcpTool } from '../src/lib/mcp-tools.ts';
 import { body, call, MAIN, NOW, OTHER, setup } from './mcp-fixtures.ts';
@@ -737,5 +738,52 @@ describe('import from GİB', () => {
       scanId: scanned.scanId,
     });
     expect(elsewhere.json.error.code).toBe('other-company');
+  });
+
+  test("joins the app's run of the same company and period; another one is refused while it scans", async () => {
+    const { client, ctx, imports } = setup();
+    const lists: Array<() => void> = [];
+    client.getDrafts.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          lists.push(() => resolve([]));
+        }),
+    );
+    // The dialog's run: the app's own GİB client, the same shared run.
+    const app = imports.start('main', '3-ay', {
+      detail: async () => ({}),
+      list: (week, signal) =>
+        ctx.gib((session) => client.getDrafts(session, week.start, week.end), signal),
+    });
+
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      const other = callMcpTool(ctx, 'scan_gib_import', { period: '1-yil' });
+      const elsewhere = callMcpTool(ctx, 'scan_gib_import', { company: 'other', period: '3-ay' });
+      expect(body(await other).error).toMatchObject({ code: 'import-running', period: '3-ay' });
+      expect(body(await elsewhere).error.code).toBe('import-running');
+
+      const same = callMcpTool(ctx, 'scan_gib_import', { period: '3-ay' });
+      await vi.advanceTimersByTimeAsync(SCAN_WAIT_MS);
+      expect(body(await same)).toMatchObject({
+        progress: { phase: 'weeks' },
+        scanId: app.run.id,
+        status: 'scanning',
+      });
+
+      // The app's scan goes on to its end; the agent gets its result.
+      const finish = async () => {
+        while (imports.current()?.status === 'scanning') {
+          lists.shift()?.();
+          await vi.advanceTimersByTimeAsync(1000);
+        }
+      };
+      await finish();
+      const done = body(await callMcpTool(ctx, 'scan_gib_import', { period: '3-ay' }));
+      expect(done).toMatchObject({ invoices: 0, scanId: app.run.id, status: 'done' });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(app.started).toBe(true);
   });
 });

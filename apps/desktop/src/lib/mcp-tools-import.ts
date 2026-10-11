@@ -1,22 +1,19 @@
 // Faturalardan içe aktar over MCP (docs/adr/0010-mcp-agent-actions.md): the
-// scan runs in the background on the GİB queue, as the dialog's does, and can
-// take longer than an MCP call, so scan_gib_import starts it and is called
-// again for its progress; apply_gib_import saves the customers and services
-// the agent picked, never changing saved ones.
+// scan is the app's one import run (src/lib/import-run.ts), the dialog's too.
+// It can take longer than an MCP call, so scan_gib_import starts it, or joins
+// the dialog's run of the same company and period, and is called again for its
+// progress; apply_gib_import saves the customers and services the agent
+// picked, never changing saved ones.
 import { z } from 'zod';
 import {
   applyImport,
   importCandidates,
-  importRange,
-  importWeeks,
   IMPORT_PERIODS,
-  IMPORT_PACE_MS,
-  pause,
-  scanInvoices,
   type ImportCandidates,
   type ImportPeriod,
   type ScanClient,
 } from './gib-import.ts';
+import type { ImportRun } from './import-run.ts';
 import { dueDateOf } from './invoice-due-dates.ts';
 import type { ImportScan } from './mcp-state.ts';
 import { defineTool, errorOutput, failure, json, type McpToolContext } from './mcp-tool-kit.ts';
@@ -29,6 +26,9 @@ const periodInput = z
   .enum(IMPORT_PERIODS.map((period) => period.value) as [ImportPeriod, ...Array<ImportPeriod>])
   .describe("How far back: '3-ay', '6-ay', '1-yil' or '2-yil' (months, years)");
 
+const periodLabel = (period: ImportPeriod) =>
+  IMPORT_PERIODS.find((item) => item.value === period)?.label ?? period;
+
 /** The due date Angaria kept for an invoice, when it can read it. */
 const keptDueDate = (ettn: string) => {
   try {
@@ -38,101 +38,94 @@ const keptDueDate = (ettn: string) => {
   }
 };
 
-const scanKey = (companyId: string, period: ImportPeriod) => `${companyId}:${period}`;
+/** Background tasks on the company's login: what the user and other calls ask for goes first. */
+const scanClient = (ctx: McpToolContext): ScanClient => ({
+  detail: (ettn, signal) =>
+    ctx.gib((session) => ctx.client.getInvoiceDetail(session, ettn), signal, { background: true }),
+  list: (week, signal) =>
+    ctx.gib(
+      async (session) =>
+        (await ctx.client.getDrafts(session, week.start, week.end)) as Array<Invoice>,
+      signal,
+      { background: true },
+    ),
+});
 
-function startScan(ctx: McpToolContext, period: ImportPeriod): ImportScan {
-  const controller = new AbortController();
-  const scan: ImportScan = {
-    companyId: ctx.company().id,
-    controller,
-    id: ctx.state.newId(),
-    period,
-    progress: null,
-    settled: Promise.resolve(),
-  };
-  // Background tasks: what the user and other calls ask for goes first.
-  const client: ScanClient = {
-    detail: (ettn, signal) =>
-      ctx.gib(
-        async (session) => {
-          await pause(IMPORT_PACE_MS, signal);
-          return ctx.client.getInvoiceDetail(session, ettn);
-        },
-        signal,
-        { background: true },
-      ),
-    list: (week, signal) =>
-      ctx.gib(
-        async (session) => {
-          await pause(IMPORT_PACE_MS, signal);
-          return (await ctx.client.getDrafts(session, week.start, week.end)) as Array<Invoice>;
-        },
-        signal,
-        { background: true },
-      ),
-  };
-  scan.settled = scanInvoices(client, importWeeks(importRange(period, ctx.now())), {
-    onProgress: (progress) => {
-      scan.progress = progress;
-    },
-    signal: controller.signal,
-  }).then(
-    (invoices) => {
-      scan.invoices = invoices;
-    },
-    (error: unknown) => {
-      scan.error = error;
+/** Another run is scanning: one at a time, so this call does not start a second. */
+function otherRunScanning(ctx: McpToolContext, run: ImportRun) {
+  const company = ctx.companies().find((item) => item.id === run.companyId)?.name;
+  return failure(
+    `Angaria’da şu an başka bir içe aktarma sürüyor (${company ? `${company}, ` : ''}son ${periodLabel(run.period)}). Aynı anda tek içe aktarma yapılır: bitmesini bekle ya da Angaria’da durdur, sonra tekrar dene.`,
+    {
+      code: 'import-running',
+      companyId: run.companyId,
+      period: run.period,
+      progress: run.progress,
     },
   );
-  return scan;
 }
 
 /** What a finished scan offers, against the company's records now. */
 function candidatesOf(ctx: McpToolContext, scan: ImportScan): ImportCandidates {
   const { customers, services } = ctx.company();
-  return importCandidates(scan.invoices ?? [], { customers, services });
+  return importCandidates(scan.invoices, { customers, services });
 }
 
 const scanGIBImport = defineTool({
   annotations: { openWorldHint: true, readOnlyHint: true },
   description:
-    "Faturalardan içe aktar, step 1: reads the active company's signed (Onaylı) invoices of the period on GİB and returns the customers and services found in them, each with a key and whether it is saved already. A long period takes a while: while it runs this returns status 'scanning' with progress; call it again with the same period until status is 'done'. Then call apply_gib_import with the scanId and the keys to save.",
+    "Faturalardan içe aktar, step 1: reads the active company's signed (Onaylı) invoices of the period on GİB and returns the customers and services found in them, each with a key and whether it is saved already. A long period takes a while: while it runs this returns status 'scanning' with progress; call it again with the same period until status is 'done'. Then call apply_gib_import with the scanId and the keys to save. Angaria runs one import at a time: while another company or period is scanning, this returns code 'import-running'.",
   gib: true,
   inputSchema: z.object({ period: periodInput.optional() }),
   name: 'scan_gib_import',
   run: async (ctx, { period = '1-yil' }, signal) => {
-    const key = scanKey(ctx.company().id, period);
-    let scan = ctx.state.scans.get(key);
-    // A failed scan starts over on the next call.
-    if (!scan || scan.error !== undefined) {
-      scan = startScan(ctx, period);
-      ctx.state.scans.set(key, scan);
+    const companyId = ctx.company().id;
+    let run = ctx.imports.current();
+    const same = run?.companyId === companyId && run.period === period;
+    if (run?.status === 'scanning' && !same) {
+      return otherRunScanning(ctx, run);
     }
+    if (run && same && run.status === 'failed') {
+      // Goes on from where it stopped.
+      run = ctx.imports.retry(scanClient(ctx));
+    } else if (!run || !same) {
+      run = ctx.imports.start(companyId, period, scanClient(ctx)).run;
+    }
+    const id = run?.id;
     let timer: ReturnType<typeof setTimeout> | undefined;
     await Promise.race([
-      scan.settled,
+      ctx.imports.settled(),
       new Promise<void>((resolve) => {
         timer = setTimeout(resolve, SCAN_WAIT_MS);
         signal?.addEventListener('abort', () => resolve(), { once: true });
       }),
     ]);
     clearTimeout(timer);
-    if (scan.error !== undefined) {
-      ctx.state.scans.delete(key);
-      return errorOutput(scan.error);
+    run = ctx.imports.current();
+    if (!run || run.id !== id) {
+      return failure('İçe aktarma Angaria’da durduruldu. Taramak için tekrar çağır.', {
+        code: 'import-stopped',
+      });
     }
-    if (!scan.invoices) {
+    if (run.status === 'failed') {
+      return errorOutput(run.error);
+    }
+    if (run.status === 'scanning' || !run.invoices) {
       return json(
         {
-          message: 'Faturalar taranıyor. Aynı dönemle tekrar çağır.',
+          message: run.progress?.wait
+            ? `GİB şu an yoğun, Angaria ${run.progress.wait.seconds} saniye bekleyip tekrar deniyor. Aynı dönemle tekrar çağır.`
+            : 'Faturalar taranıyor. Aynı dönemle tekrar çağır.',
           period,
-          progress: scan.progress,
-          scanId: scan.id,
+          progress: run.progress,
+          scanId: run.id,
           status: 'scanning',
         },
         'Taranıyor',
       );
     }
+    const scan: ImportScan = { companyId, id: run.id, invoices: run.invoices, period };
+    ctx.state.scans.set(scan.id, scan);
     const candidates = candidatesOf(ctx, scan);
     return json(
       {
@@ -160,8 +153,7 @@ const scanGIBImport = defineTool({
       `${candidates.customers.length} müşteri, ${candidates.services.length} hizmet bulundu`,
     );
   },
-  summarize: ({ period = '1-yil' }) =>
-    `Son ${IMPORT_PERIODS.find((item) => item.value === period)?.label ?? period}`,
+  summarize: ({ period = '1-yil' }) => `Son ${periodLabel(period)}`,
 });
 
 const applyGIBImport = defineTool({
@@ -176,8 +168,8 @@ const applyGIBImport = defineTool({
   }),
   name: 'apply_gib_import',
   run: async (ctx, { customerKeys = [], scanId, serviceKeys = [] }) => {
-    const scan = [...ctx.state.scans.values()].find((candidate) => candidate.id === scanId);
-    if (!scan?.invoices) {
+    const scan = ctx.state.scans.get(scanId);
+    if (!scan) {
       return failure('Bu tarama yok ya da bitmedi. scan_gib_import ile tara.', {
         code: 'unknown-scan',
       });
@@ -214,6 +206,8 @@ const applyGIBImport = defineTool({
           ctx.newId,
         ).services,
     );
+    // Saved: the app's run is done with (its pick step would offer the same).
+    ctx.imports.cancel(scan.id);
     return json(
       {
         customers: addedCustomers,

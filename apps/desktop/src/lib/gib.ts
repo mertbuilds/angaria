@@ -10,7 +10,7 @@ import {
 } from './angaria.ts';
 import { withQRCode } from './invoice-preview.ts';
 import { newestFirst, type DateRange } from './invoices.ts';
-import { createSessionQueue, type GIBAccount } from './session-queue.ts';
+import { createSessionQueue, SESSION_LINGER_MS, type GIBAccount } from './session-queue.ts';
 import { useStore } from './store.tsx';
 import type { GIBIdentity, Invoice } from './types.ts';
 
@@ -21,19 +21,23 @@ const loginListeners = new Set<LoginListener>();
 /**
  * The app's one GİB session queue: run every GİB call through it. Each login
  * also reads the account's own taxpayer (Kullanıcı bilgileri) on the new
- * session; a failure there never fails the login.
+ * session; a failure there never fails the login. The session stays open
+ * SESSION_LINGER_MS after the last call; `gib.close()` ends it sooner.
  */
-export const gib = createSessionQueue({
-  login: async (username, password) => {
-    const session = await login(username, password);
-    const identity = await getUserInfo(session).catch(() => null);
-    for (const listener of loginListeners) {
-      listener(username, identity?.taxID ? identity : null);
-    }
-    return session;
+export const gib = createSessionQueue(
+  {
+    login: async (username, password) => {
+      const session = await login(username, password);
+      const identity = await getUserInfo(session).catch(() => null);
+      for (const listener of loginListeners) {
+        listener(username, identity?.taxID ? identity : null);
+      }
+      return session;
+    },
+    logout,
   },
-  logout,
-});
+  { lingerMs: SESSION_LINGER_MS },
+);
 
 /**
  * Calls `listener` with the user code and the account's own taxpayer (null

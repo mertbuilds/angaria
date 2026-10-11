@@ -29,11 +29,12 @@ export const GIB_ERROR_COPY: Record<GibErrorCode, GibErrorCopy> = {
   },
   'rate-limit': {
     detail: true,
-    text: 'GİB kısa sürede çok fazla istek aldı. Birkaç dakika bekleyip tekrar dene.',
+    text: 'GİB şu an yoğun. Birkaç dakika bekleyip tekrar dene.',
   },
   'session-expired': { text: 'GİB oturumu kapandı. Tekrar dene.' },
+  // GİB allows one session per user; its own advice is Güvenli Çıkış, then a wait.
   'session-locked': {
-    text: 'GİB’de açık bir oturumun var. Portaldan çıkış yap ya da birkaç dakika sonra tekrar dene.',
+    text: 'GİB’de açık bir oturumun var. Tarayıcında e-Arşiv portalından Güvenli Çıkış yap ya da Ayarlar’da Oturumu kapat’ı kullan, sonra yaklaşık 10 dakika sonra tekrar dene.',
   },
   'sms-code-wrong': {
     text: 'SMS şifresi hatalı ya da süresi dolmuş. Şifreyi kontrol et ya da yeni bir SMS şifresi iste.',

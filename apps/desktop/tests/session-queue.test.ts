@@ -294,3 +294,78 @@ describe('leaseWith', () => {
     expect(log).toEqual(['login 33333301', 'logout t1', 'login 33333301', 'logout t2']);
   });
 });
+
+describe('the session after the queue empties', () => {
+  test('stays open for lingerMs, so calls close together share one login', async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, log } = fakeClient();
+      const queue = createSessionQueue(client, { lingerMs: 45_000 });
+      const user = account('33333301');
+
+      expect(await queue.run(user, async (session) => session.token)).toBe('t1');
+      await vi.advanceTimersByTimeAsync(44_999);
+      expect(await queue.run(user, async (session) => session.token)).toBe('t1');
+      expect(log).toEqual(['login 33333301']);
+
+      // The linger starts over after each call.
+      await vi.advanceTimersByTimeAsync(44_999);
+      expect(log).toEqual(['login 33333301']);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(log).toEqual(['login 33333301', 'logout t1']);
+      expect(await queue.run(user, async (session) => session.token)).toBe('t2');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('close logs out at once, and a login waits for that logout', async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, log } = fakeClient();
+      const queue = createSessionQueue(client, { lingerMs: 45_000 });
+      const user = account('33333301');
+
+      await queue.run(user, async () => {});
+      const closing = queue.close();
+      const next = queue.run(user, async (session) => session.token);
+      await closing;
+      expect(await next).toBe('t2');
+      expect(log.slice(0, 3)).toEqual(['login 33333301', 'logout t1', 'login 33333301']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('close while a lease holds the session logs out once it is released', async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, log } = fakeClient();
+      const queue = createSessionQueue(client, { lingerMs: 45_000 });
+      const user = account('33333301');
+
+      const lease = await queue.lease(user);
+      await queue.close();
+      expect(log).toEqual(['login 33333301']);
+      lease.release();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(log).toEqual(['login 33333301', 'logout t1']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('another account logs out of the lingering session first', async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, log } = fakeClient();
+      const queue = createSessionQueue(client, { lingerMs: 45_000 });
+
+      await queue.run(account('33333301'), async () => {});
+      await queue.run(account('33333302'), async () => {});
+      expect(log).toEqual(['login 33333301', 'logout t1', 'login 33333302']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

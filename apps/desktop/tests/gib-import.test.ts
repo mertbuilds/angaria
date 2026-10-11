@@ -2,10 +2,13 @@ import { GibError } from 'angaria-earsiv-sdk';
 import { describe, expect, test, vi } from 'vitest';
 import {
   applyImport,
+  IMPORT_PACE,
   importCandidates,
   importRange,
   importWeeks,
   isSignedInvoice,
+  newCheckpoint,
+  RATE_LIMIT_BACKOFF_MS,
   scanInvoices,
   type ScanClient,
   type ScannedInvoice,
@@ -155,6 +158,8 @@ describe('isSignedInvoice', () => {
 
 describe('scanInvoices', () => {
   const weeks = importWeeks({ end: '21/09/2026', start: '01/09/2026' });
+  /** No waits between calls, for the tests that are not about the pace. */
+  const fast = { ...IMPORT_PACE, burstPauseMs: 0, gapMs: 0, jitterMs: 0 };
 
   test('lists every week, then reads each signed invoice once, and reports progress', async () => {
     const client = fakeClient(
@@ -175,6 +180,7 @@ describe('scanInvoices', () => {
     const progress: Array<ScanProgress> = [];
     const invoices = await scanInvoices(client, weeks, {
       onProgress: (step) => progress.push(step),
+      pace: fast,
       signal: new AbortController().signal,
     });
 
@@ -192,22 +198,40 @@ describe('scanInvoices', () => {
     expect(progress.at(-1)).toEqual({ done: 2, phase: 'details', total: 2 });
   });
 
-  test('runs at most two calls at a time', async () => {
-    let running = 0;
-    let most = 0;
-    const slow = async <T>(value: T) => {
-      running++;
-      most = Math.max(most, running);
-      await new Promise((resolve) => setTimeout(resolve, 2));
-      running--;
-      return value;
-    };
-    await scanInvoices(
-      { detail: () => slow(detail()), list: (week) => slow([row(week.start, '01-09-2026')]) },
-      weeks,
-      { signal: new AbortController().signal },
-    );
-    expect(most).toBe(2);
+  test('one call at a time, 400 ms ± 100 ms apart, and 5 seconds after every 50 calls', async () => {
+    vi.useFakeTimers();
+    try {
+      let running = 0;
+      let most = 0;
+      const starts: Array<number> = [];
+      const call = async <T>(value: T) => {
+        starts.push(Date.now());
+        running++;
+        most = Math.max(most, running);
+        await Promise.resolve();
+        running--;
+        return value;
+      };
+      // 53 weeks, nothing signed: 53 list calls.
+      const year = importWeeks({ end: '31/12/2026', start: '01/01/2026' });
+      const jitter = [0, 1, 0.5];
+      let draws = 0;
+      const scan = scanInvoices({ detail: () => call(detail()), list: () => call([]) }, year, {
+        random: () => jitter[draws++ % jitter.length],
+        signal: new AbortController().signal,
+      });
+      await vi.runAllTimersAsync();
+      await scan;
+
+      expect(most).toBe(1);
+      const gaps = starts.slice(1).map((at, index) => at - starts[index]);
+      expect(gaps.slice(0, 3)).toEqual([300, 500, 400]);
+      expect(gaps[49]).toBe(5000);
+      expect(gaps.filter((gap) => gap === 5000)).toHaveLength(1);
+      expect(gaps.every((gap) => gap === 5000 || (gap >= 300 && gap <= 500))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test('a call whose session expired goes again once', async () => {
@@ -217,22 +241,115 @@ describe('scanInvoices', () => {
       .mockResolvedValue([]);
     await expect(
       scanInvoices({ detail: async () => detail(), list }, weeks.slice(0, 1), {
+        pace: fast,
         signal: new AbortController().signal,
       }),
     ).resolves.toEqual([]);
     expect(list).toHaveBeenCalledTimes(2);
   });
 
-  test('another failure stops the scan with GİB’s error', async () => {
-    const error = new GibError('maintenance', 'Bakım');
+  test('a busy GİB is retried after 30, 60 and 120 seconds, showing the wait, then the scan stops', async () => {
+    vi.useFakeTimers();
+    try {
+      const busy = new GibError('rate-limit', 'GİB çok fazla istek aldı', { status: 429 });
+      const list = vi.fn<ScanClient['list']>().mockRejectedValue(busy);
+      const progress: Array<ScanProgress> = [];
+      const scan = scanInvoices({ detail: async () => detail(), list }, weeks, {
+        onProgress: (step) => progress.push(step),
+        pace: fast,
+        signal: new AbortController().signal,
+      });
+      const stopped = expect(scan).rejects.toBe(busy);
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(list).toHaveBeenCalledTimes(1);
+      expect(progress.at(-1)?.wait).toEqual({ attempt: 1, seconds: 30 });
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(list).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(progress.at(-1)?.wait).toEqual({ attempt: 2, seconds: 60 });
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(list).toHaveBeenCalledTimes(3);
+      expect(progress.at(-1)?.wait).toEqual({ attempt: 3, seconds: 120 });
+      await vi.advanceTimersByTimeAsync(120_000);
+      await stopped;
+      expect(list).toHaveBeenCalledTimes(1 + RATE_LIMIT_BACKOFF_MS.length);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('a busy GİB that answers again goes on with the same call', async () => {
+    vi.useFakeTimers();
+    try {
+      const list = vi
+        .fn<ScanClient['list']>()
+        .mockRejectedValueOnce(new GibError('rate-limit', 'Çok fazla istek'))
+        .mockResolvedValue([]);
+      const scan = scanInvoices({ detail: async () => detail(), list }, weeks, {
+        pace: fast,
+        signal: new AbortController().signal,
+      });
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(scan).resolves.toEqual([]);
+      expect(list.mock.calls.map(([week]) => week.start)).toEqual([
+        '01/09/2026',
+        '01/09/2026',
+        '08/09/2026',
+        '15/09/2026',
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('another failure stops the scan with GİB’s error at once', async () => {
+    const error = new GibError(
+      'session-locked',
+      'Sisteme aynı anda birden fazla giriş yapamazsınız',
+    );
     const list = vi.fn<ScanClient['list']>().mockRejectedValue(error);
     await expect(
       scanInvoices({ detail: async () => detail(), list }, weeks, {
-        concurrency: 1,
+        pace: fast,
         signal: new AbortController().signal,
       }),
     ).rejects.toBe(error);
     expect(list).toHaveBeenCalledTimes(1);
+  });
+
+  test('a scan that stopped goes on from its checkpoint, never fetching twice', async () => {
+    const client = fakeClient(
+      { '01/09/2026': [row('a', '02-09-2026')], '15/09/2026': [row('b', '16-09-2026')] },
+      {},
+    );
+    const checkpoint = newCheckpoint();
+    const down = new GibError('network', 'GİB’e ulaşılamadı');
+    let failOnce = true;
+    const flaky: ScanClient = {
+      detail: async (ettn, signal) => {
+        if (ettn === 'b' && failOnce) {
+          failOnce = false;
+          throw down;
+        }
+        return client.detail(ettn, signal);
+      },
+      list: client.list,
+    };
+    const options = { checkpoint, pace: fast, signal: new AbortController().signal };
+
+    await expect(scanInvoices(flaky, weeks, options)).rejects.toBe(down);
+    expect(client.calls).toEqual([
+      'list 01/09/2026',
+      'list 08/09/2026',
+      'list 15/09/2026',
+      'detail a',
+    ]);
+
+    const invoices = await scanInvoices(flaky, weeks, options);
+    expect(invoices.map((invoice) => invoice.ettn)).toEqual(['a', 'b']);
+    expect(client.calls.slice(4)).toEqual(['detail b']);
   });
 
   test('stops when cancelled', async () => {
@@ -247,7 +364,7 @@ describe('scanInvoices', () => {
         },
       },
       weeks,
-      { concurrency: 1, signal: controller.signal },
+      { pace: fast, signal: controller.signal },
     );
     await expect(scan).rejects.toMatchObject({ name: 'AbortError' });
     expect(client.calls).toHaveLength(1);

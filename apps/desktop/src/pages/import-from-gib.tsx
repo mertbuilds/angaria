@@ -16,41 +16,34 @@ import {
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { getDrafts, getInvoiceDetail } from '@/lib/angaria.ts';
 import { fullCountryName } from '@/lib/countries.ts';
 import { taxIDKind } from '@/lib/customer.ts';
 import {
   applyImport,
   DEFAULT_IMPORT_PERIOD,
-  IMPORT_PACE_MS,
   IMPORT_PERIODS,
   importCandidates,
   importRange,
   importWeeks,
-  pause,
-  scanInvoices,
+  RATE_LIMIT_BACKOFF_MS,
   type ImportCandidates,
   type ImportPeriod,
   type ScanClient,
   type ScanProgress,
 } from '@/lib/gib-import.ts';
-import { gib, invoiceDetailQuery, useGIBAccount } from '@/lib/gib.ts';
+import { gib, invoiceDetailQuery } from '@/lib/gib.ts';
+import { importRuns } from '@/lib/import-run.ts';
 import { dueDateOf } from '@/lib/invoice-due-dates.ts';
 import { formatPrice } from '@/lib/services.ts';
 import { useStore } from '@/lib/store.tsx';
-import type { Invoice } from '@/lib/types.ts';
+import type { Entity, Invoice } from '@/lib/types.ts';
 import { ErrorState } from '@/shell/error-state.tsx';
 import { EmptyState, formatNumber, unitLabel } from '@/shell/searchable-list.tsx';
 import { tones } from '../shell/palette.stylex.ts';
 
 const styles = create({
-  content: {
-    maxWidth: {
-      '@media (min-width: 640px)': '34rem',
-      default: 'calc(100% - 2rem)',
-    },
-  },
   field: {
     display: 'grid',
     gap: spacing.s2,
@@ -115,19 +108,16 @@ const styles = create({
     gap: '2px',
     minWidth: 0,
   },
+  // Long names wrap: the whole name is what the user chooses by.
   rowTitle: {
     color: colors.fg,
     fontSize: font.sizeSm,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    overflowWrap: 'anywhere',
   },
   rowSubtitle: {
     color: colors.muted,
     fontSize: font.sizeXs,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    overflowWrap: 'anywhere',
   },
   rowTrailing: {
     color: colors.fg,
@@ -142,6 +132,7 @@ const styles = create({
   sections: {
     display: 'grid',
     gap: spacing.s4,
+    gridTemplateColumns: 'minmax(0, 1fr)',
   },
 });
 
@@ -154,24 +145,61 @@ interface Selection {
   services: Set<string>;
 }
 
-type Step =
-  | { customers: number; kind: 'done'; services: number }
-  | { error: unknown; kind: 'failed' }
-  | { candidates: ImportCandidates; kind: 'pick'; selection: Selection }
-  | { kind: 'scanning'; progress: ScanProgress | null }
-  | { kind: 'start' };
-
 const newKeys = (items: ReadonlyArray<{ existing: boolean; key: string }>) =>
   new Set(items.filter((item) => !item.existing).map((item) => item.key));
 
-function progressText(progress: ScanProgress | null) {
+/** The scan's progress in words, for the dialog and the indicator in the corner. */
+export function progressText(progress: ScanProgress | null) {
   if (!progress) {
     return { label: 'GİB’e bağlanılıyor…', value: undefined };
   }
   const count = `${formatNumber(progress.done)}/${formatNumber(progress.total)}`;
-  return progress.phase === 'weeks'
-    ? { label: 'Faturalar taranıyor…', value: `${count} hafta` }
-    : { label: 'Fatura ayrıntıları alınıyor…', value: `${count} fatura` };
+  const value = `${count} ${progress.phase === 'weeks' ? 'hafta' : 'fatura'}`;
+  if (progress.wait) {
+    return {
+      label: `GİB yoğun, ${formatNumber(progress.wait.seconds)} saniye sonra tekrar denenecek (${progress.wait.attempt}/${RATE_LIMIT_BACKOFF_MS.length})`,
+      value,
+    };
+  }
+  return {
+    label: progress.phase === 'weeks' ? 'Faturalar taranıyor…' : 'Fatura ayrıntıları alınıyor…',
+    value,
+  };
+}
+
+/** The scan's GİB calls as background tasks on the company's login: what the user asks for goes first. */
+function useScanClient() {
+  const { getCredentials } = useStore();
+  const queryClient = useQueryClient();
+  return (entity: Entity): ScanClient => {
+    const account = { credentials: () => getCredentials(entity.id), key: entity.creds.username };
+    return {
+      detail: (ettn, signal) =>
+        gib.run(
+          account,
+          async (session) => {
+            const detail = await getInvoiceDetail(session, ettn);
+            queryClient.setQueryData(invoiceDetailQuery(account, ettn).queryKey, detail);
+            return detail;
+          },
+          { background: true, signal },
+        ),
+      list: (week, signal) =>
+        gib.run(
+          account,
+          async (session) =>
+            (await getDrafts(session, week.start, week.end, { signal })) as Array<Invoice>,
+          { background: true, signal },
+        ),
+    };
+  };
+}
+
+/** What the period asks of GİB, under the period choice. */
+function periodHint(period: ImportPeriod) {
+  const weeks = importWeeks(importRange(period, new Date())).length;
+  const long = period === '2-yil' ? ' 2 yıl birkaç dakika sürer.' : '';
+  return `GİB her seferinde bir haftayı gösterir: ${formatNumber(weeks)} hafta sırayla taranır, sonra her onaylı fatura ayrıca okunur.${long} Taslaklar, iptal edilen ve silinen belgeler alınmaz.`;
 }
 
 function customerSubtitle(taxID: string, country: string) {
@@ -256,7 +284,10 @@ function PickSection({
 /**
  * Eski faturalarından müşteri ve hizmetlerini al: pick a period, scan GİB's
  * signed invoices a week at a time, choose the customers and services to save.
- * `onboarding` names the way out Atla (after the first GİB login), else Vazgeç.
+ * The scan is the app's one import run (importRuns): closing the dialog never
+ * stops it, and opening the dialog shows it at its step, for the company it
+ * scans. `onboarding` names the way out Atla (after the first GİB login), else
+ * Vazgeç.
  */
 export function ImportFromGIBDialog({
   onboarding,
@@ -267,111 +298,78 @@ export function ImportFromGIBDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
-  const { newId, savedItems, savedRecipients, setSavedItems, setSavedRecipients } = useStore();
-  const account = useGIBAccount();
-  const queryClient = useQueryClient();
+  const { activeEntity, entities, newId, updateEntity } = useStore();
+  const scanClient = useScanClient();
+  const run = useSyncExternalStore(importRuns.subscribe, importRuns.current);
   const [period, setPeriod] = useState<ImportPeriod>(DEFAULT_IMPORT_PERIOD);
-  const [step, setStep] = useState<Step>({ kind: 'start' });
-  const scan = useRef<AbortController | null>(null);
+  const [done, setDone] = useState<{ customers: number; services: number } | null>(null);
+  const [picked, setPicked] = useState<(Selection & { runId: string }) | null>(null);
+  // The company the run scans, which may not be the active one.
+  const entity = run ? entities.find((item) => item.id === run.companyId) : activeEntity;
 
-  // Closing stops a running scan; the next open starts over.
+  // A run for a company deleted meanwhile has nowhere to save.
   useEffect(() => {
-    if (!open) {
-      scan.current?.abort();
-      scan.current = null;
+    if (run && !entity) {
+      importRuns.cancel(run.id);
     }
-  }, [open]);
+  }, [entity, run]);
 
-  const handleOpenChange = (next: boolean) => {
-    onOpenChange(next);
-    if (!next) {
-      scan.current?.abort();
-    }
-  };
+  const candidates = useMemo(
+    () =>
+      run?.status === 'ready' && run.invoices && entity
+        ? importCandidates(run.invoices, {
+            customers: entity.savedRecipients,
+            services: entity.savedItems,
+          })
+        : null,
+    [entity, run],
+  );
+  const selection: Selection | null =
+    candidates && run
+      ? picked?.runId === run.id
+        ? picked
+        : { customers: newKeys(candidates.customers), services: newKeys(candidates.services) }
+      : null;
 
-  async function startScan() {
-    const controller = new AbortController();
-    scan.current = controller;
-    setStep({ kind: 'scanning', progress: null });
-    // Background tasks: what the user asks for meanwhile goes first.
-    const client: ScanClient = {
-      detail: (ettn, signal) =>
-        gib.run(
-          account,
-          async (session) => {
-            await pause(IMPORT_PACE_MS, signal);
-            const detail = await getInvoiceDetail(session, ettn);
-            queryClient.setQueryData(invoiceDetailQuery(account, ettn).queryKey, detail);
-            return detail;
-          },
-          { background: true, signal },
-        ),
-      list: (week, signal) =>
-        gib.run(
-          account,
-          async (session) => {
-            await pause(IMPORT_PACE_MS, signal);
-            return (await getDrafts(session, week.start, week.end, { signal })) as Array<Invoice>;
-          },
-          { background: true, signal },
-        ),
-    };
-    try {
-      const invoices = await scanInvoices(client, importWeeks(importRange(period, new Date())), {
-        onProgress: (progress) => {
-          if (!controller.signal.aborted) {
-            setStep({ kind: 'scanning', progress });
-          }
-        },
-        signal: controller.signal,
-      });
-      const candidates = importCandidates(invoices, {
-        customers: savedRecipients,
-        services: savedItems,
-      });
-      setStep({
-        candidates,
-        kind: 'pick',
-        selection: {
-          customers: newKeys(candidates.customers),
-          services: newKeys(candidates.services),
-        },
-      });
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setStep({ error, kind: 'failed' });
-      }
-    } finally {
-      if (scan.current === controller) {
-        scan.current = null;
-      }
+  function startScan() {
+    setDone(null);
+    // Another run scanning comes back instead, and the dialog shows it.
+    importRuns.start(activeEntity.id, period, scanClient(activeEntity));
+  }
+
+  /** Stops and forgets the run (Durdur), or drops what it found (Vazgeç). */
+  function dropRun() {
+    if (run) {
+      importRuns.cancel(run.id);
     }
   }
 
-  function stopScan() {
-    scan.current?.abort();
-    scan.current = null;
-    setStep({ kind: 'start' });
-  }
-
-  function addChosen(candidates: ImportCandidates, selection: Selection) {
+  function addChosen(target: Entity, found: ImportCandidates, chosenKeys: Selection) {
     const chosen = {
-      customers: candidates.customers.filter((item) => selection.customers.has(item.key)),
-      services: candidates.services.filter((item) => selection.services.has(item.key)),
+      customers: found.customers.filter((item) => chosenKeys.customers.has(item.key)),
+      services: found.services.filter((item) => chosenKeys.services.has(item.key)),
     };
-    const result = applyImport(
-      { customers: savedRecipients, services: savedItems },
-      chosen,
-      newId,
-      (ettn) => dueDateOf(ettn),
-    );
-    setSavedRecipients(result.customers);
-    setSavedItems(result.services);
-    setStep({
-      customers: result.customers.length - savedRecipients.length,
-      kind: 'done',
-      services: result.services.length - savedItems.length,
+    const saved = { customers: target.savedRecipients, services: target.savedItems };
+    const result = applyImport(saved, chosen, newId, (ettn) => dueDateOf(ettn));
+    updateEntity(target.id, (current) => ({
+      ...current,
+      savedItems: applyImport(
+        { customers: [], services: current.savedItems },
+        { customers: [], services: chosen.services },
+        newId,
+      ).services,
+      savedRecipients: applyImport(
+        { customers: current.savedRecipients, services: [] },
+        { customers: chosen.customers, services: [] },
+        newId,
+        (ettn) => dueDateOf(ettn),
+      ).customers,
+    }));
+    setDone({
+      customers: result.customers.length - saved.customers.length,
+      services: result.services.length - saved.services.length,
     });
+    dropRun();
   }
 
   const leave = (
@@ -379,174 +377,176 @@ export function ImportFromGIBDialog({
       {onboarding ? 'Atla' : 'Vazgeç'}
     </DialogClose>
   );
+  // Leaving a finished or failed run drops it; closing the dialog any other way keeps it.
+  const leaveRun = (
+    <DialogClose onClick={dropRun} render={<Button variant="outline" />}>
+      {onboarding ? 'Atla' : 'Vazgeç'}
+    </DialogClose>
+  );
+  const otherCompany =
+    run && entity && run.companyId !== activeEntity.id ? ` Bu tarama ${entity.name} için.` : '';
 
   let body;
-  switch (step.kind) {
-    case 'start':
-      body = (
-        <>
-          <DialogHeader>
-            <DialogTitle>Eski faturalarından müşteri ve hizmetlerini al</DialogTitle>
-            <DialogDescription>
-              Angaria GİB’deki onaylı faturalarını tarar. Hangi müşteri ve hizmetlerin
-              kaydedileceğini sen seçersin, kayıtlı olanlar değişmez.
-            </DialogDescription>
-          </DialogHeader>
-          <div {...props(styles.field)}>
-            <span id="import-period-label" {...props(styles.fieldLabel)}>
-              Dönem
-            </span>
-            <ChoiceChips
-              aria-describedby="import-period-hint"
-              aria-labelledby="import-period-label"
-              onValueChange={(value) => {
-                if (value) {
-                  setPeriod(value);
-                }
-              }}
-              options={periodOptions}
-              value={period}
-            />
-            <p id="import-period-hint" {...props(styles.fieldHint)}>
-              GİB her seferinde bir haftayı gösterir, bu yüzden uzun dönemler birkaç dakika
-              sürebilir. Taslaklar, iptal edilen ve silinen belgeler alınmaz.
-            </p>
-          </div>
-          <DialogFooter>
-            {leave}
-            <Button onClick={() => void startScan()}>Faturaları tara</Button>
-          </DialogFooter>
-        </>
-      );
-      break;
-    case 'scanning': {
-      const text = progressText(step.progress);
-      body = (
-        <>
-          <DialogHeader>
-            <DialogTitle>Eski faturalarından müşteri ve hizmetlerini al</DialogTitle>
-            <DialogDescription>
-              GİB’i yormamak için faturalar sırayla alınıyor. Bu sırada Angaria’yı kullanmaya devam
-              edebilirsin.
-            </DialogDescription>
-          </DialogHeader>
-          <Progress
-            label={text.label}
-            max={step.progress?.total || 1}
-            value={step.progress ? step.progress.done : null}
-            valueText={text.value}
-          />
-          <DialogFooter>
-            <Button onClick={stopScan} variant="outline">
-              Durdur
-            </Button>
-          </DialogFooter>
-        </>
-      );
-      break;
-    }
-    case 'failed':
-      body = (
-        <>
-          <DialogHeader>
-            <DialogTitle>Eski faturalarından müşteri ve hizmetlerini al</DialogTitle>
-          </DialogHeader>
-          <ErrorState
-            error={step.error}
-            onRetry={() => void startScan()}
-            title="Faturalar alınamadı"
-          />
-          <DialogFooter>{leave}</DialogFooter>
-        </>
-      );
-      break;
-    case 'pick': {
-      const { candidates, selection } = step;
-      const count = selection.customers.size + selection.services.size;
-      const setSelection = (next: Partial<Selection>) =>
-        setStep({ ...step, selection: { ...selection, ...next } });
-      body = (
-        <>
-          <DialogHeader>
-            <DialogTitle>Kaydedilecekleri seç</DialogTitle>
-            <DialogDescription>
-              Müşteriler son faturalarındaki bilgilerle, hizmetler son fiyatlarıyla kaydedilir.
-            </DialogDescription>
-          </DialogHeader>
-          {candidates.customers.length === 0 ? (
-            <EmptyState
-              action={
-                <Button onClick={() => setStep({ kind: 'start' })} variant="outline">
-                  Başka dönem seç
-                </Button>
+  if (done) {
+    body = (
+      <>
+        <DialogHeader>
+          <DialogTitle>Kayıtlar eklendi</DialogTitle>
+          <DialogDescription>
+            {formatNumber(done.customers)} müşteri ve {formatNumber(done.services)} hizmet eklendi.
+            Yeni fatura keserken bunları seçebilirsin.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button />}>Tamam</DialogClose>
+        </DialogFooter>
+      </>
+    );
+  } else if (!run || !entity) {
+    body = (
+      <>
+        <DialogHeader>
+          <DialogTitle>Eski faturalarından müşteri ve hizmetlerini al</DialogTitle>
+          <DialogDescription>
+            Angaria GİB’deki onaylı faturalarını tarar. Hangi müşteri ve hizmetlerin kaydedileceğini
+            sen seçersin, kayıtlı olanlar değişmez.
+          </DialogDescription>
+        </DialogHeader>
+        <div {...props(styles.field)}>
+          <span id="import-period-label" {...props(styles.fieldLabel)}>
+            Dönem
+          </span>
+          <ChoiceChips
+            aria-describedby="import-period-hint"
+            aria-labelledby="import-period-label"
+            onValueChange={(value) => {
+              if (value) {
+                setPeriod(value);
               }
-              title="Onaylı fatura yok"
-            >
-              Bu dönemde GİB’de onaylı faturan bulunmuyor.
-            </EmptyState>
-          ) : (
-            <div {...props(styles.sections)}>
-              <PickSection
-                onChange={(customers) => setSelection({ customers })}
-                rows={candidates.customers.map((item) => ({
-                  disabled: item.existing,
-                  key: item.key,
-                  subtitle: customerSubtitle(item.taxID, item.latest.detail.recipient.country),
-                  title: item.name,
-                  trailing: `${formatNumber(item.invoiceCount)} fatura`,
-                }))}
-                selected={selection.customers}
-                title="Müşteriler"
-              />
-              <PickSection
-                onChange={(services) => setSelection({ services })}
-                rows={candidates.services.map(({ existing, key, service }) => ({
-                  disabled: existing,
-                  key,
-                  subtitle: `${unitLabel(service.unitType)} · KDV %${formatNumber(service.VATRate)}`,
-                  title: service.name,
-                  trailing: formatPrice(service.unitPrice, service.currency),
-                }))}
-                selected={selection.services}
-                title="Hizmetler"
-              />
-            </div>
-          )}
-          <DialogFooter>
-            {leave}
-            <Button
-              disabled={count === 0}
-              focusableWhenDisabled
-              onClick={() => addChosen(candidates, selection)}
-            >
-              Seçilenleri ekle ({formatNumber(count)})
-            </Button>
-          </DialogFooter>
-        </>
-      );
-      break;
-    }
-    case 'done':
-      body = (
-        <>
-          <DialogHeader>
-            <DialogTitle>Kayıtlar eklendi</DialogTitle>
-            <DialogDescription>
-              {formatNumber(step.customers)} müşteri ve {formatNumber(step.services)} hizmet
-              eklendi. Yeni fatura keserken bunları seçebilirsin.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose render={<Button />}>Tamam</DialogClose>
-          </DialogFooter>
-        </>
-      );
-      break;
+            }}
+            options={periodOptions}
+            value={period}
+          />
+          <p id="import-period-hint" {...props(styles.fieldHint)}>
+            {periodHint(period)}
+          </p>
+        </div>
+        <DialogFooter>
+          {leave}
+          <Button onClick={startScan}>Faturaları tara</Button>
+        </DialogFooter>
+      </>
+    );
+  } else if (run.status === 'scanning') {
+    const text = progressText(run.progress);
+    body = (
+      <>
+        <DialogHeader>
+          <DialogTitle>Eski faturalarından müşteri ve hizmetlerini al</DialogTitle>
+          <DialogDescription>
+            GİB’i yormamak için faturalar sırayla alınıyor. Pencereyi kapatabilirsin, tarama arka
+            planda sürer ve bitince sağ altta haber verir.{otherCompany}
+          </DialogDescription>
+        </DialogHeader>
+        <Progress
+          label={text.label}
+          max={run.progress?.total || 1}
+          value={run.progress ? run.progress.done : null}
+          valueText={text.value}
+        />
+        <DialogFooter>
+          <Button onClick={dropRun} variant="outline">
+            Durdur
+          </Button>
+          <DialogClose render={<Button />}>Kapat</DialogClose>
+        </DialogFooter>
+      </>
+    );
+  } else if (run.status === 'failed') {
+    body = (
+      <>
+        <DialogHeader>
+          <DialogTitle>Eski faturalarından müşteri ve hizmetlerini al</DialogTitle>
+          {otherCompany && <DialogDescription>{otherCompany.trim()}</DialogDescription>}
+        </DialogHeader>
+        <ErrorState
+          error={run.error}
+          // Goes on from where it stopped.
+          onRetry={() => importRuns.retry(scanClient(entity))}
+          title="Faturalar alınamadı"
+        />
+        <DialogFooter>{leaveRun}</DialogFooter>
+      </>
+    );
+  } else if (candidates && selection) {
+    const count = selection.customers.size + selection.services.size;
+    const setSelection = (next: Partial<Selection>) =>
+      setPicked({ ...selection, ...next, runId: run.id });
+    body = (
+      <>
+        <DialogHeader>
+          <DialogTitle>Kaydedilecekleri seç</DialogTitle>
+          <DialogDescription>
+            Müşteriler son faturalarındaki bilgilerle, hizmetler son fiyatlarıyla kaydedilir.
+            {otherCompany}
+          </DialogDescription>
+        </DialogHeader>
+        {candidates.customers.length === 0 ? (
+          <EmptyState
+            action={
+              <Button onClick={dropRun} variant="outline">
+                Başka dönem seç
+              </Button>
+            }
+            title="Onaylı fatura yok"
+          >
+            Bu dönemde GİB’de onaylı faturan bulunmuyor.
+          </EmptyState>
+        ) : (
+          <div {...props(styles.sections)}>
+            <PickSection
+              onChange={(customers) => setSelection({ customers })}
+              rows={candidates.customers.map((item) => ({
+                disabled: item.existing,
+                key: item.key,
+                subtitle: customerSubtitle(item.taxID, item.latest.detail.recipient.country),
+                title: item.name,
+                trailing: `${formatNumber(item.invoiceCount)} fatura`,
+              }))}
+              selected={selection.customers}
+              title="Müşteriler"
+            />
+            <PickSection
+              onChange={(services) => setSelection({ services })}
+              rows={candidates.services.map(({ existing, key, service }) => ({
+                disabled: existing,
+                key,
+                subtitle: `${unitLabel(service.unitType)} · KDV %${formatNumber(service.VATRate)}`,
+                title: service.name,
+                trailing: formatPrice(service.unitPrice, service.currency),
+              }))}
+              selected={selection.services}
+              title="Hizmetler"
+            />
+          </div>
+        )}
+        <DialogFooter>
+          {leaveRun}
+          <Button
+            disabled={count === 0}
+            focusableWhenDisabled
+            onClick={() => addChosen(entity, candidates, selection)}
+          >
+            Seçilenleri ekle ({formatNumber(count)})
+          </Button>
+        </DialogFooter>
+      </>
+    );
   }
 
   return (
-    <Dialog onOpenChange={handleOpenChange} open={open}>
-      <DialogContent style={styles.content}>{body}</DialogContent>
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent size="lg">{body}</DialogContent>
     </Dialog>
   );
 }

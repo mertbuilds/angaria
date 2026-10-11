@@ -18,6 +18,7 @@ import { companyKeys, resolveCompany } from '@/lib/company-identity.ts';
 import { customerName, defaultPDFLanguage, learnCustomer } from '@/lib/customer.ts';
 import { errorMessage } from '@/lib/gib-errors.ts';
 import { gib, invoiceDetailQuery, invoiceHTMLQuery } from '@/lib/gib.ts';
+import { importRuns } from '@/lib/import-run.ts';
 import { dueDateOf, saveDueDate } from '@/lib/invoice-due-dates.ts';
 import { saveAngariaPDF, saveEArchive } from '@/lib/invoice-files.ts';
 import { cleanItems, invoiceDefaults, upsertSavedItems } from '@/lib/invoice-form.ts';
@@ -249,11 +250,13 @@ export function McpHost() {
         },
         forceLogout: async () => {
           const login = await store.getCredentials(entity.id);
+          await gib.close();
           await forceLogout(login.username, login.password);
         },
         // The signal drops a waiting task; a started one runs to its end.
         gib: (task, signal, options) =>
           gib.run(account, (session) => task(session), { ...options, signal }),
+        imports: importRuns,
         lease: (signal) => gib.lease(account, { signal }),
         license: async () => {
           const state = license.current;

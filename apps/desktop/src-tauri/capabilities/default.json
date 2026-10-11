@@ -25,6 +25,7 @@
     "allow-mcp-set-settings",
     "allow-tray-set-activity",
     "allow-window-close-requested",
+    "allow-quit-ready",
     "allow-html-to-pdf",
     "allow-save-download",
     "updater:default",

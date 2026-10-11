@@ -12,6 +12,9 @@ export const secretDelete = (key: string) => invoke<void>('secret_delete', { key
  */
 export const windowCloseRequested = () => invoke<boolean>('window_close_requested');
 
+/** The webview is done before a quit (src-tauri/src/quit.rs): the app exits. */
+export const quitReady = () => invoke<void>('quit_ready');
+
 /** GİB's invoice page as an A4-wide PDF, drawn by WebKit on this Mac (src-tauri/src/pdf.rs). */
 export async function htmlToPDF(html: string): Promise<ArrayBuffer> {
   if (!isTauri()) {

@@ -1,9 +1,10 @@
 // What the built-in MCP server's tools keep between calls while the server
 // runs (docs/adr/0010-mcp-agent-actions.md): SMS signing operations and their
-// leased GİB sessions, the rate limits of agent actions, and the scans of
-// Faturalardan içe aktar. One per server run, so switching MCP off forgets
+// leased GİB sessions, the rate limits of agent actions, and the finished
+// scans of Faturalardan içe aktar (the scan itself is the app's one import
+// run, src/lib/import-run.ts). One per server run, so switching MCP off forgets
 // it all. No Tauri or React imports, so tests drive it with a fake clock.
-import type { ImportPeriod, ScannedInvoice, ScanProgress } from './gib-import.ts';
+import type { ImportPeriod, ScannedInvoice } from './gib-import.ts';
 import type { SessionLease } from './session-queue.ts';
 
 /**
@@ -47,16 +48,12 @@ export interface SigningOperation {
 /** Why an operation ended. */
 export type SigningEnd = 'cancelled' | 'expired' | 'failed' | 'replaced' | 'signed';
 
+/** A finished import run scan_gib_import returned, for apply_gib_import. */
 export interface ImportScan {
   companyId: string;
-  controller: AbortController;
-  error?: unknown;
   id: string;
-  invoices?: ReadonlyArray<ScannedInvoice>;
+  invoices: ReadonlyArray<ScannedInvoice>;
   period: ImportPeriod;
-  progress: ScanProgress | null;
-  /** Settles when the scan ends, either way. */
-  settled: Promise<void>;
 }
 
 export interface McpStateOptions {
@@ -82,6 +79,7 @@ export function createMcpState({
   >();
   const expired = new Set<string>();
   const calls = new Map<string, Array<number>>();
+  /** By scanId */
   const scans = new Map<string, ImportScan>();
   let lastSMSAt: number | null = null;
 
@@ -169,12 +167,9 @@ export function createMcpState({
 
   return {
     allow,
-    /** Ends every operation and stops every scan: the server stopped. */
+    /** Ends every operation and forgets the scans: the server stopped. */
     dispose: () => {
       signing.endAll('cancelled');
-      for (const scan of scans.values()) {
-        scan.controller.abort();
-      }
       scans.clear();
     },
     newId,

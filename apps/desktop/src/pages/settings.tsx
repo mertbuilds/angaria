@@ -246,6 +246,8 @@ function GibAccountSection() {
 
   function handlePasswordChange(value: string) {
     setLoaded({ entityId: activeEntityId, password: value });
+    // The open session was made with the old password.
+    void gib.close();
     setCredentials(activeEntityId, { password: value }).catch((error) => {
       toastError(error, { id: 'password-save' });
     });
@@ -258,7 +260,7 @@ function GibAccountSection() {
     }
     setTest({ kind: 'testing', login });
     try {
-      // The queue logs in for the task and logs out once nothing else waits.
+      // The queue logs in for the task (a changed login closed the open session).
       await gib.run(account, async () => {});
       setTest({ kind: 'ok', login });
     } catch (error) {
@@ -281,6 +283,8 @@ function GibAccountSection() {
     setLoggingOut(true);
     try {
       const login = await getCredentials(activeEntityId);
+      // Angaria's own session first, then any other one on the portal.
+      await gib.close();
       await forceLogout(login.username, login.password);
       toast.success('Oturum kapatıldı');
     } catch (error) {
@@ -381,6 +385,7 @@ function GibUsernameRow() {
   function handleChange(next: string) {
     const nextOwner = gibUserOwner(companyKeys(entities), activeEntityId, next);
     setTaken(nextOwner ? next : null);
+    void gib.close();
     void setCredentials(activeEntityId, { username: nextOwner ? before.current : next });
   }
 
