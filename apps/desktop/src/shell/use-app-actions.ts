@@ -30,32 +30,39 @@ export function useAppActions() {
    * GİB's list for that whole month (the cached one while fresh). Without
    * one, the list opens to pick another.
    */
-  const reissueLastMonth = useCallback(() => {
-    if (!requireCredentials()) {
-      return;
-    }
-    const toastId = toast.loading('Geçen ayın faturaları GİB’den alınıyor…');
-    void fetchLastMonthInvoice(
-      (range) => queryClient.fetchQuery(invoiceListQuery(account, range)),
-      new Date(),
-    ).then(
-      (source) => {
-        if (source?.ettn) {
-          toast.dismiss(toastId);
-          void navigate({ search: { kaynak: source.ettn }, to: '/yeni' });
-          return;
-        }
-        void navigate({ to: '/faturalar' });
-        toast('Geçen ay kesilen fatura yok', {
-          description: 'Tekrar kesmek istediğin faturayı listeden aç ve Tekrar kes’e bas.',
-          id: toastId,
-        });
-      },
-      (error: unknown) => {
-        toastError(error, { id: toastId, openSettings: () => void navigate({ to: '/ayarlar' }) });
-      },
-    );
-  }, [account, navigate, queryClient, requireCredentials]);
+  const reissueLastMonth = useCallback(
+    function reissue() {
+      if (!requireCredentials()) {
+        return;
+      }
+      const toastId = toast.loading('Geçen ayın faturaları GİB’den alınıyor…');
+      void fetchLastMonthInvoice(
+        (range) => queryClient.fetchQuery(invoiceListQuery(account, range)),
+        new Date(),
+      ).then(
+        (source) => {
+          if (source?.ettn) {
+            toast.dismiss(toastId);
+            void navigate({ search: { kaynak: source.ettn }, to: '/yeni' });
+            return;
+          }
+          void navigate({ to: '/faturalar' });
+          toast('Geçen ay kesilen fatura yok', {
+            description: 'Tekrar kesmek istediğin faturayı listeden aç ve Tekrar kes’e bas.',
+            id: toastId,
+          });
+        },
+        (error: unknown) => {
+          toastError(error, {
+            id: toastId,
+            openSettings: () => void navigate({ to: '/ayarlar' }),
+            retry: reissue,
+          });
+        },
+      );
+    },
+    [account, navigate, queryClient, requireCredentials],
+  );
 
   return { goTo, newInvoice, reissueLastMonth };
 }

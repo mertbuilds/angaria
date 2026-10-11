@@ -411,3 +411,42 @@ describe('parseVault', () => {
     ).toEqual({ gibPasswords: { a: 'x' }, v: 1 });
   });
 });
+
+describe('GİB sessions', () => {
+  const session = { baseUrl: 'https://earsivportal.efatura.gov.tr', cookies: ['a=1'], token: 'T' };
+
+  test('are kept until forgotten, written only when they change', async () => {
+    const { state, vault, writes } = vaultOver({ gibPasswords: { a: 'x' } });
+
+    await vault.saveSession('33333301', session);
+    await vault.saveSession('33333301', { ...session });
+    expect(writes).toHaveLength(1);
+    expect(await vault.getSessions()).toEqual({ '33333301': session });
+    expect(parseVault(state.stored ?? '').gibPasswords).toEqual({ a: 'x' });
+
+    await vault.saveSession('33333301', null);
+    await vault.saveSession('33333301', null);
+    expect(writes).toHaveLength(2);
+    expect(JSON.parse(writes[1] ?? '')).toEqual({ gibPasswords: { a: 'x' }, v: 1 });
+  });
+
+  test('a copy is kept: the live session’s cookies change on every call', async () => {
+    const { vault } = vaultOver({});
+    const live = { ...session, cookies: [...session.cookies] };
+    await vault.saveSession('u', live);
+    live.cookies = ['a=2'];
+    expect((await vault.getSessions()).u?.cookies).toEqual(['a=1']);
+  });
+
+  test('unreadable sessions read as missing', () => {
+    expect(
+      parseVault(
+        JSON.stringify({
+          gibPasswords: {},
+          gibSessions: { a: session, b: { token: '' }, c: 'x' },
+          v: 1,
+        }),
+      ).gibSessions,
+    ).toEqual({ a: session });
+  });
+});

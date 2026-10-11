@@ -12,7 +12,7 @@ import type { ImportRunner } from './import-run.ts';
 import type { McpState } from './mcp-state.ts';
 import { isGatedTool, MCP_TOOL_COPY, type McpToolName } from './mcp.ts';
 import type { SavedFile } from './save-file.ts';
-import type { SessionLease } from './session-queue.ts';
+import { isSessionLocked, type SessionLease } from './session-queue.ts';
 import type {
   CompanyInfo,
   GIBIdentity,
@@ -156,6 +156,9 @@ export const AMBIGUOUS_COMPANY =
   'Bu VKN / TCKN’yle birden fazla şirket var. Şirketi list_companies’teki id’siyle ver.';
 export const BUSY =
   'Angaria’da başka bir GİB işlemi sürüyor (SMS onayı gibi) ya da GİB yavaş. Biraz sonra tekrar dene.';
+/** GİB refused for an open session and the call was not sent again (a write, or the switch is off). */
+export const SESSION_LOCKED =
+  'GİB’de açık bir oturum var. close_gib_session ile kapat, sonra isteği tekrar gönder. close_gib_session için Angaria’da MCP sayfasındaki “Ajanlar onaylayabilir ve silebilir” anahtarı açık olmalı.';
 export const ACTIONS_OFF =
   'Bu işlem kapalı. Angaria’da MCP sayfasındaki “Ajanlar onaylayabilir ve silebilir” anahtarını aç, sonra tekrar dene.';
 
@@ -396,6 +399,22 @@ export function defineTool<T extends z.ZodObject>({
       try {
         return label(await run(ctx, input as z.output<T>, signal));
       } catch (error) {
+        // A read refused for an open GİB session closes it as close_gib_session
+        // does (same switch) and goes again, once. A write never goes again.
+        if (
+          !gib ||
+          !tool.annotations.readOnlyHint ||
+          !isSessionLocked(error) ||
+          !ctx.actionsAllowed()
+        ) {
+          return label(errorOutput(error, signal));
+        }
+      }
+      try {
+        await ctx.forceLogout();
+        ctx.onAction({ kind: 'gib-session-closed' });
+        return label(await run(ctx, input as z.output<T>, signal));
+      } catch (error) {
         return label(errorOutput(error, signal));
       }
     },
@@ -408,6 +427,9 @@ export function errorOutput(error: unknown, signal?: AbortSignal): McpToolOutput
   // Dropped while it waited in the GİB queue.
   if (signal?.aborted && error === signal.reason) {
     return failure(BUSY, { code: 'busy' });
+  }
+  if (isSessionLocked(error)) {
+    return failure(SESSION_LOCKED, { code: 'session-locked' });
   }
   const { code, detail, text } = describeError(error);
   return failure(text, { code, detail });

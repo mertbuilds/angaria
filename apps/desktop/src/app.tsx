@@ -30,11 +30,16 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       if (query.meta?.onError) {
-        toastError(error, { openSettings });
+        toastError(error, {
+          openSettings,
+          // A read: it goes again once an open GİB session is closed.
+          retry: () => void queryClient.refetchQueries({ exact: true, queryKey: query.queryKey }),
+        });
       }
     },
   }),
   mutationCache: new MutationCache({
+    // Writes: never sent again on their own, also after closing a GİB session.
     onError: (error) => {
       toastError(error, { openSettings });
     },

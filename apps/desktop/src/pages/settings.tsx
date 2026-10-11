@@ -48,7 +48,6 @@ import {
   SettingsValue,
 } from '@/components/settings-section.tsx';
 import { ThirdPartyNoticesRow } from '@/components/third-party-notices.tsx';
-import { forceLogout } from '@/lib/angaria.ts';
 import {
   bankFields,
   companyFieldError,
@@ -282,10 +281,8 @@ function GibAccountSection() {
     }
     setLoggingOut(true);
     try {
-      const login = await getCredentials(activeEntityId);
       // Angaria's own session first, then any other one on the portal.
-      await gib.close();
-      await forceLogout(login.username, login.password);
+      await gib.forceClose(account);
       toast.success('Oturum kapatıldı');
     } catch (error) {
       toastError(error);

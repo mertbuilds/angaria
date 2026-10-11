@@ -1,6 +1,8 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
+import { isTauri } from '@tauri-apps/api/core';
 import { useMemo } from 'react';
 import {
+  forceLogout,
   getDrafts,
   getInvoiceDetail,
   getInvoiceHTML,
@@ -8,6 +10,7 @@ import {
   login,
   logout,
 } from './angaria.ts';
+import { vault } from './app-vault.ts';
 import { withQRCode } from './invoice-preview.ts';
 import { newestFirst, type DateRange } from './invoices.ts';
 import { createSessionQueue, SESSION_LINGER_MS, type GIBAccount } from './session-queue.ts';
@@ -22,10 +25,13 @@ const loginListeners = new Set<LoginListener>();
  * The app's one GİB session queue: run every GİB call through it. Each login
  * also reads the account's own taxpayer (Kullanıcı bilgileri) on the new
  * session; a failure there never fails the login. The session stays open
- * SESSION_LINGER_MS after the last call; `gib.close()` ends it sooner.
+ * SESSION_LINGER_MS after the last call; `gib.close()` ends it sooner. The
+ * open session is kept in the vault until its logout, so the next launch
+ * logs out one this run could not (`gib.endLeftovers()`).
  */
 export const gib = createSessionQueue(
   {
+    forceLogout,
     login: async (username, password) => {
       const session = await login(username, password);
       const identity = await getUserInfo(session).catch(() => null);
@@ -36,7 +42,16 @@ export const gib = createSessionQueue(
     },
     logout,
   },
-  { lingerMs: SESSION_LINGER_MS },
+  {
+    lingerMs: SESSION_LINGER_MS,
+    // The vault is Tauri only.
+    store: isTauri()
+      ? {
+          read: () => vault.getSessions(),
+          write: (key, session) => vault.saveSession(key, session),
+        }
+      : undefined,
+  },
 );
 
 /**
