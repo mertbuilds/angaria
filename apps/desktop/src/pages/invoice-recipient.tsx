@@ -173,6 +173,7 @@ export function TaxIDInput({
   onBlur,
   onValueChange,
   value,
+  warning,
 }: {
   children?: ReactNode;
   error?: string | null | undefined;
@@ -180,6 +181,7 @@ export function TaxIDInput({
   onBlur: () => void;
   onValueChange: (value: string) => void;
   value: string;
+  warning?: string | null;
 }) {
   const kind = taxIDKind(value);
   return (
@@ -189,6 +191,7 @@ export function TaxIDInput({
         error={error ?? undefined}
         id={id}
         label="VKN / TCKN"
+        warning={warning ?? undefined}
       >
         {(describedBy) => (
           <div {...props(styles.inputWrap)}>

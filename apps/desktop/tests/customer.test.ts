@@ -9,7 +9,11 @@ import {
   isForeignCustomer,
   learnCustomer,
   nameError,
+  nameKey,
   normalizeTaxID,
+  sameName,
+  SELF_INVOICE_WARNING,
+  selfInvoiceWarning,
   taxIDError,
   taxIDKind,
   withFullCountry,
@@ -179,6 +183,34 @@ describe('findCustomer', () => {
 
   test('needs a VKN / TCKN', () => {
     expect(findCustomer(abroad, ' ', 'Acme GmbH')).toBeNull();
+  });
+});
+
+describe('sameName and nameKey', () => {
+  test('keep ı and i apart by Turkish capitals', () => {
+    expect(nameKey('Kır')).toBe('KIR');
+    expect(nameKey('Kir')).toBe('KİR');
+    expect(nameKey(' Yazılım  Geliştirme Hizmeti ')).toBe('YAZILIM GELİŞTİRME HİZMETİ');
+    expect(sameName('Kır', 'Kir')).toBe(false);
+    expect(sameName('kır', 'KIR')).toBe(true);
+    expect(sameName('ÇŞĞÜÖİ ı', 'çşğüöi ı')).toBe(true);
+  });
+
+  test('let a typed capital I stand for either, so saved names keep matching', () => {
+    expect(sameName('Plastic', 'PLASTIC')).toBe(true);
+    expect(sameName('KIR', 'Kir')).toBe(true);
+    expect(sameName('Yazılım Geliştirme Hizmeti', 'YAZILIM GELIŞTIRME HIZMETI')).toBe(true);
+    expect(sameName('Plastic', 'Plastik')).toBe(false);
+  });
+});
+
+describe('selfInvoiceWarning', () => {
+  test('warns on the company’s own VKN / TCKN only', () => {
+    expect(selfInvoiceWarning('100 000 001 46', '10000000146')).toBe(SELF_INVOICE_WARNING);
+    expect(selfInvoiceWarning('1234567890', '10000000146')).toBeNull();
+    expect(selfInvoiceWarning('', '')).toBeNull();
+    expect(selfInvoiceWarning('2222222222', '2222222222')).toBeNull();
+    expect(selfInvoiceWarning('10000000146', undefined)).toBeNull();
   });
 });
 

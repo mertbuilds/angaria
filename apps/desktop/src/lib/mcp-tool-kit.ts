@@ -6,6 +6,7 @@
 import type { EarsivClient, SessionInfo } from 'angaria-earsiv-sdk';
 import { z } from 'zod';
 import { COUNTRY_OPTIONS } from './countries.ts';
+import { GIB_CURRENCIES, GIB_UNIT_TYPES } from './gib-constants.ts';
 import { describeError } from './gib-errors.ts';
 import type { McpState } from './mcp-state.ts';
 import { isGatedTool, MCP_TOOL_COPY, type McpToolName } from './mcp.ts';
@@ -13,6 +14,7 @@ import type { SavedFile } from './save-file.ts';
 import type { SessionLease } from './session-queue.ts';
 import type {
   CompanyInfo,
+  GIBIdentity,
   Invoice,
   InvoiceFormValues,
   PDFLanguage,
@@ -33,6 +35,8 @@ export type McpToolOutput = McpToolResult & { activity?: string };
 export interface McpCompany {
   companyInfo: CompanyInfo;
   customers: ReadonlyArray<Recipient>;
+  /** The GİB account's own taxpayer as GİB said at the last login, when known */
+  gibIdentity?: GIBIdentity;
   /** A user code and a saved password */
   hasCredentials: boolean;
   id: string;
@@ -45,6 +49,8 @@ export interface McpCompanySummary {
   active: boolean;
   /** A user code and a saved password: GİB calls can log in. */
   gibLogin: 'needs-login' | 'ready';
+  /** The GİB account's own VKN / TCKN as GİB said at the last login, when known */
+  gibTaxID?: string;
   id: string;
   /** Firma adı ya da unvan from Ayarlar, '' when not set */
   legalName: string;
@@ -150,6 +156,95 @@ export const BUSY =
 export const ACTIONS_OFF =
   'Bu işlem kapalı. Angaria’da MCP sayfasındaki “Ajanlar onaylayabilir ve silebilir” anahtarını aç, sonra tekrar dene.';
 
+/** What an input that does not fit gets, with its problems by field. */
+export const INVALID_INPUT = 'Girdi aracın şemasına uymuyor.';
+
+const TYPE_TEXT: Record<string, string> = {
+  array: 'Liste olmalı.',
+  boolean: 'true ya da false olmalı.',
+  int: 'Tam sayı olmalı.',
+  number: 'Sayı olmalı.',
+  object: 'Nesne olmalı.',
+  string: 'Metin olmalı.',
+};
+
+/**
+ * A schema problem in Turkish, for the ones whose schema gives no message of
+ * its own. The Rust server words the same problems the same way
+ * (src-tauri/src/mcp/inputs.rs), as it checks them before a call gets here.
+ */
+export function inputIssue(issue: z.core.$ZodRawIssue): string {
+  switch (issue.code) {
+    case 'invalid_type':
+      return issue.input === undefined
+        ? 'Bu alan gerekli.'
+        : (TYPE_TEXT[issue.expected] ?? 'Beklenen türde değil.');
+    case 'too_small': {
+      const min = String(issue.minimum);
+      if (issue.origin === 'string') {
+        return min === '1' ? 'Boş olamaz.' : `En az ${min} karakter olmalı.`;
+      }
+      if (issue.origin === 'array') {
+        return `En az ${min} öğe olmalı.`;
+      }
+      return issue.inclusive
+        ? `${min} ya da daha büyük olmalı.`
+        : `${min} değerinden büyük olmalı.`;
+    }
+    case 'too_big': {
+      const max = String(issue.maximum);
+      if (issue.origin === 'string') {
+        return `En çok ${max} karakter olabilir.`;
+      }
+      if (issue.origin === 'array') {
+        return `En çok ${max} öğe olabilir.`;
+      }
+      return issue.inclusive
+        ? `${max} ya da daha küçük olmalı.`
+        : `${max} değerinden küçük olmalı.`;
+    }
+    case 'invalid_value':
+      return `Şunlardan biri olmalı: ${issue.values.map(String).join(', ')}.`;
+    default:
+      return 'Beklenen biçimde değil.';
+  }
+}
+
+/** The first problem of each field, by its path ("items.0.unitPrice"). */
+export function issueFields(issues: ReadonlyArray<z.core.$ZodIssue>) {
+  const fields: Record<string, string> = {};
+  for (const issue of issues) {
+    const key = issue.path.join('.') || '(girdi)';
+    fields[key] ??= issue.message;
+  }
+  return fields;
+}
+
+/** `schema` checked with Turkish messages. */
+export const parseInput = <T extends z.ZodType>(schema: T, input: unknown) =>
+  schema.safeParse(input, { error: inputIssue });
+
+/**
+ * A currency code GİB knows, typed in any case ("usd" is USD), for every
+ * tool that takes one.
+ */
+export const currencyCode = z
+  .string()
+  .regex(/^[A-Za-z]{3}$/, 'Üç harfli bir para birimi kodu yaz, örneğin USD.')
+  .transform((code) => code.toUpperCase())
+  .refine(
+    (code) => GIB_CURRENCIES.some((currency) => currency.value === code),
+    'GİB bu para birimi kodunu tanımıyor. TRY, USD ya da EUR gibi bir kod yaz.',
+  );
+
+/** A unit code GİB knows. */
+export const unitCode = z
+  .string()
+  .refine(
+    (code) => GIB_UNIT_TYPES.some((unit) => unit.value === code),
+    'GİB bu birim kodunu tanımıyor. C62, HUR, DAY, MON ya da ANN gibi bir kod yaz.',
+  );
+
 export const json = (value: unknown, activity?: string): McpToolOutput => ({
   activity,
   content: [{ text: JSON.stringify(value, null, 2), type: 'text' }],
@@ -250,17 +345,12 @@ export function defineTool<T extends z.ZodObject>({
       if (isGatedTool(tool.name) && !base.actionsAllowed()) {
         return { output: failure(ACTIONS_OFF, { code: 'actions-off' }), summary: title };
       }
-      const parsed = inputSchema.safeParse(args ?? {});
+      const parsed = parseInput(inputSchema, args ?? {});
       if (!parsed.success) {
         return {
-          output: failure('Girdi aracın şemasına uymuyor.', {
+          output: failure(INVALID_INPUT, {
             code: 'invalid-input',
-            fields: Object.fromEntries(
-              parsed.error.issues.map((issue) => [
-                issue.path.join('.') || '(girdi)',
-                issue.message,
-              ]),
-            ),
+            fields: issueFields(parsed.error.issues),
           }),
           summary: title,
         };

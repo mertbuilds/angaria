@@ -359,7 +359,105 @@ describe('customers', () => {
   });
 });
 
+describe('customer defaults and identity', () => {
+  test('an İstisna customer’s VAT rate must be 0, as on every invoice to it', async () => {
+    const { companies, ctx } = setup();
+    const conflict = await call(ctx, 'update_customer', {
+      id: 'ornek',
+      invoiceType: 'ISTISNA',
+      VATRate: 20,
+    });
+    expect(conflict.json.error).toMatchObject({
+      code: 'invalid-customer',
+      fields: { VATRate: 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)' },
+    });
+    expect(companies.main.customers.find((item) => item.id === 'ornek')?.VATRate).toBeUndefined();
+    // Abroad, İstisna is the default: a VAT rate above 0 conflicts there too.
+    const abroad = await call(ctx, 'create_customer', {
+      country: 'Almanya',
+      taxIDOrTRID: '2222222222',
+      title: 'KDV GMBH',
+      VATRate: 10,
+    });
+    expect(abroad.json.error.fields.VATRate).toMatch(/İstisna faturada KDV oranı %0/);
+    const fine = await call(ctx, 'update_customer', {
+      id: 'ornek',
+      invoiceType: 'ISTISNA',
+      VATRate: 0,
+    });
+    expect(fine.error).toBe(false);
+  });
+
+  test('a customer with the company’s own VKN / TCKN is saved with a warning', async () => {
+    const { ctx } = setup();
+    const self = await call(ctx, 'create_customer', {
+      taxIDOrTRID: '100 000 001 46',
+      title: 'Kendim',
+    });
+    expect(self.error).toBe(false);
+    expect(self.json.warnings).toEqual({
+      taxIDOrTRID:
+        'Alıcının VKN / TCKN’si senin şirketininkiyle aynı. Kendine fatura kesmediğinden emin ol.',
+    });
+    const other = await call(ctx, 'update_customer', { city: 'Ankara', id: 'ornek' });
+    expect(other.json.warnings).toBeUndefined();
+  });
+
+  test('currency codes are taken in any case', async () => {
+    const { ctx } = setup();
+    const created = await call(ctx, 'create_customer', {
+      country: 'Fransa',
+      currency: 'eur',
+      taxIDOrTRID: '2222222222',
+      title: 'PARIS SARL',
+    });
+    expect(created.json.customer.defaults.currency).toBe('EUR');
+    const service = await call(ctx, 'create_service', {
+      currency: 'usd',
+      name: 'Destek',
+      unitPrice: 10,
+    });
+    expect(service.json.service.currency).toBe('USD');
+    const rate = await call(ctx, 'get_exchange_rate', { currency: 'gbp' });
+    expect(rate.json.currency).toBe('GBP');
+    const unknown = await call(ctx, 'create_service', {
+      currency: 'xyz',
+      name: 'Y',
+      unitPrice: 10,
+    });
+    expect(unknown.json.error.fields.currency).toBe(
+      'GİB bu para birimi kodunu tanımıyor. TRY, USD ya da EUR gibi bir kod yaz.',
+    );
+    const lira = await call(ctx, 'get_exchange_rate', { currency: 'try' });
+    expect(lira.json.error.fields.currency).toMatch(/^TRY için kur gerekmez/);
+  });
+});
+
 describe('services', () => {
+  test('need a price above 0, so every saved one can go on an invoice', async () => {
+    const { ctx } = setup();
+    const free = await call(ctx, 'create_service', { name: 'Ücretsiz', unitPrice: 0 });
+    expect(free.json.error).toMatchObject({
+      code: 'invalid-input',
+      fields: { unitPrice: '0 değerinden büyük olmalı.' },
+    });
+    const zeroed = await call(ctx, 'update_service', { id: 's1', unitPrice: 0 });
+    expect(zeroed.json.error.code).toBe('invalid-input');
+  });
+
+  test('names are one in Turkish capitals: ı and i apart, a typed capital I either', async () => {
+    const { ctx } = setup();
+    expect((await call(ctx, 'create_service', { name: 'Kır', unitPrice: 1 })).error).toBe(false);
+    expect((await call(ctx, 'create_service', { name: 'Kir', unitPrice: 1 })).error).toBe(false);
+    const caps = await call(ctx, 'create_service', { name: 'KIR', unitPrice: 1 });
+    expect(caps.json.error.code).toBe('exists');
+    const dotted = await call(ctx, 'create_service', {
+      name: 'YAZILIM GELİŞTİRME HİZMETİ',
+      unitPrice: 1,
+    });
+    expect(dotted.json.error.code).toBe('exists');
+  });
+
   test('are created in the invoices’ currency, changed and deleted', async () => {
     const { allowed, companies, ctx } = setup();
     const created = await call(ctx, 'create_service', { name: 'Danışmanlık', unitPrice: 2500 });
@@ -414,6 +512,32 @@ describe('company details', () => {
     });
     expect(good.json.details).toMatchObject({ bankName: 'Ziraat Bankası', pdfStyle: 'classic' });
     expect(ctx.onAction).toHaveBeenCalledWith({ kind: 'company-details-updated' });
+  });
+
+  test('say when GİB’s account belongs to another taxpayer, and never change by it', async () => {
+    const { companies, ctx } = setup();
+    const gibIdentity = {
+      name: 'DENEME LİSANS TİCARET A.Ş.',
+      taxID: '3333333301',
+      taxOffice: 'Urla',
+    };
+    companies.main.gibIdentity = gibIdentity;
+    const details = await call(ctx, 'get_company_details', {});
+    expect(details.json.gib).toEqual(gibIdentity);
+    expect(details.json.warnings.taxID).toBe(
+      'GİB hesabı DENEME LİSANS TİCARET A.Ş. (VKN 3333333301) adına. Firma bilgilerindeki TCKN farklı, bu yüzden PDF’te e-Arşiv faturasındakinden başka bir satıcı görünür.',
+    );
+    const listed = await call(ctx, 'list_companies', {});
+    expect(listed.json.companies[0]).toMatchObject({
+      gibTaxID: '3333333301',
+      id: 'main',
+      warning: expect.stringContaining('VKN 3333333301'),
+    });
+    expect(listed.json.companies[1].warning).toBeUndefined();
+    expect(companies.main.companyInfo.taxID).toBe('10000000146');
+
+    companies.main.gibIdentity = { ...gibIdentity, taxID: '10000000146' };
+    expect((await call(ctx, 'get_company_details', {})).json.warnings).toBeUndefined();
   });
 
   test('a VKN / TCKN another company has is refused with Ayarlar’ message', async () => {

@@ -109,8 +109,8 @@ const quantityError = (value: number) =>
 const unitPriceError = (value: number) =>
   !Number.isFinite(value)
     ? 'Birim fiyatı rakamla yaz, örneğin 1.250,50'
-    : value < 0
-      ? 'Birim fiyat sıfırdan küçük olamaz'
+    : value <= 0
+      ? 'Birim fiyat sıfırdan büyük olmalı'
       : undefined;
 
 const vatRateError = (value: number) =>

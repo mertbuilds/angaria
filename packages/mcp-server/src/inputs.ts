@@ -35,7 +35,7 @@ export const invoiceItemInput = z.object({
     .number()
     .positive()
     .max(MAX_UNIT_PRICE)
-    .refine(hasCents, 'At most two decimals')
+    .refine(hasCents, 'Tutarı en çok iki ondalıkla yaz, örneğin 1250.50.')
     .describe('Unit price excluding VAT, at most two decimals'),
   unitType: z
     .string()
@@ -60,7 +60,7 @@ const linePrice = (item: DiscountedLine) => roundKurus(item.quantity * item.unit
 export const withDiscountChecks = <T extends z.ZodType<DiscountedLine>>(schema: T) =>
   schema
     .refine((item) => (item.discountAmount ?? 0) <= linePrice(item), {
-      message: 'discountAmount must not exceed quantity × unitPrice',
+      message: 'İskonto satır tutarını geçemez.',
       path: ['discountAmount'],
     })
     .refine(
@@ -69,7 +69,7 @@ export const withDiscountChecks = <T extends z.ZodType<DiscountedLine>>(schema: 
         discountRate === undefined ||
         roundKurus((linePrice(item) * discountRate) / 100) === discountAmount,
       {
-        message: 'discountAmount does not match discountRate; give only one of them',
+        message: 'İskonto tutarı iskonto oranına uymuyor. İkisinden yalnızca birini ver.',
         path: ['discountAmount'],
       },
     );
@@ -80,11 +80,11 @@ export const listInvoicesInput = z
     startDate: gibDate.describe("Start date in DD/MM/YYYY format (e.g. '01/03/2026')"),
   })
   .refine(({ endDate, startDate }) => rangeDays(startDate, endDate) >= 1, {
-    message: 'startDate must not be after endDate',
+    message: 'Başlangıç tarihi bitiş tarihinden sonra olamaz.',
     path: ['startDate'],
   })
   .refine(({ endDate, startDate }) => rangeDays(startDate, endDate) <= MAX_RANGE_DAYS, {
-    message: `The range may cover at most ${MAX_RANGE_DAYS} days, both ends included`,
+    message: `Tarih aralığı iki uç dahil en çok ${MAX_RANGE_DAYS} gün olabilir.`,
     path: ['endDate'],
   });
 
@@ -106,7 +106,7 @@ export const signingRequestInput = z.object({
     .array(invoiceUUID)
     .min(1)
     .max(MAX_SIGN_BATCH)
-    .refine((uuids) => new Set(uuids).size === uuids.length, 'Each uuid only once')
+    .refine((uuids) => new Set(uuids).size === uuids.length, 'Her ETTN’yi yalnızca bir kez ver.')
     .describe(`Uuids (ETTN) of the unsigned drafts to sign, at most ${MAX_SIGN_BATCH}`),
 });
 

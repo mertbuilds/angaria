@@ -33,18 +33,21 @@ export const rangeDays = (start: string, end: string) =>
 
 export const gibDate = z
   .string()
-  .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Expected DD/MM/YYYY')
-  .refine(isCalendarDate, 'Not a calendar date');
+  .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Tarihi GG/AA/YYYY biçiminde yaz, örneğin 01/10/2026.')
+  .refine(isCalendarDate, 'Takvimde böyle bir gün yok.');
 
 /** A GİB date no later than today in Turkish time. */
 export const pastGIBDate = gibDate.refine(
   (value) => sortKey(value) <= sortKey(istanbulToday(new Date())),
-  'Must not be after today (Europe/Istanbul)',
+  'Tarih bugünden sonra olamaz.',
 );
 
 export const gibTime = z
   .string()
-  .regex(/^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/, 'Expected HH:MM:SS, 00:00:00 to 23:59:59');
+  .regex(
+    /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/,
+    'Saati SS:DD:SS biçiminde yaz, 00:00:00 ile 23:59:59 arasında.',
+  );
 
 export function formatGIBDate(d: Date): string {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;

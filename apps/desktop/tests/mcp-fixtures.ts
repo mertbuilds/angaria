@@ -203,6 +203,7 @@ export function setup({
         Object.values(companies).map((entry) => ({
           active: entry.id === 'main',
           gibLogin: entry.hasCredentials ? 'ready' : 'needs-login',
+          gibTaxID: entry.gibIdentity?.taxID,
           id: entry.id,
           legalName: entry.companyInfo.name,
           name: entry.name,

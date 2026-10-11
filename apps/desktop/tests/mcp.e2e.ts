@@ -107,6 +107,9 @@ let port: number;
 let token: string;
 let license: 'locked' | 'ok' = 'ok';
 let actions = false;
+/** While true the harness's calls go unanswered, as in a webview that is reloading. */
+let away = false;
+const heldCalls: Array<string> = [];
 const gibLog: Array<string> = [];
 
 beforeAll(async () => {
@@ -175,6 +178,10 @@ beforeAll(async () => {
       const message = JSON.parse(line);
       if (typeof message.port === 'number') {
         resolve(message.port);
+        return;
+      }
+      if (typeof message.name === 'string' && away) {
+        heldCalls.push(message.name);
         return;
       }
       if (typeof message.name === 'string') {
@@ -350,6 +357,48 @@ describe('Streamable HTTP', () => {
       code: -32_022,
       data: { requested: '2030-01-01' },
     });
+  });
+});
+
+describe('a webview that reloads', () => {
+  test('input is checked at once, a write it dropped fails at once, a read runs again', async () => {
+    const client = new Client({ name: 'e2e-reload', version: '0.0.0' });
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(url()), {
+        requestInit: { headers: { authorization: `Bearer ${token}` } },
+      }),
+    );
+    away = true;
+    const read = client.callTool({ arguments: {}, name: 'list_customers' });
+    const write = client.callTool({
+      arguments: { country: 'Almanya', taxIDOrTRID: '2222222222', title: 'RELOAD GMBH' },
+      name: 'create_customer',
+    });
+    await expect.poll(() => heldCalls.length).toBe(2);
+    harness.stdin.write(`${JSON.stringify({ reload: true })}\n`);
+
+    const dropped = await write;
+    expect(dropped.isError).toBe(true);
+    expect(text(dropped).error.message).toBe(
+      'Angaria işlem sürerken yeniden yüklendi. İşlem tamamlanmış olabilir: tekrar denemeden önce list_customers ile ya da Angaria’daki Müşteriler’de kontrol et.',
+    );
+    // The Rust server checks the schema itself: no wait for the webview.
+    const badDate = await client.callTool({
+      arguments: { endDate: TODAY, startDate: '2026-10-01' },
+      name: 'list_invoices',
+    });
+    expect(text(badDate).error).toMatchObject({
+      code: 'invalid-input',
+      fields: { startDate: 'Tarihi GG/AA/YYYY biçiminde yaz, örneğin 01/10/2026.' },
+    });
+
+    away = false;
+    harness.stdin.write(`${JSON.stringify({ ready: true })}\n`);
+    const listed = await read;
+    expect(listed.isError).toBeFalsy();
+    expect(text(listed).customers).toContainEqual(expect.objectContaining({ id: 'acme' }));
+    expect(heldCalls.toSorted()).toEqual(['create_customer', 'list_customers']);
+    await client.close();
   });
 });
 

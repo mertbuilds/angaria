@@ -13,6 +13,7 @@ import {
   findCustomerByTaxID,
   learnCustomer,
   nameKey,
+  sameName,
 } from './customer.ts';
 import { invoiceDefaults, istisnaReasonInNote } from './invoice-form.ts';
 import { invoiceStatus, parseGIBInvoice, type DateRange, type GIBInvoice } from './invoices.ts';
@@ -224,15 +225,21 @@ const newFirst = (a: { existing: boolean }, b: { existing: boolean }) =>
 const time = (invoice: ScannedInvoice) => parseGIB(invoice.date)?.getTime() ?? 0;
 
 /**
- * A customer by its VKN / TCKN. GİB's placeholders (2222222222 abroad,
- * 22222222222 and 11111111111 for a person) are shared, so there the name and
- * the country tell customers apart.
+ * Keys for names in groups (a VKN and country, a unit and currency): one name,
+ * by sameName, gets one key in its group, made by `format` from the first
+ * spelling's nameKey ("PLASTIC" and "Plastic" are one; "Kır" and "Kir" two).
  */
-function customerKey(recipient: GIBInvoice['recipient']) {
-  const id = recipient.taxIDOrTRID.trim();
-  return isTaxIDPlaceholder(id)
-    ? `${id}:${nameKey(customerName(recipient))}:${recipient.country.trim()}`
-    : id;
+function nameKeys() {
+  const seen: Array<{ group: string; key: string; name: string }> = [];
+  return (group: string, name: string, format: (nameKey: string) => string) => {
+    const known = seen.find((entry) => entry.group === group && sameName(entry.name, name));
+    if (known) {
+      return known.key;
+    }
+    const key = format(nameKey(name));
+    seen.push({ group, key, name });
+    return key;
+  };
 }
 
 function savedCustomer(customers: ReadonlyArray<Recipient>, recipient: GIBInvoice['recipient']) {
@@ -256,7 +263,24 @@ export function importCandidates(
   const customers = new Map<string, CustomerCandidate>();
   // Each service with the time of the newest invoice that has it.
   const services = new Map<string, { candidate: ServiceCandidate; time: number }>();
-  const savedServices = new Set(saved.services.map((service) => nameKey(service.name)));
+  /**
+   * A customer by its VKN / TCKN. GİB's placeholders (2222222222 abroad,
+   * 22222222222 and 11111111111 for a person) are shared, so there the name
+   * and the country tell customers apart.
+   */
+  const customerNames = nameKeys();
+  const customerKey = (recipient: GIBInvoice['recipient']) => {
+    const id = recipient.taxIDOrTRID.trim();
+    const country = recipient.country.trim();
+    return isTaxIDPlaceholder(id)
+      ? customerNames(
+          `${id}:${country}`,
+          customerName(recipient),
+          (name) => `${id}:${name}:${country}`,
+        )
+      : id;
+  };
+  const serviceNames = nameKeys();
 
   for (const invoice of oldestFirst) {
     const { items, recipient, settings } = invoice.detail;
@@ -274,11 +298,12 @@ export function importCandidates(
       if (!name) {
         continue;
       }
-      const serviceKey = `${nameKey(name)}:${item.unitType}:${settings.currency}`;
-      services.set(serviceKey, {
+      const group = `${item.unitType}:${settings.currency}`;
+      const itemKey = serviceNames(group, name, (key) => `${key}:${group}`);
+      services.set(itemKey, {
         candidate: {
-          existing: savedServices.has(nameKey(name)),
-          key: serviceKey,
+          existing: saved.services.some((service) => sameName(service.name, name)),
+          key: itemKey,
           service: { ...item, currency: settings.currency, name },
         },
         time: time(invoice),

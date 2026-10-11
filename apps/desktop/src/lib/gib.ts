@@ -1,28 +1,45 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { getDrafts, getInvoiceDetail, getInvoiceHTML, login, logout } from './angaria.ts';
+import {
+  getDrafts,
+  getInvoiceDetail,
+  getInvoiceHTML,
+  getUserInfo,
+  login,
+  logout,
+} from './angaria.ts';
 import { withQRCode } from './invoice-preview.ts';
 import { newestFirst, type DateRange } from './invoices.ts';
 import { createSessionQueue, type GIBAccount } from './session-queue.ts';
 import { useStore } from './store.tsx';
-import type { Invoice } from './types.ts';
+import type { GIBIdentity, Invoice } from './types.ts';
 
-const loginListeners = new Set<(username: string) => void>();
+type LoginListener = (username: string, identity: GIBIdentity | null) => void;
 
-/** The app's one GİB session queue: run every GİB call through it. */
+const loginListeners = new Set<LoginListener>();
+
+/**
+ * The app's one GİB session queue: run every GİB call through it. Each login
+ * also reads the account's own taxpayer (Kullanıcı bilgileri) on the new
+ * session; a failure there never fails the login.
+ */
 export const gib = createSessionQueue({
   login: async (username, password) => {
     const session = await login(username, password);
+    const identity = await getUserInfo(session).catch(() => null);
     for (const listener of loginListeners) {
-      listener(username);
+      listener(username, identity?.taxID ? identity : null);
     }
     return session;
   },
   logout,
 });
 
-/** Calls `listener` with the user code after each login GİB accepts. Returns the unsubscribe. */
-export function onGIBLogin(listener: (username: string) => void) {
+/**
+ * Calls `listener` with the user code and the account's own taxpayer (null
+ * when GİB did not say) after each login GİB accepts. Returns the unsubscribe.
+ */
+export function onGIBLogin(listener: LoginListener) {
   loginListeners.add(listener);
   return () => {
     loginListeners.delete(listener);

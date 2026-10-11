@@ -142,9 +142,19 @@ export interface CompanyInfo {
   taxOffice: string;
 }
 
+/** The GİB account's own taxpayer, the seller GİB prints on its invoices. */
+export interface GIBIdentity {
+  /** Unvan, else "Ad Soyad" */
+  name: string;
+  taxID: string;
+  taxOffice: string;
+}
+
 export interface EntityData {
   companyInfo: CompanyInfo;
   creds: StoredCredentials;
+  /** What GİB said of the account at the company's last login; kept apart from companyInfo. */
+  gibIdentity?: GIBIdentity;
   /** true once the import from past invoices was offered, after the company's first GİB login. */
   importOffered?: boolean;
   savedItems: Array<Service>;

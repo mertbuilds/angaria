@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   applyCustomer,
   cleanItems,
+  customerDefaultsErrors,
   discountForRate,
   formatAmount,
   formatDecimal,
@@ -485,6 +486,37 @@ describe('invoiceWarnings', () => {
     expect(
       invoiceWarnings(form({ invoiceSettings: istisna, items: [item({ VATRate: 0 })] }), today),
     ).toEqual({});
+  });
+
+  test('warns on an invoice to the company’s own VKN / TCKN', () => {
+    const self = form({ recipient: { ...form().recipient, taxIDOrTRID: '10000000146' } });
+    expect(invoiceWarnings(self, today, '100 000 001 46')).toEqual({
+      'recipient.taxIDOrTRID':
+        'Alıcının VKN / TCKN’si senin şirketininkiyle aynı. Kendine fatura kesmediğinden emin ol.',
+    });
+    expect(invoiceWarnings(self, today, '1234567890')).toEqual({});
+    expect(invoiceWarnings(self, today)).toEqual({});
+  });
+});
+
+describe('customerDefaultsErrors', () => {
+  const home = { ...form().recipient, country: 'Türkiye', taxIDOrTRID: '1234567890' };
+
+  test('an İstisna customer, saved or abroad, takes no VAT rate above 0', () => {
+    expect(customerDefaultsErrors({ ...home, invoiceType: 'ISTISNA', VATRate: 20 })).toEqual({
+      VATRate: 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)',
+    });
+    expect(
+      customerDefaultsErrors({
+        ...home,
+        country: 'Almanya',
+        taxIDOrTRID: '2222222222',
+        VATRate: 10,
+      }),
+    ).toHaveProperty('VATRate');
+    expect(customerDefaultsErrors({ ...home, invoiceType: 'ISTISNA', VATRate: 0 })).toEqual({});
+    expect(customerDefaultsErrors({ ...home, invoiceType: 'ISTISNA' })).toEqual({});
+    expect(customerDefaultsErrors({ ...home, VATRate: 20 })).toEqual({});
   });
 });
 
