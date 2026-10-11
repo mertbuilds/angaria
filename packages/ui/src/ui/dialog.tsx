@@ -46,6 +46,9 @@ const styles = create({
   body: {
     display: 'grid',
     gap: '1rem',
+    // One column as wide as the dialog: long content wraps or shrinks instead
+    // of widening the column and scrolling sideways.
+    gridTemplateColumns: 'minmax(0, 1fr)',
     // Long content scrolls here, not on the popup, so the close button (a
     // sibling) stays in place.
     minHeight: 0,
@@ -86,6 +89,13 @@ const styles = create({
     transform: 'translate(-50%, -50%)',
     width: '100%',
     zIndex: 50,
+  },
+  // Wide content (lists to choose from, long text).
+  contentLarge: {
+    maxWidth: {
+      '@media (min-width: 640px)': '42rem',
+      default: 'calc(100% - 2rem)',
+    },
   },
   // A close gets out of the way: quicker than the open.
   contentClosed: {
@@ -215,6 +225,8 @@ export type DialogContentProps = Omit<DialogPrimitive.Popup.Props, 'className' |
   /** Accessible name of the close button. */
   closeLabel?: string | undefined;
   showCloseButton?: boolean | undefined;
+  /** default: 28rem wide; lg: 42rem, for lists to choose from and long text. */
+  size?: 'default' | 'lg' | undefined;
   style?: StyleXStyles | undefined;
 };
 
@@ -223,6 +235,7 @@ const DialogContent = ({
   className,
   closeLabel = 'Kapat',
   showCloseButton = true,
+  size = 'default',
   style,
   ...props
 }: DialogContentProps) => (
@@ -232,6 +245,7 @@ const DialogContent = ({
       className={(state) =>
         stylexProps(
           styles.content,
+          size === 'lg' && styles.contentLarge,
           state.open ? styles.contentOpen : styles.contentClosed,
           customClassName(className),
           style,
