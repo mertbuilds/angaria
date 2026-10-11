@@ -4,6 +4,7 @@ import { App } from './app.tsx';
 import { flushVaultOnClose } from './lib/app-vault.ts';
 import { connectMenuBar } from './lib/menu-bar.ts';
 import { restorePalette } from './lib/palette.ts';
+import { closeGIBSession, closeGIBSessionOnQuit } from './lib/quit.ts';
 import { restoreTheme } from './lib/theme.ts';
 import { router } from './router.tsx';
 import '@angaria/ui/fonts.css';
@@ -14,7 +15,8 @@ import './app.css';
 
 restoreTheme();
 restorePalette();
-flushVaultOnClose();
+flushVaultOnClose(closeGIBSession);
+closeGIBSessionOnQuit();
 // The Kur günü setting is gone: the rate is always the previous business day's bulletin.
 try {
   localStorage.removeItem('angaria-rate-day');

@@ -3,6 +3,7 @@
 import type { DraftRow, SessionInfo } from 'angaria-earsiv-sdk';
 import { vi } from 'vitest';
 import { resolveCompany } from '../src/lib/company-identity.ts';
+import { createImportRunner } from '../src/lib/import-run.ts';
 import { createMcpState, type McpStateOptions } from '../src/lib/mcp-state.ts';
 import type { McpCompany, McpGIBClient, McpToolContext } from '../src/lib/mcp-tool-kit.ts';
 import { callMcpTool, type McpToolResult } from '../src/lib/mcp-tools.ts';
@@ -177,6 +178,9 @@ export function setup({
   };
   let ids = 0;
   const state = createMcpState({ newId: () => `op-${++ids}`, ...stateOptions });
+  let runs = 0;
+  // The app's one import run; the dialog would share it.
+  const imports = createImportRunner({ newId: () => `run-${++runs}`, now: () => NOW });
   const allowed = { current: actions };
   const shared = {
     currencyRate: vi.fn(async () => 41.523),
@@ -218,6 +222,7 @@ export function setup({
         return found === null || found === 'ambiguous' ? found : contextFor(found.id);
       },
       gib: (task, signal, options) => queue.run(account, task, { ...options, signal }),
+      imports,
       lease: (signal) => queue.lease(account, { signal }),
       license: async () => license,
       newId: () => `id-${++ids}`,
@@ -239,7 +244,7 @@ export function setup({
     credentials: async () => ({ password: '1', username: '33333301' }),
     key: '33333301',
   };
-  return { account, allowed, client, companies, ctx, log, queue, state };
+  return { account, allowed, client, companies, ctx, imports, log, queue, state };
 }
 
 export const body = (result: McpToolResult) => JSON.parse(result.content[0]?.text ?? 'null');

@@ -21,6 +21,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { createClient } from 'angaria-earsiv-sdk';
 import { fetchTCMBRateTable } from 'angaria-utils';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { createImportRunner } from '../src/lib/import-run.ts';
 import { createMcpState } from '../src/lib/mcp-state.ts';
 import {
   callMcpTool,
@@ -117,6 +118,7 @@ beforeAll(async () => {
   const gibClient = createClient({ baseUrl: emulator.url });
   const queue = createSessionQueue(gibClient);
   const state = createMcpState();
+  const imports = createImportRunner();
   // What src/shell/mcp-host.tsx builds per company.
   const contextFor = (id: CompanyId): McpToolContext => {
     const company = COMPANIES[id];
@@ -148,6 +150,7 @@ beforeAll(async () => {
         return found ? contextFor(found) : null;
       },
       gib: (task, signal, options) => queue.run(account, task, { ...options, signal }),
+      imports,
       lease: (signal) => queue.lease(account, { signal }),
       license: async () => license,
       newId: () => crypto.randomUUID(),

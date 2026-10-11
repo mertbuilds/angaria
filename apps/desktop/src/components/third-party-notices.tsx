@@ -13,12 +13,6 @@ import { useState } from 'react';
 import { SettingsRow } from './settings-section.tsx';
 
 const styles = create({
-  content: {
-    maxWidth: {
-      '@media (min-width: 640px)': '42rem',
-      default: 'calc(100% - 2rem)',
-    },
-  },
   text: {
     color: colors.fg,
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -50,7 +44,7 @@ export function ThirdPartyNoticesRow() {
         }}
       >
         <DialogTrigger render={<Button variant="outline" />}>Göster</DialogTrigger>
-        <DialogContent style={styles.content}>
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>Açık kaynak lisansları</DialogTitle>
             <DialogDescription>

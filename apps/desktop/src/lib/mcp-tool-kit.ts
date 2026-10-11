@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { COUNTRY_OPTIONS } from './countries.ts';
 import { GIB_CURRENCIES, GIB_UNIT_TYPES } from './gib-constants.ts';
 import { describeError } from './gib-errors.ts';
+import type { ImportRunner } from './import-run.ts';
 import type { McpState } from './mcp-state.ts';
 import { isGatedTool, MCP_TOOL_COPY, type McpToolName } from './mcp.ts';
 import type { SavedFile } from './save-file.ts';
@@ -126,6 +127,8 @@ export interface McpToolContext {
     signal?: AbortSignal,
     options?: { background?: boolean },
   ) => Promise<T>;
+  /** The app's one Faturalardan içe aktar run, shared with the dialog. */
+  imports: ImportRunner;
   /** Holds the company's GİB session until released (SMS signing). */
   lease: (signal?: AbortSignal) => Promise<SessionLease>;
   /** 'checking' when the license check did not settle in time. */

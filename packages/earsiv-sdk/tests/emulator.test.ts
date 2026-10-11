@@ -335,15 +335,20 @@ describe('typed errors', () => {
     await client.logout(session);
   });
 
-  test('a 5xx page is unknown with its status, a 429 is rate-limit', async () => {
+  test('a 5xx page is unknown with its status, a 429 or 503 is rate-limit', async () => {
     await admin('POST', '/faults', { cmd: 'anologin', kind: '5xx', status: 502 });
     expect(await failure(client.login('33333301', '1'))).toMatchObject({
       code: 'unknown',
       message: 'GİB beklenmeyen bir yanıt verdi (HTTP 502)',
       status: 502,
     });
-    await admin('POST', '/faults', { cmd: 'anologin', kind: '5xx', status: 429 });
-    expect((await failure(client.login('33333301', '1'))).code).toBe('rate-limit');
+    for (const status of [429, 503]) {
+      await admin('POST', '/faults', { cmd: 'anologin', kind: '5xx', status });
+      expect(await failure(client.login('33333301', '1'))).toMatchObject({
+        code: 'rate-limit',
+        status,
+      });
+    }
   });
 
   test('the error envelope is classified by its text', async () => {
@@ -352,6 +357,7 @@ describe('typed errors', () => {
       ['Genel Sistem Hatası', 'unknown'],
       [messages.maintenance, 'maintenance'],
       ['Çok fazla istek gönderdiniz. Lütfen bekleyiniz.', 'rate-limit'],
+      ['Kısa süre sonra tekrar deneyiniz.', 'rate-limit'],
       ['Kayıt bulunamadı.', 'not-found'],
       ['Alıcı VKN/TCKN 10 veya 11 haneli olmalıdır.', 'validation'],
       ['Service Not Found', 'unknown'],

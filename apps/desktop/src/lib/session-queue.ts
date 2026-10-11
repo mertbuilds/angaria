@@ -2,7 +2,8 @@
 // open fails ("Sisteme aynı anda birden fazla giriş yapamazsınız"). Every GİB
 // call therefore goes through one queue that runs tasks one at a time on a
 // shared session, logs in when the first task arrives and logs out once the
-// queue is empty. No Tauri imports, so tests can inject a fake client.
+// queue has been empty for `lingerMs`, so calls close together share a login.
+// No Tauri imports, so tests can inject a fake client.
 
 import type { SessionInfo } from 'angaria-earsiv-sdk';
 import type { Credentials } from './types.ts';
@@ -46,16 +47,55 @@ interface Job {
   signal?: AbortSignal;
 }
 
-export function createSessionQueue(client: SessionClient) {
+/** How long the app's GİB session stays open after the queue empties. */
+export const SESSION_LINGER_MS = 45_000;
+
+export function createSessionQueue(
+  client: SessionClient,
+  /** 0 logs out as soon as the queue is empty. */
+  { lingerMs = 0 }: { lingerMs?: number } = {},
+) {
   const jobs: Array<Job> = [];
   let open: { key: string; session: SessionInfo } | null = null;
   let draining = false;
+  let closing: Promise<void> = Promise.resolve();
+  let linger: ReturnType<typeof setTimeout> | null = null;
+  // close() asked while a task ran: no later task uses this session.
+  let stale = false;
 
-  async function close() {
+  function stopLinger() {
+    if (linger !== null) {
+      clearTimeout(linger);
+      linger = null;
+    }
+  }
+
+  function close() {
+    stopLinger();
+    stale = false;
     const current = open;
     open = null;
     if (current) {
-      await client.logout(current.session).catch(() => {});
+      // The next login waits for this logout, so GİB never sees two sessions.
+      closing = closing.then(() => client.logout(current.session).catch(() => {}));
+    }
+    return closing;
+  }
+
+  /** The queue is empty: log out now, or after `lingerMs` unless a task comes. */
+  async function idle() {
+    if (lingerMs <= 0 || stale) {
+      await close();
+      return;
+    }
+    if (open) {
+      stopLinger();
+      linger = setTimeout(() => {
+        linger = null;
+        if (!draining) {
+          void close();
+        }
+      }, lingerMs);
     }
   }
 
@@ -73,13 +113,15 @@ export function createSessionQueue(client: SessionClient) {
       return;
     }
     draining = true;
+    stopLinger();
     while (jobs.length > 0) {
       for (let job = take(); job; job = take()) {
         try {
-          if (open && open.key !== job.account.key) {
+          if (open && (stale || open.key !== job.account.key)) {
             await close();
           }
           if (!open) {
+            await closing;
             const { password, username } = await job.account.credentials();
             open = {
               key: job.account.key,
@@ -96,7 +138,7 @@ export function createSessionQueue(client: SessionClient) {
           }
         }
       }
-      await close();
+      await idle();
     }
     draining = false;
   }
@@ -216,5 +258,18 @@ export function createSessionQueue(client: SessionClient) {
     };
   }
 
-  return { lease, leaseWith, run };
+  /**
+   * Logs out of the open session now instead of after the linger (app quit,
+   * changed credentials, Oturumu kapat). A task running, or a lease holding
+   * the session, keeps it to its end; the next task logs in again.
+   */
+  function closeSession(): Promise<void> {
+    if (draining) {
+      stale = open !== null;
+      return Promise.resolve();
+    }
+    return close();
+  }
+
+  return { close: closeSession, lease, leaseWith, run };
 }

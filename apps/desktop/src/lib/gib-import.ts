@@ -72,29 +72,46 @@ export interface ScanProgress {
   done: number;
   phase: 'details' | 'weeks';
   total: number;
+  /** GİB was busy: the scan waits this many seconds before the `attempt`th retry. */
+  wait?: { attempt: number; seconds: number };
 }
 
 /**
- * Calls handed to the client at once. GİB's queue runs them one at a time on
- * one session; a second call waiting keeps that session open between them.
+ * What a scan has fetched so far, kept for its run: a scan that stopped (GİB
+ * busy, the network) goes on from here instead of starting over.
  */
-export const SCAN_CONCURRENCY = 2;
+export interface ScanCheckpoint {
+  /** Invoice details by ETTN */
+  details: Map<string, Record<string, unknown>>;
+  /** List rows by window ("start-end") */
+  lists: Map<string, Array<Invoice>>;
+}
 
-/** Calls stay apart by this much on GİB's session, so a long scan does not flood the portal. */
-export const IMPORT_PACE_MS = 150;
+export const newCheckpoint = (): ScanCheckpoint => ({ details: new Map(), lists: new Map() });
+
+/**
+ * GİB publishes no rate limits, so the scan stays well under any: one call at
+ * a time, `gapMs` ± `jitterMs` apart, and `burstPauseMs` after every `burst`
+ * calls (about 60 calls a minute with GİB's own answer time).
+ */
+export const IMPORT_PACE = { burst: 50, burstPauseMs: 5000, gapMs: 400, jitterMs: 100 };
+
+/** GİB said it is busy: the same call goes again after each of these waits, then the scan stops. */
+export const RATE_LIMIT_BACKOFF_MS: ReadonlyArray<number> = [30_000, 60_000, 120_000];
 
 /** Waits `ms`; rejects with the signal's reason once it aborts. */
 export const pause = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        reject(signal.reason);
-      },
-      { once: true },
-    );
+    signal.throwIfAborted();
+    const stop = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', stop);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', stop, { once: true });
   });
 
 /** A call whose session ran out goes again once, on a fresh login. */
@@ -109,68 +126,85 @@ async function retryExpired<T>(call: () => Promise<T>): Promise<T> {
   }
 }
 
-/**
- * `run` over `items` with at most `limit` running, results in order. The first
- * failure stops the rest; so does `signal`.
- */
-async function mapLimit<T, R>(
-  items: ReadonlyArray<T>,
-  limit: number,
-  signal: AbortSignal,
-  run: (item: T, signal: AbortSignal) => Promise<R>,
-  onDone: () => void,
-): Promise<Array<R>> {
-  const controller = new AbortController();
-  const stop = () => controller.abort(signal.reason);
-  signal.addEventListener('abort', stop, { once: true });
-  const results: Array<R> = [];
-  let next = 0;
-  const worker = async () => {
-    while (next < items.length) {
-      controller.signal.throwIfAborted();
-      const index = next++;
-      results[index] = await run(items[index], controller.signal);
-      onDone();
-    }
-  };
-  try {
-    await Promise.all(
-      Array.from({ length: Math.min(limit, items.length) }, () =>
-        worker().catch((error: unknown) => {
-          controller.abort(error);
-          throw error;
-        }),
-      ),
-    );
-  } finally {
-    signal.removeEventListener('abort', stop);
-  }
-  signal.throwIfAborted();
-  return results;
+const isRateLimit = (error: unknown) => error instanceof GibError && error.code === 'rate-limit';
+
+const weekKey = (week: DateRange) => `${week.start}-${week.end}`;
+
+export interface ScanOptions {
+  /** Kept between runs of one scan: what is in it is not fetched again. */
+  checkpoint?: ScanCheckpoint;
+  onProgress?: (progress: ScanProgress) => void;
+  pace?: typeof IMPORT_PACE;
+  /** 0 to 1, for the jitter */
+  random?: () => number;
+  signal: AbortSignal;
 }
 
 /**
  * Every signed invoice dated within `weeks`: the lists first (progress counts
- * weeks), then each invoice's detail (progress counts invoices).
+ * weeks), then each invoice's detail (progress counts invoices). One GİB call
+ * at a time, paced (IMPORT_PACE); a busy GİB is retried after
+ * RATE_LIMIT_BACKOFF_MS. Only reads, so a retry never repeats a change.
  */
 export async function scanInvoices(
   client: ScanClient,
   weeks: ReadonlyArray<DateRange>,
   {
-    concurrency = SCAN_CONCURRENCY,
+    checkpoint = newCheckpoint(),
     onProgress,
+    pace = IMPORT_PACE,
+    random = Math.random,
     signal,
-  }: { concurrency?: number; onProgress?: (progress: ScanProgress) => void; signal: AbortSignal },
+  }: ScanOptions,
 ): Promise<Array<ScannedInvoice>> {
-  let listed = 0;
-  onProgress?.({ done: 0, phase: 'weeks', total: weeks.length });
-  const lists = await mapLimit(
-    weeks,
-    concurrency,
-    signal,
-    (week, callSignal) => retryExpired(() => client.list(week, callSignal)),
-    () => onProgress?.({ done: ++listed, phase: 'weeks', total: weeks.length }),
-  );
+  let calls = 0;
+  let progress: ScanProgress = { done: 0, phase: 'weeks', total: weeks.length };
+  const report = (next: ScanProgress) => {
+    progress = next;
+    onProgress?.(next);
+  };
+
+  /** One GİB call, after the pause the pace asks for, retried while GİB is busy. */
+  async function call<T>(run: () => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      // A retry comes after its own, longer wait.
+      const gap =
+        calls === 0 || attempt > 0
+          ? 0
+          : calls % pace.burst === 0
+            ? pace.burstPauseMs
+            : pace.gapMs + Math.round((random() * 2 - 1) * pace.jitterMs);
+      if (gap > 0) {
+        await pause(gap, signal);
+      }
+      calls++;
+      try {
+        return await retryExpired(run);
+      } catch (error) {
+        const wait = RATE_LIMIT_BACKOFF_MS[attempt];
+        if (!isRateLimit(error) || wait === undefined || signal.aborted) {
+          throw error;
+        }
+        const { done, phase, total } = progress;
+        report({ done, phase, total, wait: { attempt: attempt + 1, seconds: wait / 1000 } });
+        await pause(wait, signal);
+        report({ done, phase, total });
+      }
+    }
+  }
+
+  report(progress);
+  const lists: Array<Array<Invoice>> = [];
+  for (const week of weeks) {
+    signal.throwIfAborted();
+    let rows = checkpoint.lists.get(weekKey(week));
+    if (!rows) {
+      rows = await call(() => client.list(week, signal));
+      checkpoint.lists.set(weekKey(week), rows);
+    }
+    lists.push(rows);
+    report({ done: lists.length, phase: 'weeks', total: weeks.length });
+  }
 
   const signed = new Map<string, Invoice>();
   for (const row of lists.flat()) {
@@ -179,15 +213,19 @@ export async function scanInvoices(
     }
   }
   const rows = [...signed.values()];
-  let read = 0;
-  onProgress?.({ done: 0, phase: 'details', total: rows.length });
-  const details = await mapLimit(
-    rows,
-    concurrency,
-    signal,
-    (row, callSignal) => retryExpired(() => client.detail(row.ettn ?? '', callSignal)),
-    () => onProgress?.({ done: ++read, phase: 'details', total: rows.length }),
-  );
+  const details: Array<Record<string, unknown>> = [];
+  report({ done: 0, phase: 'details', total: rows.length });
+  for (const row of rows) {
+    signal.throwIfAborted();
+    const ettn = row.ettn ?? '';
+    let detail = checkpoint.details.get(ettn);
+    if (!detail) {
+      detail = await call(() => client.detail(ettn, signal));
+      checkpoint.details.set(ettn, detail);
+    }
+    details.push(detail);
+    report({ done: details.length, phase: 'details', total: rows.length });
+  }
   return rows.map((row, index) => ({
     date: toGIB(parseGIB(row.belgeTarihi ?? '')),
     detail: parseGIBInvoice(details[index]),
