@@ -191,10 +191,7 @@ const PORTAL_TEXTS: Array<[RegExp, GibErrorCode]> = [
   [/birden fazla giriş|açık (?:bir )?oturum|güvenli çıkış/, 'session-locked'],
   [/bakım/, 'maintenance'],
   [/tarih aralığı.*(?:fazla|uzun)/, 'range-too-long'],
-  [
-    /(?:çok fazla|fazla sayıda) (?:istek|işlem|deneme|sorgu)|kısa süre (?:içinde|içerisinde)/,
-    'rate-limit',
-  ],
+  [/(?:çok fazla|fazla sayıda) (?:istek|işlem|deneme|sorgu)|kısa süre/, 'rate-limit'],
   [
     /süresi dol|zaman ?aşımı|sona er|yeniden giriş|tekrar giriş|oturum geçersiz|token/,
     'session-expired',
@@ -260,7 +257,8 @@ function replyError(response: Response, body: string): GibError {
   if (body.toLocaleLowerCase('tr').includes('bakım')) {
     return new GibError('maintenance', 'GİB e-Arşiv portalı bakımda', { status });
   }
-  if (status === 429) {
+  // 503 without the maintenance page: the portal (or its proxy) is overloaded.
+  if (status === 429 || status === 503) {
     return new GibError('rate-limit', 'GİB çok fazla istek aldı', { status });
   }
   return new GibError(
