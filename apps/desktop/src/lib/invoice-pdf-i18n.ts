@@ -212,6 +212,14 @@ export function formatPDFNumber(language: PDFLanguage, n: number, fractionDigits
   });
 }
 
+/** An exchange rate with four to six decimals, as GİB's page prints it: "41.2850", "0.309677" */
+export function formatPDFRate(language: PDFLanguage, n: number): string {
+  return n.toLocaleString(LOCALES[localeOf(language)], {
+    maximumFractionDigits: 6,
+    minimumFractionDigits: 4,
+  });
+}
+
 /** Currency code, then the amount with two decimals: "USD 1,234.56" or "USD 1.234,56" */
 export function formatPDFAmount(language: PDFLanguage, currency: string, n: number): string {
   return `${currency} ${formatPDFNumber(language, n)}`;
@@ -327,23 +335,36 @@ function formatFilenameDate(date: string, fallback: string) {
   return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
 
+/**
+ * Angaria's PDF, carrying GİB's number once GİB assigned one, so two invoices
+ * to one customer on one day get names of their own:
+ * Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-GIB2026000000001.pdf
+ */
 export function buildInvoicePDFFilename({
   companyName,
   date,
   entityName,
+  gibNumber,
   language,
   recipientTitle,
 }: {
   companyName: string;
   date: string;
   entityName?: string;
+  gibNumber?: string;
   language: PDFLanguage;
   recipientTitle: string;
 }) {
   const words = FILENAME_WORDS[localeOf(language)];
-  const recipientName = sanitizeFilenamePart(recipientTitle, words.recipientFallback);
-  const entity = sanitizeFilenamePart(entityName || companyName, words.entityFallback);
-  return `${words.prefix}-${formatFilenameDate(date, words.undated)}-${entity}-${recipientName}.pdf`;
+  return `${[
+    words.prefix,
+    formatFilenameDate(date, words.undated),
+    sanitizeFilenamePart(entityName || companyName, words.entityFallback),
+    sanitizeFilenamePart(recipientTitle, words.recipientFallback),
+    gibNumber && sanitizeFilenamePart(gibNumber, ''),
+  ]
+    .filter(Boolean)
+    .join('-')}.pdf`;
 }
 
 /**

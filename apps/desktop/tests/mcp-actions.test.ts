@@ -1,4 +1,5 @@
 import { GibError } from 'angaria-earsiv-sdk';
+import { TCMBRateError } from 'angaria-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { SIGNING_TTL_MS } from '../src/lib/mcp-state.ts';
 import { AMBIGUOUS_COMPANY } from '../src/lib/mcp-tool-kit.ts';
@@ -651,6 +652,24 @@ describe('rates and GİB login', () => {
     const { json } = await call(ctx, 'get_exchange_rate', { currency: 'USD', date: '01/10/2026' });
     expect(json).toMatchObject({ currency: 'USD', invoiceDate: '01/10/2026', rate: 41.523 });
     expect(ctx.currencyRate).toHaveBeenCalledWith('USD', new Date(2026, 8, 1 + 30));
+  });
+
+  test('get_exchange_rate and create_invoice relay why TCMB has no rate for the date', async () => {
+    const { ctx } = setup();
+    const reason = new TCMBRateError(
+      'TCMB’nin bu tarih için Türk lirası kuru yok: kurlar 04/01/2005 ve sonrası tarihli faturalar için var.',
+    );
+    vi.mocked(ctx.currencyRate).mockRejectedValue(reason);
+    const rate = await call(ctx, 'get_exchange_rate', { currency: 'JPY', date: '01/01/1990' });
+    expect(rate.json.error).toMatchObject({ code: 'currency-rate', message: reason.message });
+    const created = await call(ctx, 'create_invoice', {
+      customerId: 'acme',
+      items: [{ name: 'X', quantity: 1, unitPrice: 100 }],
+    });
+    expect(created.json.error).toMatchObject({
+      code: 'currency-rate',
+      message: `${reason.message} Kuru currencyRate ile ver.`,
+    });
   });
 
   test('check_gib_connection logs in and out; close_gib_session needs the switch', async () => {

@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'vitest';
+import { parseDecimal } from '../src/lib/invoice-form.ts';
 import {
   DATE_PRESETS,
   invoiceStatus,
   matchesStatus,
   newestFirst,
   parseGIBInvoice,
+  parseGIBNumber,
   presetRange,
   rangePreset,
   recentInvoices,
@@ -257,8 +259,77 @@ describe('parseGIBInvoice', () => {
     const { odenecekTutar: _, ...withoutTotal } = detail;
     expect(parseGIBInvoice(withoutTotal).total).toBe(3480);
     expect(parseGIBInvoice({}).items).toEqual([]);
-    expect(parseGIBInvoice({ dovzTLkur: '32,5' }).settings.currencyRate).toBe('32,5');
-    // Tekrar kes loads the form through it too, so a numeric rate survives.
-    expect(parseGIBInvoice({ dovzTLkur: 38.123 }).settings.currencyRate).toBe('38.123');
+  });
+
+  test('reads GİB’s rate however it was stored, as the rate field writes it', () => {
+    // GİB keeps dovzTLkur as sent: with a decimal point or the Turkish way.
+    for (const dovzTLkur of ['41.285', '41.2850', '41,2850', ' 41,285 ', 41.285]) {
+      const { currencyRate } = parseGIBInvoice({ dovzTLkur }).settings;
+      expect(currencyRate, String(dovzTLkur)).toBe('41,2850');
+      // What Tekrar kes, the PDF and the payload read back: never 41285.
+      expect(parseDecimal(currencyRate)).toBe(41.285);
+    }
+    expect(parseGIBInvoice({ dovzTLkur: '1.234,5678' }).settings.currencyRate).toBe('1234,5678');
+    expect(parseGIBInvoice({ dovzTLkur: '0.309677' }).settings.currencyRate).toBe('0,309677');
+    for (const dovzTLkur of ['0', 0, '', 'abc', '-41.2850', undefined]) {
+      expect(parseGIBInvoice({ dovzTLkur }).settings.currencyRate, String(dovzTLkur)).toBe('');
+    }
+  });
+
+  test('totals rows rounded to kuruş as GİB does, or GİB’s own totals', () => {
+    // 0,333 × 1.000,01 less 33,33% (110,99), plus 3 × 0,01: GİB stores 222,04.
+    const rows = {
+      dovzTLkur: '45.3952',
+      malHizmetTable: [
+        {
+          birimFiyat: '1000.01',
+          iskontoOrani: 33.33,
+          iskontoTutari: '110.99',
+          kdvOrani: '0',
+          miktar: 0.333,
+        },
+        { birimFiyat: '0.01', kdvOrani: '0', miktar: 3 },
+      ],
+      paraBirimi: 'USD',
+    };
+    expect(parseGIBInvoice(rows)).toMatchObject({ subtotal: 222.04, total: 222.04, vat: 0 });
+    expect(
+      parseGIBInvoice({
+        ...rows,
+        hesaplanankdv: '44,41',
+        matrah: '222.04',
+        odenecekTutar: '266.45',
+      }),
+    ).toMatchObject({ subtotal: 222.04, total: 266.45, vat: 44.41 });
+  });
+});
+
+describe('parseGIBNumber', () => {
+  test('reads a decimal point, the Turkish comma and thousands dots', () => {
+    expect(parseGIBNumber('41.2850')).toBe(41.285);
+    expect(parseGIBNumber('41,2850')).toBe(41.285);
+    expect(parseGIBNumber('1.234,56')).toBe(1234.56);
+    expect(parseGIBNumber('1.234.567,8')).toBe(1_234_567.8);
+    expect(parseGIBNumber('1250.50')).toBe(1250.5);
+    expect(parseGIBNumber('-3,5')).toBe(-3.5);
+    expect(parseGIBNumber(12)).toBe(12);
+  });
+
+  test('is null for anything else', () => {
+    for (const value of [
+      '',
+      ' ',
+      'abc',
+      '1,2,3',
+      '1.2.3',
+      '12,34.5',
+      '1e3',
+      Number.NaN,
+      null,
+      undefined,
+      {},
+    ]) {
+      expect(parseGIBNumber(value), String(value)).toBeNull();
+    }
   });
 });

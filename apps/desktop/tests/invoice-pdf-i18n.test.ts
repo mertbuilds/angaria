@@ -284,6 +284,15 @@ describe('buildInvoicePDFFilename', () => {
     );
   });
 
+  test("ends with GİB's number once GİB assigned one", () => {
+    expect(
+      buildInvoicePDFFilename({ ...base, gibNumber: 'GIB2026000000001', language: 'tr' }),
+    ).toBe('Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-GIB2026000000001.pdf');
+    expect(buildInvoicePDFFilename({ ...base, gibNumber: '', language: 'en' })).toBe(
+      'Invoice-2026-03-05-Ana-Varlık-ACME-GmbH.pdf',
+    );
+  });
+
   test('falls back to the company name and localized placeholders', () => {
     const empty = { companyName: '', date: '', recipientTitle: '' };
     expect(buildInvoicePDFFilename({ ...empty, language: 'tr' })).toBe(

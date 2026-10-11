@@ -14,7 +14,12 @@ import {
   type CustomerDefaults,
 } from './customer.ts';
 import { GIB_CURRENCIES } from './gib-constants.ts';
-import { INVOICE_WINDOW_DAYS, ISTISNA_REASONS, SUPPORTED_INVOICE_TYPES } from './regulated.ts';
+import {
+  INVOICE_WINDOW_DAYS,
+  ISTISNA_REASONS,
+  SUPPORTED_INVOICE_TYPES,
+  VAT_RATE_PRESETS,
+} from './regulated.ts';
 import { cite, ruleMessage } from './rule-sources.ts';
 import type {
   CompanyInfo,
@@ -76,6 +81,13 @@ export function parseDecimal(text: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+/** The most decimals a rate keeps, as GİB's page prints dovzTLkur. */
+const RATE_DECIMALS = 6;
+
+/** A rate as GİB stores it: four to six decimals, "41.2850", "0.309677". */
+export const gibRate = (rate: number) =>
+  rate.toFixed(RATE_DECIMALS).replace(/(\.\d{4}\d*?)0+$/, '$1');
+
 const decimalFormats = new Map<number, Intl.NumberFormat>();
 
 /**
@@ -101,12 +113,15 @@ const amountFormat = new Intl.NumberFormat('tr-TR', {
 export const formatAmount = (value: number) => amountFormat.format(value);
 
 const rateFormat = new Intl.NumberFormat('tr-TR', {
-  maximumFractionDigits: 4,
+  maximumFractionDigits: RATE_DECIMALS,
   minimumFractionDigits: 4,
   useGrouping: false,
 });
 
-/** A TCMB rate as the rate field shows it: 41.5 is "41,5000". */
+/**
+ * A TCMB rate as the rate field shows it: 41.5 is "41,5000", and a currency
+ * TCMB quotes per 100 units keeps its per-unit digits: 0.309677 is "0,309677".
+ */
 export const formatRate = (rate: number) => rateFormat.format(rate);
 
 /** NaN (an unparsable number field) counts as 0 in totals. */
@@ -309,6 +324,10 @@ export const INVOICE_WINDOW_RULE = ruleMessage(
 );
 export const INVOICE_WINDOW_WARNING = INVOICE_WINDOW_RULE.text;
 
+/** A rate GİB takes but the KDV rates since 10 July 2023 (%1, %10, %20) do not include. */
+export const vatRateWarning = (rate: number) =>
+  `KDV oranları 10 Temmuz 2023’ten beri %1, %10 ve %20. %${rate} doğru mu, kontrol et.`;
+
 /**
  * Rules worth a second look that never block the invoice, keyed by field name
  * like validateInvoice's errors; empty when there are none. `companyTaxID`
@@ -343,6 +362,13 @@ export function invoiceWarnings(
       if (item.VATRate === 0) {
         fields[`items[${index}].VATRate`] =
           '%0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.';
+      } else if (
+        Number.isInteger(item.VATRate) &&
+        item.VATRate > 0 &&
+        item.VATRate <= 100 &&
+        !VAT_RATE_PRESETS.includes(item.VATRate)
+      ) {
+        fields[`items[${index}].VATRate`] = vatRateWarning(item.VATRate);
       }
     });
   }
@@ -360,8 +386,8 @@ export function toDraftDetails(values: InvoiceFormValues, now = new Date()): Inv
     date: advancedFields.manualDate || toGIB(now),
     time: normalizeTime(advancedFields.manualTime) || formatTime(now),
     currency: invoiceSettings.currency,
-    // GİB prints dovzTLkur as sent: four decimals, like TCMB's rate.
-    currencyRate: rate ? rate.toFixed(4) : undefined,
+    // GİB prints dovzTLkur as sent.
+    currencyRate: rate ? gibRate(rate) : undefined,
     invoiceType: invoiceSettings.invoiceType,
     taxIDOrTRID: recipient.taxIDOrTRID.trim(),
     taxOffice: recipient.taxOffice,

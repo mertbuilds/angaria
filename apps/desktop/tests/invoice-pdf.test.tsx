@@ -1,7 +1,9 @@
 import { inflateSync } from 'node:zlib';
-import { expect, test, vi } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { renderInvoicePDF } from '../src/components/invoice-pdf.tsx';
+import { gibInvoicePDFData } from '../src/lib/invoice-files.ts';
 import { PDF_LANGUAGES, PDF_STYLES } from '../src/lib/invoice-pdf-i18n.ts';
+import { parseGIBInvoice } from '../src/lib/invoices.ts';
 import type { PDFLanguage, PDFStyle } from '../src/lib/types.ts';
 import { data, pdfRuns, pdfTextBoxes } from './invoice-pdf-helpers.ts';
 
@@ -127,3 +129,77 @@ test.each(
     expect(runs).not.toContain('Amerika Birleşik Dev');
   },
 );
+
+describe('an invoice read from GİB', () => {
+  const source = {
+    company: data.company,
+    entityName: 'Ana Varlık',
+    invoice: {
+      belgeNumarasi: 'GIB2026000000001',
+      belgeTarihi: '01-09-2026',
+      ettn: data.ettn ?? '',
+    },
+  };
+
+  const renderGIB = async (detail: Record<string, unknown>) => {
+    const blob = await renderInvoicePDF(gibInvoicePDFData(source, parseGIBInvoice(detail), 'tr'));
+    return pdfRuns(Buffer.from(await blob.arrayBuffer())).join('\n');
+  };
+
+  test.each(['41.285', '41.2850', '41,2850', 41.285])(
+    'prints the rate GİB stored as %s and the lira total GİB prints',
+    async (dovzTLkur) => {
+      const text = await renderGIB({
+        aliciUnvan: 'ÖRNEK TEKNOLOJİ A.Ş.',
+        dovzTLkur,
+        faturaTipi: 'ISTISNA',
+        hesaplanankdv: '0.00',
+        malHizmetTable: [
+          { birimFiyat: '4500.00', kdvOrani: '0', malHizmet: 'Yazılım Geliştirme', miktar: 1 },
+        ],
+        matrah: '4500.00',
+        odenecekTutar: '4500.00',
+        paraBirimi: 'USD',
+      });
+      expect(text).toContain('1 USD = 41,2850 TRY');
+      // GİB's page: Ödenecek Tutar(TL) 185.782,50
+      expect(text).toContain('TRY 185.782,50');
+      expect(text).not.toContain('41.285,0000');
+    },
+  );
+
+  test('prints the lira total GİB prints: the total in kuruş times the rate', async () => {
+    const text = await renderGIB({
+      aliciUnvan: 'ÖRNEK TEKNOLOJİ A.Ş.',
+      dovzTLkur: '45.3952',
+      faturaTipi: 'ISTISNA',
+      malHizmetTable: [
+        {
+          birimFiyat: '1000.01',
+          iskontoOrani: 33.33,
+          iskontoTutari: '110.99',
+          kdvOrani: '0',
+          malHizmet: 'Danışmanlık',
+          miktar: 0.333,
+        },
+        { birimFiyat: '0.01', kdvOrani: '0', malHizmet: 'Destek', miktar: 3 },
+      ],
+      paraBirimi: 'USD',
+    });
+    expect(text).toContain('USD 222,04');
+    // GİB's page: Ödenecek Tutar(TL) 10.079,55
+    expect(text).toContain('TRY 10.079,55');
+  });
+});
+
+test.each(PDF_STYLES)('%s leaves out characters the font has no glyph for', async (style) => {
+  const pdf = await render('tr', style, {
+    note: 'Teşekkürler 🙏🏽 👨‍👩‍👧',
+    recipient: { ...data.recipient, title: 'Ünïcödé 🚀' },
+  });
+  const runs = pdfRuns(pdf);
+  expect(runs.join('\n')).toContain('Ünïcödé');
+  expect(runs.join('\n')).toContain('Teşekkürler');
+  expect(runs.join('\n')).not.toMatch(/\p{Extended_Pictographic}|‍|️/u);
+  expect(textLayer(pdf).filter(({ text }) => text === '')).toEqual([]);
+});

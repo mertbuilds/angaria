@@ -355,6 +355,17 @@ describe('create_invoice', () => {
     expect(vi.mocked(ctx.client.createDraftInvoice).mock.calls[0]?.[1].currencyRate).toBe(
       '40.1000',
     );
+
+    await call(ctx, 'create_invoice', {
+      currency: 'JPY',
+      currencyRate: '0.309677',
+      customerId: 'acme',
+      items: [{ name: 'X', quantity: 1, unitPrice: 100 }],
+    });
+    // TCMB quotes JPY per 100 units: the per-unit rate keeps its six decimals.
+    expect(vi.mocked(ctx.client.createDraftInvoice).mock.calls[1]?.[1].currencyRate).toBe(
+      '0.309677',
+    );
   });
 });
 
@@ -447,6 +458,7 @@ describe('get_invoice', () => {
     client.getInvoiceDetail.mockResolvedValue({
       aliciUnvan: 'ACME GMBH',
       belgeNumarasi: 'GIB2026000000003',
+      dovzTLkur: '41,2850',
       faturaTarihi: '02/10/2026',
       faturaTipi: 'ISTISNA',
       malHizmetTable: [
@@ -458,6 +470,7 @@ describe('get_invoice', () => {
     const { json } = await call(ctx, 'get_invoice', { uuid: 'ettn-new' });
     expect(json).toMatchObject({
       currency: 'USD',
+      currencyRate: 41.285,
       date: '02/10/2026',
       invoiceType: 'ISTISNA',
       items: [{ name: 'Consulting', quantity: 10, unitPrice: 100, unitType: 'HUR', VATRate: 0 }],

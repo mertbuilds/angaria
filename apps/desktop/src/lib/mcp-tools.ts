@@ -19,6 +19,7 @@ import {
   withDiscountChecks,
 } from '@angaria/mcp-server/inputs';
 import { roundKurus, type SessionInfo } from 'angaria-earsiv-sdk';
+import { TCMBRateError } from 'angaria-utils';
 import { addDays } from 'date-fns';
 import { z } from 'zod';
 import { customerName, defaultPDFLanguage, findCustomer } from './customer.ts';
@@ -30,6 +31,7 @@ import {
   invoiceWarnings,
   istisnaNote,
   istisnaReasonInNote,
+  parseDecimal,
   paymentTotal,
   toDraftDetails,
   validateInvoice,
@@ -183,7 +185,7 @@ const getInvoice = defineTool({
     return json(
       {
         currency: invoice.settings.currency,
-        currencyRate: invoice.settings.currencyRate || undefined,
+        currencyRate: parseDecimal(invoice.settings.currencyRate) || undefined,
         date: found.date,
         invoiceType: invoice.settings.invoiceType,
         items: invoice.items.map(
@@ -428,7 +430,12 @@ async function createDraft(
   if (currency !== 'TRY') {
     const rate = input.currencyRate
       ? Number(input.currencyRate)
-      : await ctx.currencyRate(currency, invoiceDate).catch(() => undefined);
+      : await ctx
+          .currencyRate(currency, invoiceDate)
+          .catch((error: unknown) => (error instanceof TCMBRateError ? error : undefined));
+    if (rate instanceof TCMBRateError) {
+      return failure(`${rate.message} Kuru currencyRate ile ver.`, { code: 'currency-rate' });
+    }
     if (rate === undefined) {
       return failure(`TCMB’nin ${currency} kuru alınamadı. Kuru currencyRate ile ver.`, {
         code: 'currency-rate',
