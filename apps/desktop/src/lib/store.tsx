@@ -243,6 +243,7 @@ function loadEntities(): Array<Entity> {
         creds: loadCreds(entity.creds),
         companyInfo: entity.companyInfo ?? { ...DEFAULT_COMPANY_INFO },
         ...(entity.importOffered ? { importOffered: true } : {}),
+        ...(entity.gibIdentity ? { gibIdentity: entity.gibIdentity } : {}),
         savedRecipients,
         savedItems: withServiceCurrencies(entity.savedItems ?? [], savedRecipients),
       };

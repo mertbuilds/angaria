@@ -33,6 +33,92 @@ describe('mcpToolList', () => {
     const sign = tools.find((tool) => tool.name === 'sign_invoices');
     expect(sign?.annotations).toMatchObject({ destructiveHint: true });
   });
+
+  test('tells the server where each write can be checked and each pattern’s message', () => {
+    const tools = mcpToolList();
+    for (const tool of tools) {
+      const { check } = tool['x-angaria'];
+      expect(check === undefined, tool.name).toBe(tool.annotations.readOnlyHint === true);
+    }
+    const create = tools.find((tool) => tool.name === 'create_invoice');
+    expect(create?.['x-angaria'].patterns).toMatchObject({
+      '^[A-Za-z]{3}$': 'Üç harfli bir para birimi kodu yaz, örneğin USD.',
+      '^\\d{10,11}$': 'VKN 10, TCKN 11 haneli olur. Yalnızca rakam yaz.',
+      '^\\d{2}\\/\\d{2}\\/\\d{4}$': 'Tarihi GG/AA/YYYY biçiminde yaz, örneğin 01/10/2026.',
+    });
+    // Every message an agent relays is Turkish: no zod default slips through.
+    const text = JSON.stringify(tools.map((tool) => tool['x-angaria']));
+    expect(text).not.toMatch(/Expected|Invalid|Must|lütfen|geçerli|geçersiz|hata oluştu|\u2014/);
+  });
+});
+
+describe('input checks', () => {
+  test('name every problem in Turkish by the tool’s own input names', async () => {
+    const { ctx, log } = setup();
+    const empty = await call(ctx, 'create_invoice', {});
+    expect(empty.json.error).toMatchObject({
+      code: 'invalid-input',
+      fields: { items: 'Bu alan gerekli.' },
+      message: 'Girdi aracın şemasına uymuyor.',
+    });
+    const wrong = await call(ctx, 'create_invoice', {
+      customerId: 'acme',
+      date: '2026-10-01',
+      dueDays: 1.5,
+      invoiceType: 'IADE',
+      items: [{ name: '', quantity: 0, unitPrice: '5' }],
+    });
+    expect(wrong.json.error.fields).toEqual({
+      date: 'Tarihi GG/AA/YYYY biçiminde yaz, örneğin 01/10/2026.',
+      dueDays: 'Tam sayı olmalı.',
+      invoiceType: 'Şunlardan biri olmalı: SATIS, ISTISNA.',
+      'items.0.name': 'Boş olamaz.',
+      'items.0.quantity': '0 değerinden büyük olmalı.',
+      'items.0.unitPrice': 'Sayı olmalı.',
+    });
+    const future = await call(ctx, 'list_invoices', {
+      endDate: '02/10/2026',
+      startDate: '03/10/2026',
+    });
+    expect(future.json.error.fields.startDate).toBe(
+      'Başlangıç tarihi bitiş tarihinden sonra olamaz.',
+    );
+    const signTwice = await call(ctx, 'request_signing_sms', { uuids: ['a', 'a'] });
+    expect(signTwice.json.error.code).toBe('actions-off');
+    expect(log).toEqual([]);
+  });
+
+  test('a lowercase currency code is the same code', async () => {
+    const { client, ctx } = setup();
+    const created = await call(ctx, 'create_invoice', {
+      currency: 'eur',
+      customerId: 'acme',
+      items: [{ name: 'X', quantity: 1, unitPrice: 100 }],
+    });
+    expect(created.json.currency).toBe('EUR');
+    expect(vi.mocked(client.createDraftInvoice).mock.calls[0]?.[1].currency).toBe('EUR');
+  });
+
+  test('warnings name the tool’s inputs, never the form’s', async () => {
+    const { ctx } = setup();
+    const late = await call(ctx, 'create_invoice', {
+      customerId: 'acme',
+      date: '01/09/2026',
+      items: [{ name: 'X', quantity: 1, unitPrice: 100 }],
+    });
+    expect(Object.keys(late.json.warnings)).toEqual(['date']);
+
+    const self = await call(ctx, 'create_invoice', {
+      currency: 'TRY',
+      items: [{ name: 'X', quantity: 1, unitPrice: 100, VATRate: 20 }],
+      recipient: { fullAddress: 'Adres', taxIDOrTRID: '10000000146', title: 'Ana Firma' },
+    });
+    expect(self.error).toBe(false);
+    expect(self.json.warnings).toEqual({
+      'recipient.taxIDOrTRID':
+        'Alıcının VKN / TCKN’si senin şirketininkiyle aynı. Kendine fatura kesmediğinden emin ol.',
+    });
+  });
 });
 
 describe('list_invoices', () => {
@@ -77,7 +163,7 @@ describe('list_invoices', () => {
     });
     expect(error).toBe(true);
     expect(json.error.code).toBe('invalid-input');
-    expect(json.error.fields.endDate).toMatch(/at most 31 days/);
+    expect(json.error.fields.endDate).toBe('Tarih aralığı iki uç dahil en çok 31 gün olabilir.');
     expect(log).toEqual([]);
   });
 
@@ -199,7 +285,7 @@ describe('create_invoice', () => {
     expect(istisnaVAT.error).toBe(true);
     expect(istisnaVAT.json.error.code).toBe('invalid-invoice');
     expect(istisnaVAT.json.error.fields).toEqual({
-      'items[0].VATRate': 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)',
+      'items.0.VATRate': 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)',
     });
 
     const badVKN = await call(ctx, 'create_invoice', {

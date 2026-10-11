@@ -59,7 +59,9 @@ import {
 } from '@/lib/company-fields.ts';
 import {
   companyKeys,
+  fillFromGIB,
   GIB_USER_SHARED,
+  gibIdentityMismatch,
   gibUserOwner,
   gibUserTaken,
   taxIDOwner,
@@ -127,6 +129,9 @@ const styles = create({
     fontSize: font.sizeXs,
     height: 'auto',
     paddingInline: 0,
+  },
+  noteWarning: {
+    color: colors.warning,
   },
   tabular: {
     fontVariantNumeric: 'tabular-nums',
@@ -595,7 +600,7 @@ const masks: Partial<Record<CompanyFieldKind, MaskitoOptions>> = {
  * never saved: the company keeps the one it had when the field was entered.
  */
 function CompanyFieldRow({ field }: { field: CompanyField }) {
-  const { activeEntityId, companyInfo, entities, setCompanyInfo } = useStore();
+  const { activeEntity, activeEntityId, companyInfo, entities, setCompanyInfo } = useStore();
   const [left, setLeft] = useState(false);
   const [taken, setTaken] = useState<string | null>(null);
   const before = useRef(companyInfo[field.key]);
@@ -627,7 +632,33 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
 
   let note;
   const bank = kind === 'iban' ? ibanBankName(value) : null;
-  if (bank) {
+  const identity = kind === 'taxID' ? activeEntity.gibIdentity : undefined;
+  const mismatch = gibIdentityMismatch(companyInfo, identity);
+  // GİB's own VKN / TCKN, offered only as a choice: never written silently.
+  const fill = identity && !ownerOf(identity.taxID) && (
+    <Button
+      onClick={() => setCompanyInfo((info) => fillFromGIB(info, identity))}
+      style={styles.noteLink}
+      variant="link"
+    >
+      {mismatch ? 'GİB’dekini yaz' : 'GİB’deki bilgilerle doldur'}
+    </Button>
+  );
+  if (mismatch) {
+    note = (
+      <>
+        <span {...props(styles.noteWarning)}>{mismatch}</span>
+        {fill}
+      </>
+    );
+  } else if (identity && !value.trim()) {
+    note = (
+      <>
+        GİB hesabı: {identity.name}, {identity.taxID}
+        {fill}
+      </>
+    );
+  } else if (bank) {
     note = (
       <>
         {bank}

@@ -372,7 +372,10 @@ export function CreateInvoicePage() {
 
   const total = useMemo(() => invoiceTotals(values.items).total, [values.items]);
   const rate = foreign ? parseDecimal(values.invoiceSettings.currencyRate) : null;
-  const warnings = useMemo(() => invoiceWarnings(values), [values]);
+  const warnings = useMemo(
+    () => invoiceWarnings(values, undefined, companyInfo.taxID),
+    [companyInfo.taxID, values],
+  );
 
   return (
     <div ref={rootRef} {...props(styles.page)}>

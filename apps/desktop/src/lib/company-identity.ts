@@ -4,7 +4,7 @@
 // one session). Ayarlar, the MCP tools and the emulator samples check here.
 // Companies stored with a shared one before this rule stay as they are: Ayarlar
 // shows them, never deletes them.
-import type { Entity } from './types.ts';
+import type { CompanyInfo, Entity, GIBIdentity } from './types.ts';
 
 /** A company as the checks see it. */
 export interface CompanyKey {
@@ -87,3 +87,26 @@ export function resolveCompany<T extends CompanyKey>(
   }
   return byTaxID[0] ?? null;
 }
+
+/**
+ * The company details' VKN / TCKN is not the GİB account's: Angaria's PDF
+ * would print another seller than GİB's e-Arşiv invoice. Null when they agree
+ * or either is unknown.
+ */
+export function gibIdentityMismatch(info: CompanyInfo, identity: GIBIdentity | undefined) {
+  const own = taxIDDigits(info.taxID);
+  if (!identity?.taxID || !own || own === taxIDDigits(identity.taxID)) {
+    return null;
+  }
+  const number = `${idKind(identity.taxID)} ${identity.taxID}`;
+  const owner = identity.name ? `${identity.name} (${number})` : number;
+  return `GİB hesabı ${owner} adına. Firma bilgilerindeki ${idKind(own)} farklı, bu yüzden PDF’te e-Arşiv faturasındakinden başka bir satıcı görünür.`;
+}
+
+/** The details with GİB's VKN / TCKN, and its name and tax office where they are empty. */
+export const fillFromGIB = (info: CompanyInfo, identity: GIBIdentity): CompanyInfo => ({
+  ...info,
+  name: info.name.trim() || identity.name,
+  taxID: identity.taxID,
+  taxOffice: info.taxOffice.trim() || identity.taxOffice,
+});

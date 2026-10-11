@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
+  fillFromGIB,
+  gibIdentityMismatch,
   gibUserOwner,
   resolveCompany,
   taxIDOwner,
@@ -55,5 +57,40 @@ describe('resolveCompany', () => {
     expect(resolveCompany(shared, '10000000146')).toBe('ambiguous');
     expect(resolveCompany(shared, 'a')).toBe(ANA);
     expect(resolveCompany(shared, 'b')).toBe(shared[1]);
+  });
+});
+
+describe('the GİB account’s own taxpayer', () => {
+  const info = {
+    accountHolder: '',
+    address: '',
+    bankAddress: '',
+    bankName: '',
+    email: '',
+    iban: '',
+    name: '',
+    phone: '',
+    swiftCode: '',
+    taxID: '',
+    taxOffice: '',
+  };
+  const gib = { name: 'DENEME LİSANS TİCARET A.Ş.', taxID: '3333333301', taxOffice: 'Urla' };
+
+  test('differs only when both VKN / TCKN are known and their digits differ', () => {
+    expect(gibIdentityMismatch({ ...info, taxID: '10000000146' }, gib)).toBe(
+      'GİB hesabı DENEME LİSANS TİCARET A.Ş. (VKN 3333333301) adına. Firma bilgilerindeki TCKN farklı, bu yüzden PDF’te e-Arşiv faturasındakinden başka bir satıcı görünür.',
+    );
+    expect(gibIdentityMismatch({ ...info, taxID: '333 333 3301' }, gib)).toBeNull();
+    expect(gibIdentityMismatch(info, gib)).toBeNull();
+    expect(gibIdentityMismatch({ ...info, taxID: '10000000146' }, undefined)).toBeNull();
+  });
+
+  test('fills the VKN / TCKN, and the name and tax office only where empty', () => {
+    expect(fillFromGIB(info, gib)).toMatchObject(gib);
+    expect(fillFromGIB({ ...info, name: 'Deniz Yazılım', taxID: '1' }, gib)).toMatchObject({
+      name: 'Deniz Yazılım',
+      taxID: '3333333301',
+      taxOffice: 'Urla',
+    });
   });
 });

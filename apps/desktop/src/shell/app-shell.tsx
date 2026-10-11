@@ -6,6 +6,7 @@ import { useStore } from '@/lib/store.tsx';
 import { AppSidebar } from './app-sidebar.tsx';
 import { CommandPalette } from './command-palette.tsx';
 import { CredentialsGuard } from './credentials-guard.tsx';
+import { useLearnGIBIdentity } from './gib-identity.ts';
 import { ImportFromGIBProvider } from './import-from-gib.tsx';
 import { tones } from './palette.stylex.ts';
 import { shell } from './shell.stylex.ts';
@@ -61,6 +62,7 @@ function ShellLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   useShortcuts(setPaletteOpen);
   useResetOnEntityChange();
+  useLearnGIBIdentity();
 
   return (
     <div data-tauri-drag-region {...props(styles.root)}>

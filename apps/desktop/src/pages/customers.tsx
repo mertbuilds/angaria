@@ -40,11 +40,12 @@ import {
   DEFAULT_DUE_DAYS,
   FOREIGN_TAX_ID,
   nameError,
+  selfInvoiceWarning,
   taxIDError,
 } from '@/lib/customer.ts';
 import type { FieldOption } from '@/lib/fields/choice.tsx';
 import { FieldFrame } from '@/lib/form-field.tsx';
-import { CURRENCY_OPTIONS } from '@/lib/invoice-form.ts';
+import { CURRENCY_OPTIONS, customerDefaultsErrors } from '@/lib/invoice-form.ts';
 import { SUPPORTED_INVOICE_TYPES, VAT_RATE_PRESETS } from '@/lib/regulated.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Recipient } from '@/lib/types.ts';
@@ -252,6 +253,7 @@ function CustomerDefaultsSection({
 }) {
   const id = useId();
   const defaults = customerDefaults(customer);
+  const defaultsErrors = customerDefaultsErrors(customer);
   const vatRate = useWholeNumberInput(
     customer.VATRate,
     100,
@@ -361,7 +363,7 @@ function CustomerDefaultsSection({
         </Field>
         <FieldFrame
           description="Hizmetteki: satırlar hizmetin kendi KDV oranıyla gelir"
-          error={vatRate.error ?? undefined}
+          error={vatRate.error ?? defaultsErrors.VATRate}
           id={`${id}-vat`}
           label="KDV oranı"
           style={styles.fullRow}
@@ -369,7 +371,7 @@ function CustomerDefaultsSection({
           {(describedBy) => (
             <ChoiceChips
               aria-describedby={describedBy}
-              aria-invalid={vatRate.error ? true : undefined}
+              aria-invalid={vatRate.error || defaultsErrors.VATRate ? true : undefined}
               aria-labelledby={`${id}-vat-label`}
               id={`${id}-vat`}
               onValueChange={(rate) => {
@@ -454,6 +456,7 @@ function CustomerDetail({
   titleRef: RefObject<HTMLInputElement | null>;
 }) {
   const id = useId();
+  const { companyInfo } = useStore();
   // Errors show once a field was left, or right away for saved values, so a
   // new customer does not open covered in them.
   const [touched, setTouched] = useState(() => ({
@@ -546,6 +549,7 @@ function CustomerDetail({
           onBlur={() => touch('taxID')}
           onValueChange={(taxIDOrTRID) => onChange({ taxIDOrTRID })}
           value={customer.taxIDOrTRID}
+          warning={selfInvoiceWarning(customer.taxIDOrTRID, companyInfo.taxID)}
         />
         {!foreign && (
           <FieldFrame id={`${id}-tax-office`} label="Vergi dairesi">

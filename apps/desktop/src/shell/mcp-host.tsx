@@ -204,9 +204,10 @@ export function McpHost() {
           verifyAndSign,
         },
         companies: () =>
-          store.entities.map(({ companyInfo, id, name }) => ({
+          store.entities.map(({ companyInfo, gibIdentity, id, name }) => ({
             active: id === store.activeEntityId,
             gibLogin: store.hasCredentialsFor(id) ? 'ready' : 'needs-login',
+            gibTaxID: gibIdentity?.taxID,
             id,
             legalName: companyInfo.name,
             name,
@@ -215,6 +216,7 @@ export function McpHost() {
         company: () => ({
           companyInfo: entity.companyInfo,
           customers: entity.savedRecipients,
+          gibIdentity: entity.gibIdentity,
           hasCredentials: store.hasCredentialsFor(entity.id),
           id: entity.id,
           name: entity.name,

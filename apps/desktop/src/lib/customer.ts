@@ -82,9 +82,38 @@ export const recipientDetails = ({
   title,
 });
 
-// Turkish capitals, with İ as I: "Plastic" and "PLASTIC" are one name.
-export const nameKey = (name: string) =>
-  name.trim().replaceAll(/\s+/g, ' ').toLocaleUpperCase('tr').replaceAll('İ', 'I');
+const spaced = (name: string) => name.trim().replaceAll(/\s+/g, ' ');
+
+/** A name in Turkish capitals, spacing aside: "Kır" is KIR and "Kir" KİR. */
+export const nameKey = (name: string) => spaced(name).toLocaleUpperCase('tr');
+
+/** A capital I as typed: Turkish ı's capital, or English i's ("PLASTIC"). */
+const EITHER_I = 'I?';
+
+const nameLetters = (name: string) =>
+  Array.from(spaced(name)).flatMap((letter) =>
+    letter === 'I' ? [EITHER_I] : Array.from(letter.toLocaleUpperCase('tr')),
+  );
+
+const isI = (letter: string | undefined) => letter === 'I' || letter === 'İ' || letter === EITHER_I;
+
+/**
+ * Whether two names are one, case and spacing aside, by Turkish capitals: ı
+ * and i stay apart ("Kır" is not "Kir"), while a capital I typed as such may
+ * stand for either ("PLASTIC" is "Plastic", "KIR" is "Kır" and "Kir").
+ */
+export function sameName(a: string, b: string) {
+  const left = nameLetters(a);
+  const right = nameLetters(b);
+  return (
+    left.length === right.length &&
+    left.every(
+      (letter, index) =>
+        letter === right[index] ||
+        ((letter === EITHER_I || right[index] === EITHER_I) && isI(letter) && isI(right[index])),
+    )
+  );
+}
 
 /**
  * The saved customer with this VKN / TCKN and name (unvan, else "Ad Soyad"),
@@ -92,10 +121,9 @@ export const nameKey = (name: string) =>
  */
 export function findCustomer(customers: ReadonlyArray<Recipient>, taxID: string, name: string) {
   const id = taxID.trim();
-  const key = nameKey(name);
   return id
     ? (customers.find(
-        (customer) => customer.taxIDOrTRID.trim() === id && nameKey(customerName(customer)) === key,
+        (customer) => customer.taxIDOrTRID.trim() === id && sameName(customerName(customer), name),
       ) ?? null)
     : null;
 }
@@ -213,6 +241,20 @@ export function taxIDError(value: string) {
   return id.startsWith('0')
     ? 'TCKN 0 ile başlamaz. Numarayı kontrol et.'
     : 'Bu TCKN’nin kontrol haneleri tutmuyor. Numarayı kontrol et.';
+}
+
+export const SELF_INVOICE_WARNING =
+  'Alıcının VKN / TCKN’si senin şirketininkiyle aynı. Kendine fatura kesmediğinden emin ol.';
+
+/**
+ * The warning when `taxID` is the company's own VKN / TCKN (an invoice to
+ * itself), else null. Never blocks: the user may mean it.
+ */
+export function selfInvoiceWarning(taxID: string, companyTaxID: string | undefined) {
+  const id = normalizeTaxID(taxID);
+  return id && !isTaxIDPlaceholder(id) && id === normalizeTaxID(companyTaxID ?? '')
+    ? SELF_INVOICE_WARNING
+    : null;
 }
 
 /** GİB needs an unvan, or a first and last name for a person. */

@@ -2,7 +2,10 @@
 //! has it switched on. Every request needs a loopback Host (DNS rebinding), no
 //! Origin (a web page), and the install's bearer token; there are no CORS
 //! headers. Tool calls go to a `ToolHost`: the webview in the app (mod.rs),
-//! stdio in the end-to-end harness (examples/mcp_harness.rs).
+//! stdio in the end-to-end harness (examples/mcp_harness.rs). A host that
+//! goes away (the webview reloads) says so through `ready`: calls wait a
+//! little for it to come back, and a call it dropped fails at once, or runs
+//! again when the tool only reads.
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -21,14 +24,19 @@ use hyper_util::rt::{TokioIo, TokioTimer};
 use serde::Serialize;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
+use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{oneshot, watch};
+use tokio::time::Instant;
 
+use super::inputs::{self, Notes, ToolNotes};
 use super::rpc::{self, ClientInfo, McpHeaders, Outcome};
 
 pub const MCP_PATH: &str = "/mcp";
 const MAX_BODY_BYTES: usize = 1024 * 1024;
 /// The webview stops waiting for a busy GİB queue before this.
 const TOOL_TIMEOUT: Duration = Duration::from_secs(120);
+/// How long a call waits for a host that went away (a reload takes a few seconds).
+const HOST_WAIT: Duration = Duration::from_secs(20);
 const MAX_CALLS_IN_FLIGHT: usize = 8;
 const MAX_CLIENTS: usize = 8;
 
@@ -45,6 +53,28 @@ pub trait ToolHost: Send + Sync + 'static {
   fn dispatch(&self, call: ToolCall) -> oneshot::Receiver<Value>;
   /// The server stopped waiting for `id`.
   fn cancel(&self, id: u64);
+  /// Whether the host takes calls now; false while it is away (a webview
+  /// reloading). A host that never goes away keeps the default.
+  fn ready(&self) -> watch::Receiver<bool> {
+    watch::channel(true).1
+  }
+}
+
+/// Whether a host that can go away takes calls, for `ToolHost::ready`.
+pub struct HostGate(watch::Sender<bool>);
+
+impl HostGate {
+  pub fn new(ready: bool) -> Self {
+    Self(watch::channel(ready).0)
+  }
+
+  pub fn set(&self, ready: bool) {
+    self.0.send_replace(ready);
+  }
+
+  pub fn subscribe(&self) -> watch::Receiver<bool> {
+    self.0.subscribe()
+  }
 }
 
 /// Pending calls by id, for hosts that answer from elsewhere.
@@ -69,6 +99,11 @@ impl Pending {
   pub fn remove(&self, id: u64) {
     self.0.lock().unwrap().remove(&id);
   }
+
+  /// Drops every waiting call: the host that was running them is gone.
+  pub fn clear(&self) {
+    self.0.lock().unwrap().clear();
+  }
 }
 
 /// A client that named itself, and when it was last seen (ms since the epoch).
@@ -83,7 +118,8 @@ pub struct ClientSeen {
 struct Shared {
   port: u16,
   token: RwLock<String>,
-  tools: RwLock<Value>,
+  /// As tools/list shows them, and what else the server knows of each.
+  tools: RwLock<Arc<(Value, Notes)>>,
   clients: Mutex<Vec<ClientSeen>>,
   host: Arc<dyn ToolHost>,
   in_flight: AtomicUsize,
@@ -115,7 +151,7 @@ impl RunningServer {
   }
 
   pub fn set_tools(&self, tools: Value) {
-    *self.shared.tools.write().unwrap() = tools;
+    *self.shared.tools.write().unwrap() = Arc::new(inputs::split(tools));
   }
 
   pub fn set_token(&self, token: String) {
@@ -155,7 +191,7 @@ pub async fn start(options: ServerOptions) -> io::Result<RunningServer> {
   let shared = Arc::new(Shared {
     port: listener.local_addr()?.port(),
     token: RwLock::new(options.token),
-    tools: RwLock::new(options.tools),
+    tools: RwLock::new(Arc::new(inputs::split(options.tools))),
     clients: Mutex::new(Vec::new()),
     host: options.host,
     in_flight: AtomicUsize::new(0),
@@ -291,20 +327,72 @@ fn note_client(shared: &Shared, client: ClientInfo) {
 /// of a call the host still runs.
 static NEXT_CALL_ID: AtomicU64 = AtomicU64::new(1);
 
-/// A call in flight: counted until dropped, and cancelled at the host when it
-/// is dropped unanswered (the client disconnected or the wait timed out).
-struct InFlight<'a> {
+/// One of the calls in flight, counted until dropped.
+struct Slot<'a>(&'a Shared);
+
+impl Drop for Slot<'_> {
+  fn drop(&mut self) {
+    self.0.in_flight.fetch_sub(1, Ordering::SeqCst);
+  }
+}
+
+/// A call handed to the host, cancelled there when dropped unanswered (the
+/// client disconnected or the wait timed out).
+struct Dispatched<'a> {
   shared: &'a Shared,
   id: u64,
   answered: bool,
 }
 
-impl Drop for InFlight<'_> {
+impl Drop for Dispatched<'_> {
   fn drop(&mut self) {
-    self.shared.in_flight.fetch_sub(1, Ordering::SeqCst);
     if !self.answered {
       self.shared.host.cancel(self.id);
     }
+  }
+}
+
+const NOT_RUN: &str =
+  "Angaria şu an araç çalıştıramıyor: pencere yeniden yükleniyor ya da açılıyor. İşlem yapılmadı, biraz sonra tekrar dene.";
+const READ_ONLY_TIMEOUT: &str =
+  "Angaria zamanında yanıt vermedi. Bu araç bir şey değiştirmez, tekrar deneyebilirsin.";
+
+/// Where a write can be checked, in "... kontrol et".
+fn check_of(notes: Option<&ToolNotes>) -> &str {
+  notes
+    .and_then(|notes| notes.check.as_deref())
+    .unwrap_or("Angaria’da")
+}
+
+/// The wait for the result ended: the tool's own words on what to do now.
+pub fn timeout_message(notes: Option<&ToolNotes>) -> String {
+  if notes.is_some_and(|notes| notes.read_only) {
+    return READ_ONLY_TIMEOUT.into();
+  }
+  format!(
+    "Angaria zamanında yanıt vermedi. İşlem yine de tamamlanmış olabilir: tekrar denemeden önce {} kontrol et.",
+    check_of(notes)
+  )
+}
+
+/// The host went away while it ran a call that may have changed something.
+pub fn lost_message(notes: Option<&ToolNotes>) -> String {
+  format!(
+    "Angaria işlem sürerken yeniden yüklendi. İşlem tamamlanmış olabilir: tekrar denemeden önce {} kontrol et.",
+    check_of(notes)
+  )
+}
+
+/// Waits until the host takes calls, at most `wait`; false when it does not.
+async fn host_ready(ready: &mut watch::Receiver<bool>, wait: Duration) -> bool {
+  let waited = tokio::time::timeout(wait, ready.wait_for(|ready| *ready))
+    .await
+    .map(|result| result.is_ok());
+  match waited {
+    Ok(true) => true,
+    // A host without a gate (the sender is gone) keeps its last word.
+    Ok(false) => *ready.borrow(),
+    Err(_) => false,
   }
 }
 
@@ -313,31 +401,57 @@ async fn run_tool(shared: &Shared, name: String, arguments: Value) -> Value {
     shared.in_flight.fetch_sub(1, Ordering::SeqCst);
     return rpc::tool_error("Angaria aynı anda çok fazla istek aldı. Biraz bekleyip tekrar dene.");
   }
-  let id = NEXT_CALL_ID.fetch_add(1, Ordering::SeqCst);
-  let mut call = InFlight {
-    shared,
-    id,
-    answered: false,
-  };
-  let receiver = shared.host.dispatch(ToolCall {
-    id,
-    name,
-    arguments,
-  });
-  match tokio::time::timeout(TOOL_TIMEOUT, receiver).await {
-    Ok(Ok(result)) => {
-      call.answered = true;
-      result
+  let _slot = Slot(shared);
+  let notes = shared.tools.read().unwrap().1.get(&name).cloned();
+  let read_only = notes.as_ref().is_some_and(|notes| notes.read_only);
+  let deadline = Instant::now() + TOOL_TIMEOUT;
+  let mut ready = shared.host.ready();
+  // A read-only call the host dropped runs once more when it is back.
+  for attempt in 0..2 {
+    let wait = HOST_WAIT.min(deadline.saturating_duration_since(Instant::now()));
+    if !host_ready(&mut ready, wait).await {
+      return rpc::tool_error(if attempt == 0 { NOT_RUN } else { READ_ONLY_TIMEOUT });
     }
-    Ok(Err(_)) => {
-      call.answered = true;
-      rpc::tool_error("Angaria bu aracı çalıştıramadı. Tekrar dene.")
+    let id = NEXT_CALL_ID.fetch_add(1, Ordering::SeqCst);
+    let mut call = Dispatched {
+      shared,
+      id,
+      answered: false,
+    };
+    let mut receiver = shared.host.dispatch(ToolCall {
+      id,
+      name: name.clone(),
+      arguments: arguments.clone(),
+    });
+    match receiver.try_recv() {
+      Ok(result) => {
+        call.answered = true;
+        return result;
+      }
+      // Never handed over: nothing ran.
+      Err(TryRecvError::Closed) => {
+        call.answered = true;
+        return rpc::tool_error("Angaria bu aracı çalıştıramadı. İşlem yapılmadı, tekrar dene.");
+      }
+      Err(TryRecvError::Empty) => {}
     }
-    // The guard cancels the call at the host.
-    Err(_) => rpc::tool_error(
-      "Angaria zamanında yanıt vermedi. İşlem yine de tamamlanmış olabilir: tekrar denemeden önce list_invoices ile ya da Angaria’daki Faturalar’da kontrol et.",
-    ),
+    match tokio::time::timeout_at(deadline, receiver).await {
+      Ok(Ok(result)) => {
+        call.answered = true;
+        return result;
+      }
+      // The host dropped the call: it went away while running it.
+      Ok(Err(_)) => {
+        call.answered = true;
+        if !read_only {
+          return rpc::tool_error(&lost_message(notes.as_ref()));
+        }
+      }
+      // The guard cancels the call at the host.
+      Err(_) => return rpc::tool_error(&timeout_message(notes.as_ref())),
+    }
   }
+  rpc::tool_error(READ_ONLY_TIMEOUT)
 }
 
 async fn handle(request: Request<Incoming>, shared: Arc<Shared>) -> Result<Reply, Infallible> {
@@ -378,12 +492,14 @@ async fn handle(request: Request<Incoming>, shared: Arc<Shared>) -> Result<Reply
     Err(_) => return Ok(refuse(StatusCode::PAYLOAD_TOO_LARGE, "Body too large")),
   };
 
-  let tools = shared.tools.read().unwrap().clone();
+  let listed = shared.tools.read().unwrap().clone();
+  let (tools, notes) = &*listed;
   let mut seen = Vec::new();
   let outcome = {
     let mut on_client = |client| seen.push(client);
     let mut ctx = rpc::Context {
-      tools: &tools,
+      tools,
+      notes,
       server_version: &shared.server_version,
       on_client: &mut on_client,
     };
@@ -655,6 +771,158 @@ mod tests {
     tokio::time::sleep(Duration::from_millis(200)).await;
     assert_eq!(host.cancelled.lock().unwrap().len(), 1);
     server.stop().await;
+  }
+
+  /// Runs calls until a reload drops them; new calls then wait for `gate`.
+  struct Reloading {
+    pending: Pending,
+    gate: HostGate,
+    calls: Mutex<Vec<ToolCall>>,
+    cancelled: Mutex<Vec<u64>>,
+  }
+
+  impl Reloading {
+    fn new(ready: bool) -> Arc<Self> {
+      Arc::new(Self {
+        pending: Pending::default(),
+        gate: HostGate::new(ready),
+        calls: Mutex::default(),
+        cancelled: Mutex::default(),
+      })
+    }
+
+    fn reload(&self) {
+      self.gate.set(false);
+      self.pending.clear();
+    }
+
+    /// Waits for the `count`th call and returns its id.
+    async fn call(&self, count: usize) -> u64 {
+      for _ in 0..500 {
+        if let Some(call) = self.calls.lock().unwrap().get(count - 1) {
+          return call.id;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+      }
+      panic!("call {count} never came");
+    }
+  }
+
+  impl ToolHost for Reloading {
+    fn dispatch(&self, call: ToolCall) -> oneshot::Receiver<Value> {
+      let receiver = self.pending.add(call.id);
+      self.calls.lock().unwrap().push(call);
+      receiver
+    }
+
+    fn cancel(&self, id: u64) {
+      self.cancelled.lock().unwrap().push(id);
+    }
+
+    fn ready(&self) -> watch::Receiver<bool> {
+      self.gate.subscribe()
+    }
+  }
+
+  fn shared_with(host: Arc<dyn ToolHost>) -> Arc<Shared> {
+    let tools = json!([
+      { "name": "list_customers", "annotations": { "readOnlyHint": true }, "inputSchema": { "type": "object" } },
+      {
+        "name": "create_customer",
+        "annotations": { "destructiveHint": false },
+        "inputSchema": { "type": "object" },
+        "x-angaria": { "check": "list_customers ile ya da Angaria’daki Müşteriler’de" },
+      },
+    ]);
+    Arc::new(Shared {
+      port: 0,
+      token: RwLock::new(TOKEN.into()),
+      tools: RwLock::new(Arc::new(inputs::split(tools))),
+      clients: Mutex::new(Vec::new()),
+      host,
+      in_flight: AtomicUsize::new(0),
+      server_version: "0.0.0".into(),
+    })
+  }
+
+  fn message(result: &Value) -> String {
+    let text: Value = serde_json::from_str(result["content"][0]["text"].as_str().unwrap()).unwrap();
+    text["error"]["message"].as_str().unwrap_or_default().to_string()
+  }
+
+  #[tokio::test]
+  async fn a_read_only_call_runs_again_once_a_reloaded_host_is_back() {
+    let host = Reloading::new(true);
+    let shared = shared_with(host.clone());
+    let task = tokio::spawn(async move { run_tool(&shared, "list_customers".into(), json!({})).await });
+    host.call(1).await;
+    host.reload();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(host.calls.lock().unwrap().len(), 1, "waits while the host is away");
+    host.gate.set(true);
+    let second = host.call(2).await;
+    host.pending.resolve(second, json!({ "content": [] }));
+    assert_eq!(task.await.unwrap(), json!({ "content": [] }));
+    assert!(host.cancelled.lock().unwrap().is_empty());
+  }
+
+  #[tokio::test]
+  async fn a_write_the_host_dropped_fails_at_once_with_where_to_check() {
+    let host = Reloading::new(true);
+    let shared = shared_with(host.clone());
+    let task = tokio::spawn(async move { run_tool(&shared, "create_customer".into(), json!({})).await });
+    host.call(1).await;
+    host.reload();
+    let result = tokio::time::timeout(Duration::from_secs(2), task)
+      .await
+      .expect("answered without waiting for the timeout")
+      .unwrap();
+    assert_eq!(result["isError"], true);
+    let text = message(&result);
+    assert!(text.contains("yeniden yüklendi"), "{text}");
+    assert!(text.contains("list_customers ile ya da Angaria’daki Müşteriler’de kontrol et"), "{text}");
+    assert_eq!(host.calls.lock().unwrap().len(), 1, "a write never runs twice");
+  }
+
+  #[tokio::test(start_paused = true)]
+  async fn a_call_waits_for_the_host_then_gives_up_without_running() {
+    let host = Reloading::new(false);
+    let shared = shared_with(host.clone());
+    let waiting = shared.clone();
+    let task = tokio::spawn(async move { run_tool(&waiting, "list_customers".into(), json!({})).await });
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    host.gate.set(true);
+    let id = host.call(1).await;
+    host.pending.resolve(id, json!({ "content": [] }));
+    assert_eq!(task.await.unwrap(), json!({ "content": [] }));
+
+    host.gate.set(false);
+    let result = run_tool(&shared, "create_customer".into(), json!({})).await;
+    assert_eq!(message(&result), NOT_RUN);
+    assert_eq!(host.calls.lock().unwrap().len(), 1, "nothing ran");
+  }
+
+  #[tokio::test(start_paused = true)]
+  async fn a_timeout_says_what_the_tool_may_have_done() {
+    let host = Reloading::new(true);
+    let shared = shared_with(host.clone());
+    let read = run_tool(&shared, "list_customers".into(), json!({})).await;
+    assert_eq!(message(&read), READ_ONLY_TIMEOUT);
+    let write = run_tool(&shared, "create_customer".into(), json!({})).await;
+    let text = message(&write);
+    assert!(text.starts_with("Angaria zamanında yanıt vermedi. İşlem yine de tamamlanmış olabilir"), "{text}");
+    assert!(text.contains("list_customers ile"), "{text}");
+    assert_eq!(host.cancelled.lock().unwrap().len(), 2, "both cancelled at the host");
+  }
+
+  #[test]
+  fn timeout_messages_fit_the_tool() {
+    let read = ToolNotes { read_only: true, ..ToolNotes::default() };
+    assert_eq!(timeout_message(Some(&read)), READ_ONLY_TIMEOUT);
+    let write = ToolNotes { check: Some("list_invoices ile".into()), ..ToolNotes::default() };
+    assert!(timeout_message(Some(&write)).ends_with("tekrar denemeden önce list_invoices ile kontrol et."));
+    assert!(timeout_message(None).ends_with("tekrar denemeden önce Angaria’da kontrol et."));
+    assert!(!timeout_message(None).contains("list_invoices"));
   }
 
   #[test]

@@ -8,6 +8,8 @@ import {
   customerDefaults,
   nameError,
   recipientDetails,
+  sameName,
+  selfInvoiceWarning,
   taxIDError,
   type CustomerDefaults,
 } from './customer.ts';
@@ -304,6 +306,16 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
   return Object.keys(fields).length > 0 ? { fields } : undefined;
 }
 
+/**
+ * A customer's invoice defaults that no invoice could take, by field: an
+ * İstisna customer (saved or by where it is) with a VAT rate above 0.
+ */
+export function customerDefaultsErrors(customer: Recipient): Record<string, string> {
+  return customerDefaults(customer).invoiceType === 'ISTISNA' && (customer.VATRate ?? 0) > 0
+    ? { VATRate: ISTISNA_VAT_ERROR }
+    : {};
+}
+
 /** VUK 231/5's warning on an invoice date older than the window. */
 export const INVOICE_WINDOW_RULE = ruleMessage(
   `Bu tarih ${INVOICE_WINDOW_DAYS} günden eski. `,
@@ -312,16 +324,25 @@ export const INVOICE_WINDOW_RULE = ruleMessage(
 );
 export const INVOICE_WINDOW_WARNING = INVOICE_WINDOW_RULE.text;
 
-/**
- * Rules worth a second look that never block the invoice, keyed by field name
- * like validateInvoice's errors; empty when there are none.
- */
 /** A rate GİB takes but the KDV rates since 10 July 2023 (%1, %10, %20) do not include. */
 export const vatRateWarning = (rate: number) =>
   `KDV oranları 10 Temmuz 2023’ten beri %1, %10 ve %20. %${rate} doğru mu, kontrol et.`;
 
-export function invoiceWarnings(values: InvoiceFormValues, today = new Date()) {
+/**
+ * Rules worth a second look that never block the invoice, keyed by field name
+ * like validateInvoice's errors; empty when there are none. `companyTaxID`
+ * (the company's own VKN / TCKN) warns on an invoice to itself.
+ */
+export function invoiceWarnings(
+  values: InvoiceFormValues,
+  today = new Date(),
+  companyTaxID?: string,
+) {
   const fields: Record<string, string> = {};
+  const self = selfInvoiceWarning(values.recipient.taxIDOrTRID, companyTaxID);
+  if (self) {
+    fields['recipient.taxIDOrTRID'] = self;
+  }
   const invoiceDate = parseGIB(values.advancedFields.manualDate);
   // Angaria does not know the service date, so the rule counts from today.
   if (invoiceDate && differenceInCalendarDays(today, invoiceDate) > INVOICE_WINDOW_DAYS) {
@@ -619,7 +640,7 @@ export function upsertSavedItems(
     if (!name) {
       continue;
     }
-    const index = next.findIndex((service) => service.name === name);
+    const index = next.findIndex((service) => sameName(service.name, name));
     if (index === -1) {
       next.push({ ...item, currency, id: newId(), name });
       continue;

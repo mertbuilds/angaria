@@ -23,7 +23,6 @@ import { TCMBRateError } from 'angaria-utils';
 import { addDays } from 'date-fns';
 import { z } from 'zod';
 import { customerName, defaultPDFLanguage, findCustomer } from './customer.ts';
-import { GIB_CURRENCIES, GIB_UNIT_TYPES } from './gib-constants.ts';
 import {
   applyCustomer,
   discountForRate,
@@ -46,14 +45,18 @@ import {
   type StatusFilter,
 } from './invoices.ts';
 import {
+  currencyCode,
   defineTool,
   failure,
   gibCountry,
+  issueFields,
   json,
   LICENSE_CHECKING,
   LICENSE_LOCKED,
   matches,
+  parseInput,
   textField,
+  unitCode,
   type CreatedDraft,
   type McpGIBClient,
   type McpTool,
@@ -213,12 +216,7 @@ const getInvoice = defineTool({
 
 const appItemInput = withDiscountChecks(
   invoiceItemInput.extend({
-    unitType: z
-      .string()
-      .refine(
-        (code) => GIB_UNIT_TYPES.some((unit) => unit.value === code),
-        'GİB does not know this unit code',
-      )
+    unitType: unitCode
       .optional()
       .describe(
         "GİB unit code: 'C62' (piece, default), 'HUR' (hour), 'DAY' (day), 'MON' (month), 'ANN' (year)",
@@ -249,7 +247,7 @@ const recipientInput = z.object({
   surname: z.string().optional().describe('Last name, for a person'),
   taxIDOrTRID: z
     .string()
-    .regex(/^\d{10,11}$/, 'Expected a 10 digit VKN or an 11 digit TCKN')
+    .regex(/^\d{10,11}$/, 'VKN 10, TCKN 11 haneli olur. Yalnızca rakam yaz.')
     .describe('VKN (10 digits) or TCKN (11 digits); 2222222222 for any customer abroad'),
   taxOffice: z.string().optional().describe('Tax office (vergi dairesi)'),
   title: z
@@ -260,21 +258,15 @@ const recipientInput = z.object({
 
 const createInvoiceInput = z
   .object({
-    currency: z
-      .string()
-      .regex(/^[A-Z]{3}$/, 'Expected a three-letter code such as USD')
-      .refine(
-        (code) => GIB_CURRENCIES.some((currency) => currency.value === code),
-        'GİB does not know this currency code',
-      )
+    currency: currencyCode
       .optional()
       .describe(
-        "Currency code (TRY, USD, EUR, ...). Defaults to the customer's currency, else TRY.",
+        "Currency code (TRY, USD, EUR, ...; any case). Defaults to the customer's currency, else TRY.",
       ),
     currencyRate: z
       .string()
-      .regex(/^\d+(?:\.\d+)?$/, 'Expected a decimal such as 41.5230')
-      .refine((value) => Number(value) > 0, 'Must be positive')
+      .regex(/^\d+(?:\.\d+)?$/, 'Kuru noktalı bir sayı olarak yaz, örneğin 41.5230.')
+      .refine((value) => Number(value) > 0, 'Kur sıfırdan büyük olmalı.')
       .optional()
       .describe(
         "Exchange rate to TRY, e.g. '41.5230'. Without it, TCMB's buying rate for the invoice date is used.",
@@ -318,7 +310,7 @@ const createInvoiceInput = z
     time: gibTime.optional().describe('Invoice time HH:MM:SS. Defaults to now.'),
   })
   .refine(({ customerId, recipient }) => (customerId === undefined) !== (recipient === undefined), {
-    message: 'Give either customerId or recipient',
+    message: 'customerId ya da recipient’tan yalnızca birini ver.',
     path: ['customerId'],
   });
 
@@ -335,6 +327,34 @@ const EMPTY_RECIPIENT = {
 };
 
 const DEFAULT_ISTISNA_CODE = '302';
+
+/** The form's field names where the tools take another name. */
+const FORM_TO_INPUT: Record<string, string> = {
+  'advancedFields.dueDate': 'dueDays',
+  'advancedFields.manualDate': 'date',
+  'advancedFields.manualTime': 'time',
+  'invoiceSettings.currency': 'currency',
+  'invoiceSettings.currencyRate': 'currencyRate',
+  'invoiceSettings.invoiceType': 'invoiceType',
+  'invoiceSettings.istisnaCode': 'istisnaCode',
+};
+
+/**
+ * The form's errors or warnings keyed by create_invoice's inputs ("date",
+ * "items.0.VATRate"), never by the form's own paths. A saved customer's
+ * details go under customerId.
+ */
+export function byInputName(fields: Record<string, string>, recipientGiven: boolean) {
+  const named: Record<string, string> = {};
+  for (const [key, message] of Object.entries(fields)) {
+    let name = FORM_TO_INPUT[key] ?? key.replaceAll(/\[(\d+)\]/g, '.$1');
+    if (name.startsWith('recipient.') && !recipientGiven) {
+      name = 'customerId';
+    }
+    named[name] ??= message;
+  }
+  return named;
+}
 
 /**
  * A draft made under Yeni fatura's rules: the customer's defaults fill what
@@ -455,14 +475,18 @@ async function createDraft(
     note: istisnaNote(istisnaCode ?? null, applied.note),
   };
 
+  const recipientGiven = input.customerId === undefined;
   const errors = validateInvoice(values, now)?.fields;
   if (errors) {
     return failure('Taslak oluşturulmadı: bazı bilgiler eksik ya da hatalı.', {
       code: 'invalid-invoice',
-      fields: errors,
+      fields: byInputName(errors, recipientGiven),
     });
   }
-  const warnings = invoiceWarnings(values, now);
+  const warnings = byInputName(
+    invoiceWarnings(values, now, company.companyInfo.taxID),
+    recipientGiven,
+  );
 
   const details = toDraftDetails(values, now);
   const draft = await ctx.gib(async (session): Promise<CreatedDraft> => {
@@ -548,7 +572,7 @@ const duplicateInvoice = defineTool({
     }
     const { city, country, district, fullAddress, name, surname, taxIDOrTRID, taxOffice, title } =
       source.recipient;
-    const input = createInvoiceInput.safeParse({
+    const input = parseInput(createInvoiceInput, {
       currency: source.settings.currency,
       date,
       dueDays,
@@ -582,9 +606,7 @@ const duplicateInvoice = defineTool({
     if (!input.success) {
       return failure('Taslak oluşturulmadı: kaynak faturanın bazı bilgileri eksik ya da hatalı.', {
         code: 'invalid-invoice',
-        fields: Object.fromEntries(
-          input.error.issues.map((issue) => [issue.path.join('.') || '(girdi)', issue.message]),
-        ),
+        fields: issueFields(input.error.issues),
       });
     }
     return createDraft(ctx, input.data, signal);
@@ -722,25 +744,84 @@ const TOOLS: ReadonlyArray<McpTool> = (Object.keys(MCP_TOOL_COPY) as Array<McpTo
   },
 );
 
+/**
+ * Where the user sees whether a write went through, for the server's answer
+ * when the wait for it ends ("tekrar denemeden önce ... kontrol et"). Every
+ * tool that is not read-only has one.
+ */
+export const AFTER_TIMEOUT_CHECK: Partial<Record<McpToolName, string>> = {
+  apply_gib_import: 'list_customers ve list_services ile',
+  close_gib_session: 'check_gib_connection ile',
+  create_customer: 'list_customers ile ya da Angaria’daki Müşteriler’de',
+  create_invoice: 'list_invoices ile ya da Angaria’daki Faturalar’da',
+  create_service: 'list_services ile ya da Angaria’daki Hizmetler’de',
+  delete_customer: 'list_customers ile ya da Angaria’daki Müşteriler’de',
+  delete_draft: 'list_invoices ile ya da Angaria’daki Faturalar’da',
+  delete_service: 'list_services ile ya da Angaria’daki Hizmetler’de',
+  download_invoice: 'İndirilenler klasöründe',
+  duplicate_invoice: 'list_invoices ile ya da Angaria’daki Faturalar’da',
+  request_signing_sms: 'telefonuna SMS gelip gelmediğini',
+  sign_invoices: 'list_invoices ile ya da Angaria’daki Faturalar’da',
+  update_company_details: 'get_company_details ile ya da Angaria’daki Ayarlar’da',
+  update_customer: 'get_customer ile ya da Angaria’daki Müşteriler’de',
+  update_service: 'get_service ile ya da Angaria’daki Hizmetler’de',
+};
+
+interface RegexCheck {
+  _zod: { def: { error?: (issue: never) => unknown; format?: string; pattern?: RegExp } };
+}
+
+/** The message a string schema gives when `pattern` does not match. */
+function patternMessage(schema: z.core.$ZodType, pattern: string) {
+  const checks = (schema._zod.def as { checks?: ReadonlyArray<RegexCheck> }).checks ?? [];
+  const def = checks
+    .map((check) => check._zod.def)
+    .find((candidate) => candidate.format === 'regex' && candidate.pattern?.source === pattern);
+  const message: unknown = def?.error?.({} as never);
+  if (typeof message === 'string') {
+    return message;
+  }
+  return typeof message === 'object' && message && 'message' in message
+    ? String(message.message)
+    : undefined;
+}
+
+/** The input schema, and each of its patterns' Turkish messages for the server. */
 function toJSONSchema(schema: z.ZodType) {
+  const patterns: Record<string, string> = {};
   const result: Record<string, unknown> = z.toJSONSchema(schema, {
     io: 'input',
+    override: ({ jsonSchema, zodSchema }) => {
+      const { pattern } = jsonSchema;
+      const message = typeof pattern === 'string' && patternMessage(zodSchema, pattern);
+      if (message) {
+        patterns[pattern as string] = message;
+      }
+    },
     unrepresentable: 'any',
   });
   // 2020-12 is the default dialect; naming it trips clients that only know draft-07.
   delete result.$schema;
-  return result;
+  return { patterns, schema: result };
 }
 
-/** The tools/list entries, in a fixed order. */
+/**
+ * The tools/list entries, in a fixed order. `x-angaria` is for the Rust
+ * server only (src-tauri/src/mcp/inputs.rs), which checks input with it and
+ * never lists it.
+ */
 export const mcpToolList = () =>
-  TOOLS.map((tool) => ({
-    annotations: tool.annotations,
-    description: tool.description,
-    inputSchema: toJSONSchema(tool.inputSchema),
-    name: tool.name,
-    title: MCP_TOOL_COPY[tool.name].title,
-  }));
+  TOOLS.map((tool) => {
+    const { patterns, schema } = toJSONSchema(tool.inputSchema);
+    return {
+      annotations: tool.annotations,
+      description: tool.description,
+      inputSchema: schema,
+      name: tool.name,
+      title: MCP_TOOL_COPY[tool.name].title,
+      'x-angaria': { check: AFTER_TIMEOUT_CHECK[tool.name], patterns },
+    };
+  });
 
 /** One call for the activity log: no arguments, codes or secrets. */
 export interface McpCallActivity {

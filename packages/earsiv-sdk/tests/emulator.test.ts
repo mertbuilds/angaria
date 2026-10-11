@@ -93,6 +93,22 @@ describe('session', () => {
     await client.logout(second);
   });
 
+  test('reads the account’s own taxpayer: unvan, else name and surname', async () => {
+    const company = await client.login('33333301', '1');
+    expect(await client.getUserInfo(company)).toEqual({
+      name: 'DENEME LİSANS TİCARET A.Ş.',
+      taxID: '3333333301',
+      taxOffice: expect.any(String),
+    });
+    await client.logout(company);
+    const person = await client.login('12345678', 'angaria');
+    expect(await client.getUserInfo(person)).toMatchObject({
+      name: 'Deniz Yılmaz',
+      taxID: '10000000146',
+    });
+    await client.logout(person);
+  });
+
   test('an expired token fails with the portal message', async () => {
     const session = await client.login('33333301', '1');
     await admin('POST', '/expire');

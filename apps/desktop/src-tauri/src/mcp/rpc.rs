@@ -7,6 +7,8 @@
 use base64::Engine;
 use serde_json::{json, Map, Value};
 
+use super::inputs::{self, Notes};
+
 pub const MODERN_VERSIONS: &[&str] = &["2026-07-28"];
 /// Newest first: `initialize` answers with the first one for a version it does not know.
 pub const LEGACY_VERSIONS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
@@ -74,6 +76,8 @@ pub enum Outcome {
 pub struct Context<'a> {
   /// The tool definitions the app registered, a JSON array.
   pub tools: &'a Value,
+  /// What the server knows of each tool beyond the list (inputs.rs).
+  pub notes: &'a Notes,
   pub server_version: &'a str,
   /// Told about every client that names itself.
   pub on_client: &'a mut dyn FnMut(ClientInfo),
@@ -414,6 +418,16 @@ fn call(
     .and_then(|params| params.get("arguments"))
     .cloned()
     .unwrap_or_else(|| json!({}));
+  // Answered here, so input that does not fit never waits for the webview.
+  if let Some(notes) = ctx.notes.get(name) {
+    let problems = inputs::problems(notes, &arguments);
+    if !problems.is_empty() {
+      return reply(
+        200,
+        tool_response(id, inputs::invalid_input(problems), modern, ctx.server_version),
+      );
+    }
+  }
   Outcome::Call {
     id,
     name: name.to_string(),
@@ -427,15 +441,22 @@ mod tests {
   use super::*;
 
   fn tools() -> Value {
-    json!([{ "name": "list_invoices", "inputSchema": { "type": "object" } }])
+    json!([{
+      "name": "list_invoices",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "startDate": { "type": "string", "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$" } },
+      },
+    }])
   }
 
   fn route_with(body: Value, headers: McpHeaders) -> (Outcome, Vec<ClientInfo>) {
-    let tools = tools();
+    let (tools, notes) = inputs::split(tools());
     let mut clients = Vec::new();
     let mut on_client = |client| clients.push(client);
     let mut ctx = Context {
       tools: &tools,
+      notes: &notes,
       server_version: "1.2.3",
       on_client: &mut on_client,
     };
@@ -676,10 +697,11 @@ mod tests {
 
   #[test]
   fn malformed_bodies_are_refused() {
-    let tools = tools();
+    let (tools, notes) = inputs::split(tools());
     let mut on_client = |_| {};
     let mut ctx = Context {
       tools: &tools,
+      notes: &notes,
       server_version: "1",
       on_client: &mut on_client,
     };
@@ -687,6 +709,32 @@ mod tests {
     assert_eq!((status, &body["error"]["code"]), (400, &json!(PARSE_ERROR)));
     let (status, _) = reply_of(route(b"[]", &McpHeaders::default(), &mut ctx));
     assert_eq!(status, 400);
+  }
+
+  #[test]
+  fn input_that_does_not_fit_is_answered_without_a_call() {
+    let headers = || McpHeaders {
+      protocol_version: Some("2025-06-18".into()),
+      ..McpHeaders::default()
+    };
+    let call = json!({ "jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": { "name": "list_invoices", "arguments": { "startDate": "2026-10-01" } } });
+    let (status, body) = reply_of(route_with(call, headers()).0);
+    assert_eq!(status, 200);
+    assert_eq!(body["id"], 5);
+    assert_eq!(body["result"]["isError"], true);
+    let error: Value =
+      serde_json::from_str(body["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(error["error"]["code"], "invalid-input");
+    assert_eq!(error["error"]["fields"]["startDate"], "Beklenen biçimde değil.");
+
+    let modern_call = modern(
+      "tools/call",
+      json!({ "name": "list_invoices", "arguments": { "startDate": 1 } }),
+    );
+    let (_, body) =
+      reply_of(route_with(modern_call, modern_headers("tools/call", Some("list_invoices"))).0);
+    assert_eq!(body["result"]["resultType"], "complete");
+    assert_eq!(body["result"]["isError"], true);
   }
 
   #[test]

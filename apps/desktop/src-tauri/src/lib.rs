@@ -57,6 +57,14 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())?;
       Ok(())
     })
+    // A reload drops the MCP calls the page ran; agents hear it at once.
+    .on_page_load(|webview, payload| {
+      if payload.event() == tauri::webview::PageLoadEvent::Started {
+        if let Some(mcp) = webview.try_state::<mcp::McpState>() {
+          mcp.page_loading();
+        }
+      }
+    })
     .invoke_handler(tauri::generate_handler![
       secrets::vault_read,
       secrets::vault_write,

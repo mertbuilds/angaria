@@ -24,6 +24,7 @@ function fakeClient(overrides: Partial<EarsivClient> = {}): EarsivClient {
     getInvoiceDetail: vi.fn(unused),
     getInvoiceHTML: vi.fn(async () => '<html></html>'),
     getSigningPhone: vi.fn(unused),
+    getUserInfo: vi.fn(unused),
     getUUID: vi.fn(unused),
     login: vi.fn(async () => session),
     logout: vi.fn(async () => {}),
@@ -158,7 +159,7 @@ test('create_invoice rejects invalid input before logging in', async () => {
 
   const badDate = await call(mcp, 'create_invoice', { ...invoiceArgs, date: '2026-03-20' });
   expect(badDate.isError).toBe(true);
-  expect(badDate.text).toMatch(/DD\/MM\/YYYY/);
+  expect(badDate.text).toMatch(/GG\/AA\/YYYY/);
 
   const noRate = await call(mcp, 'create_invoice', { ...invoiceArgs, currency: 'EUR' });
   expect(noRate.isError).toBe(true);
@@ -173,18 +174,18 @@ test('create_invoice rejects amounts, rates, codes, dates and times GİB cannot 
   const item = invoiceArgs.items[0];
   const cases: Array<[Record<string, unknown>, RegExp]> = [
     [{ items: [{ ...item, VATRate: 7.5 }] }, /VATRate/],
-    [{ items: [{ ...item, unitPrice: 33.335 }] }, /At most two decimals/],
+    [{ items: [{ ...item, unitPrice: 33.335 }] }, /en çok iki ondalık/],
     [{ items: [{ ...item, unitPrice: 0 }] }, /unitPrice/],
     [{ items: [{ ...item, unitPrice: 1e16 }] }, /unitPrice/],
-    [{ items: [{ ...item, discountAmount: 1500 }] }, /must not exceed/],
-    [{ items: [{ ...item, discountAmount: 5, discountRate: 10 }] }, /does not match/],
+    [{ items: [{ ...item, discountAmount: 1500 }] }, /satır tutarını geçemez/],
+    [{ items: [{ ...item, discountAmount: 5, discountRate: 10 }] }, /oranına uymuyor/],
     [{ currency: 'USD', currencyRate: '0' }, /Must be positive/],
     [{ currency: 'USD', currencyRate: 'abc' }, /Expected a decimal/],
     [{ currency: 'try', currencyRate: '1' }, /three-letter code/],
-    [{ date: '31/02/2026' }, /Not a calendar date/],
-    [{ date: '01/01/2099' }, /not be after today/],
-    [{ time: '24:00:00' }, /00:00:00 to 23:59:59/],
-    [{ time: '99:99:99' }, /00:00:00 to 23:59:59/],
+    [{ date: '31/02/2026' }, /Takvimde böyle bir gün yok/],
+    [{ date: '01/01/2099' }, /bugünden sonra olamaz/],
+    [{ time: '24:00:00' }, /00:00:00 ile 23:59:59/],
+    [{ time: '99:99:99' }, /00:00:00 ile 23:59:59/],
   ];
   for (const [overrides, message] of cases) {
     const result = await call(mcp, 'create_invoice', {
@@ -268,10 +269,10 @@ test('list_invoices returns drafts as JSON and validates dates', async () => {
     endDate: '01/03/2026',
     startDate: '02/03/2026',
   });
-  expect(reversed.text).toMatch(/startDate must not be after endDate/);
+  expect(reversed.text).toMatch(/Başlangıç tarihi bitiş tarihinden sonra olamaz/);
 
   const long = await call(mcp, 'list_invoices', { endDate: '01/04/2026', startDate: '01/03/2026' });
-  expect(long.text).toMatch(/at most 31 days/);
+  expect(long.text).toMatch(/en çok 31 gün/);
   expect(client.getDrafts).toHaveBeenCalledTimes(1);
 });
 

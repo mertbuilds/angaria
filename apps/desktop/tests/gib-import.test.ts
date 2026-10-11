@@ -254,6 +254,8 @@ describe('scanInvoices', () => {
   });
 });
 
+const line = (name: string) => [{ name, price: 100, unit: 'HUR' }];
+
 describe('importCandidates', () => {
   test('one customer per VKN / TCKN with its invoice count and newest invoice', () => {
     const { customers } = importCandidates(
@@ -269,6 +271,39 @@ describe('importCandidates', () => {
       ['MAVİ LTD.', '7310045629', 1],
     ]);
     expect(customers[0].latest.ettn).toBe('b');
+  });
+
+  test('matches names by Turkish capitals: Kır and Kir are two, Plastic and PLASTIC one', () => {
+    const { customers, services } = importCandidates(
+      [
+        scanned('a', '01/03/2026', { lines: line('Kır'), name: 'Kır', taxID: '2222222222' }),
+        scanned('b', '01/04/2026', { lines: line('Kir'), name: 'Kir', taxID: '2222222222' }),
+        scanned('c', '01/05/2026', {
+          lines: line('Plastic'),
+          name: 'Plastic',
+          taxID: '2222222222',
+        }),
+        scanned('d', '01/06/2026', {
+          lines: line('PLASTIC'),
+          name: 'PLASTIC',
+          taxID: '2222222222',
+        }),
+        scanned('e', '01/07/2026', { lines: line('Yazılım Geliştirme Hizmeti') }),
+      ],
+      { customers: [], services: [service({ name: 'YAZILIM GELIŞTIRME HIZMETI' })] },
+    );
+    expect(customers.map(({ invoiceCount, key }) => [key, invoiceCount])).toEqual([
+      ['4820193752', 1],
+      ['2222222222:PLASTİC:Türkiye', 2],
+      ['2222222222:KİR:Türkiye', 1],
+      ['2222222222:KIR:Türkiye', 1],
+    ]);
+    expect(services.map(({ existing, key }) => [key, existing])).toEqual([
+      ['PLASTİC:HUR:TRY', false],
+      ['KİR:HUR:TRY', false],
+      ['KIR:HUR:TRY', false],
+      ['YAZILIM GELİŞTİRME HİZMETİ:HUR:TRY', true],
+    ]);
   });
 
   test('tells customers on GİB’s foreign VKN apart by name and country', () => {

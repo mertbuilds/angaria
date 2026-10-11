@@ -4,6 +4,7 @@
 // prints, TCMB's rate and the GİB login. They check what the screens check;
 // deleting and changing the company details need Ajanlar onaylayabilir ve
 // silebilir. No credential is ever read or returned.
+import { gibDate } from '@angaria/mcp-server/inputs';
 import { TCMBRateError } from 'angaria-utils';
 import { z } from 'zod';
 import {
@@ -12,7 +13,7 @@ import {
   companyFields,
   normalizeCompanyField,
 } from './company-fields.ts';
-import { taxIDOwner, taxIDTaken } from './company-identity.ts';
+import { gibIdentityMismatch, taxIDOwner, taxIDTaken } from './company-identity.ts';
 import {
   byRecentInvoice,
   countryError,
@@ -20,14 +21,22 @@ import {
   customerName,
   findCustomer,
   nameError,
-  nameKey,
   normalizeTaxID,
+  sameName,
+  selfInvoiceWarning,
   taxIDError,
 } from './customer.ts';
-import { GIB_CURRENCIES, GIB_UNIT_TYPES } from './gib-constants.ts';
-import { formatRate } from './invoice-form.ts';
+import { customerDefaultsErrors, formatRate } from './invoice-form.ts';
 import { resolvePDFStyle } from './invoice-pdf-i18n.ts';
-import { defineTool, failure, gibCountry, json, matches } from './mcp-tool-kit.ts';
+import {
+  currencyCode,
+  defineTool,
+  failure,
+  gibCountry,
+  json,
+  matches,
+  unitCode,
+} from './mcp-tool-kit.ts';
 import { historyCurrency } from './services.ts';
 import type { CompanyInfo, Recipient, Service } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
@@ -58,20 +67,6 @@ const customerJSON = (customer: Recipient) => ({
 const UNKNOWN_CUSTOMER =
   'Bu müşteri kayıtlı değil. Kayıtlı müşterileri list_customers ile listele.';
 const UNKNOWN_SERVICE = 'Bu hizmet kayıtlı değil. Kayıtlı hizmetleri list_services ile listele.';
-
-const currencyCode = z
-  .string()
-  .refine(
-    (code) => GIB_CURRENCIES.some((currency) => currency.value === code),
-    'GİB does not know this currency code',
-  );
-
-const unitCode = z
-  .string()
-  .refine(
-    (code) => GIB_UNIT_TYPES.some((unit) => unit.value === code),
-    'GİB does not know this unit code',
-  );
 
 const listCustomers = defineTool({
   annotations: { openWorldHint: false, readOnlyHint: true },
@@ -189,7 +184,14 @@ function patchCustomer(
   if (country) {
     fields.country = country;
   }
+  Object.assign(fields, customerDefaultsErrors(updated));
   return Object.keys(fields).length > 0 ? { fields } : { customer: updated };
+}
+
+/** What a saved customer is worth a second look for, by field; undefined when nothing. */
+function customerWarnings(customer: Recipient, company: { companyInfo: CompanyInfo }) {
+  const self = selfInvoiceWarning(customer.taxIDOrTRID, company.companyInfo.taxID);
+  return self ? { taxIDOrTRID: self } : undefined;
 }
 
 const NOT_SAVED = 'Kaydedilmedi: bazı bilgiler eksik ya da hatalı.';
@@ -232,7 +234,11 @@ const createCustomer = defineTool({
     }
     ctx.setCustomers((customers) => [...customers, customer]);
     return json(
-      { customer: customerJSON(customer), message: 'Müşteri kaydedildi.' },
+      {
+        customer: customerJSON(customer),
+        message: 'Müşteri kaydedildi.',
+        warnings: customerWarnings(customer, ctx.company()),
+      },
       customerName(customer),
     );
   },
@@ -272,7 +278,11 @@ const updateCustomer = defineTool({
       customers.map((candidate) => (candidate.id === id ? customer : candidate)),
     );
     return json(
-      { customer: customerJSON(customer), message: 'Müşteri güncellendi.' },
+      {
+        customer: customerJSON(customer),
+        message: 'Müşteri güncellendi.',
+        warnings: customerWarnings(customer, ctx.company()),
+      },
       customerName(customer),
     );
   },
@@ -340,6 +350,8 @@ const getService = defineTool({
 /** At most two decimals, the kuruş GİB amounts have. */
 const hasCents = (value: number) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
 
+/** An invoice line needs a price above 0, so a service saved without one could never be invoiced. */
+
 const serviceFields = {
   currency: currencyCode.optional().describe("The price's currency, e.g. TRY or USD"),
   discountRate: z.number().min(0).max(100).optional().describe('Discount rate as a percentage'),
@@ -347,11 +359,11 @@ const serviceFields = {
   quantity: z.number().positive().optional().describe('Default quantity'),
   unitPrice: z
     .number()
-    .min(0)
+    .positive()
     .max(1_000_000_000)
-    .refine(hasCents, 'At most two decimals')
+    .refine(hasCents, 'Tutarı en çok iki ondalıkla yaz, örneğin 1250.50.')
     .optional()
-    .describe('Unit price excluding VAT, in the service currency'),
+    .describe('Unit price excluding VAT and above 0, in the service currency'),
   unitType: unitCode
     .optional()
     .describe(
@@ -360,8 +372,8 @@ const serviceFields = {
   VATRate: z.number().int().min(0).max(100).optional().describe('VAT rate as a whole percentage'),
 };
 
-const sameName = (services: ReadonlyArray<Service>, name: string, except?: string) =>
-  services.find((service) => service.id !== except && nameKey(service.name) === nameKey(name));
+const namedLike = (services: ReadonlyArray<Service>, name: string, except?: string) =>
+  services.find((service) => service.id !== except && sameName(service.name, name));
 
 const createService = defineTool({
   annotations: { destructiveHint: false, openWorldHint: false },
@@ -376,7 +388,7 @@ const createService = defineTool({
   name: 'create_service',
   run: async (ctx, input) => {
     const { customers, services } = ctx.company();
-    const clash = sameName(services, input.name);
+    const clash = namedLike(services, input.name);
     if (clash) {
       return failure(
         'Bu adla bir hizmet zaten kayıtlı. Değiştirmek için update_service’i kullan.',
@@ -418,7 +430,7 @@ const updateService = defineTool({
     if (!saved) {
       return failure(UNKNOWN_SERVICE, { code: 'unknown-service' });
     }
-    if (patch.name !== undefined && sameName(services, patch.name, id)) {
+    if (patch.name !== undefined && namedLike(services, patch.name, id)) {
       return failure('Bu adla başka bir hizmet kayıtlı.', { code: 'exists' });
     }
     const service: Service = {
@@ -452,18 +464,38 @@ const deleteService = defineTool({
 const listCompanies = defineTool({
   annotations: { openWorldHint: false, readOnlyHint: true },
   description:
-    'Every company set up in Angaria: id, name, legal name and VKN/TCKN from its details, whether it is the one active in Angaria, and whether its GİB login is set up (gibLogin: ready or needs-login; credentials are never shown). Every other tool takes an optional company (id or VKN/TCKN) and acts on the active company without it. Naming a company never switches the active one in Angaria.',
+    "Every company set up in Angaria: id, name, legal name and VKN/TCKN from its details, whether it is the one active in Angaria, whether its GİB login is set up (gibLogin: ready or needs-login; credentials are never shown), and gibTaxID, the VKN/TCKN GİB gave for its account at the last login (a warning when the details' differs: Angaria's PDF would name another seller than GİB's invoice). Every other tool takes an optional company (id or VKN/TCKN) and acts on the active company without it. Naming a company never switches the active one in Angaria.",
   gib: false,
   inputSchema: z.object({}),
   name: 'list_companies',
   run: async (ctx) => {
-    const companies = ctx.companies();
+    const companies = ctx.companies().map((company) => {
+      const warning = gibIdentityMismatch(
+        { ...EMPTY_DETAILS, taxID: company.taxID },
+        company.gibTaxID ? { name: '', taxID: company.gibTaxID, taxOffice: '' } : undefined,
+      );
+      return warning ? { ...company, warning } : company;
+    });
     return json({ companies }, `${companies.length} şirket`);
   },
   scoped: false,
 });
 
 const DETAIL_FIELDS = [...companyFields, ...bankFields];
+
+const EMPTY_DETAILS: CompanyInfo = {
+  accountHolder: '',
+  address: '',
+  bankAddress: '',
+  bankName: '',
+  email: '',
+  iban: '',
+  name: '',
+  phone: '',
+  swiftCode: '',
+  taxID: '',
+  taxOffice: '',
+};
 
 const companyDetailsJSON = ({ logo, pdfStyle, ...info }: CompanyInfo) => ({
   ...info,
@@ -474,11 +506,19 @@ const companyDetailsJSON = ({ logo, pdfStyle, ...info }: CompanyInfo) => ({
 const getCompanyDetails = defineTool({
   annotations: { openWorldHint: false, readOnlyHint: true },
   description:
-    "The active company's details that Angaria's PDF prints (Ayarlar › Firma bilgileri and Banka bilgileri): name, VKN/TCKN, tax office, address, phone, e-mail, bank, account holder, IBAN, SWIFT, bank address, and the PDF design (minimal or classic). Not the GİB login.",
+    "The active company's details that Angaria's PDF prints (Ayarlar › Firma bilgileri and Banka bilgileri): name, VKN/TCKN, tax office, address, phone, e-mail, bank, account holder, IBAN, SWIFT, bank address, and the PDF design (minimal or classic). Not the GİB login. gib is the taxpayer GİB gave for the company's account at its last login; warnings.taxID says when the details' VKN/TCKN differs from it. Angaria never changes the details by itself: ask the user before update_company_details.",
   gib: false,
   inputSchema: z.object({}),
   name: 'get_company_details',
-  run: async (ctx) => json(companyDetailsJSON(ctx.company().companyInfo)),
+  run: async (ctx) => {
+    const { companyInfo, gibIdentity } = ctx.company();
+    const mismatch = gibIdentityMismatch(companyInfo, gibIdentity);
+    return json({
+      ...companyDetailsJSON(companyInfo),
+      gib: gibIdentity,
+      warnings: mismatch ? { taxID: mismatch } : undefined,
+    });
+  },
 });
 
 const updateCompanyDetails = defineTool({
@@ -554,13 +594,9 @@ const getExchangeRate = defineTool({
   gib: false,
   inputSchema: z.object({
     currency: currencyCode
-      .refine((code) => code !== 'TRY', 'TRY needs no rate')
-      .describe('Currency code, e.g. USD or EUR'),
-    date: z
-      .string()
-      .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Expected DD/MM/YYYY')
-      .optional()
-      .describe('Invoice date DD/MM/YYYY. Defaults to today.'),
+      .refine((code) => code !== 'TRY', 'TRY için kur gerekmez: lira faturada kur yok.')
+      .describe('Currency code, e.g. USD or EUR (any case)'),
+    date: gibDate.optional().describe('Invoice date DD/MM/YYYY. Defaults to today.'),
   }),
   name: 'get_exchange_rate',
   run: async (ctx, { currency, date }) => {
