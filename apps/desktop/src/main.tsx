@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app.tsx';
 import { flushVaultOnClose } from './lib/app-vault.ts';
+import { gib } from './lib/gib.ts';
 import { connectMenuBar } from './lib/menu-bar.ts';
 import { restorePalette } from './lib/palette.ts';
 import { closeGIBSession, closeGIBSessionOnQuit } from './lib/quit.ts';
@@ -17,6 +18,8 @@ restoreTheme();
 restorePalette();
 flushVaultOnClose(closeGIBSession);
 closeGIBSessionOnQuit();
+// GİB sessions a crash or force quit left open would refuse this run's logins.
+void gib.endLeftovers();
 // The Kur günü setting is gone: the rate is always the previous business day's bulletin.
 try {
   localStorage.removeItem('angaria-rate-day');

@@ -2,7 +2,7 @@ import { GibError } from 'angaria-earsiv-sdk';
 import { TCMBRateError } from 'angaria-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { SIGNING_TTL_MS } from '../src/lib/mcp-state.ts';
-import { AMBIGUOUS_COMPANY } from '../src/lib/mcp-tool-kit.ts';
+import { AMBIGUOUS_COMPANY, SESSION_LOCKED } from '../src/lib/mcp-tool-kit.ts';
 import { SCAN_WAIT_MS } from '../src/lib/mcp-tools-import.ts';
 import { maskPhone } from '../src/lib/mcp-tools-signing.ts';
 import { ACTIONS_OFF, callMcpTool, runMcpTool } from '../src/lib/mcp-tools.ts';
@@ -683,6 +683,57 @@ describe('rates and GİB login', () => {
     allowed.current = true;
     expect((await call(ctx, 'close_gib_session', {})).json.message).toBe('Oturum kapatıldı.');
     expect(ctx.forceLogout).toHaveBeenCalledTimes(1);
+  });
+});
+
+const locked = () =>
+  new GibError('session-locked', 'Sisteme aynı anda birden fazla giriş yapamazsınız', {
+    gibMessage: 'Sisteme aynı anda birden fazla giriş yapamazsınız',
+  });
+
+describe('a GİB session open elsewhere', () => {
+  const range = { endDate: '02/10/2026', startDate: '01/10/2026' };
+
+  test('a read closes it as close_gib_session does and goes again once', async () => {
+    const { client, ctx } = setup({ actions: true });
+    client.getDrafts.mockRejectedValueOnce(locked());
+    const { error } = await call(ctx, 'list_invoices', range);
+    expect(error).toBe(false);
+    expect(ctx.forceLogout).toHaveBeenCalledTimes(1);
+    expect(ctx.onAction).toHaveBeenCalledWith({ kind: 'gib-session-closed' });
+    expect(client.getDrafts).toHaveBeenCalledTimes(2);
+  });
+
+  test('never loops: a read refused again returns the error', async () => {
+    const { client, ctx } = setup({ actions: true });
+    client.getDrafts.mockRejectedValue(locked());
+    const { json } = await call(ctx, 'list_invoices', range);
+    expect(json.error).toMatchObject({ code: 'session-locked', message: SESSION_LOCKED });
+    expect(ctx.forceLogout).toHaveBeenCalledTimes(1);
+    expect(client.getDrafts).toHaveBeenCalledTimes(2);
+  });
+
+  test('a write is never sent again: the agent is told to call close_gib_session', async () => {
+    const { client, ctx } = setup({ actions: true });
+    client.createDraftInvoice.mockRejectedValue(locked());
+    const { json } = await call(ctx, 'create_invoice', {
+      currency: 'eur',
+      customerId: 'acme',
+      items: [{ name: 'X', quantity: 1, unitPrice: 100 }],
+    });
+    expect(json.error).toMatchObject({ code: 'session-locked', message: SESSION_LOCKED });
+    expect(client.createDraftInvoice).toHaveBeenCalledTimes(1);
+    expect(ctx.forceLogout).not.toHaveBeenCalled();
+  });
+
+  test('with agent actions off, a read only says how to close it', async () => {
+    const { client, ctx } = setup();
+    client.getDrafts.mockRejectedValue(locked());
+    const { json } = await call(ctx, 'list_invoices', range);
+    expect(json.error).toMatchObject({ code: 'session-locked', message: SESSION_LOCKED });
+    expect(json.error.message).toContain('close_gib_session');
+    expect(ctx.forceLogout).not.toHaveBeenCalled();
+    expect(client.getDrafts).toHaveBeenCalledTimes(1);
   });
 });
 

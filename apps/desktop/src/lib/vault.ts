@@ -1,7 +1,9 @@
-// Every secret (the license record and each company's GİB password) lives in
-// one keychain item as JSON, read once per launch and served from memory. Dev
-// builds keep it in a file instead (src-tauri/src/secrets.rs). This module has
-// no Tauri imports so tests can inject the backend and the legacy items.
+// Every secret (the license record, each company's GİB password and the GİB
+// sessions open right now) lives in one keychain item as JSON, read once per
+// launch and served from memory. Dev builds keep it in a file instead
+// (src-tauri/src/secrets.rs). This module has no Tauri imports so tests can
+// inject the backend and the legacy items.
+import type { SessionInfo } from 'angaria-earsiv-sdk';
 import { ENTITIES_STORAGE_KEY } from './credentials.ts';
 import { reportKeychainError } from './keychain-error.ts';
 import { parseStoredLicense, type StoredLicense } from './license.ts';
@@ -9,6 +11,11 @@ import { parseStoredLicense, type StoredLicense } from './license.ts';
 export interface VaultData {
   /** Passwords by entity id */
   gibPasswords: Record<string, string>;
+  /**
+   * The GİB sessions open now, by user code, until their logout: a launch
+   * after a crash logs them out (src/lib/session-queue.ts).
+   */
+  gibSessions?: Record<string, SessionInfo>;
   license?: StoredLicense;
   v: 1;
 }
@@ -57,6 +64,39 @@ function setPasswordIn(data: VaultData, entityId: string, password: string) {
   }
 }
 
+function parseSession(value: unknown): SessionInfo | null {
+  if (
+    !isRecord(value) ||
+    typeof value.token !== 'string' ||
+    !value.token ||
+    typeof value.baseUrl !== 'string' ||
+    !Array.isArray(value.cookies)
+  ) {
+    return null;
+  }
+  return {
+    baseUrl: value.baseUrl,
+    cookies: value.cookies.filter((cookie): cookie is string => typeof cookie === 'string'),
+    token: value.token,
+  };
+}
+
+function setSessionIn(data: VaultData, userCode: string, session: SessionInfo | null) {
+  const sessions = { ...data.gibSessions };
+  // A copy: the SDK updates a live session's cookies on every call.
+  const copy = parseSession(session);
+  if (copy) {
+    sessions[userCode] = copy;
+  } else {
+    delete sessions[userCode];
+  }
+  if (Object.keys(sessions).length > 0) {
+    data.gibSessions = sessions;
+  } else {
+    delete data.gibSessions;
+  }
+}
+
 /** The vault in a stored text. Unreadable parts read as missing. */
 export function parseVault(text: string): VaultData {
   const value = parseJSON(text);
@@ -71,12 +111,17 @@ export function parseVault(text: string): VaultData {
       }
     }
   }
+  if (isRecord(value.gibSessions)) {
+    for (const [userCode, stored] of Object.entries(value.gibSessions)) {
+      setSessionIn(vault, userCode, parseSession(stored));
+    }
+  }
   setLicenseIn(vault, parseStoredLicense(value.license));
   return vault;
 }
 
 /** One text per content: keys in a fixed order, so equal vaults compare equal. */
-function serializeVault({ gibPasswords, license }: VaultData): string {
+function serializeVault({ gibPasswords, gibSessions, license }: VaultData): string {
   const passwords = Object.fromEntries(
     Object.keys(gibPasswords)
       .toSorted()
@@ -87,6 +132,16 @@ function serializeVault({ gibPasswords, license }: VaultData): string {
     // parseStoredLicense lists the fields in a fixed order.
     ...(license && { license: parseStoredLicense(license) }),
     gibPasswords: passwords,
+    ...(gibSessions && {
+      gibSessions: Object.fromEntries(
+        Object.keys(gibSessions)
+          .toSorted()
+          .map((userCode) => {
+            const { baseUrl, cookies, token } = gibSessions[userCode];
+            return [userCode, { baseUrl, cookies, token }];
+          }),
+      ),
+    }),
   });
 }
 
@@ -118,6 +173,7 @@ export interface Vault {
   flush: () => Promise<void>;
   getLicense: () => Promise<StoredLicense | null>;
   getPassword: (entityId: string) => Promise<string | null>;
+  getSessions: () => Promise<Record<string, SessionInfo>>;
   /** From memory: false until the vault is loaded. */
   hasPassword: (entityId: string) => boolean;
   /**
@@ -129,6 +185,8 @@ export interface Vault {
   savedLicense: () => StoredLicense | null;
   /** Sets several passwords and writes at once. */
   savePasswords: (passwords: Record<string, string>) => Promise<void>;
+  /** Keeps a GİB user's open session (null forgets it) and writes at once when that changes it. */
+  saveSession: (userCode: string, session: SessionInfo | null) => Promise<void>;
   /**
    * Replaces the license in memory, and writes it when `save` is set. A failed
    * write puts the previous license back and rejects.
@@ -230,8 +288,17 @@ export function createVault({
       await load();
       return data.gibPasswords[entityId] ?? null;
     },
+    getSessions: async () => {
+      await load();
+      return { ...data.gibSessions };
+    },
     hasPassword: (entityId) => Boolean(data.gibPasswords[entityId]),
     load,
+    saveSession: async (userCode, session) => {
+      await load();
+      setSessionIn(data, userCode, session);
+      return save();
+    },
     savedLicense: () => (persisted === null ? null : (parseVault(persisted).license ?? null)),
     savePasswords: async (passwords) => {
       await load();

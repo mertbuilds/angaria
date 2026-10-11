@@ -142,7 +142,7 @@ beforeAll(async () => {
       currencyRate: async (currency, date) =>
         (await fetchTCMBRateTable(date, { baseUrl: emulator.url })).rates.get(currency),
       download: async () => ({ name: 'fatura.pdf', path: null }),
-      forceLogout: async () => {},
+      forceLogout: () => queue.forceClose(account),
       forCompany: (ref) => {
         const found = (Object.keys(COMPANIES) as Array<CompanyId>).find(
           (key) => key === ref || COMPANIES[key].companyInfo.taxID === ref,
@@ -206,6 +206,13 @@ afterAll(async () => {
 });
 
 const url = () => `http://127.0.0.1:${port}/mcp`;
+
+/** A session opened elsewhere (a browser) holds the main company's GİB login. */
+const lockMainLogin = () =>
+  fetch(`${emulator.url}/__emulator/lock`, {
+    body: JSON.stringify({ userid: COMPANIES.main.username }),
+    method: 'POST',
+  });
 
 const INITIALIZE = JSON.stringify({
   id: 1,
@@ -323,6 +330,40 @@ describe('Streamable HTTP', () => {
     );
     expect(gibLog).toContainEqual(expect.stringContaining(`ETTN ${created.uuid}`));
     await client.close();
+  });
+
+  test('a read refused for an open GİB session closes it and goes again once, a write never', async () => {
+    const client = new Client({ name: 'e2e-locked', version: '0.0.0' });
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(url()), {
+        requestInit: { headers: { authorization: `Bearer ${token}` } },
+      }),
+    );
+    const list = { arguments: { endDate: TODAY, startDate: TODAY }, name: 'list_invoices' };
+    try {
+      await lockMainLogin();
+      const refused = text(await client.callTool(list));
+      expect(refused.error).toMatchObject({ code: 'session-locked' });
+      expect(refused.error.message).toContain('close_gib_session');
+
+      actions = true;
+      expect(text(await client.callTool(list)).invoices).toBeInstanceOf(Array);
+
+      await lockMainLogin();
+      const write = text(
+        await client.callTool({
+          arguments: { customerId: 'acme', items: [{ name: 'X', quantity: 1, unitPrice: 1 }] },
+          name: 'create_invoice',
+        }),
+      );
+      expect(write.error).toMatchObject({ code: 'session-locked' });
+      expect(
+        text(await client.callTool({ arguments: {}, name: 'close_gib_session' })).message,
+      ).toBe('Oturum kapatıldı.');
+    } finally {
+      actions = false;
+      await client.close();
+    }
   });
 
   test('a modern request is checked against its headers', async () => {

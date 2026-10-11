@@ -3,14 +3,29 @@
 // call therefore goes through one queue that runs tasks one at a time on a
 // shared session, logs in when the first task arrives and logs out once the
 // queue has been empty for `lingerMs`, so calls close together share a login.
+// With a `store`, the open session is kept there until its logout, so a run
+// that died with it open (crash, force quit, a dev rebuild) is logged out on
+// the next launch instead of locking its login.
 // No Tauri imports, so tests can inject a fake client.
 
-import type { SessionInfo } from 'angaria-earsiv-sdk';
+import { GibError, type SessionInfo } from 'angaria-earsiv-sdk';
 import type { Credentials } from './types.ts';
 
 export interface SessionClient {
+  /**
+   * Ends whatever session is open for the user, without its token, as
+   * Ayarlar' Oturumu kapat does. Without it only the queue's own session closes.
+   */
+  forceLogout?: (username: string, password: string) => Promise<void>;
   login: (username: string, password: string) => Promise<SessionInfo>;
   logout: (session: SessionInfo) => Promise<void>;
+}
+
+/** Where open sessions are kept by account key, outside the app's memory (the vault). */
+export interface SessionStore {
+  read: () => Promise<Record<string, SessionInfo>>;
+  /** null forgets the account's session. */
+  write: (key: string, session: SessionInfo | null) => Promise<void>;
 }
 
 /** Whose session a task needs. Tasks with another key get a fresh login. */
@@ -39,21 +54,43 @@ export interface SessionLease {
   session: SessionInfo;
 }
 
-interface Job {
-  account: GIBAccount;
+type Job = {
   background: boolean;
   reject: (reason: unknown) => void;
-  run: (session: SessionInfo) => Promise<void>;
   signal?: AbortSignal;
-}
+} & (
+  | { account: GIBAccount; run: (session: SessionInfo) => Promise<void> }
+  /** A task that needs no login (closing sessions). */
+  | { account: null; run: () => Promise<void> }
+);
 
 /** How long the app's GİB session stays open after the queue empties. */
 export const SESSION_LINGER_MS = 45_000;
 
+/** GİB refused because the user has a session open (on the portal, in a browser, or left by a crash). */
+export const isSessionLocked = (error: unknown): error is GibError =>
+  error instanceof GibError && error.code === 'session-locked';
+
+// A call refused for an open session, and what ends that session.
+const closers = new WeakMap<object, () => Promise<void>>();
+
+/**
+ * For an error a queue rejected with because GİB had a session open: ends
+ * that session as Ayarlar' Oturumu kapat does, for the account that hit it.
+ */
+export const sessionCloser = (error: unknown) =>
+  typeof error === 'object' && error !== null ? closers.get(error) : undefined;
+
 export function createSessionQueue(
   client: SessionClient,
-  /** 0 logs out as soon as the queue is empty. */
-  { lingerMs = 0 }: { lingerMs?: number } = {},
+  {
+    lingerMs = 0,
+    store,
+  }: {
+    /** 0 logs out as soon as the queue is empty. */
+    lingerMs?: number;
+    store?: SessionStore;
+  } = {},
 ) {
   const jobs: Array<Job> = [];
   let open: { key: string; session: SessionInfo } | null = null;
@@ -62,6 +99,71 @@ export function createSessionQueue(
   let linger: ReturnType<typeof setTimeout> | null = null;
   // close() asked while a task ran: no later task uses this session.
   let stale = false;
+  // The store's sessions, read once; then kept in step with every write.
+  let stored: Promise<Map<string, SessionInfo>> | null = null;
+  let writes: Promise<void> = Promise.resolve();
+  // Accounts with a session left open by an earlier run, until a login works.
+  const leftovers = new Set<string>();
+
+  const storedSessions = () =>
+    (stored ??= (store?.read() ?? Promise.resolve({})).then(
+      (sessions) => new Map(Object.entries(sessions)),
+      () => new Map<string, SessionInfo>(),
+    ));
+
+  /** Keeps `session` as the account's open one (null forgets it). Never rejects. */
+  function remember(key: string, session: SessionInfo | null): Promise<void> {
+    if (!store) {
+      return Promise.resolve();
+    }
+    writes = writes.then(async () => {
+      const sessions = await storedSessions();
+      if (session) {
+        sessions.set(key, session);
+      } else if (sessions.has(key)) {
+        sessions.delete(key);
+      } else {
+        return;
+      }
+      await store.write(key, session).catch(() => {});
+    });
+    return writes;
+  }
+
+  /** Logs out the account's session an earlier run left open, quietly. */
+  async function endLeftover(key: string) {
+    const left = (await storedSessions()).get(key);
+    if (!left) {
+      return;
+    }
+    leftovers.add(key);
+    await client.logout(left).catch(() => {});
+    await remember(key, null);
+  }
+
+  /**
+   * Logs in after ending the account's leftover session. When GİB still
+   * refuses for an open session after that, the leftover was not logged out
+   * by its token: end it as Oturumu kapat does and log in again, once.
+   */
+  async function signIn(account: GIBAccount) {
+    await endLeftover(account.key);
+    const { password, username } = await account.credentials();
+    let session: SessionInfo;
+    try {
+      session = await client.login(username, password);
+    } catch (error) {
+      if (!isSessionLocked(error) || !client.forceLogout || !leftovers.has(account.key)) {
+        throw error;
+      }
+      leftovers.delete(account.key);
+      await client.forceLogout(username, password).catch(() => {});
+      session = await client.login(username, password);
+    }
+    leftovers.delete(account.key);
+    void remember(account.key, session);
+    return session;
+  }
 
   function stopLinger() {
     if (linger !== null) {
@@ -77,7 +179,13 @@ export function createSessionQueue(
     open = null;
     if (current) {
       // The next login waits for this logout, so GİB never sees two sessions.
-      closing = closing.then(() => client.logout(current.session).catch(() => {}));
+      // A failed logout keeps the session stored, for the next launch to end.
+      closing = closing.then(() =>
+        client.logout(current.session).then(
+          () => remember(current.key, null),
+          () => {},
+        ),
+      );
     }
     return closing;
   }
@@ -116,20 +224,24 @@ export function createSessionQueue(
     stopLinger();
     while (jobs.length > 0) {
       for (let job = take(); job; job = take()) {
+        if (job.account === null) {
+          await job.run().catch(job.reject);
+          continue;
+        }
+        const { account } = job;
         try {
-          if (open && (stale || open.key !== job.account.key)) {
+          if (open && (stale || open.key !== account.key)) {
             await close();
           }
           if (!open) {
             await closing;
-            const { password, username } = await job.account.credentials();
-            open = {
-              key: job.account.key,
-              session: await client.login(username, password),
-            };
+            open = { key: account.key, session: await signIn(account) };
           }
           await job.run(open.session);
         } catch (error) {
+          if (isSessionLocked(error)) {
+            closers.set(error, () => forceClose(account));
+          }
           job.reject(error);
           // The failure may have ended the session on GİB's side. A task that
           // stopped for its abort (between requests) left it open.
@@ -141,6 +253,43 @@ export function createSessionQueue(
       await idle();
     }
     draining = false;
+  }
+
+  /** Queues a task that needs no login. */
+  function runBare(task: () => Promise<void>, background: boolean): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      jobs.push({ account: null, background, reject, run: async () => resolve(await task()) });
+      void drain();
+    });
+  }
+
+  /**
+   * Ends the account's open session on GİB, also one this app does not hold
+   * (a browser's, one an earlier run left), as Ayarlar' Oturumu kapat does:
+   * the queue's own session first, then GİB's force logout. Queued, so no
+   * call logs in meanwhile.
+   */
+  function forceClose(account: GIBAccount): Promise<void> {
+    return runBare(async () => {
+      await close();
+      await endLeftover(account.key);
+      const { password, username } = await account.credentials();
+      await client.forceLogout?.(username, password);
+    }, false);
+  }
+
+  /**
+   * Logs out every session an earlier run left open (launch), after the
+   * calls the user asked for. Never rejects.
+   */
+  function endLeftovers(): Promise<void> {
+    return runBare(async () => {
+      for (const key of (await storedSessions()).keys()) {
+        if (open?.key !== key) {
+          await endLeftover(key);
+        }
+      }
+    }, true).catch(() => {});
   }
 
   /**
@@ -271,5 +420,5 @@ export function createSessionQueue(
     return close();
   }
 
-  return { close: closeSession, lease, leaseWith, run };
+  return { close: closeSession, endLeftovers, forceClose, lease, leaseWith, run };
 }

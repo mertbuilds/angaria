@@ -12,6 +12,7 @@ import { presetRange, recentInvoices } from '@/lib/invoices.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice } from '@/lib/types.ts';
 import { formatDateHuman } from '@/lib/utils.ts';
+import { CloseSessionButton } from '@/shell/error-state.tsx';
 import { tones } from '../shell/palette.stylex.ts';
 import { InvoiceTotal } from './invoices.tsx';
 
@@ -382,6 +383,9 @@ export function InvoiceStart() {
         </p>
         {failure.action === 'settings' && (
           <Button render={<Link to="/ayarlar" />}>Ayarlar’a git</Button>
+        )}
+        {failure.action === 'close-session' && (
+          <CloseSessionButton error={recent.error} onRetry={recent.refetch} />
         )}
         <Button onClick={recent.refetch} variant="outline">
           Tekrar dene

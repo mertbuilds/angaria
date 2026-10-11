@@ -238,7 +238,10 @@ export function InvoicesScreen() {
     void refetch().then((result) => {
       // Without data the list shows the error itself.
       if (result.error && result.data) {
-        toastError(result.error, { openSettings: () => void navigate({ to: '/ayarlar' }) });
+        toastError(result.error, {
+          openSettings: () => void navigate({ to: '/ayarlar' }),
+          retry: () => void refetch(),
+        });
       }
     });
   }, [hasCredentials, isFetching, navigate, refetch]);

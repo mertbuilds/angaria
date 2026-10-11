@@ -7,7 +7,6 @@ import {
   createDraftInvoice,
   downloadInvoice,
   fetchTCMBRateTable,
-  forceLogout,
   getDrafts,
   getInvoiceDetail,
   getInvoiceHTML,
@@ -248,11 +247,7 @@ export function McpHost() {
             gib.run(account, (session) => downloadInvoice(session, ettn, invoice.onayDurumu ?? '')),
           );
         },
-        forceLogout: async () => {
-          const login = await store.getCredentials(entity.id);
-          await gib.close();
-          await forceLogout(login.username, login.password);
-        },
+        forceLogout: () => gib.forceClose(account),
         // The signal drops a waiting task; a started one runs to its end.
         gib: (task, signal, options) =>
           gib.run(account, (session) => task(session), { ...options, signal }),

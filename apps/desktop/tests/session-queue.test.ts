@@ -1,6 +1,11 @@
-import type { SessionInfo } from 'angaria-earsiv-sdk';
+import { GibError, type SessionInfo } from 'angaria-earsiv-sdk';
 import { describe, expect, test, vi } from 'vitest';
-import { createSessionQueue, type GIBAccount } from '../src/lib/session-queue.ts';
+import {
+  createSessionQueue,
+  sessionCloser,
+  type GIBAccount,
+  type SessionStore,
+} from '../src/lib/session-queue.ts';
 
 function fakeClient() {
   const log: Array<string> = [];
@@ -367,5 +372,165 @@ describe('the session after the queue empties', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+const locked = () =>
+  new GibError('session-locked', 'Sisteme aynı anda birden fazla giriş yapamazsınız');
+
+/** The vault's sessions: what a crashed run left, and every write since. */
+function memoryStore(left: Record<string, SessionInfo> = {}) {
+  const sessions = { ...left };
+  const writes: Array<string> = [];
+  const store: SessionStore = {
+    read: async () => ({ ...sessions }),
+    write: async (key, session) => {
+      writes.push(`${key} ${session?.token ?? '-'}`);
+      if (session) {
+        sessions[key] = session;
+      } else {
+        delete sessions[key];
+      }
+    },
+  };
+  return { sessions, store, writes };
+}
+
+const leftover = (token: string): SessionInfo => ({ baseUrl: 'gib', cookies: [], token });
+
+describe('sessions an earlier run left open', () => {
+  test('keeps the open session until its logout, never per call', async () => {
+    vi.useFakeTimers();
+    try {
+      const { client } = fakeClient();
+      const { sessions, store, writes } = memoryStore();
+      const queue = createSessionQueue(client, { lingerMs: 45_000, store });
+      const user = account('33333301');
+
+      await queue.run(user, async () => {});
+      await queue.run(user, async () => {});
+      await vi.advanceTimersByTimeAsync(0);
+      expect(sessions).toEqual({ '33333301': { baseUrl: '33333301', cookies: [], token: 't1' } });
+      await queue.close();
+      expect(sessions).toEqual({});
+      expect(writes).toEqual(['33333301 t1', '33333301 -']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('a failed logout keeps the session for the next launch', async () => {
+    const { client } = fakeClient();
+    client.logout.mockRejectedValueOnce(new Error('GİB’e ulaşılamadı'));
+    const { sessions, store } = memoryStore();
+    const queue = createSessionQueue(client, { store });
+
+    await queue.run(account('33333301'), async () => {});
+    await tick();
+    expect(Object.keys(sessions)).toEqual(['33333301']);
+  });
+
+  test('a launch logs them out quietly, after the calls the user asked for', async () => {
+    const { client, log } = fakeClient();
+    client.logout.mockImplementation(async (session) => {
+      log.push(`logout ${session.token}`);
+      if (session.token === 'old-b') {
+        throw new GibError('session-expired', 'Oturum zaman aşımına uğradı');
+      }
+    });
+    const { sessions, store } = memoryStore({ a: leftover('old-a'), b: leftover('old-b') });
+    const queue = createSessionQueue(client, { store });
+
+    const list = queue.run(account('33333301'), async () => {
+      log.push('list');
+    });
+    await queue.endLeftovers();
+    await list;
+    await tick();
+    expect(log).toEqual(['login 33333301', 'list', 'logout old-a', 'logout old-b', 'logout t1']);
+    expect(sessions).toEqual({});
+  });
+
+  test('the first login of an account logs its leftover out first', async () => {
+    const { client, log } = fakeClient();
+    const { sessions, store } = memoryStore({ '33333301': leftover('old') });
+    const queue = createSessionQueue(client, { store });
+
+    expect(await queue.run(account('33333301'), async (session) => session.token)).toBe('t1');
+    expect(log.slice(0, 2)).toEqual(['logout old', 'login 33333301']);
+    await tick();
+    expect(sessions).toEqual({});
+  });
+
+  test('a leftover GİB still holds is ended as Oturumu kapat does, then one more login', async () => {
+    const { client, log } = fakeClient();
+    const forceLogout = vi.fn(async (username: string) => {
+      log.push(`force logout ${username}`);
+    });
+    client.login.mockRejectedValueOnce(locked());
+    const { store } = memoryStore({ '33333301': leftover('old') });
+    const queue = createSessionQueue({ ...client, forceLogout }, { store });
+
+    expect(await queue.run(account('33333301'), async (session) => session.token)).toBe('t1');
+    expect(log.slice(0, 3)).toEqual(['logout old', 'force logout 33333301', 'login 33333301']);
+  });
+
+  test('never loops: one forced logout, then the refusal is the error', async () => {
+    const { client } = fakeClient();
+    const forceLogout = vi.fn(async () => {});
+    client.login.mockRejectedValue(locked());
+    const { store } = memoryStore({ '33333301': leftover('old') });
+    const queue = createSessionQueue({ ...client, forceLogout }, { store });
+    const user = account('33333301');
+
+    await expect(queue.run(user, async () => {})).rejects.toThrow('birden fazla giriş');
+    await expect(queue.run(user, async () => {})).rejects.toThrow('birden fazla giriş');
+    expect(forceLogout).toHaveBeenCalledOnce();
+    expect(client.login).toHaveBeenCalledTimes(3);
+  });
+
+  test('without a leftover of its own, the queue never ends a session it did not open', async () => {
+    const { client } = fakeClient();
+    const forceLogout = vi.fn(async () => {});
+    client.login.mockRejectedValueOnce(locked());
+    const queue = createSessionQueue({ ...client, forceLogout }, { store: memoryStore().store });
+
+    await expect(queue.run(account('33333301'), async () => {})).rejects.toThrow(
+      'birden fazla giriş',
+    );
+    expect(forceLogout).not.toHaveBeenCalled();
+  });
+});
+
+describe('sessionCloser', () => {
+  test('a refusal for an open session carries what closes it, as Oturumu kapat does', async () => {
+    const { client, log } = fakeClient();
+    const forceLogout = vi.fn(async (username: string) => {
+      log.push(`force logout ${username}`);
+    });
+    client.login.mockRejectedValueOnce(locked());
+    const queue = createSessionQueue({ ...client, forceLogout });
+
+    const error = await queue.run(account('33333301'), async () => {}).catch((error) => error);
+    const close = sessionCloser(error);
+    expect(close).toBeTypeOf('function');
+    await close?.();
+    expect(log).toEqual(['force logout 33333301']);
+    expect(sessionCloser(new GibError('auth', 'Giriş başarısız'))).toBeUndefined();
+  });
+
+  test('forceClose logs out the queue’s own session first, then forces the rest', async () => {
+    const { client, log } = fakeClient();
+    const forceLogout = vi.fn(async (username: string) => {
+      log.push(`force logout ${username}`);
+    });
+    const queue = createSessionQueue({ ...client, forceLogout }, { lingerMs: 45_000 });
+    const user = account('33333301');
+
+    await queue.run(user, async () => {});
+    await queue.forceClose(user);
+    expect(log).toEqual(['login 33333301', 'logout t1', 'force logout 33333301']);
+    expect(await queue.run(user, async (session) => session.token)).toBe('t2');
+    await queue.close();
   });
 });
