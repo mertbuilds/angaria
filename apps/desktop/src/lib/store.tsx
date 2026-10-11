@@ -10,6 +10,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { sampleCustomers, sampleServices } from '../dev/sample-data.ts';
 import { vault } from './app-vault.ts';
 import {
   ENTITIES_STORAGE_KEY,
@@ -40,45 +41,6 @@ import { toGIB } from './utils.ts';
 const newId = () => crypto.randomUUID();
 const NO_RECIPIENTS: Array<Recipient> = [];
 const ACTIVE_ENTITY_STORAGE_KEY = 'fatura-active-entity-id';
-
-const SEED_RECIPIENTS: Array<Recipient> = [
-  {
-    id: newId(),
-    taxIDOrTRID: '2222222222',
-    taxOffice: '',
-    title: 'PLASTIC SOFTWARE LLC',
-    name: '',
-    surname: '',
-    fullAddress: '500 Westover Dr #10034\nSanford, NC 27330',
-    country: 'Amerika Birleşik Devletleri',
-    city: '',
-    district: '',
-  },
-  {
-    id: newId(),
-    taxIDOrTRID: '1234567890',
-    taxOffice: 'Kadıköy',
-    title: 'ÖRNEK TEKNOLOJİ A.Ş.',
-    name: 'Ahmet',
-    surname: 'Yılmaz',
-    fullAddress: 'Bağdat Cad. No:123 Kadıköy',
-    country: 'Türkiye',
-    city: 'İstanbul',
-    district: 'Kadıköy',
-  },
-  {
-    id: newId(),
-    taxIDOrTRID: '2222222222',
-    taxOffice: '',
-    title: 'ACME GMBH',
-    name: 'Hans',
-    surname: 'Müller',
-    fullAddress: 'Hauptstraße 42, 10115 Berlin',
-    country: 'Almanya',
-    city: 'Berlin',
-    district: '',
-  },
-];
 
 const DEFAULT_ITEM_ADVANCED = {
   unitType: 'C62',
@@ -112,36 +74,6 @@ const DEFAULT_COMPANY_INFO: CompanyInfo = {
   swiftCode: '',
   bankAddress: '',
 };
-
-const SEED_ITEMS: Array<Service> = [
-  {
-    id: newId(),
-    currency: 'USD',
-    name: 'Engineering Services - Mühendislik Hizmetleri',
-    quantity: 1,
-    unitPrice: 100,
-    VATRate: 0,
-    ...DEFAULT_ITEM_ADVANCED,
-  },
-  {
-    id: newId(),
-    currency: 'TRY',
-    name: 'Yazılım Geliştirme Hizmeti',
-    quantity: 1,
-    unitPrice: 5000,
-    VATRate: 20,
-    ...DEFAULT_ITEM_ADVANCED,
-  },
-  {
-    id: newId(),
-    currency: 'TRY',
-    name: 'Danışmanlık Hizmeti',
-    quantity: 1,
-    unitPrice: 2500,
-    VATRate: 20,
-    ...DEFAULT_ITEM_ADVANCED,
-  },
-];
 
 function loadLocal<T>(key: string, fallback: T): T {
   try {
@@ -209,18 +141,24 @@ function blankForm(): InvoiceFormValues {
   };
 }
 
+// A new install's first company starts empty; dev builds fill it with sample
+// data. import.meta.env.DEV is statically false in production builds, so the
+// sample data never ships.
+const firstCustomers = () => (import.meta.env.DEV ? sampleCustomers() : []);
+const firstServices = () => (import.meta.env.DEV ? sampleServices(DEFAULT_ITEM_ADVANCED) : []);
+
 function makeEntityName(index: number) {
   return index === 0 ? 'Ana şirket' : `Şirket ${index + 1}`;
 }
 
-function makeDefaultEntity(index: number, seedData = true): Entity {
+function makeDefaultEntity(index: number): Entity {
   return {
     id: newId(),
     name: makeEntityName(index),
     creds: { ...DEFAULT_CREDS },
     companyInfo: { ...DEFAULT_COMPANY_INFO },
-    savedRecipients: seedData ? SEED_RECIPIENTS : [],
-    savedItems: seedData ? SEED_ITEMS : [],
+    savedRecipients: [],
+    savedItems: [],
   };
 }
 
@@ -250,19 +188,19 @@ function loadEntities(): Array<Entity> {
     });
   }
 
-  const savedRecipients = loadLocal('fatura-saved-recipients', SEED_RECIPIENTS).map(
+  const savedRecipients = loadLocal('fatura-saved-recipients', firstCustomers()).map(
     withFullCountry,
   );
   return [
     {
-      ...makeDefaultEntity(0, false),
+      ...makeDefaultEntity(0),
       creds: loadCreds(
         loadLocal<Partial<StoredCredentials> | null>(LEGACY_CREDS_STORAGE_KEY, null),
       ),
       companyInfo: loadLocal('fatura-company-info', { ...DEFAULT_COMPANY_INFO }),
       savedRecipients,
       savedItems: withServiceCurrencies(
-        loadLocal('fatura-saved-items', SEED_ITEMS),
+        loadLocal('fatura-saved-items', firstServices()),
         savedRecipients,
       ),
     },
@@ -476,7 +414,7 @@ function LoadedStoreProvider({
   );
 
   const createEntity = useCallback(() => {
-    const next = makeDefaultEntity(entities.length, false);
+    const next = makeDefaultEntity(entities.length);
     setEntities((prev) => [...prev, next]);
     setActiveEntityId(next.id);
   }, [entities.length]);

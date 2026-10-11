@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { expect, test, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
 import { companyKeys, taxIDOwner } from '../src/lib/company-identity.ts';
 import { vaultRead } from '../src/lib/native.ts';
 import { StoreProvider, useStore } from '../src/lib/store.tsx';
@@ -261,5 +261,37 @@ test("customers saved with GİB's cut country name load with the full one", asyn
     'Almanya',
     'Amerika',
   ]);
+  act(() => root.unmount());
+});
+
+test('a new install starts with no customers or services in a release build', async () => {
+  storage.clear();
+  vi.stubEnv('DEV', false);
+  onTestFinished(() => {
+    vi.unstubAllEnvs();
+  });
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  await act(async () => root.render(<StoreProvider>{null}</StoreProvider>));
+  await settle();
+
+  const [entity] = JSON.parse(storage.get('fatura-entities') ?? '[]');
+  expect(entity.savedRecipients).toEqual([]);
+  expect(entity.savedItems).toEqual([]);
+  act(() => root.unmount());
+});
+
+test('a new install starts with sample customers and services in a dev build', async () => {
+  storage.clear();
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  await act(async () => root.render(<StoreProvider>{null}</StoreProvider>));
+  await settle();
+
+  const [entity] = JSON.parse(storage.get('fatura-entities') ?? '[]');
+  expect(entity.savedRecipients).toHaveLength(3);
+  expect(entity.savedItems).toHaveLength(3);
   act(() => root.unmount());
 });
