@@ -1,20 +1,17 @@
 import {
-  capStyles,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  Field,
   FieldDescription,
-  FieldLabel,
   Input,
   Switch,
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props, type StyleXStyles } from '@stylexjs/stylex';
-import { CheckIcon, PlusIcon } from 'lucide-react';
+import { CheckIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import {
@@ -41,7 +38,6 @@ import { useStore } from '@/lib/store.tsx';
 import { suggestTaxOffices } from '@/lib/tax-offices.ts';
 import { CITY_NAMES, cityCode, matchesWords, searchKey } from '@/lib/tr-cities.ts';
 import type { Recipient } from '@/lib/types.ts';
-import { matchesQuery } from '@/shell/searchable-list.tsx';
 import { Section, sectionStyles } from './invoice-section.tsx';
 import type { InvoiceForm } from './use-invoice-form.ts';
 
@@ -71,12 +67,6 @@ const styles = create({
   },
   inputWrap: {
     position: 'relative',
-  },
-  itemIcon: {
-    color: colors.muted,
-    flexShrink: 0,
-    height: '1rem',
-    width: '1rem',
   },
   itemLabel: {
     minWidth: 0,
@@ -459,35 +449,8 @@ function BoundTaxIDField({ children }: { children?: ReactNode }) {
   );
 }
 
-type PickerItem = { customer: Recipient; kind: 'saved' } | { kind: 'new'; text: string };
-
-/** A saved customer's name or VKN / TCKN; digits only match the VKN / TCKN. */
-function matchesCustomer(customer: Recipient, query: string) {
-  const digits = normalizeTaxID(query);
-  return /^\d+$/.test(digits)
-    ? customer.taxIDOrTRID.includes(digits)
-    : matchesQuery(query, customer.title, customer.name, customer.surname, customer.taxIDOrTRID);
-}
-
-const pickerLabel = (item: PickerItem) =>
-  item.kind === 'saved' ? displayName(item.customer) : item.text;
-
-const BLANK_RECIPIENT: Recipient = {
-  city: '',
-  country: '',
-  district: '',
-  fullAddress: '',
-  id: '',
-  name: '',
-  surname: '',
-  taxIDOrTRID: '',
-  taxOffice: '',
-  title: '',
-};
-
 export function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: Recipient }) {
   const { savedRecipients } = useStore();
-  const [query, setQuery] = useState('');
   const matched = findCustomer(savedRecipients, recipient.taxIDOrTRID, customerName(recipient));
   // The VKN typed belongs to a saved customer this form is not filled with.
   const known = matched ? null : findCustomerByTaxID(savedRecipients, recipient.taxIDOrTRID);
@@ -503,22 +466,6 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
     form.setFieldValue('advancedFields', next.advancedFields, { dontRunListeners: true });
   };
 
-  // A new customer from the picker's text: a name goes to Unvan, digits to
-  // VKN / TCKN, and the form goes on with the other one. A saved customer's
-  // details are cleared first; details typed by hand stay.
-  const startCustomer = (text: string) => {
-    const digits = normalizeTaxID(text);
-    const isTaxID = /^\d+$/.test(digits);
-    const base = matched ? BLANK_RECIPIENT : recipient;
-    form.setFieldValue(
-      'recipient',
-      isTaxID ? { ...base, taxIDOrTRID: digits } : { ...base, title: text.trim() },
-      { dontRunListeners: true },
-    );
-    const next = isTaxID ? 'recipient.title' : 'recipient.taxIDOrTRID';
-    requestAnimationFrame(() => document.getElementById(next)?.focus());
-  };
-
   const setForeign = (checked: boolean) => {
     if (!checked) {
       form.setFieldValue('recipient.taxIDOrTRID', '');
@@ -531,82 +478,16 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
     }
   };
 
-  const typed = query.trim();
-  const typedKey = searchKey(typed);
-  const exact = savedRecipients.some(
-    (customer) =>
-      searchKey(displayName(customer)) === typedKey ||
-      customer.taxIDOrTRID === normalizeTaxID(typed),
-  );
-  const items: Array<PickerItem> = byRecentInvoice(savedRecipients).map((customer) => ({
-    customer,
-    kind: 'saved',
+  // Unvan is the customer's name, typed freely; the saved customers it matches
+  // are offered under it, most recently invoiced first, and a pick fills the form.
+  const customerSuggestions = byRecentInvoice(savedRecipients).map((customer) => ({
+    hint: customerTag(customer),
+    id: customer.id,
+    label: displayName(customer),
   }));
-  if (typed && !exact) {
-    items.push({ kind: 'new', text: typed });
-  }
 
   return (
     <Section title="Müşteri">
-      <Field>
-        <FieldLabel htmlFor="customer-picker">Müşteri ara ya da yeni gir</FieldLabel>
-        <Combobox
-          autoHighlight
-          filter={(item: PickerItem, text: string) =>
-            item.kind === 'new' || matchesCustomer(item.customer, text)
-          }
-          isItemEqualToValue={(item: PickerItem, value: PickerItem) =>
-            item.kind === 'saved' &&
-            value.kind === 'saved' &&
-            item.customer.id === value.customer.id
-          }
-          items={items}
-          itemToStringLabel={pickerLabel}
-          onInputValueChange={setQuery}
-          onValueChange={(item: PickerItem | null) => {
-            if (item?.kind === 'saved') {
-              pickCustomer(item.customer);
-            } else if (item?.kind === 'new') {
-              startCustomer(item.text);
-            }
-          }}
-          value={matched ? { customer: matched, kind: 'saved' } : null}
-        >
-          <ComboboxInput
-            id="customer-picker"
-            onFocus={(event) => event.currentTarget.select()}
-            placeholder="Unvan, ad ya da VKN / TCKN"
-          />
-          <ComboboxContent>
-            <ComboboxEmpty>
-              {savedRecipients.length > 0
-                ? 'Müşteri bulunamadı'
-                : 'Henüz kayıtlı müşteri yok. Kestiğin her faturanın müşterisi burada olur.'}
-            </ComboboxEmpty>
-            <ComboboxList>
-              {(item: PickerItem) =>
-                item.kind === 'saved' ? (
-                  <ComboboxItem key={item.customer.id} value={item}>
-                    <span {...props(styles.itemLabel, capStyles.text)}>
-                      {displayName(item.customer)}
-                    </span>
-                    <span {...props(styles.hint, capStyles.text)}>
-                      {customerTag(item.customer)}
-                    </span>
-                  </ComboboxItem>
-                ) : (
-                  <ComboboxItem key="new" value={item}>
-                    <PlusIcon aria-hidden {...props(styles.itemIcon)} />
-                    <span {...props(styles.itemLabel, capStyles.text)}>
-                      Yeni müşteri: {item.text}
-                    </span>
-                  </ComboboxItem>
-                )
-              }
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
-      </Field>
       <div {...props(sectionStyles.fields)}>
         <ForeignCustomerSwitch
           checked={foreign}
@@ -616,10 +497,17 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
         />
         <form.AppField name="recipient.title">
           {(field) => (
-            <field.TextField
+            <field.SuggestField
               label="Unvan"
-              placeholder="Örnek Teknoloji A.Ş."
+              onPick={(suggestion) => {
+                const saved = savedRecipients.find((customer) => customer.id === suggestion.id);
+                if (saved) {
+                  pickCustomer(saved);
+                }
+              }}
+              placeholder="Firma adı ya da kayıtlı müşteri ara"
               style={styles.fullRow}
+              suggestions={customerSuggestions}
             />
           )}
         </form.AppField>

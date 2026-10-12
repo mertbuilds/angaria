@@ -357,10 +357,10 @@ export function CreateInvoicePage() {
   });
 
   // A new form (Boş fatura, Tekrar kes, undo) replaced what held the focus:
-  // the customer picker, the form's first field, takes it.
+  // Unvan, the form's first field, takes it.
   useEffect(() => {
     if (!document.activeElement || document.activeElement === document.body) {
-      document.getElementById('customer-picker')?.focus();
+      document.getElementById('recipient.title')?.focus();
     }
   }, []);
 
