@@ -6,9 +6,9 @@ export const PDF_LANGUAGES: ReadonlyArray<PDFLanguage> = ['tr', 'en', 'both'];
 
 export const DEFAULT_PDF_LANGUAGE: PDFLanguage = 'en';
 
-export const PDF_STYLES: ReadonlyArray<PDFStyle> = ['minimal', 'classic'];
+export const PDF_STYLES: ReadonlyArray<PDFStyle> = ['classic', 'minimal'];
 
-export const DEFAULT_PDF_STYLE: PDFStyle = 'minimal';
+export const DEFAULT_PDF_STYLE: PDFStyle = 'classic';
 
 type Locale = 'en' | 'tr';
 

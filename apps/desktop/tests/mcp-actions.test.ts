@@ -518,7 +518,7 @@ describe('company details', () => {
     const { allowed, companies, ctx } = setup();
     companies.main.companyInfo.logo = 'data:image/png;base64,AAAA';
     const details = await call(ctx, 'get_company_details', {});
-    expect(details.json).toMatchObject({ hasLogo: true, name: 'Ana Firma', pdfStyle: 'minimal' });
+    expect(details.json).toMatchObject({ hasLogo: true, name: 'Ana Firma', pdfStyle: 'classic' });
     expect(JSON.stringify(details.json)).not.toContain('base64');
 
     expect((await call(ctx, 'update_company_details', { iban: 'x' })).json.error.code).toBe(
@@ -535,9 +535,9 @@ describe('company details', () => {
 
     const good = await call(ctx, 'update_company_details', {
       bankName: 'Ziraat Bankası',
-      pdfStyle: 'classic',
+      pdfStyle: 'minimal',
     });
-    expect(good.json.details).toMatchObject({ bankName: 'Ziraat Bankası', pdfStyle: 'classic' });
+    expect(good.json.details).toMatchObject({ bankName: 'Ziraat Bankası', pdfStyle: 'minimal' });
     expect(ctx.onAction).toHaveBeenCalledWith({ kind: 'company-details-updated' });
   });
 

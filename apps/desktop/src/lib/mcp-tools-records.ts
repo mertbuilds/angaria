@@ -506,7 +506,7 @@ const companyDetailsJSON = ({ logo, pdfStyle, ...info }: CompanyInfo) => ({
 const getCompanyDetails = defineTool({
   annotations: { openWorldHint: false, readOnlyHint: true },
   description:
-    "The active company's details that Angaria's PDF prints (Ayarlar › Firma bilgileri and Banka bilgileri): name, VKN/TCKN, tax office, address, phone, e-mail, bank, account holder, IBAN, SWIFT, bank address, and the PDF design (minimal or classic). Not the GİB login. gib is the taxpayer GİB gave for the company's account at its last login; warnings.taxID says when the details' VKN/TCKN differs from it. Angaria never changes the details by itself: ask the user before update_company_details.",
+    "The active company's details that Angaria's PDF prints (Ayarlar › Firma bilgileri and Banka bilgileri): name, VKN/TCKN, tax office, address, phone, e-mail, bank, account holder, IBAN, SWIFT, bank address, and the PDF design (classic, the default, or minimal). Not the GİB login. gib is the taxpayer GİB gave for the company's account at its last login; warnings.taxID says when the details' VKN/TCKN differs from it. Angaria never changes the details by itself: ask the user before update_company_details.",
   gib: false,
   inputSchema: z.object({}),
   name: 'get_company_details',
@@ -534,7 +534,10 @@ const updateCompanyDetails = defineTool({
     email: z.string().optional().describe('E-posta'),
     iban: z.string().optional().describe('IBAN, TR and 24 digits'),
     name: z.string().optional().describe('Firma adı ya da unvan: the company or person name'),
-    pdfStyle: z.enum(['minimal', 'classic']).optional().describe('PDF design: minimal or classic'),
+    pdfStyle: z
+      .enum(['classic', 'minimal'])
+      .optional()
+      .describe('PDF design: classic (the default) or minimal'),
     phone: z.string().optional().describe('Telefon, as +90 532 123 45 67'),
     swiftCode: z.string().optional().describe('SWIFT kodu, 8 or 11 letters and digits'),
     taxID: z.string().optional().describe('VKN (10 digits) or TCKN (11 digits)'),

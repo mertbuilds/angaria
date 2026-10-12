@@ -94,10 +94,10 @@ describe('resolvePDFLanguage', () => {
 });
 
 describe('resolvePDFStyle', () => {
-  test('falls back to minimal', () => {
-    expect(DEFAULT_PDF_STYLE).toBe('minimal');
-    expect(resolvePDFStyle()).toBe('minimal');
-    expect(resolvePDFStyle('fancy')).toBe('minimal');
+  test('falls back to classic', () => {
+    expect(DEFAULT_PDF_STYLE).toBe('classic');
+    expect(resolvePDFStyle()).toBe('classic');
+    expect(resolvePDFStyle('fancy')).toBe('classic');
   });
 
   test('prefers the first valid candidate', () => {
