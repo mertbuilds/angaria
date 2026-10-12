@@ -235,6 +235,7 @@ export const styles = create({
 
 /**
  * The fixed-size area a scene draws in, looping `loop` while it is on screen.
+ * The line under it shows only for a loop with a `progress` track.
  * Decorative: the step's words beside it say what it shows.
  */
 export function Stage({ children, loop }: { children: ReactNode; loop: Loop }) {
@@ -242,9 +243,11 @@ export function Stage({ children, loop }: { children: ReactNode; loop: Loop }) {
   return (
     <div aria-hidden="true" ref={ref} {...props(styles.media)}>
       <div {...props(styles.stage)}>{children}</div>
-      <div {...props(styles.line)}>
-        <div data-part="progress" {...props(styles.lineFill)} />
-      </div>
+      {loop.tracks.some(({ part }) => part === 'progress') ? (
+        <div {...props(styles.line)}>
+          <div data-part="progress" {...props(styles.lineFill)} />
+        </div>
+      ) : null}
     </div>
   );
 }

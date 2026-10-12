@@ -59,6 +59,12 @@ describe.each(SCENES)('%s scene', (_, Scene, loop) => {
     }
   });
 
+  test('draws no progress line', () => {
+    stubObservers();
+    const { container } = render(<Scene />);
+    expect(container.querySelector('[data-part="progress"]')).not.toBeInTheDocument();
+  });
+
   test('is decorative: the card text carries the meaning', () => {
     stubObservers();
     const { container } = render(<Scene />);
@@ -84,9 +90,7 @@ describe.each(SCENES)('%s scene', (_, Scene, loop) => {
 });
 
 test('no two scenes move the same part', () => {
-  const parts = SCENES.flatMap(([, , loop]) =>
-    loop.tracks.map(({ part }) => part).filter((part) => part !== 'progress'),
-  );
+  const parts = SCENES.flatMap(([, , loop]) => loop.tracks.map(({ part }) => part));
   expect(parts.filter((part, index) => parts.indexOf(part) !== index)).toEqual([]);
 });
 

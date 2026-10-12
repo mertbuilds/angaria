@@ -4,7 +4,7 @@ import { CircleAlert, TriangleAlert } from 'lucide-react';
 import { brand } from '../lib/brand.stylex.ts';
 import type { Frame, Loop, Track, Values } from '../lib/loop.ts';
 import { m } from '../paraglide/messages.js';
-import { enter, hidden, progress, shown, Stage, styles as scene, Window } from './scene.tsx';
+import { enter, hidden, shown, Stage, styles as scene, Window } from './scene.tsx';
 
 /*
  * The Özellikler scenes, one per feature, each with a motion of its own that
@@ -376,7 +376,6 @@ export const startLoop: Loop = {
     ...Array.from({ length: 5 }, (_, index) =>
       enter(`start-field-${index}`, PICK_AT + 350 + index * 90, hidden, 250),
     ),
-    progress(5300),
   ],
 };
 
@@ -471,7 +470,6 @@ export const repeatLoop: Loop = {
     },
     enter('repeat-form', RUN_AT + 150, hidden, 250),
     enter('repeat-today', RUN_AT + 650, hidden, 300),
-    progress(5100),
   ],
 };
 
@@ -616,7 +614,6 @@ export const customersLoop: Loop = {
       };
     }),
     enter('customers-service', DEAL_AT + 700, hidden, 300),
-    progress(5300),
   ],
 };
 
@@ -718,7 +715,6 @@ export const pdfLoop: Loop = {
       ],
       part: 'pdf-en',
     },
-    progress(4900),
   ],
 };
 
@@ -832,7 +828,6 @@ export const ratesLoop: Loop = {
     },
     enter('rates-rate', RATE_AT + 150, hidden, 300),
     enter('rates-lira', RATE_AT + 450, { opacity: 0, transform: translateY(4) }, 300),
-    progress(5500),
   ],
 };
 
@@ -945,7 +940,6 @@ export const companiesLoop: Loop = {
         part: `companies-name-${index}`,
       };
     }),
-    progress(5300),
   ],
 };
 
@@ -1019,7 +1013,6 @@ export const rulesLoop: Loop = {
     underline('rules-warning-line', WARN_AT + 700),
     enter('rules-error', ERROR_AT, { opacity: 0, transform: translateY(-4) }, 300),
     underline('rules-error-line', ERROR_AT + 500),
-    progress(5700),
   ],
 };
 
