@@ -208,7 +208,15 @@ export function initialState(config: EmulatorConfig, now: number): State {
     sms: [],
     users: new Map(config.users.map((item) => [item.userid, structuredClone(item)])),
   };
-  for (const fixture of config.seedInvoices) {
+  // Oldest first, as GİB numbers documents: each user's numbers rise with the date.
+  const age = (fixture: InvoiceFixture) => {
+    const day = parseGIBDate(fixture.date);
+    return day
+      ? now - Date.UTC(day.year, day.month - 1, day.day)
+      : (fixture.daysAgo ?? 0) * 86_400_000;
+  };
+  const oldestFirst = config.seedInvoices.toSorted((a, b) => age(b) - age(a));
+  for (const fixture of oldestFirst) {
     if (state.users.has(fixture.userid)) {
       addFixture(state, fixture, now);
     }
