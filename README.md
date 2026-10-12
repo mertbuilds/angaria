@@ -77,7 +77,7 @@ By contributing you agree that your contribution is licensed under the AGPL-3.0,
 
 ## License
 
-Copyright Vinena Studio.
+Copyright (C) 2026 Vinena Studio.
 
 Angaria is free software: you can redistribute it and modify it under the terms of the GNU Affero General Public License, version 3, as published by the Free Software Foundation. It comes with no warranty. The full text is in `LICENSE`.
 

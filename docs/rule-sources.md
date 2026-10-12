@@ -1,6 +1,6 @@
 # Angaria rule sources: verification against official texts
 
-Checked 2026-10-10. Official sources only (gib.gov.tr, mevzuat.gov.tr, resmigazete.gov.tr, ebelge.gib.gov.tr where GİB publishes its guides). Secondary sources were used only to find the official text. Branch `feat/rule-sources` in `/Users/duzgundev/code/vinena-studio/angaria-rules`.
+Checked 2026-10-10. Official sources only (gib.gov.tr, mevzuat.gov.tr, resmigazete.gov.tr, ebelge.gib.gov.tr where GİB publishes its guides). Secondary sources were used only to find the official text.
 
 Note on deep links: neither mevzuat.gov.tr nor gib.gov.tr has per-article URLs or anchors. gib.gov.tr's "Madde Seçiniz" picker scrolls without changing the URL, and the mevzuat.gov.tr text has no madde ids. The most specific stable URL is the law or tebliğ page, so the label carries the article ("VUK md. 231/5").
 

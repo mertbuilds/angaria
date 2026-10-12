@@ -161,7 +161,7 @@ describe('isValidSWIFT', () => {
 
 describe('isValidEmail', () => {
   test('takes the common shape', () => {
-    expect(isValidEmail('mert@vinena.studio')).toBe(true);
+    expect(isValidEmail('destek@angaria.app')).toBe(true);
     expect(isValidEmail(' ad@firma.com.tr ')).toBe(true);
     expect(isValidEmail('ad@firma')).toBe(false);
     expect(isValidEmail('ad firma@x.com')).toBe(false);
