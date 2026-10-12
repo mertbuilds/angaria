@@ -1,4 +1,4 @@
-import { Button, capStyles, Code, toast } from '@angaria/ui';
+import { Button, capStyles, Code, CodeBlock, toast } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,7 +17,6 @@ import {
   type McpStatus,
 } from '@/lib/mcp-native.ts';
 import { bridgeLocationProblem, claudeCodeCommand, mcpServersJSON } from '@/lib/mcp.ts';
-import { tones } from '../shell/palette.stylex.ts';
 
 const styles = create({
   dot: {
@@ -37,19 +36,7 @@ const styles = create({
     color: colors.error,
   },
   snippet: {
-    backgroundColor: tones.selection,
-    borderRadius: radius.base,
-    color: colors.fg,
     flex: 1,
-    fontFamily: font.mono,
-    fontSize: font.sizeXs,
-    lineHeight: 1.5,
-    margin: 0,
-    minWidth: 0,
-    overflowX: 'auto',
-    paddingBlock: spacing.s2,
-    paddingInline: spacing.s3,
-    whiteSpace: 'pre',
   },
   status: {
     alignItems: 'center',
@@ -265,9 +252,9 @@ export function McpInstallSection({ status }: { status: McpStatus | undefined })
           title="Köprü girdisi"
         >
           <SettingsRow align="top">
-            <pre {...props(styles.snippet)}>
+            <CodeBlock style={styles.snippet}>
               {mcpServersJSON(bridgePath ?? '/Applications/Angaria.app/Contents/MacOS/angaria-mcp')}
-            </pre>
+            </CodeBlock>
             <Button
               disabled={!ready}
               onClick={() => bridgePath && void copy(mcpServersJSON(bridgePath), 'JSON kopyalandı')}
