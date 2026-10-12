@@ -24,6 +24,7 @@ import {
   Checkbox,
   ChoiceChips,
   Code,
+  CodeBlock,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -952,7 +953,7 @@ function Showcase() {
         </Table>
       </Section>
 
-      <Section title="ScrollArea, Separator, Skeleton, Kbd, Code">
+      <Section title="ScrollArea, Separator, Skeleton, Kbd, Code, CodeBlock">
         <div {...props(styles.row)}>
           <ScrollArea style={styles.scrollBox}>
             <div {...props(styles.scrollInner)}>
@@ -974,6 +975,9 @@ function Showcase() {
             <span>
               Çalışıyor, <Code>127.0.0.1:41234</Code>
             </span>
+            <CodeBlock>
+              {JSON.stringify({ code: '••••••', operationId: 'op-1' }, null, 2)}
+            </CodeBlock>
           </div>
         </div>
       </Section>

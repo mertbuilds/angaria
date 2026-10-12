@@ -219,4 +219,11 @@ describe('activity log', () => {
       entry(1),
     ]);
   });
+
+  test('reads entries with and without input, and drops an input that is not text', () => {
+    const withInput = { ...entry(2), input: '{\n  "page": 1\n}' };
+    expect(
+      readMcpActivity(storage(JSON.stringify([entry(1), withInput, { ...entry(3), input: 4 }]))),
+    ).toEqual([entry(1), withInput]);
+  });
 });

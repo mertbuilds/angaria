@@ -1,7 +1,8 @@
-import { Badge, Button, Code, Switch } from '@angaria/ui';
+import { Badge, Button, Code, CodeBlock, Switch } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useState } from 'react';
+import { Disclosure } from '@/components/disclosure.tsx';
 import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
 import {
   clearMcpActivity,
@@ -19,6 +20,9 @@ const ACTIONS_LABEL = 'Ajanlar onaylayabilir ve silebilir';
 
 /** Rows the activity log shows at first and adds per Daha fazla göster. */
 const ACTIVITY_PAGE = 20;
+
+/** Lines of an input shown before Tümünü göster. */
+export const INPUT_PREVIEW_LINES = 12;
 
 const timeFormat = new Intl.DateTimeFormat('tr-TR', {
   day: '2-digit',
@@ -89,6 +93,18 @@ const styles = create({
     display: 'flex',
     gap: spacing.s2,
   },
+  input: {
+    alignItems: 'flex-start',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s1,
+  },
+  inputCode: {
+    alignSelf: 'stretch',
+  },
+  inputDisclosure: {
+    paddingTop: spacing.s1,
+  },
   meta: {
     color: colors.muted,
     fontSize: font.sizeXs,
@@ -132,6 +148,32 @@ function ActivityEntry({ entry }: { entry: McpActivity }) {
         {[entry.company, entry.summary].filter(Boolean).join(' · ')}
       </span>
       <span {...props(styles.result, !entry.ok && styles.failed)}>{entry.result}</span>
+      {entry.input && (
+        <div {...props(styles.inputDisclosure)}>
+          <Disclosure label="Girdi">
+            <ActivityInput input={entry.input} />
+          </Disclosure>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The arguments the agent sent, the first lines until Tümünü göster. */
+function ActivityInput({ input }: { input: string }) {
+  const [full, setFull] = useState(false);
+  const lines = input.split('\n');
+  const long = lines.length > INPUT_PREVIEW_LINES;
+  return (
+    <div {...props(styles.input)}>
+      <CodeBlock style={styles.inputCode}>
+        {long && !full ? `${lines.slice(0, INPUT_PREVIEW_LINES).join('\n')}\n…` : input}
+      </CodeBlock>
+      {long && (
+        <Button onClick={() => setFull((shown) => !shown)} variant="ghost">
+          {full ? 'Daha az göster' : 'Tümünü göster'}
+        </Button>
+      )}
     </div>
   );
 }
@@ -142,7 +184,7 @@ export function McpActivitySection() {
   const [shown, setShown] = useState(ACTIVITY_PAGE);
   return (
     <SettingsSection
-      description="Son 200 çağrı bu Mac’te tutulur. Araca verilen bilgiler, SMS şifreleri ve şifreler tutulmaz."
+      description="Son 200 çağrı, araca verilen girdiyle birlikte bu Mac’te tutulur. SMS şifreleri ve şifreler gizlenir."
       title="Ajan etkinliği"
     >
       {activity.length === 0 ? (
