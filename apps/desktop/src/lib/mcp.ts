@@ -30,8 +30,7 @@ const DEFAULT_SETTINGS: McpSettings = {
   showInMenuBar: true,
 };
 
-export const isValidPort = (port: number) =>
-  Number.isInteger(port) && port >= 1024 && port <= 65_535;
+const isValidPort = (port: number) => Number.isInteger(port) && port >= 1024 && port <= 65_535;
 
 /** Settings as saved, by this or an older version: what it cannot read takes the default. */
 export function toMcpSettings(stored: unknown): McpSettings {
@@ -359,15 +358,9 @@ export const menuBarActivity = (entries: ReadonlyArray<McpActivity>): Array<McpM
 /** A path or text as one single-quoted shell word. */
 export const shellQuote = (text: string) => `'${text.replaceAll("'", String.raw`'\''`)}'`;
 
-const mcpURL = (port: number) => `http://127.0.0.1:${port}/mcp`;
-
 /** Adds the bridge to Claude Code for every project of this user. */
 export const claudeCodeCommand = (bridgePath: string) =>
   `claude mcp add --scope user angaria -- ${shellQuote(bridgePath)}`;
-
-/** The Streamable HTTP variant: its header carries the token. */
-export const claudeCodeHTTPCommand = (port: number, token: string) =>
-  `claude mcp add --scope user --transport http angaria ${mcpURL(port)} --header ${shellQuote(`Authorization: Bearer ${token}`)}`;
 
 /** The mcpServers entry most MCP clients take. */
 export const mcpServersJSON = (bridgePath: string) =>

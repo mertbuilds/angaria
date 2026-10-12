@@ -64,6 +64,17 @@ Before a bare `cargo check`, `cargo clippy` or `cargo test` in `apps/desktop/src
 
 The official app uses Suisse Intl. Its license is commercial, so the font files are not in this repository and must never be committed. Builds from source use Inter instead, in the UI and in the invoice PDF, and need nothing else. `pnpm fonts` fetches Suisse Intl from a private bucket for Vinena Studio's official releases; `scripts/release-mac.sh` refuses to build a release without it.
 
+## Advanced: connect over HTTP
+
+Clients that speak Streamable HTTP can skip the bridge and talk to the app's server directly. It listens on `http://127.0.0.1:<port>/mcp` while MCP is on in Angaria and the app runs. The port and the bearer token live in `~/Library/Application Support/com.vinena.angaria/mcp.json` (mode 0600): `port` is the port the server listens on now (port 41234, or the next free one up to nine on), `token` is the install's access token, made on first start. To start from another port, set `settings.port` there while Angaria is closed.
+
+```sh
+claude mcp add --scope user --transport http angaria http://127.0.0.1:41234/mcp \
+  --header 'Authorization: Bearer <token from mcp.json>'
+```
+
+The token is a secret: anyone who has it can call the tools while the app runs. The server accepts only loopback requests without an `Origin` header. The bridge reads `mcp.json` itself, so client configs that use it hold no secret.
+
 ## Contributing
 
 Issues and pull requests are welcome.

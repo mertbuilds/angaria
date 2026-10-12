@@ -7,7 +7,7 @@ import { XIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { colors, radius } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
-import { motion } from '../tokens.stylex.ts';
+import { font, motion } from '../tokens.stylex.ts';
 import { Button } from './button.tsx';
 
 const fadeIn = keyframes({
@@ -97,6 +97,17 @@ const styles = create({
       default: 'calc(100% - 2rem)',
     },
   },
+  // As wide as its text, with room above and below: a document to read.
+  contentText: {
+    maxHeight: 'calc(100dvh - 6rem)',
+    maxWidth: 'calc(100% - 2rem)',
+    width: 'fit-content',
+  },
+  // The header stays; DialogText scrolls under it.
+  bodyText: {
+    gridTemplateRows: 'auto minmax(0, 1fr)',
+    overflowY: 'hidden',
+  },
   // A close gets out of the way: quicker than the open.
   contentClosed: {
     animationDuration: '150ms',
@@ -169,6 +180,19 @@ const styles = create({
     whiteSpace: 'nowrap',
     width: '1px',
   },
+  text: {
+    fontFamily: font.mono,
+    fontSize: font.sizeXs,
+    lineHeight: 1.5,
+    margin: 0,
+    maxWidth: '100%',
+    minHeight: 0,
+    overflowWrap: 'anywhere',
+    overflowY: 'auto',
+    whiteSpace: 'pre-wrap',
+    // 80 columns, loaded or not, so the dialog keeps its width.
+    width: '80ch',
+  },
   title: {
     fontFamily: 'inherit',
     fontSize: '1rem',
@@ -225,8 +249,11 @@ export type DialogContentProps = Omit<DialogPrimitive.Popup.Props, 'className' |
   /** Accessible name of the close button. */
   closeLabel?: string | undefined;
   showCloseButton?: boolean | undefined;
-  /** default: 28rem wide; lg: 42rem, for lists to choose from and long text. */
-  size?: 'default' | 'lg' | undefined;
+  /**
+   * default: 28rem wide; lg: 42rem, for lists to choose from and long text;
+   * text: as wide as a `DialogText` after the header, which scrolls alone.
+   */
+  size?: 'default' | 'lg' | 'text' | undefined;
   style?: StyleXStyles | undefined;
 };
 
@@ -246,6 +273,7 @@ const DialogContent = ({
         stylexProps(
           styles.content,
           size === 'lg' && styles.contentLarge,
+          size === 'text' && styles.contentText,
           state.open ? styles.contentOpen : styles.contentClosed,
           customClassName(className),
           style,
@@ -254,7 +282,10 @@ const DialogContent = ({
       data-slot="dialog-content"
       {...props}
     >
-      <div data-slot="dialog-body" {...stylexProps(styles.body)}>
+      <div
+        data-slot="dialog-body"
+        {...stylexProps(styles.body, size === 'text' && styles.bodyText)}
+      >
         {children}
       </div>
       {showCloseButton && (
@@ -339,6 +370,19 @@ const DialogDescription = ({ className, style, ...props }: DialogDescriptionProp
   />
 );
 
+export type DialogTextProps = Omit<ComponentProps<'pre'>, 'style'> & {
+  style?: StyleXStyles | undefined;
+};
+
+/** A plain-text document (a license) in mono, at most 80 columns; in a `size="text"` dialog. */
+const DialogText = ({ className, style, ...props }: DialogTextProps) => (
+  <pre
+    data-slot="dialog-text"
+    {...stylexProps(styles.text, customClassName(className), style)}
+    {...props}
+  />
+);
+
 export {
   Dialog,
   DialogClose,
@@ -348,6 +392,7 @@ export {
   DialogHeader,
   DialogOverlay,
   DialogPortal,
+  DialogText,
   DialogTitle,
   DialogTrigger,
   styles as dialogStyles,

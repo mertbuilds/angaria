@@ -83,6 +83,7 @@ export {
   DialogHeader,
   DialogOverlay,
   DialogPortal,
+  DialogText,
   DialogTitle,
   DialogTrigger,
   type DialogProps,

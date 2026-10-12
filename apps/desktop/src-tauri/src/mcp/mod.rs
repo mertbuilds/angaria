@@ -208,7 +208,7 @@ async fn start_server(state: &McpState, port: u16, tools: Value) -> Result<Runni
   .map_err(|error| {
     log::error!("MCP: could not listen from port {port}: {error}");
     format!(
-      "{port} ve sonraki {} port dolu. Gelişmiş’ten başka bir port seç.",
+      "{port} ve sonraki {} port dolu. Bu portları kullanan bir uygulamayı kapatıp MCP’yi yeniden aç.",
       PORT_ATTEMPTS - 1
     )
   })?;
@@ -268,22 +268,6 @@ pub async fn mcp_respond(state: State<'_, McpState>, id: u64, result: Value) -> 
   // A call the server stopped waiting for is dropped.
   state.host.pending.resolve(id, result);
   Ok(())
-}
-
-/// The bearer token, for the HTTP setup command.
-#[tauri::command]
-pub async fn mcp_token(state: State<'_, McpState>) -> Result<String, String> {
-  files::ensure_token(&state.dir)
-}
-
-#[tauri::command]
-pub async fn mcp_rotate_token(state: State<'_, McpState>) -> Result<String, String> {
-  let slot = state.server.lock().await;
-  let token = files::rotate_token(&state.dir)?;
-  if let Some(running) = slot.as_ref() {
-    running.set_token(token.clone());
-  }
-  Ok(token)
 }
 
 fn agent_env(state: &McpState) -> Result<Env, String> {

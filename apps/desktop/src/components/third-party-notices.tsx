@@ -4,25 +4,12 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
+  DialogText,
   DialogTitle,
   DialogTrigger,
 } from '@angaria/ui';
-import { colors, font } from '@angaria/ui/tokens.stylex';
-import { create, props } from '@stylexjs/stylex';
 import { useState } from 'react';
 import { SettingsRow } from './settings-section.tsx';
-
-const styles = create({
-  text: {
-    color: colors.fg,
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: font.sizeXs,
-    lineHeight: 1.5,
-    margin: 0,
-    overflowWrap: 'anywhere',
-    whiteSpace: 'pre-wrap',
-  },
-});
 
 // The repository root's LICENSE and THIRD_PARTY_NOTICES.md, loaded when their dialog opens.
 const loadLicense = () => import('../../../../LICENSE?raw').then((module) => module.default);
@@ -54,12 +41,12 @@ function TextFileRow({
         }}
       >
         <DialogTrigger render={<Button variant="outline" />}>Göster</DialogTrigger>
-        <DialogContent size="lg">
+        <DialogContent size="text">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
-          <pre {...props(styles.text)}>{text ?? 'Yükleniyor…'}</pre>
+          <DialogText>{text ?? 'Yükleniyor…'}</DialogText>
         </DialogContent>
       </Dialog>
     </SettingsRow>

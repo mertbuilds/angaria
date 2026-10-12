@@ -4,7 +4,6 @@ import {
   bridgeLocationProblem,
   clearMcpActivity,
   claudeCodeCommand,
-  claudeCodeHTTPCommand,
   getMcpSettings,
   MCP_DEFAULT_PORT,
   mcpServersJSON,
@@ -122,12 +121,6 @@ describe('setup snippets', () => {
     expect(claudeCodeCommand(bridge)).toBe(`claude mcp add --scope user angaria -- '${bridge}'`);
     expect(shellQuote("/Users/o'brien/Angaria.app")).toBe(
       String.raw`'/Users/o'\''brien/Angaria.app'`,
-    );
-  });
-
-  test('the HTTP variant carries the token in its header', () => {
-    expect(claudeCodeHTTPCommand(41_234, 'abc')).toBe(
-      "claude mcp add --scope user --transport http angaria http://127.0.0.1:41234/mcp --header 'Authorization: Bearer abc'",
     );
   });
 
