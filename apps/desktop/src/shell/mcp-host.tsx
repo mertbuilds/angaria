@@ -22,7 +22,6 @@ import { dueDateOf, saveDueDate } from '@/lib/invoice-due-dates.ts';
 import { saveAngariaPDF, saveEArchive } from '@/lib/invoice-files.ts';
 import { cleanItems, invoiceDefaults, upsertSavedItems } from '@/lib/invoice-form.ts';
 import { parseGIBInvoice, rangeCovering } from '@/lib/invoices.ts';
-import { useLicense } from '@/lib/license-context.tsx';
 import { activityInput } from '@/lib/mcp-activity-input.ts';
 import {
   mcpRespond,
@@ -46,8 +45,6 @@ import { router } from '../router.tsx';
  * retries never leaves a second draft behind. A started call runs to its end.
  */
 const QUEUE_DEADLINE_MS = 45_000;
-/** How long a call waits for the launch license check. */
-const LICENSE_WAIT_MS = 20_000;
 
 type Store = ReturnType<typeof useStore>;
 
@@ -67,15 +64,12 @@ const go = (to: '/ayarlar' | '/faturalar' | '/hizmetler' | '/musteriler') =>
  * (docs/adr/0009-built-in-mcp-server.md, docs/adr/0010-mcp-agent-actions.md):
  * starts the Rust server with the tool list, runs each `mcp:call` with the
  * active company's store, login and GİB queue, logs it, and sends the result
- * back. What an agent signs, deletes or changes shows as a toast. Mounted
- * outside the license gate, so a locked app still answers with the license
- * error.
+ * back. What an agent signs, deletes or changes shows as a toast.
  */
 export function McpHost() {
   const { allowActions, enabled, port } = useMcpSettings();
   const store = useStore();
   const queryClient = useQueryClient();
-  const { status } = useLicense();
 
   // Calls outlive the render they started in.
   const latest = useRef(store);
@@ -92,17 +86,6 @@ export function McpHost() {
       state.current?.signing.endAll('cancelled');
     }
   }, [allowActions]);
-
-  const license = useRef({ kind: status.kind, waiters: new Set<() => void>() });
-  useEffect(() => {
-    license.current.kind = status.kind;
-    if (status.kind !== 'checking') {
-      for (const wake of license.current.waiters) {
-        wake();
-      }
-      license.current.waiters.clear();
-    }
-  }, [status.kind]);
 
   const onAction = useCallback(
     (action: McpAction, account: GIBAccount, entity: Entity, mcpState: McpState) => {
@@ -254,19 +237,6 @@ export function McpHost() {
           gib.run(account, (session) => task(session), { ...options, signal }),
         imports: importRuns,
         lease: (signal) => gib.lease(account, { signal }),
-        license: async () => {
-          const state = license.current;
-          if (state.kind === 'checking') {
-            await new Promise<void>((resolve) => {
-              state.waiters.add(resolve);
-              setTimeout(resolve, LICENSE_WAIT_MS);
-            });
-          }
-          if (state.kind === 'checking') {
-            return 'checking';
-          }
-          return state.kind === 'valid' || state.kind === 'grace' ? 'ok' : 'locked';
-        },
         newId: () => crypto.randomUUID(),
         now: () => new Date(),
         onAction: (action) => onAction(action, account, entity, mcpState),

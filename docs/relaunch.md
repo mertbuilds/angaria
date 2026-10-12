@@ -5,7 +5,7 @@ Decisions from the grilling session with Mert. Every agent working on the relaun
 ## Product
 
 - Angaria: Tauri desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers (1-2 invoices/month).
-- Paid via **Polar** (new Vinena Studio org), two plans: yearly 1,499 TRY/year (the default) and monthly 199 TRY/month. One Polar product per interval, each with a USD fallback price and a **14-day free trial** (Polar subscription trial). Both grant the same license key benefit (3 Macs), cancel anytime.
+- **Free and open source** (2026-10-12, Mert's call; it was a paid Polar subscription before): GNU Affero General Public License v3.0 only (`LICENSE`), source at https://github.com/vinenastudio/angaria. No billing, no license check, no trial. Why the AGPL: `docs/adr/0013-free-and-open-source.md`.
 - Turkish only (app + site). Wordmark-only brand: `Angaria` with a capital A (Turkish suffixes after an apostrophe: Angaria'yı, Angaria'nın) in Suisse Intl Medium. No symbol mark.
 
 ## Repo layout (target)
@@ -24,7 +24,7 @@ Monorepo in web-starter shape (`/Users/duzgundev/code/mertbuilds/web-starter` is
 
 Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/ui/src/theme.css` (+ `tokens.stylex.ts`, `ui/*.tsx`).
 
-- Suisse Intl 400/500 only (woff2 gitignored, fetched by `scripts/fetch-fonts.sh`; local copies in `/Users/duzgundev/code/mertbuilds/knobs.dev/packages/ui/fonts/`). Inter fallback. Headings weight 500, never bold. License covers app embedding.
+- Suisse Intl 400/500 only (woff2 gitignored, fetched by `scripts/fetch-fonts.sh`; local copies in `/Users/duzgundev/code/mertbuilds/knobs.dev/packages/ui/fonts/`). Inter fallback. Headings weight 500, never bold. Its commercial license covers app embedding, not redistribution in source: the files never enter the repo, official releases fetch them, builds from source use Inter.
 - Black/white; grays `#f5f5f5/#1a1a1a`, `#d4d4d4/#3f3f3f`, `#8a8a8a`. Only chroma: destructive `#dc2626/#f87171`, warning `#d97706/#fbbf24`. No emerald.
 - Website only (2026-10-02): one bright blue, `#0098f2` (`--brand`, `apps/web/src/brand.css`), used sparingly: primary buttons, the selected plan, section markers, the compare slider. White text on it is 3.1:1 and fails AA, so buttons carry black text (6.8:1). Text in the blue (link hovers, check marks, the focus ring) uses the deeper `#006abb` on white (5.6:1). The hero sits on a still dot grid in a faint text color, faded at the edges and behind the headline.
 - Desktop app (2026-10-02, after Mert found it hard to look at, dark mode most): `apps/desktop/src/palettes.css` layers a palette over the kit. Two palettes, both a user setting under Ayarlar › Görünüm › Renk paleti and in ⌘K: mist (Serin, cool blue-gray, the default) and paper (Sıcak, warm neutral); the brand-forward tide candidate was dropped. Tinted neutrals instead of black and white, soft text on a deep tinted gray in dark mode, regions parted by tone instead of borders, and the blue for primary buttons, selection, focus and the Onaylı badge. The content floats as a panel with 12px corners, 8px from the window edges and the sidebar, on the sidebar's tone (a very soft shadow in light mode, a faint 1px hairline in dark mode). A blue fill with white text is `#0077c8` (4.7:1); `#0098f2` carries dark text.
@@ -44,8 +44,8 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 - MCP in the background (2026-10-10): while MCP is on, closing the window keeps Angaria running in the menu bar without a Dock icon, and an agent's call starts a quit Angaria hidden. The menu bar icon shows MCP's state, its two switches and the agents' last calls, opens the window or Yeni fatura, sets Girişte başlat, and can be hidden. Details: `docs/adr/0012-mcp-in-the-background.md`.
 - PDF: add TR/EN language toggle per invoice; keep the current visual template. Turkish labels + Turkish date/number formatting when TR.
 - GİB credentials move to the OS keychain (Rust `keyring` crate via Tauri commands). One-time migration from localStorage (`fatura-entities` creds, legacy `fatura-creds`), then delete plaintext.
-- Network: strict CSP + http allowlist. Allowed hosts only: `earsivportal.efatura.gov.tr`, `www.tcmb.gov.tr`, Polar API (`api.polar.sh`, `sandbox-api.polar.sh` in dev), `dl.angaria.app` (updater). Nothing else; no analytics/telemetry in the app.
-- Licensing (Polar license keys): customer-portal `activate` + `validate` endpoints (no org token in the app). Max 3 activations. Validate on every launch; offline/Polar down → keep working up to 7 days since last successful validation. Invalid/expired/canceled → lock to license screen. Store key + activation id + last-validated timestamp locally (keychain for the key). Polar org id + env (sandbox/production) are build-time config.
+- Network: strict CSP + http allowlist. Allowed hosts only: `earsivportal.efatura.gov.tr`, `www.tcmb.gov.tr`, `dl.angaria.app` (updater). Nothing else; no analytics/telemetry in the app. The system browser opens the rule sources, angaria.app and the source code on GitHub.
+- Licensing (2026-10-12): none. The Polar license gate, its grace period and the license record in the vault are gone. Ayarlar › Hakkında says Angaria is free software under the AGPL, links the source code (the AGPL source offer), shows the license text and the third-party notices.
 - Updates: Tauri updater, signed manifest + bundles served from `https://dl.angaria.app` (Cloudflare R2). Check on launch, user confirms install.
 - macOS universal, signed + notarized `.dmg` (reference pipeline: `/Users/duzgundev/code/mertbuilds/caffeinagent/scripts`). Windows later.
 - Bundle id stays `com.vinena.angaria` (keeps existing localStorage data).
@@ -54,13 +54,13 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 
 Turkish. Sections:
 
-1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" / "14 gün ücretsiz dene" CTA.
+1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" CTA (free and open source since 2026-10-12).
 2. GİB vs Angaria: a compare slider over the GİB portal's e-Arşiv fatura form and Angaria's Yeni fatura.
 3. Features: geçen faturadan başla, geçen ayın faturasını tekrar kes, müşteri ve hizmet kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers).
-4. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, Polar license check, update check); credentials in system keychain; data stays on device.
-5. Pricing: Yıllık / Aylık switch (default Yıllık): 1.499 ₺/yıl or 199 ₺/ay, 14 gün ücretsiz → that plan's Polar hosted checkout. Every other checkout button (header, hero) and the app's checkout link (14 gün ücretsiz dene, or Abone ol once licensed) open the yearly checkout.
+4. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, update check); credentials in system keychain; data stays on device.
+5. Free and open source: no pricing (removed 2026-10-12); the AGPL and a link to the source code.
 6. SSS (FAQ), footer.
 
 ## Go-live
 
-Build and test locally first (portless `https://angaria.localhost`, Polar **sandbox**). Nothing goes live (R2 bucket, Workers deploy, DNS, Polar production product, notarized release) until Mert tests and says go. DNS for angaria.app is on Cloudflare.
+Build and test locally first (portless `https://angaria.localhost`). Nothing goes live (R2 bucket, Workers deploy, DNS, notarized release, the public GitHub repository) until Mert tests and says go. DNS for angaria.app is on Cloudflare.

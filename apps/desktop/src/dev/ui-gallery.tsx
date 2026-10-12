@@ -916,16 +916,16 @@ function Showcase() {
       <Section title="Card">
         <Card style={styles.cardWidth}>
           <CardHeader>
-            <CardTitle>Yıllık lisans</CardTitle>
-            <CardDescription>14 gün ücretsiz, sonra 1.499 ₺ / yıl.</CardDescription>
+            <CardTitle>Ekim faturası</CardTitle>
+            <CardDescription>Acme GmbH, 2.400 € / ay.</CardDescription>
             <CardAction>
-              <Badge variant="secondary">Deneme</Badge>
+              <Badge variant="secondary">Taslak</Badge>
             </CardAction>
           </CardHeader>
-          <CardContent>Lisans 3 cihazda etkinleştirilebilir.</CardContent>
+          <CardContent>SMS ile onaylanınca GİB’e gider.</CardContent>
           <CardFooter>
-            <Button>Satın al</Button>
-            <Button variant="ghost">Lisans anahtarı gir</Button>
+            <Button>SMS ile onayla</Button>
+            <Button variant="ghost">Taslağı sil</Button>
           </CardFooter>
         </Card>
       </Section>

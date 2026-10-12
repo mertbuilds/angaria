@@ -30,7 +30,6 @@
     "allow-save-download",
     "updater:default",
     "process:allow-restart",
-    "os:allow-hostname",
     "opener:allow-reveal-item-in-dir",
     {
       "identifier": "opener:allow-open-path",
@@ -44,16 +43,10 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         {
-          "url": "https://polar.sh/*"
-        },
-        {
-          "url": "https://buy.polar.sh/*"
-        },
-        {
-          "url": "https://api.polar.sh/*"
-        },
-        {
           "url": "https://angaria.app/*"
+        },
+        {
+          "url": "https://github.com/vinenastudio/angaria"
         },
         {
           "url": "https://www.gib.gov.tr/*"
@@ -71,9 +64,6 @@
         },
         {
           "url": "https://www.tcmb.gov.tr/kurlar/*"
-        },
-        {
-          "url": "https://api.polar.sh/*"
         }
       ]
     }

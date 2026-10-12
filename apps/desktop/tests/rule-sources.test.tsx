@@ -56,11 +56,13 @@ test('every rule source is an https page on an allowed official host, verified o
   }
 });
 
-test('the opener may open exactly the rule hosts besides Polar and the site', () => {
+test('the opener may open exactly the rule hosts besides the site and the source code', () => {
   const official = openURLs().filter((url) => url.includes('.gov.tr'));
   expect(official.toSorted()).toEqual(
     RULE_SOURCE_HOSTS.map((name) => `https://${name}/*`).toSorted(),
   );
+  // Hakkında's source code link, the AGPL's source offer.
+  expect(openURLs()).toContain('https://github.com/vinenastudio/angaria');
   // Exact hosts: no wildcard subdomain, no plain http.
   expect(openURLs().every((url) => url.startsWith('https://') && !url.includes('*.'))).toBe(true);
   const used = new Set(Object.values(RULE_SOURCES).map(({ url }) => new URL(url).hostname));

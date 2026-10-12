@@ -1,6 +1,6 @@
 # 0002. Polar as merchant of record and license keys
 
-Accepted, 2026-10-01.
+Accepted, 2026-10-01. Superseded by `0013-free-and-open-source.md` on 2026-10-12: Angaria is free, with no Polar and no license check.
 
 ## Context
 

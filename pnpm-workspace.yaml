@@ -23,7 +23,6 @@ catalog:
   '@tauri-apps/plugin-http': ^2.5.7
   # Tilde: newer minors need the tauri 2.12 crate, the app is on 2.10.
   '@tauri-apps/plugin-opener': ~2.5.5
-  '@tauri-apps/plugin-os': ~2.3.2
   # Tilde: match the locked tauri-plugin-process 2.3 and tauri-plugin-updater 2.12 crates.
   '@tauri-apps/plugin-process': ~2.3.1
   '@tauri-apps/plugin-updater': ~2.12.0

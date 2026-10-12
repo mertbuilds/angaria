@@ -98,7 +98,7 @@ describe('describeError', () => {
 
   test('a request that got no answer outside the SDK is a network error', () => {
     for (const error of [
-      'error sending request for url (https://api.polar.sh/v1/customer-portal/license-keys/validate)',
+      'error sending request for url (https://www.tcmb.gov.tr/kurlar/today.xml)',
       new TypeError('Load failed'),
       new Error('operation timed out'),
       'dns error: failed to lookup address information',
@@ -109,8 +109,8 @@ describe('describeError', () => {
   });
 
   test('keeps the app’s own Turkish messages, hides other English', () => {
-    expect(describeError(new Error('Bu lisans anahtarı bulunamadı.'))).toEqual({
-      text: 'Bu lisans anahtarı bulunamadı.',
+    expect(describeError(new Error('Şirket bilgileri kaydedilemedi.'))).toEqual({
+      text: 'Şirket bilgileri kaydedilemedi.',
     });
     expect(describeError(new Error('Cannot read properties of undefined'))).toEqual({
       text: UNEXPECTED_ERROR,

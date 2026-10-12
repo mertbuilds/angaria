@@ -1,6 +1,6 @@
 # 0010. MCP agents may sign, delete and act on any company, behind a switch
 
-Accepted, 2026-10-10. Supersedes the "no signing tool" part of 0009 and its tool list; the rest of 0009 (the server, its access checks, tools in the webview, the bridge) stands.
+Accepted, 2026-10-10. Supersedes the "no signing tool" part of 0009 and its tool list; the rest of 0009 (the server, its access checks, tools in the webview, the bridge) stands. Since `0013-free-and-open-source.md` (2026-10-12) there is no license to leave out.
 
 ## Context
 
