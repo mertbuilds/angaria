@@ -42,6 +42,10 @@ describe('cycleLoop', () => {
     }
     expect(WORDS.map((_, index) => opacityAt(index, loop.duration))).toEqual([1, 0, 0]);
   });
+
+  test('one word gets no tracks: it stays', () => {
+    expect(cycleLoop('app', 1).tracks).toEqual([]);
+  });
 });
 
 describe('CyclingWord', () => {
@@ -67,6 +71,17 @@ describe('CyclingWord', () => {
     expect(stub.animations.every(({ playState }) => playState === 'running')).toBe(true);
     act(() => observers.intersect(false));
     expect(stub.animations.every(({ playState }) => playState === 'paused')).toBe(true);
+  });
+
+  test('one word shows, still', () => {
+    const observers = stubObservers();
+    const stub = stubAnimate();
+    restore = stub.restore;
+    const { container } = render(<CyclingWord part="app" words={["Claude'a"]} />);
+    act(() => observers.intersect(true));
+
+    expect(stub.animate).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-part]')).toHaveTextContent("Claude'a");
   });
 
   test('with reduced motion shows the first word, still', () => {
