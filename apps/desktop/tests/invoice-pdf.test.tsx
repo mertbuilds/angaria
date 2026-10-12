@@ -190,6 +190,22 @@ describe('an invoice read from GİB', () => {
     // GİB's page: Ödenecek Tutar(TL) 10.079,55
     expect(text).toContain('TRY 10.079,55');
   });
+
+  test("prints GİB's payable amount, after a withholding", async () => {
+    const text = await renderGIB({
+      aliciUnvan: 'ÖRNEK TEKNOLOJİ A.Ş.',
+      faturaTipi: 'TEVKIFAT',
+      hesaplanankdv: '200.00',
+      malHizmetTable: [
+        { birimFiyat: '1000.00', kdvOrani: '20', malHizmet: 'Danışmanlık', miktar: 1 },
+      ],
+      matrah: '1000.00',
+      odenecekTutar: '1100.00',
+      paraBirimi: 'TRY',
+    });
+    expect(text).toContain('1.100,00');
+    expect(text).not.toContain('1.200,00');
+  });
 });
 
 test.each(PDF_STYLES)('%s leaves out characters the font has no glyph for', async (style) => {

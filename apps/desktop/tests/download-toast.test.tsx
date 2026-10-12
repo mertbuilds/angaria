@@ -77,12 +77,12 @@ const showDownloaded = (path: string | null = PATH) => {
 
 test('keeps the end of a long file name whole and cuts before it', () => {
   expect(splitFileName(NAME)).toEqual([
-    'e-Arsiv-Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-GIB20260',
-    '00000001 (2).pdf',
+    'e-Arsiv-Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-',
+    'GIB2026000000001 (2).pdf',
   ]);
   expect(splitFileName('Fatura.pdf')).toEqual(['', 'Fatura.pdf']);
   // Characters, not UTF-16 units: a Turkish letter is never split.
-  expect(splitFileName(`${'ı'.repeat(20)}.pdf`)).toEqual(['ı'.repeat(8), `${'ı'.repeat(12)}.pdf`]);
+  expect(splitFileName(`${'ı'.repeat(30)}.pdf`)).toEqual(['ı'.repeat(10), `${'ı'.repeat(20)}.pdf`]);
 });
 
 test('turns the loading toast into the saved file, its name and its two actions', () => {

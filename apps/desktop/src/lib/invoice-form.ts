@@ -217,6 +217,17 @@ export const ISTISNA_VAT_RULE = ruleMessage(
 );
 export const ISTISNA_VAT_ERROR = ISTISNA_VAT_RULE.text;
 
+/** The İstisna nedenleri KDV Kanunu 11/1-a covers: mal and hizmet ihracatı. */
+const EXPORT_ISTISNA_CODES = new Set(['301', '302']);
+
+/** An İstisna reason that is an export; none set is the default, 302. */
+export const isExportIstisna = (istisnaCode?: string) =>
+  istisnaCode === undefined || EXPORT_ISTISNA_CODES.has(istisnaCode);
+
+/** The İstisna VAT error: 11/1-a cited only for an export, 350 (Diğerleri) has no linked source. */
+export const istisnaVATError = (istisnaCode?: string) =>
+  isExportIstisna(istisnaCode) ? ISTISNA_VAT_ERROR : 'İstisna faturada KDV oranı %0 olmalı';
+
 /**
  * Field errors in Turkish, keyed by field name (TanStack Form's form-level
  * validator shape), or undefined when the invoice can go to GİB.
@@ -288,7 +299,7 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
     if (!Number.isInteger(item.VATRate) || item.VATRate < 0 || item.VATRate > 100) {
       fields[at('VATRate')] = 'KDV oranı 0 ile 100 arasında tam sayı olmalı';
     } else if (invoiceSettings.invoiceType === 'ISTISNA' && item.VATRate > 0) {
-      fields[at('VATRate')] = ISTISNA_VAT_ERROR;
+      fields[at('VATRate')] = istisnaVATError(invoiceSettings.istisnaCode);
     }
     // Rows saved before discounts existed have none.
     const discountRate = item.discountRate ?? 0;
@@ -312,7 +323,7 @@ export function validateInvoice(values: InvoiceFormValues, today = new Date()) {
  */
 export function customerDefaultsErrors(customer: Recipient): Record<string, string> {
   return customerDefaults(customer).invoiceType === 'ISTISNA' && (customer.VATRate ?? 0) > 0
-    ? { VATRate: ISTISNA_VAT_ERROR }
+    ? { VATRate: istisnaVATError(customer.istisnaCode) }
     : {};
 }
 
@@ -675,6 +686,27 @@ export function isBlankForm(values: InvoiceFormValues) {
     items.every((item) => !item.name.trim() && !finite(item.unitPrice))
   );
 }
+
+/** Equal values, ids aside; a missing key equals undefined. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) {
+    return true;
+  }
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+    return false;
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+  const x = a as Record<string, unknown>;
+  const y = b as Record<string, unknown>;
+  const keys = new Set([...Object.keys(x), ...Object.keys(y)]);
+  return [...keys].every((key) => key === 'id' || sameValue(x[key], y[key]));
+}
+
+/** true when `values` holds nothing that `blank` (a fresh blank form) does not: a clear loses nothing. */
+export const sameAsBlank = (values: InvoiceFormValues, blank: InvoiceFormValues) =>
+  sameValue(values, blank);
 
 /** Rows with every unparsable number as 0, for saving as services. */
 export const cleanItems = (items: ReadonlyArray<InvoiceItem>): Array<InvoiceItem> =>

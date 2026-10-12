@@ -6,8 +6,11 @@ import type { SavedFile } from './save-file.ts';
 /** Twice a plain toast's four seconds: time to reach for Finder’da göster or Aç. */
 export const DOWNLOAD_TOAST_DURATION = 8000;
 
-/** The characters a long file name keeps after the cut: its number and extension. */
-const TAIL_LENGTH = 16;
+/**
+ * The characters a long file name keeps after the cut: GİB's number, a " (2)"
+ * and the extension ("GIB2026000000001 (2).pdf").
+ */
+const TAIL_LENGTH = 24;
 
 const styles = create({
   // Inline, so the toast's description still trims its line to the cap

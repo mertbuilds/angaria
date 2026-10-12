@@ -1,13 +1,17 @@
+import { maskitoTransform } from '@maskito/core';
 import { describe, expect, test } from 'vitest';
 import {
+  formatPhone,
   ibanBankCode,
   isTaxIDPlaceholder,
   isValidEmail,
+  isValidPhone,
   isValidSWIFT,
   isValidTCKN,
   isValidTRIBAN,
   isValidVKN,
   normalizeIBAN,
+  PHONE_MASK,
   TAX_ID_PLACEHOLDERS,
 } from '../src/lib/tr-validators.ts';
 
@@ -166,5 +170,45 @@ describe('isValidEmail', () => {
     expect(isValidEmail('ad@firma')).toBe(false);
     expect(isValidEmail('ad firma@x.com')).toBe(false);
     expect(isValidEmail('@firma.com')).toBe(false);
+  });
+});
+
+describe('phone numbers', () => {
+  test('a Turkish number reads +90 532 123 45 67 however it is typed', () => {
+    for (const typed of [
+      '+90 532 123 45 67',
+      '+905321234567',
+      '0532 123 45 67',
+      '532 123 45 67',
+      '90 532 123 4567',
+      '+90 (0532) 123-45-67',
+    ]) {
+      expect(formatPhone(typed), typed).toBe('+90 532 123 45 67');
+    }
+    expect(isValidPhone('+90 532 123 45 67')).toBe(true);
+    expect(isValidPhone('+90 532 123 45')).toBe(false);
+    expect(isValidPhone('+90 532 123 45 678')).toBe(false);
+  });
+
+  test("another country's number keeps its + and digits, grouped as given", () => {
+    expect(formatPhone('+49 30 1234 5678')).toBe('+49 30 1234 5678');
+    expect(formatPhone('+1 (415) 555-0100')).toBe('+1 415 555 0100');
+    expect(formatPhone('0049 30 12345678')).toBe('+49 30 12345678');
+    expect(formatPhone('+4930123456')).toBe('+4930123456');
+    expect(isValidPhone('+49 30 1234 5678')).toBe(true);
+    expect(isValidPhone('+1 415 555 0100')).toBe(true);
+    // 8 to 15 digits with the country code
+    expect(isValidPhone('+49 301 23')).toBe(false);
+    expect(isValidPhone('+49 3012 3456 7890 12')).toBe(false);
+    expect(isValidPhone('+')).toBe(false);
+    expect(isValidPhone('+0 123 456 789')).toBe(false);
+  });
+
+  test('the mask formats as typed and caps the digits', () => {
+    expect(maskitoTransform('+905321234567', PHONE_MASK)).toBe('+90 532 123 45 67');
+    expect(maskitoTransform('+90532123456789', PHONE_MASK)).toBe('+90 532 123 45 67');
+    expect(maskitoTransform('+90 0532', PHONE_MASK)).toBe('+90 532');
+    expect(maskitoTransform('+4930123456', PHONE_MASK)).toBe('+4930123456');
+    expect(maskitoTransform('+4930123456789012', PHONE_MASK)).toBe('+493012345678901');
   });
 });

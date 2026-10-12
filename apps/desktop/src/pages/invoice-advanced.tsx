@@ -58,7 +58,7 @@ function currencySymbol(currency: string) {
   }
 }
 
-/** Gelişmiş: the time, Ödenecek tutar and the irsaliye; starts open when either of the last two has a value. */
+/** Gelişmiş: the time, Ödenecek tutar and the irsaliye; starts open when any of them has a value. */
 export function AdvancedSection({
   currency,
   form,
@@ -74,7 +74,12 @@ export function AdvancedSection({
 }) {
   const advanced = form.state.values.advancedFields;
   const [open, setOpen] = useState(() =>
-    Boolean(advanced.irsaliyeNumarasi || advanced.irsaliyeTarihi || advanced.paymentTotal),
+    Boolean(
+      advanced.manualTime ||
+      advanced.irsaliyeNumarasi ||
+      advanced.irsaliyeTarihi ||
+      advanced.paymentTotal,
+    ),
   );
 
   return (

@@ -25,6 +25,7 @@ import {
   formatAmount,
   formatDecimal,
   invoiceWarnings,
+  isExportIstisna,
   lineTotals,
   parseDecimal,
 } from '@/lib/invoice-form.ts';
@@ -41,8 +42,10 @@ import {
   type PriceConversion,
 } from '@/lib/services.ts';
 import { useStore } from '@/lib/store.tsx';
+import { calendarDateToGIB } from '@/lib/tr-date.ts';
 import { GTIP_MASK } from '@/lib/tr-validators.ts';
 import type { InvoiceItem } from '@/lib/types.ts';
+import { useToday } from '@/lib/use-today.ts';
 import { formatMoney, formatNumber, matchesQuery, unitLabel } from '@/shell/searchable-list.tsx';
 import { tones } from '../shell/palette.stylex.ts';
 import { tcmbRatesQuery } from './use-currency-rate.ts';
@@ -262,12 +265,15 @@ export const UNIT_OPTIONS: ReadonlyArray<ChoiceOption<string>> = COMMON_UNITS.ma
   value: code,
 }));
 
-/** KDV's hint on an İstisna invoice. */
+/** KDV's hint on an İstisna invoice for an export (301, 302). */
 const ISTISNA_VAT_HINT = ruleMessage(
   'İstisna faturada KDV %0 (',
   cite('exportExemption', 'KDV Kanunu 11/1-a'),
   ')',
 );
+
+/** KDV's hint on an İstisna invoice for another reason (350): no linked source. */
+const OTHER_ISTISNA_VAT_HINT = 'İstisna faturada KDV %0';
 
 /** A rate typed with or without its sign: "18", "%18" and "18%" are 18. */
 const parsePercent = (text: string) => parseDecimal(text.replace('%', ''));
@@ -425,6 +431,9 @@ function ItemRow({
   const istisna = useFormState(
     form.store,
     (state) => state.values.invoiceSettings.invoiceType === 'ISTISNA',
+  );
+  const exportIstisna = useFormState(form.store, (state) =>
+    isExportIstisna(state.values.invoiceSettings.istisnaCode),
   );
   const vatWarning = useFormState(
     form.store,
@@ -636,7 +645,15 @@ function ItemRow({
             {(field) => (
               <field.ChoiceField
                 compact
-                description={istisna ? <RuleText message={ISTISNA_VAT_HINT} /> : undefined}
+                description={
+                  istisna ? (
+                    exportIstisna ? (
+                      <RuleText message={ISTISNA_VAT_HINT} />
+                    ) : (
+                      OTHER_ISTISNA_VAT_HINT
+                    )
+                  ) : undefined
+                }
                 disabled={istisna}
                 label="KDV"
                 options={VAT_OPTIONS}
@@ -794,7 +811,9 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
     form.store,
     (state) => state.values.advancedFields.currencyRateManual === true,
   );
-  const rateDate = useFormState(form.store, (state) => state.values.advancedFields.manualDate);
+  const today = calendarDateToGIB(useToday());
+  const rateDate =
+    useFormState(form.store, (state) => state.values.advancedFields.manualDate) || today;
   // A service priced in a foreign currency other than the invoice's needs
   // TCMB's rate for it, a lira invoice too. The header's rate shares the query.
   const tcmb = useQuery({

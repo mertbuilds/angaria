@@ -2,12 +2,15 @@
 // Banka bilgileri): how each field is typed and checked. The MCP tools check
 // them the same way.
 import {
+  formatPhone,
   isValidEmail,
+  isValidPhone,
   isValidSWIFT,
   isValidTCKN,
   isValidTRIBAN,
   isValidVKN,
   normalizeIBAN,
+  PHONE_PREFIX,
 } from './tr-validators.ts';
 import type { CompanyInfo } from './types.ts';
 
@@ -38,8 +41,6 @@ export const bankFields: Array<CompanyField> = [
   { key: 'bankAddress', kind: 'textarea', label: 'Banka adresi', placeholder: 'Banka şube adresi' },
 ];
 
-const PHONE_SHAPE = /^\+90 \d{3} \d{3} \d{2} \d{2}$/;
-
 /** What is wrong with a company field's value, in the user's words. Empty is fine. */
 export function companyFieldError(kind: CompanyFieldKind, value: string) {
   const text = value.trim();
@@ -57,7 +58,9 @@ export function companyFieldError(kind: CompanyFieldKind, value: string) {
         ? undefined
         : 'Bu IBAN’ın kontrol haneleri tutmuyor. Numarayı kontrol et.';
     case 'phone':
-      return PHONE_SHAPE.test(text) ? undefined : 'Telefonu +90 532 123 45 67 biçiminde yaz';
+      return isValidPhone(text)
+        ? undefined
+        : 'Telefonu ülke koduyla yaz, örneğin +90 532 123 45 67 ya da +49 30 1234 5678';
     case 'swift':
       return isValidSWIFT(text)
         ? undefined
@@ -81,13 +84,21 @@ export function companyFieldError(kind: CompanyFieldKind, value: string) {
   }
 }
 
-/** The value a field keeps once it is left: spaces out of a tax ID, a bare +90 cleared. */
+/**
+ * The value a field keeps once it is left, the form the PDF prints: spaces out
+ * of a tax ID and a SWIFT code, an IBAN grouped by four, a phone number in its
+ * clean form and a bare +90 (what the field starts with) cleared.
+ */
 export function normalizeCompanyField(kind: CompanyFieldKind, value: string) {
   switch (kind) {
     case 'email':
       return value.trim();
+    case 'iban':
+      return normalizeIBAN(value).replaceAll(/(.{4})(?=.)/g, '$1 ');
     case 'phone':
-      return /^\+?9?0?\s*$/.test(value) ? '' : value;
+      return value.trim() === PHONE_PREFIX.trim() ? '' : formatPhone(value);
+    case 'swift':
+      return value.replaceAll(/\s/g, '').toUpperCase();
     case 'taxID':
       return value.replaceAll(/\s/g, '');
     default:

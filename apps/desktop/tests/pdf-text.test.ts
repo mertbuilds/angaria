@@ -15,6 +15,11 @@ test('drops characters without a glyph and closes up the spaces they leave', () 
   expect(printableText('Ünal', covers)).toBe('Ünal');
 });
 
+test('removing a character keeps the line breaks and tabs at the ends', () => {
+  expect(printableText('\n\tNot 🎉\n', covers)).toBe('\n\tNot\n');
+  expect(printableText('🚀 Not', covers)).toBe('Not');
+});
+
 test('keeps text it can print as it is, line breaks included', () => {
   const text = 'Işıklar Cad.  No:1\nMuratpaşa\t“Antalya” – 2026';
   expect(printableText(text, covers)).toBe(text);

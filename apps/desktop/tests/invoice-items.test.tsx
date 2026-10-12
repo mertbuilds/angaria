@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { getLocalTimeZone, today } from '@internationalized/date';
 import { useStore as useFormState } from '@tanstack/react-form';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, useEffect } from 'react';
@@ -7,6 +8,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { fetchTCMBRateTable } from '../src/lib/angaria.ts';
 import { cleanItems, upsertSavedItems } from '../src/lib/invoice-form.ts';
 import { StoreProvider } from '../src/lib/store.tsx';
+import { calendarDateToGIB } from '../src/lib/tr-date.ts';
 import type { InvoiceItem, Service } from '../src/lib/types.ts';
 import { InvoiceItems } from '../src/pages/invoice-items.tsx';
 import {
@@ -27,6 +29,9 @@ vi.mock('../src/lib/native.ts', () => ({
 }));
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+// An invoice without a date is dated today, and so is its rate.
+const TODAY_RATES_KEY = ['tcmb-rates', calendarDateToGIB(today(getLocalTimeZone()))];
 
 // Newer Node versions define their own localStorage global, which hides jsdom's.
 const storage = new Map<string, string>();
@@ -274,7 +279,7 @@ describe('a saved service in another currency', () => {
   test('converts at TCMB’s rate on a lira invoice and says so until typed over', async () => {
     saveServices([service({ currency: 'USD', discountAmount: 10 })]);
     const queryClient = new QueryClient();
-    queryClient.setQueryData(['tcmb-rates', ''], TCMB);
+    queryClient.setQueryData(TODAY_RATES_KEY, TCMB);
     await mount([row({ name: '' })], queryClient);
 
     await pick(0, 'Engineering Services');
@@ -289,7 +294,7 @@ describe('a saved service in another currency', () => {
     const usd = service({ currency: 'USD' });
     saveServices([usd]);
     const queryClient = new QueryClient();
-    queryClient.setQueryData(['tcmb-rates', ''], TCMB);
+    queryClient.setQueryData(TODAY_RATES_KEY, TCMB);
     await mount([row({ name: '' })], queryClient);
 
     await pick(0, 'Engineering Services');

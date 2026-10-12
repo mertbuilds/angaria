@@ -4,6 +4,9 @@ import { tones } from './palette.stylex.ts';
 
 const KEYBOARD_STEP = 16;
 
+/** The detail pane keeps this much of a narrow window; the list gives way down to its minimum. */
+const MIN_DETAIL_WIDTH = 240;
+
 const styles = create({
   detail: {
     display: 'flex',
@@ -43,7 +46,8 @@ const styles = create({
     minHeight: 0,
     overflowY: 'auto',
   },
-  listWidth: (width: number) => ({
+  listWidth: (width: number, minWidth: number) => ({
+    maxWidth: `max(${minWidth}px, calc(100% - ${MIN_DETAIL_WIDTH}px))`,
     width: `${width}px`,
   }),
   root: {
@@ -142,7 +146,7 @@ export function ListDetail({
 
   return (
     <div {...props(styles.root)}>
-      <div {...props(styles.list, styles.listWidth(width))}>{list}</div>
+      <div {...props(styles.list, styles.listWidth(width, minListWidth))}>{list}</div>
       <div
         aria-label="Liste genişliği"
         aria-orientation="vertical"

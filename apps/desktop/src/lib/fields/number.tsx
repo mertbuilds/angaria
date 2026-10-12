@@ -7,7 +7,8 @@ import { formatDecimal, parseDecimal } from '../invoice-form.ts';
  * A number typed the Turkish way ("1.250,5") or as arithmetic ("3*1.500"),
  * through NumberInput: the text stays as typed while the parsed value is
  * stored; text that does not parse stores NaN, which the form's checks
- * report. Tidies the text on blur and Enter; ↑/↓ step.
+ * report. Tidies the text on blur and Enter, rounding the value to what the
+ * text shows; ↑/↓ step.
  */
 export function NumberField({
   allowExpressions,
@@ -42,6 +43,15 @@ export function NumberField({
 }) {
   const field = useFieldContext<number>();
   const error = useFieldError({ typed: true });
+  const show = format ?? ((value: number) => formatDecimal(value, fractionDigits));
+  // The form keeps the number the field shows: 0,33333 left as 0,3333 stores 0,3333.
+  const roundToShown = () => {
+    const value = field.state.value;
+    const shown = Number.isFinite(value) ? parseDecimal(show(value)) : null;
+    if (shown !== null && shown !== value) {
+      field.handleChange(shown);
+    }
+  };
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
@@ -50,13 +60,21 @@ export function NumberField({
           aria-describedby={describedBy}
           aria-invalid={error ? true : undefined}
           blankZero={blankZero}
-          format={format ?? ((value) => formatDecimal(value, fractionDigits))}
+          format={show}
           id={field.name}
           largeStep={largeStep}
           max={max}
           min={min}
           name={field.name}
-          onBlur={field.handleBlur}
+          onBlur={() => {
+            roundToShown();
+            field.handleBlur();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              roundToShown();
+            }
+          }}
           onValueChange={field.handleChange}
           parse={parseDecimal}
           placeholder={placeholder}

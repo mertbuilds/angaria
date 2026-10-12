@@ -288,8 +288,8 @@ interface Store {
   note: string;
   recipient: Recipient;
   renameEntity: (id: string, name: string) => void;
-  /** Reset invoice form to blank state */
-  resetInvoiceForm: () => void;
+  /** Reset invoice form to blank state; returns the blank form */
+  resetInvoiceForm: () => InvoiceFormValues;
   /** Put back a form saved before a reset or load (undo) */
   restoreInvoiceDraft: (values: InvoiceFormValues, source: InvoiceSource | null) => void;
   savedItems: Array<Service>;
@@ -609,10 +609,11 @@ function LoadedStoreProvider({
     [],
   );
 
-  const resetInvoiceForm = useCallback(
-    () => replaceInvoiceForm(blankForm(), null, false),
-    [replaceInvoiceForm],
-  );
+  const resetInvoiceForm = useCallback(() => {
+    const blank = blankForm();
+    replaceInvoiceForm(blank, null, false);
+    return blank;
+  }, [replaceInvoiceForm]);
 
   const startBlankInvoice = useCallback(
     () => replaceInvoiceForm(blankForm(), null, true),

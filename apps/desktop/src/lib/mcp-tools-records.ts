@@ -525,7 +525,7 @@ const getCompanyDetails = defineTool({
 const updateCompanyDetails = defineTool({
   annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
   description:
-    "Change the active company's details that Angaria's PDF prints, the IBAN included. Only the fields given change; '' clears one. Checked as in Ayarlar (VKN/TCKN check digits, a VKN/TCKN another company in Angaria has is refused, IBAN, SWIFT, phone as +90 532 123 45 67, e-mail). Every PDF from then on prints them, so change the IBAN only when the user asked for exactly that. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.",
+    "Change the active company's details that Angaria's PDF prints, the IBAN included. Only the fields given change; '' clears one. Checked as in Ayarlar (VKN/TCKN check digits, a VKN/TCKN another company in Angaria has is refused, IBAN, SWIFT, phone with its country code such as +90 532 123 45 67 or +49 30 1234 5678, e-mail). Every PDF from then on prints them, so change the IBAN only when the user asked for exactly that. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.",
   gib: false,
   inputSchema: z.object({
     accountHolder: z.string().optional().describe('Hesap sahibi: the bank account holder'),
@@ -539,7 +539,10 @@ const updateCompanyDetails = defineTool({
       .enum(['classic', 'minimal'])
       .optional()
       .describe('PDF design: classic (the default) or minimal'),
-    phone: z.string().optional().describe('Telefon, as +90 532 123 45 67'),
+    phone: z
+      .string()
+      .optional()
+      .describe('Telefon with its country code: +90 532 123 45 67, +49 30 1234 5678'),
     swiftCode: z.string().optional().describe('SWIFT kodu, 8 or 11 letters and digits'),
     taxID: z.string().optional().describe('VKN (10 digits) or TCKN (11 digits)'),
     taxOffice: z.string().optional().describe('Vergi dairesi: the tax office'),

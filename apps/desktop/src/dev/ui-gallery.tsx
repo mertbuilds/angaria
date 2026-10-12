@@ -145,7 +145,7 @@ import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DOWNLOAD_TOAST_DURATION, FileName } from '../lib/download-toast.tsx';
 import { paletteChoices, paletteLabels, type PaletteChoice } from '../lib/palette.ts';
-import { GTIP_MASK, IBAN_MASK, isValidTRIBAN, TR_PHONE_MASK } from '../lib/tr-validators.ts';
+import { GTIP_MASK, IBAN_MASK, isValidTRIBAN, PHONE_MASK } from '../lib/tr-validators.ts';
 import '@angaria/ui/fonts.css';
 import '@angaria/ui/theme.css';
 import '@angaria/ui/base.css';
@@ -513,7 +513,7 @@ function GalleryMasked() {
           autoComplete="tel"
           id={`${id}-phone`}
           inputMode="tel"
-          mask={TR_PHONE_MASK}
+          mask={PHONE_MASK}
           onInput={(event) => setPhone(event.currentTarget.value)}
           placeholder="+90 5__ ___ __ __"
           value={phone}
