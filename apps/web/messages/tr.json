@@ -2,7 +2,7 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "meta_title": "Angaria · Mac için e-Arşiv fatura uygulaması",
   "meta_description": "e-Arşiv faturanı GİB portalına girmeden, Mac'inden kes. Müşterilerin kayıtlı, geçen ayın faturası tek tıkla, İngilizce PDF hazır. Ücretsiz ve açık kaynak.",
-  "meta_og_title": "GİB portalıyla uğraşma. Faturanı Mac'inden kes.",
+  "meta_og_title": "GİB portalıyla uğraşma, faturanı Mac'inden kes",
   "meta_app_description": "Serbest çalışanlar ve şahıs şirketleri için GİB e-Arşiv portalının yerine kullanılan Mac uygulaması. Faturalar GİB'de, kullanıcının kendi hesabıyla kesilir. Müşterileri ve hizmetleri kaydeder, geçen ayın faturasını tekrar keser, döviz kurunu TCMB'den alır ve müşteriye Türkçe, İngilizce ya da iki dilli PDF kopya hazırlar. Ücretsiz ve açık kaynaktır.",
 
   "header_home": "Angaria ana sayfa",
@@ -21,7 +21,7 @@
   "cta_download": "Mac için indir",
   "cta_source": "GitHub'da incele",
 
-  "hero_title": "GİB portalıyla uğraşma. Faturanı Mac'inden kes",
+  "hero_title": "GİB portalıyla uğraşma, faturanı Mac'inden kes",
   "hero_lead": "Müşterilerin ve hizmetlerin kayıtlı kalır, geçen ayın faturasını tek tıkla yeniden kesersin. Fatura yine GİB'de, kendi hesabınla kesilir.",
   "hero_note": "Ücretsiz ve açık kaynak. Hesap yok, abonelik yok, kontör yok.",
   "screen_hero_alt": "Angaria'da fatura listesi ve seçili faturanın önizlemesi",
