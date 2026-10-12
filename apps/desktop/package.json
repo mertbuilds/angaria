@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",
-    "test:mcp": "pnpm mcp-bridge && cargo build --manifest-path src-tauri/Cargo.toml --example mcp_harness --quiet && vitest run --config vitest.e2e.config.ts",
+    "test:mcp": "turbo run build --filter=desktop^... --output-logs=errors-only && pnpm mcp-bridge && cargo build --manifest-path src-tauri/Cargo.toml --example mcp_harness --quiet && vitest run --config vitest.e2e.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
