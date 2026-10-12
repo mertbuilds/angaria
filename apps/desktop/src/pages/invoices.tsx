@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import { toastError } from '@/lib/gib-errors.ts';
 import { invoiceDetailQuery, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
+import { localWeekStore } from '@/lib/invoice-weeks.ts';
 import {
   invoiceStatus,
   matchesStatus,
@@ -235,6 +236,8 @@ export function InvoicesScreen() {
     if (!hasCredentials || isFetching) {
       return;
     }
+    // ⌘R asks GİB for every week again, the kept ones too.
+    localWeekStore(account.key).clear();
     void refetch().then((result) => {
       // Without data the list shows the error itself.
       if (result.error && result.data) {
@@ -244,7 +247,7 @@ export function InvoicesScreen() {
         });
       }
     });
-  }, [hasCredentials, isFetching, navigate, refetch]);
+  }, [account.key, hasCredentials, isFetching, navigate, refetch]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

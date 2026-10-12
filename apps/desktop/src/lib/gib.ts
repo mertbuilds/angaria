@@ -12,7 +12,8 @@ import {
 } from './angaria.ts';
 import { vault } from './app-vault.ts';
 import { withQRCode } from './invoice-preview.ts';
-import { newestFirst, type DateRange } from './invoices.ts';
+import { loadInvoiceWeeks, localWeekStore } from './invoice-weeks.ts';
+import type { DateRange } from './invoices.ts';
 import { createSessionQueue, SESSION_LINGER_MS, type GIBAccount } from './session-queue.ts';
 import { useStore } from './store.tsx';
 import type { GIBIdentity, Invoice } from './types.ts';
@@ -80,14 +81,24 @@ export function useGIBAccount(): GIBAccount {
   );
 }
 
-/** Every document dated within `range`, newest first. */
+/**
+ * Every document dated within `range`, newest first. Long ranges fill in week
+ * by week, newest first, and settled weeks come from this Mac
+ * (`lib/invoice-weeks.ts`).
+ */
 export const invoiceListQuery = (account: GIBAccount, range: DateRange) =>
   queryOptions({
-    queryFn: ({ signal }) =>
+    queryFn: ({ client, queryKey, signal }) =>
       gib.run(
         account,
-        async (session, jobSignal) =>
-          newestFirst(await getDrafts(session, range.start, range.end, { signal: jobSignal })),
+        (session, jobSignal) =>
+          loadInvoiceWeeks({
+            end: range.end,
+            fetchWeek: (start, end) => getDrafts(session, start, end, { signal: jobSignal }),
+            onPartial: (rows) => client.setQueryData(queryKey, rows),
+            start: range.start,
+            store: localWeekStore(account.key),
+          }),
         { signal },
       ),
     queryKey: ['invoices', account.key, range.start, range.end],
