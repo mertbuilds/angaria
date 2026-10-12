@@ -11,9 +11,8 @@ import {
 } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props, type StyleXStyles } from '@stylexjs/stylex';
-import { useQuery } from '@tanstack/react-query';
 import { CheckIcon } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
 import {
   COUNTRY_OPTIONS,
@@ -34,13 +33,12 @@ import {
   type TaxIDKind,
 } from '@/lib/customer.ts';
 import { FieldFrame, useFieldContext, useFieldError } from '@/lib/form-field.tsx';
-import { taxpayerQuery, useGIBAccount } from '@/lib/gib.ts';
 import { applyCustomer } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
 import { suggestTaxOffices } from '@/lib/tax-offices.ts';
 import { CITY_NAMES, cityCode, matchesWords, searchKey } from '@/lib/tr-cities.ts';
-import { isTaxIDPlaceholder, isValidTCKN, isValidVKN } from '@/lib/tr-validators.ts';
 import type { Recipient } from '@/lib/types.ts';
+import { TAXPAYER_FILLED, useTaxpayerFill } from '@/lib/use-taxpayer-fill.ts';
 import { Section, sectionStyles } from './invoice-section.tsx';
 import type { InvoiceForm } from './use-invoice-form.ts';
 
@@ -452,55 +450,22 @@ function BoundTaxIDField({ children }: { children?: ReactNode }) {
   );
 }
 
-/**
- * A valid VKN / TCKN typed for a new customer, with no name yet: GİB's
- * registry fills the empty name and tax office fields, as the portal's own
- * form does. 'filled' once it did for the number in the field.
- */
-function useTaxpayerFill(form: InvoiceForm, recipient: Recipient, saved: boolean) {
-  const account = useGIBAccount();
-  const { hasCredentials } = useStore();
-  const taxID = recipient.taxIDOrTRID.trim();
-  const unnamed = !recipient.title.trim() && !recipient.name.trim() && !recipient.surname.trim();
-  const valid = !isTaxIDPlaceholder(taxID) && (isValidVKN(taxID) || isValidTCKN(taxID));
-  const lookup = useQuery({
-    ...taxpayerQuery(account, taxID),
-    enabled: hasCredentials && valid && unnamed && !saved,
-  });
-  const found = lookup.data;
-  useEffect(() => {
-    if (!found || form.state.values.recipient.taxIDOrTRID.trim() !== taxID) {
-      return;
-    }
-    const current = form.state.values.recipient;
-    if (current.title.trim() || current.name.trim() || current.surname.trim()) {
-      return;
-    }
-    const next = {
-      ...current,
-      name: found.title ? '' : found.name,
-      surname: found.title ? '' : found.surname,
-      taxOffice: current.taxOffice.trim() || found.taxOffice,
-      title: found.title,
-    };
-    form.setFieldValue('recipient', next, { dontRunListeners: true });
-  }, [found, form, taxID]);
-  // Filled from the registry while the name is still the registry's.
-  const fromRegistry =
-    found &&
-    (found.title
-      ? recipient.title === found.title
-      : recipient.name === found.name && recipient.surname === found.surname);
-  return fromRegistry ? 'filled' : null;
-}
-
 export function RecipientSection({ form, recipient }: { form: InvoiceForm; recipient: Recipient }) {
   const { savedRecipients } = useStore();
   const matched = findCustomer(savedRecipients, recipient.taxIDOrTRID, customerName(recipient));
   // The VKN typed belongs to a saved customer this form is not filled with.
   const known = matched ? null : findCustomerByTaxID(savedRecipients, recipient.taxIDOrTRID);
   const foreign = recipient.taxIDOrTRID.trim() === FOREIGN_TAX_ID;
-  const taxpayer = useTaxpayerFill(form, recipient, matched !== null || known !== null);
+  const fromRegistry = useTaxpayerFill(
+    recipient,
+    (patch) =>
+      form.setFieldValue(
+        'recipient',
+        { ...form.state.values.recipient, ...patch },
+        { dontRunListeners: true },
+      ),
+    matched !== null || known !== null,
+  );
 
   // The customer's defaults set more than the recipient. Their listeners stay
   // quiet: applyCustomer already resets a new currency's rate.
@@ -567,7 +532,7 @@ export function RecipientSection({ form, recipient }: { form: InvoiceForm; recip
           {() => (
             <BoundTaxIDField>
               <p role="status" {...props(styles.status)}>
-                {taxpayer === 'filled' && 'Unvan ve vergi dairesi GİB kaydından dolduruldu'}
+                {fromRegistry && TAXPAYER_FILLED}
                 {known && (
                   <>
                     Kayıtlı müşteri: <span {...props(styles.statusName)}>{displayName(known)}</span>

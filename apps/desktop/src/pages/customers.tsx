@@ -49,6 +49,7 @@ import { CURRENCY_OPTIONS, customerDefaultsErrors } from '@/lib/invoice-form.ts'
 import { SUPPORTED_INVOICE_TYPES, VAT_RATE_PRESETS } from '@/lib/regulated.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Recipient } from '@/lib/types.ts';
+import { TAXPAYER_FILLED, useTaxpayerFill } from '@/lib/use-taxpayer-fill.ts';
 import { ListDetail } from '@/shell/list-detail.tsx';
 import { Screen } from '@/shell/screen.tsx';
 import {
@@ -130,6 +131,13 @@ const styles = create({
     color: colors.fg,
     fontSize: font.sizeMd,
     fontWeight: font.weightMedium,
+    margin: 0,
+  },
+  // A line under VKN / TCKN.
+  status: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
     margin: 0,
   },
   subtitle: {
@@ -469,6 +477,7 @@ function CustomerDetail({
   const nameProblem = touched.name ? nameError(customer) : null;
   const countryProblem = countryError(customer);
   const foreign = customer.taxIDOrTRID.trim() === FOREIGN_TAX_ID;
+  const fromRegistry = useTaxpayerFill(customer, onChange);
 
   const setForeign = (checked: boolean) =>
     onChange(
@@ -550,7 +559,13 @@ function CustomerDetail({
           onValueChange={(taxIDOrTRID) => onChange({ taxIDOrTRID })}
           value={customer.taxIDOrTRID}
           warning={selfInvoiceWarning(customer.taxIDOrTRID, companyInfo.taxID)}
-        />
+        >
+          {fromRegistry && (
+            <p role="status" {...props(styles.status)}>
+              {TAXPAYER_FILLED}
+            </p>
+          )}
+        </TaxIDInput>
         {!foreign && (
           <FieldFrame id={`${id}-tax-office`} label="Vergi dairesi">
             {(describedBy) => (
