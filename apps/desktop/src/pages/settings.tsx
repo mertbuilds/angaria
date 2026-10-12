@@ -29,6 +29,7 @@ import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import type { MaskitoOptions } from '@maskito/core';
 import { create, props } from '@stylexjs/stylex';
 import { getVersion } from '@tauri-apps/api/app';
+import { isTauri } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   CheckIcon,
@@ -73,6 +74,7 @@ import { activeGibEmulatorURL, gibEmulatorURL, setGibEmulator } from '@/lib/gib-
 import { describeError, toastError } from '@/lib/gib-errors.ts';
 import { gib, useGIBAccount } from '@/lib/gib.ts';
 import { PDF_STYLES, resolvePDFStyle } from '@/lib/invoice-pdf-i18n.ts';
+import { setMcpSettings, useMcpSettings } from '@/lib/mcp.ts';
 import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/palette.ts';
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
@@ -867,7 +869,29 @@ function AppearanceSection() {
         />
       </SettingsRow>
       <PaletteRow />
+      <MenuBarRow />
     </SettingsSection>
+  );
+}
+
+const MENU_BAR_LABEL = 'Menü çubuğunda göster';
+
+/** The menu bar icon. Hidden, Angaria and its MCP server keep running out of sight. */
+function MenuBarRow() {
+  const { showInMenuBar } = useMcpSettings();
+
+  return (
+    <SettingsRow
+      hint="Gizlersen Angaria arka planda çalışmaya devam eder. Pencereyi açmak için Angaria’yı Finder’dan ya da Spotlight’tan aç."
+      label={MENU_BAR_LABEL}
+    >
+      <Switch
+        aria-label={MENU_BAR_LABEL}
+        checked={showInMenuBar}
+        disabled={!isTauri()}
+        onCheckedChange={(checked) => setMcpSettings({ showInMenuBar: checked })}
+      />
+    </SettingsRow>
   );
 }
 

@@ -1,4 +1,4 @@
-import { Code, Switch } from '@angaria/ui';
+import { Switch } from '@angaria/ui';
 import { spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
@@ -29,37 +29,17 @@ const styles = create({
   },
 });
 
-const MENU_BAR_LABEL = 'Menü çubuğunda göster';
-
 const timeFormat = new Intl.DateTimeFormat('tr-TR', {
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',
 });
 
-function statusText(state: McpServerState) {
-  switch (state.kind) {
-    case 'failed':
-      return state.message;
-    case 'off':
-      return 'Kapalı';
-    case 'running':
-      return (
-        <>
-          Çalışıyor, <Code>127.0.0.1:{state.port}</Code>
-        </>
-      );
-    case 'starting':
-      return 'Başlatılıyor…';
-  }
+function statusText(state: McpServerState & { kind: 'failed' | 'starting' }) {
+  return state.kind === 'failed' ? state.message : 'Başlatılıyor…';
 }
 
-const statusTone = {
-  failed: 'error',
-  off: 'muted',
-  running: 'default',
-  starting: 'muted',
-} as const;
+const statusTone = { failed: 'error', starting: 'muted' } as const;
 
 /**
  * Angaria › MCP: the built-in MCP server's switch and status, what agents
@@ -67,7 +47,7 @@ const statusTone = {
  * the agents' calls.
  */
 export function McpPage() {
-  const { enabled, showInMenuBar } = useMcpSettings();
+  const { enabled } = useMcpSettings();
   const server = useMcpServerState();
   const { activeEntity } = useStore();
   const tauri = isTauri();
@@ -96,20 +76,12 @@ export function McpPage() {
               onCheckedChange={(checked) => setMcpSettings({ enabled: checked })}
             />
           </SettingsRow>
-          <SettingsRow
-            hint="Gizlersen MCP arka planda çalışmaya devam eder. Ayarları değiştirmek için Angaria’yı Finder’dan ya da Spotlight’tan aç."
-            label={MENU_BAR_LABEL}
-          >
-            <Switch
-              aria-label={MENU_BAR_LABEL}
-              checked={showInMenuBar}
-              disabled={!tauri}
-              onCheckedChange={(checked) => setMcpSettings({ showInMenuBar: checked })}
-            />
-          </SettingsRow>
-          <SettingsRow label="Durum">
-            <SettingsValue tone={statusTone[server.kind]}>{statusText(server)}</SettingsValue>
-          </SettingsRow>
+          {/* The switch says on or off; only a start that is under way or failed needs words. */}
+          {(server.kind === 'starting' || server.kind === 'failed') && (
+            <SettingsRow label="Durum">
+              <SettingsValue tone={statusTone[server.kind]}>{statusText(server)}</SettingsValue>
+            </SettingsRow>
+          )}
           <SettingsRow
             hint="Ajan başka bir şirket seçmezse araçlar bu şirketle çalışır"
             label="Şirket"
