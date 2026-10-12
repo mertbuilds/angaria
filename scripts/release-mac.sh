@@ -93,8 +93,9 @@ pnpm install --frozen-lockfile
 command -v uvx >/dev/null || die "uv not found on PATH, the dmg is built with dmgbuild through uvx"
 uvx --from "dmgbuild==$DMGBUILD_VERSION" dmgbuild --help >/dev/null
 
-# fetch-fonts.sh never fails, so a missing file is caught here: the app's UI
-# and its PDFs ship Suisse Intl, never the Inter fallback.
+# fetch-fonts.sh never fails, so a missing file is caught here: official
+# releases ship Suisse Intl in the UI and the PDFs, never the Inter fallback.
+# Builds from source (pnpm dev, tauri build) need no fonts and use Inter.
 step "fonts"
 bash "$ROOT/scripts/fetch-fonts.sh"
 for font in SuisseIntl-{Regular,Medium}.{woff2,ttf}; do
