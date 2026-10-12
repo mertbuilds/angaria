@@ -27,6 +27,8 @@ const styles = create({
       default: null,
       [HANG]: `calc(-8px - ${spacing.s3})`,
     },
+    // The header links here by the heading's id: it stops clear of the sticky header (64px).
+    scrollMarginBlockStart: `calc(64px + ${spacing.s8})`,
   },
   // Over a centered block, the marker and the words center together.
   headingCentered: {

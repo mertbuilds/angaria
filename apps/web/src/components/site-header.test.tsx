@@ -6,9 +6,8 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { MCP_TOOLS } from '../lib/mcp.ts';
 import { Route as McpRoute } from '../routes/mcp.tsx';
 import { stubObservers } from '../test/observers.ts';
 import { SiteHeader } from './site-header.tsx';
@@ -19,12 +18,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** The site's frame (header over the page) with the landing stubbed and the real /mcp page. */
+/** The site's frame (header over the page) with the landing and /gizlilik stubbed, and the real /mcp redirect. */
 async function renderSite(path: string) {
-  const McpPage = McpRoute.options.component;
-  if (!McpPage) {
-    throw new Error('The /mcp route renders no component');
-  }
   stubObservers();
   // jsdom has no scrolling; the router scrolls to the top on every navigation.
   vi.stubGlobal('scrollTo', vi.fn());
@@ -40,8 +35,9 @@ async function renderSite(path: string) {
     history: createMemoryHistory({ initialEntries: [path] }),
     routeTree: root.addChildren([
       createRoute({ component: () => null, getParentRoute: () => root, path: '/' }),
+      createRoute({ component: () => null, getParentRoute: () => root, path: '/gizlilik' }),
       createRoute({
-        component: McpPage,
+        beforeLoad: () => redirectFromMcp(),
         getParentRoute: () => root,
         path: '/mcp',
       }),
@@ -52,16 +48,27 @@ async function renderSite(path: string) {
   return router;
 }
 
-const mcpLink = () =>
-  within(screen.getByRole('navigation', { name: 'Site menüsü' })).getByRole('link', {
-    name: 'MCP',
-  });
+/** The /mcp route's redirect, which ignores the match context beforeLoad's type asks for. */
+const redirectFromMcp = McpRoute.options.beforeLoad as () => never;
+
+const nav = () => within(screen.getByRole('navigation', { name: 'Site menüsü' }));
 
 describe('header', () => {
-  test('links to the MCP page and the source next to the download button', async () => {
-    const router = await renderSite('/');
+  test('links to the landing’s sections, the source and the download', async () => {
+    await renderSite('/');
 
-    expect(mcpLink()).toHaveAttribute('href', '/mcp');
+    expect(
+      nav()
+        .getAllByRole('link')
+        .map((link) => [link.textContent, link.getAttribute('href')]),
+    ).toEqual([
+      ['MCP', '#mcp'],
+      ['Nasıl çalışır', '#nasil'],
+      ['Özellikler', '#ozellikler'],
+      ['Gizlilik', '#gizlilik'],
+      ['SSS', '#sss'],
+    ]);
+    expect(screen.getByRole('link', { name: 'Angaria ana sayfa' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
       'href',
       'https://github.com/vinenastudio/angaria',
@@ -70,44 +77,32 @@ describe('header', () => {
       'href',
       'https://dl.angaria.app/latest/Angaria.dmg',
     );
+    expect(screen.getByRole('button', { name: 'Menüyü aç' })).toBeInTheDocument();
+  });
 
-    fireEvent.click(mcpLink());
-    expect(
-      await screen.findByRole('heading', { level: 1, name: "Angaria'yı Claude'a bağla" }),
-    ).toBeVisible();
-    expect(router.state.location.pathname).toBe('/mcp');
-    expect(mcpLink()).toHaveAttribute('aria-current', 'page');
+  test('on another page, the section links go back to the landing', async () => {
+    await renderSite('/gizlilik');
+
+    expect(nav().getByRole('link', { name: 'MCP' })).toHaveAttribute('href', '/#mcp');
   });
 });
 
 describe('/mcp', () => {
-  test('lists every tool, marking the ones that need the app’s permission', async () => {
-    await renderSite('/mcp');
+  test('moved into the landing: it redirects to its section for good', async () => {
+    const router = await renderSite('/mcp');
 
-    const tools = await screen.findByRole('heading', { level: 2, name: 'Araçlar' });
-    const list = tools.closest('section')?.querySelector('dl');
-    const names = Array.from(list?.querySelectorAll('code') ?? [], (code) => code.textContent);
-    expect(names).toEqual(MCP_TOOLS.map((tool) => tool.name));
-    expect(names).toContain('sign_invoices');
-    const gated = Array.from(list?.querySelectorAll('dt') ?? []).filter((term) =>
-      term.textContent?.includes('İzin gerekir'),
-    );
-    expect(gated.map((term) => term.querySelector('code')?.textContent)).toEqual(
-      MCP_TOOLS.filter((tool) => 'gated' in tool).map((tool) => tool.name),
-    );
-    expect(screen.getByText(/yalnızca sen izin verince çalışır/)).toBeVisible();
+    expect(router.state.location.pathname).toBe('/');
+    expect(router.state.location.hash).toBe('mcp');
   });
 
-  test('says what leaves the Mac and how to set it up', async () => {
-    await renderSite('/mcp');
-
-    expect(await screen.findByText(/kullandığın yapay zekâ uygulamasına gider/)).toBeVisible();
-    expect(document.querySelector('pre')).toHaveTextContent(
-      "claude mcp add --scope user angaria -- '/Applications/Angaria.app/Contents/MacOS/angaria-mcp'",
-    );
-    for (const step of ["MCP'yi aç", 'Uygulamana ekle', 'Sor']) {
-      expect(screen.getByRole('heading', { level: 3, name: step })).toBeVisible();
+  test('answers with a permanent redirect', () => {
+    let thrown: unknown;
+    try {
+      redirectFromMcp();
+    } catch (error) {
+      thrown = error;
     }
-    expect(screen.getByText("Geçen ay Northwind'e kestiğim faturaları listele")).toBeVisible();
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(301);
   });
 });

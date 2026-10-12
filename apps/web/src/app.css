@@ -22,3 +22,22 @@ body {
     color: var(--brand-ink);
   }
 }
+
+/* The header gathers into its pill and opens back out as a view transition
+   (lib/morph.ts). The page takes no part in it: it keeps drawing and
+   scrolling under the moving items, and the pointer goes through to it. */
+:root {
+  view-transition-name: none;
+}
+
+::view-transition {
+  pointer-events: none;
+}
+
+/* Opening back out, the browser's ease per keyframe goes, so the items keep
+   to the ground growing under them. */
+:root:active-view-transition-type(morph-spreading)::view-transition-group(*),
+:root:active-view-transition-type(morph-spreading)::view-transition-old(*),
+:root:active-view-transition-type(morph-spreading)::view-transition-new(*) {
+  animation-timing-function: linear;
+}

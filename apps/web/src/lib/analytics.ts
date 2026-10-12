@@ -2,7 +2,7 @@ import type { PostHog } from 'posthog-js';
 import { config } from './config.ts';
 
 /** Where on the site a button sits, so the events can be told apart. */
-export type CtaLocation = 'footer' | 'free' | 'header' | 'hero' | 'mcp';
+export type CtaLocation = 'footer' | 'free' | 'header' | 'hero';
 
 /**
  * The named events the site sends and what each carries. Page views are

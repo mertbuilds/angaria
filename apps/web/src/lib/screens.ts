@@ -8,8 +8,7 @@ export type Theme = 'dark' | 'light';
 /**
  * One screenshot in public/screens, exported at every width in WIDTHS as
  * `<name>-<theme>[-framed]-<width>.webp`, or `<name>-<width>.webp` when it
- * has one version for both themes (the PDF is paper, the GİB portal has no
- * dark theme).
+ * has one version for both themes (the GİB portal has no dark theme).
  */
 export interface Screen {
   alt: () => string;
@@ -31,14 +30,8 @@ const screen = (
 /** Every screenshot the site shows, by where it shows. */
 export const SCREENS = {
   compare: screen('yeni-fatura', m.screen_compare_alt),
-  customers: screen('musteriler', m.screen_customers_alt),
   gib: screen('gib-portal', m.screen_gib_alt, { themed: false }),
   hero: screen('faturalar-detail', m.screen_hero_alt, { framed: true }),
-  mcp: screen('mcp', m.screen_mcp_alt, { framed: true }),
-  palette: screen('palette', m.screen_palette_alt),
-  pdf: screen('pdf', m.screen_pdf_alt, { height: 2037, themed: false }),
-  rates: screen('yeni-fatura', m.screen_rates_alt),
-  start: screen('yeni-start', m.screen_start_alt),
 } satisfies Record<string, Screen>;
 
 const file = ({ framed, name, themed }: Screen, theme: Theme, width: number) =>

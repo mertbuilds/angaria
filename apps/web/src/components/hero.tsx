@@ -6,7 +6,6 @@ import { layout } from '../lib/layout.ts';
 import { prefersReducedMotion } from '../lib/motion.ts';
 import { SCREENS } from '../lib/screens.ts';
 import { m } from '../paraglide/messages.js';
-import { AppIcon } from './app-icon.tsx';
 import { DownloadButton, SourceButton } from './cta.tsx';
 import { Screenshot } from './screenshot.tsx';
 
@@ -207,7 +206,6 @@ export function Hero() {
     <section {...props(styles.hero)}>
       <div aria-hidden="true" {...props(styles.backdrop)} />
       <div {...props(styles.copy)}>
-        <AppIcon size={72} style={[styles.enter, styles.enterAfter(0)]} />
         <h1 {...props(layout.title, styles.title, styles.enter, styles.enterAfter(0))}>
           {m.hero_title()}
         </h1>

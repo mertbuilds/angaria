@@ -4,6 +4,7 @@ import { create, props } from '@stylexjs/stylex';
 import { brand } from '../lib/brand.stylex.ts';
 import { EASE, type Frame, type Loop, type Track } from '../lib/loop.ts';
 import { m } from '../paraglide/messages.js';
+import { AppIcon } from './app-icon.tsx';
 import {
   blink,
   enter,
@@ -68,15 +69,10 @@ const styles = create({
     fontWeight: font.weightMedium,
     lineHeight: '16px',
   },
+  // The app's own icon in the Dock: no tile of its own behind it.
   appIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.fg,
-    color: colors.bg,
-    fontSize: 14,
-    fontWeight: font.weightMedium,
-    lineHeight: 1,
-    // The lowercase a sits low in its line box; up a pixel it looks centered.
-    paddingBlockEnd: 2,
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
   },
   arrow: {
     color: colors.muted,
@@ -326,14 +322,6 @@ const styles = create({
     flexDirection: 'column',
     justifyContent: 'center',
   },
-  // The app's icon on the disk image, and the copy dragged off it.
-  tile: {
-    borderRadius: 10,
-    display: 'flex',
-    fontSize: 22,
-    justifyContent: 'center',
-    paddingBlockEnd: 3,
-  },
   value: {
     fontSize: 11,
   },
@@ -490,13 +478,13 @@ export function InstallScene() {
         <span {...props(styles.dockIcon)} />
         <span {...props(styles.dockIcon)} />
         <span data-part="app" {...props(styles.dockIcon, styles.appIcon)}>
-          {'a'}
+          <AppIcon size={22} />
         </span>
         <span data-part="running" {...props(styles.activeDot)} />
       </div>
       <Window height={124} part="window" width={224} x={20} y={6}>
-        <span {...props(scene.at(40, 38), scene.size(44, 44), styles.appIcon, styles.tile)}>
-          {'a'}
+        <span {...props(scene.at(40, 38))}>
+          <AppIcon size={44} />
         </span>
         <span {...props(scene.at(22, 90), styles.caption)}>{m.scene_install_app()}</span>
         <span {...props(scene.at(96, 59), styles.arrow)}>
@@ -510,17 +498,8 @@ export function InstallScene() {
         </span>
         <span {...props(scene.at(122, 90), styles.caption)}>{m.scene_install_applications()}</span>
       </Window>
-      <span
-        data-part="ghost"
-        {...props(
-          scene.at(APP.x - 22, APP.y - 22),
-          scene.size(44, 44),
-          styles.appIcon,
-          styles.tile,
-          scene.hidden,
-        )}
-      >
-        {'a'}
+      <span data-part="ghost" {...props(scene.at(APP.x - 22, APP.y - 22), scene.hidden)}>
+        <AppIcon size={44} />
       </span>
       <Pointer />
     </Stage>
