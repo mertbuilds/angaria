@@ -377,8 +377,12 @@ const GRAB_AT = 1250;
 const DROP_AT = 2300;
 const DOCK_AT = 3400;
 
+/** The window has come in: where the scene waits for its turn. */
+const INSTALL_POSTER = 500;
+
 export const installLoop: Loop = {
   duration: 5600,
+  poster: INSTALL_POSTER,
   tracks: [
     {
       frames: [
@@ -466,7 +470,7 @@ export const installLoop: Loop = {
       ],
       part: 'running',
     },
-    progress(4900),
+    progress(4900, INSTALL_POSTER),
   ],
 };
 
@@ -552,8 +556,12 @@ const INVOICES = [
   ['Kestrel Analytics', '£3.150,00'],
 ] as const;
 
+/** The window has come in: where the scene waits for its turn. */
+const CONNECT_POSTER = 300;
+
 export const connectLoop: Loop = {
   duration: 6000,
+  poster: CONNECT_POSTER,
   tracks: [
     {
       frames: [
@@ -644,7 +652,7 @@ export const connectLoop: Loop = {
       ],
       part: 'list',
     },
-    progress(5400),
+    progress(5400, CONNECT_POSTER),
   ],
 };
 
@@ -735,8 +743,12 @@ const LINES = [
   [m.scene_sign_line_consulting, '$1.140,00'],
 ] as const;
 
+/** The window has come in: where the scene waits for its turn. */
+const SIGN_POSTER = 300;
+
 export const signLoop: Loop = {
   duration: 6400,
+  poster: SIGN_POSTER,
   tracks: [
     {
       frames: [
@@ -860,7 +872,7 @@ export const signLoop: Loop = {
       ],
       part: 'pdf',
     },
-    progress(5900),
+    progress(5900, SIGN_POSTER),
   ],
 };
 

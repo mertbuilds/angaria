@@ -18,6 +18,11 @@ export interface Track {
 /** A scene's motion: its tracks, all on one clock that restarts every `duration` milliseconds. */
 export interface Loop {
   duration: number;
+  /**
+   * In a sequence: the moment of the scene's first full look, where it waits
+   * for its turn. Each turn plays from here round the loop back to here.
+   */
+  poster?: number;
   tracks: ReadonlyArray<Track>;
 }
 
@@ -44,27 +49,44 @@ export function toKeyframes(frames: ReadonlyArray<Frame>, duration: number): Arr
   }));
 }
 
-function toggle(animations: ReadonlyArray<Animation>, play: boolean) {
+/**
+ * A scene's place in a sequence: it plays once while `active`, says so with
+ * `onEnd`, and waits on its first frame until its turn comes again.
+ */
+export interface Turn {
+  active: boolean;
+  onEnd: () => void;
+}
+
+function toggle(animations: ReadonlyArray<Animation>, play: boolean, rewind = false) {
   for (const animation of animations) {
     if (play) {
       animation.play();
     } else {
       animation.pause();
     }
+    // After the pause: rewinding a finished animation first would start it again.
+    if (rewind) {
+      animation.currentTime = 0;
+    }
   }
 }
 
 /**
  * Plays `loop` on the parts inside the returned ref's element, over and over,
- * while the element is on screen, and pauses it off screen. The parts' own
- * styles are the scene's last frame: with reduced motion (or no Web
- * Animations) nothing runs and that frame stays. Only transform and opacity
- * should move, so the loop runs off the main thread.
+ * while the element is on screen, and pauses it off screen. With a `turn`, it
+ * plays once per turn instead, and only while it is both its turn and on
+ * screen. The parts' own styles are the scene's last frame: with reduced
+ * motion (or no Web Animations) nothing runs and that frame stays. Only
+ * transform and opacity should move, so the loop runs off the main thread.
  */
-export function useLoop<T extends HTMLElement>(loop: Loop) {
+export function useLoop<T extends HTMLElement>(loop: Loop, turn?: Turn) {
   const [ref, inView] = useInView<T>({ rootMargin: '0px 0px -15% 0px' });
   const animations = useRef<Array<Animation>>([]);
   const playing = useRef(false);
+  const onEnd = useRef(turn?.onEnd);
+  const once = turn !== undefined;
+  const active = turn?.active ?? true;
 
   useEffect(() => {
     const root = ref.current;
@@ -77,11 +99,18 @@ export function useLoop<T extends HTMLElement>(loop: Loop) {
         element.animate(keyframes, {
           duration: loop.duration,
           fill: 'both',
-          iterations: Infinity,
+          ...(once
+            ? { iterations: 1, iterationStart: (loop.poster ?? 0) / loop.duration }
+            : { iterations: Infinity }),
         }),
       );
     });
     animations.current = created;
+    // Every part runs on the same clock: the first one's end is the scene's.
+    const [first] = created;
+    if (once && first) {
+      first.onfinish = () => onEnd.current?.();
+    }
     // Held on the first frame until the scene comes into view.
     toggle(created, playing.current);
     return () => {
@@ -90,12 +119,17 @@ export function useLoop<T extends HTMLElement>(loop: Loop) {
         animation.cancel();
       }
     };
-  }, [loop, ref]);
+  }, [loop, once, ref]);
+
+  const end = turn?.onEnd;
+  useEffect(() => {
+    onEnd.current = end;
+  }, [end]);
 
   useEffect(() => {
-    playing.current = inView;
-    toggle(animations.current, inView);
-  }, [inView]);
+    playing.current = inView && active;
+    toggle(animations.current, playing.current, !active);
+  }, [active, inView]);
 
   return ref;
 }

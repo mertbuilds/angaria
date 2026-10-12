@@ -2,7 +2,7 @@ import { act, render } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { stubAnimate } from '../test/animations.ts';
 import { stubObservers } from '../test/observers.ts';
-import { EASE, toKeyframes, useLoop, type Loop } from './loop.ts';
+import { EASE, toKeyframes, useLoop, type Loop, type Turn } from './loop.ts';
 
 const loop: Loop = {
   duration: 1000,
@@ -17,8 +17,8 @@ const loop: Loop = {
   ],
 };
 
-function Probe() {
-  const ref = useLoop<HTMLDivElement>(loop);
+function Probe({ turn }: { turn?: Turn }) {
+  const ref = useLoop<HTMLDivElement>(loop, turn);
   return (
     <div ref={ref}>
       <span data-part="dot" />
@@ -103,6 +103,36 @@ describe('useLoop', () => {
     for (const each of stub.animations) {
       expect(each.cancel).toHaveBeenCalled();
     }
+  });
+
+  test('with a turn, plays once, only on its turn and on screen, and rewinds after', () => {
+    const observers = stubObservers();
+    const stub = stubAnimate();
+    restore = stub.restore;
+    const onEnd = vi.fn();
+    const { rerender } = render(<Probe turn={{ active: false, onEnd }} />);
+    const [animation] = stub.animations;
+    expect(animation?.options).toMatchObject({ iterations: 1, iterationStart: 0 });
+
+    act(() => observers.intersect(true));
+    expect(animation?.playState).toBe('paused');
+
+    rerender(<Probe turn={{ active: true, onEnd }} />);
+    expect(animation?.playState).toBe('running');
+    act(() => observers.intersect(false));
+    expect(animation?.playState).toBe('paused');
+    act(() => observers.intersect(true));
+    expect(animation?.playState).toBe('running');
+
+    act(() => animation?.finish());
+    expect(onEnd).toHaveBeenCalledTimes(1);
+
+    if (animation) {
+      animation.currentTime = 1000;
+    }
+    rerender(<Probe turn={{ active: false, onEnd }} />);
+    expect(animation?.playState).toBe('paused');
+    expect(animation?.currentTime).toBe(0);
   });
 
   test('with reduced motion, never animates', () => {

@@ -19,6 +19,7 @@ import { FreeCard } from '../components/free-card.tsx';
 import { Hero, HERO_SIZES } from '../components/hero.tsx';
 import { McpScene } from '../components/mcp-scene.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
+import { Sequence } from '../components/scene.tsx';
 import { Screenshot } from '../components/screenshot.tsx';
 import { SectionHeading } from '../components/section-heading.tsx';
 import { ConnectScene, InstallScene, SignScene } from '../components/step-scenes.tsx';
@@ -357,27 +358,29 @@ function Landing() {
           <SectionHeading id="nasil">{m.steps_title()}</SectionHeading>
         </Reveal>
         <ol {...props(styles.columns, styles.wide)}>
-          <Card
-            body={m.step_install_body()}
-            index={1}
-            scene={<InstallScene />}
-            step
-            title={m.step_install_title()}
-          />
-          <Card
-            body={m.step_login_body()}
-            index={2}
-            scene={<ConnectScene />}
-            step
-            title={m.step_login_title()}
-          />
-          <Card
-            body={m.step_sign_body()}
-            index={3}
-            scene={<SignScene />}
-            step
-            title={m.step_sign_title()}
-          />
+          <Sequence>
+            <Card
+              body={m.step_install_body()}
+              index={1}
+              scene={<InstallScene />}
+              step
+              title={m.step_install_title()}
+            />
+            <Card
+              body={m.step_login_body()}
+              index={2}
+              scene={<ConnectScene />}
+              step
+              title={m.step_login_title()}
+            />
+            <Card
+              body={m.step_sign_body()}
+              index={3}
+              scene={<SignScene />}
+              step
+              title={m.step_sign_title()}
+            />
+          </Sequence>
         </ol>
       </RevealSection>
 

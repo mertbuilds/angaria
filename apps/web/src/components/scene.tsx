@@ -1,8 +1,8 @@
 import { colors, font, radius } from '@angaria/ui/tokens.stylex';
 import { create, props, type StyleXStyles } from '@stylexjs/stylex';
-import type { ReactNode } from 'react';
+import { Children, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { brand } from '../lib/brand.stylex.ts';
-import { useLoop, type Frame, type Loop, type Track, type Values } from '../lib/loop.ts';
+import { useLoop, type Frame, type Loop, type Track, type Turn, type Values } from '../lib/loop.ts';
 
 /** The drawing area every scene lays itself out in, in CSS pixels. */
 const STAGE = { height: 200, width: 264 } as const;
@@ -59,13 +59,14 @@ export function blink(part: string, from: number, to: number): Track {
 }
 
 /**
- * The line under the stage fills with blue while the scene plays out, and
- * fades away while the scene resets.
+ * The line under the stage fills with blue from `from` while the scene plays
+ * out, and fades away while the scene resets.
  */
-export function progress(until: number): Track {
+export function progress(until: number, from = 0): Track {
   return {
     frames: [
-      [0, { opacity: 1, transform: 'scaleX(0)' }, 'linear'],
+      ...(from > 0 ? [[0, { opacity: 1, transform: 'scaleX(0)' }] as const] : []),
+      [from, { opacity: 1, transform: 'scaleX(0)' }, 'linear'],
       [until, { opacity: 1, transform: 'scaleX(1)' }],
       [until + 300, { opacity: 0, transform: 'scaleX(1)' }],
     ],
@@ -233,13 +234,49 @@ export const styles = create({
   },
 });
 
+/** The pause after a sequence's last scene, before its first plays again. */
+export const SEQUENCE_REST_MS = 1200;
+
+const TurnContext = createContext<Turn | undefined>(undefined);
+
 /**
- * The fixed-size area a scene draws in, looping `loop` while it is on screen.
- * The line under it shows only for a loop with a `progress` track.
- * Decorative: the step's words beside it say what it shows.
+ * Plays the scenes in its children one after another: each child's scene
+ * waits on its first frame until the one before it has played out, and after
+ * the last a short rest, then the first again. Never two at once.
+ */
+export function Sequence({ children }: { children: ReactNode }) {
+  const steps = Children.toArray(children);
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (active < steps.length) {
+      return;
+    }
+    const timeout = setTimeout(() => setActive(0), SEQUENCE_REST_MS);
+    return () => clearTimeout(timeout);
+  }, [active, steps.length]);
+
+  return steps.map((step, index) => (
+    <TurnContext
+      key={index}
+      value={{
+        active: active === index,
+        onEnd: () => setActive((current) => (current === index ? index + 1 : current)),
+      }}
+    >
+      {step}
+    </TurnContext>
+  ));
+}
+
+/**
+ * The fixed-size area a scene draws in, looping `loop` while it is on screen,
+ * or taking its turn inside a `Sequence`. The line under it shows only for a
+ * loop with a `progress` track. Decorative: the step's words beside it say
+ * what it shows.
  */
 export function Stage({ children, loop }: { children: ReactNode; loop: Loop }) {
-  const ref = useLoop<HTMLDivElement>(loop);
+  const ref = useLoop<HTMLDivElement>(loop, useContext(TurnContext));
   return (
     <div aria-hidden="true" ref={ref} {...props(styles.media)}>
       <div {...props(styles.stage)}>{children}</div>

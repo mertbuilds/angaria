@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { Loop } from '../lib/loop.ts';
 import { stubAnimate } from '../test/animations.ts';
 import { stubObservers } from '../test/observers.ts';
+import { Sequence, SEQUENCE_REST_MS } from './scene.tsx';
 import {
   connectLoop,
   ConnectScene,
@@ -68,6 +69,64 @@ describe.each(SCENES)('%s scene', (_, Scene, loop) => {
     }
     act(() => observers.intersect(false));
     expect(stub.animations.every(({ pause }) => pause.mock.calls.length === 1)).toBe(true);
+  });
+});
+
+describe('in a sequence', () => {
+  test('plays 1, 2, 3, rests, then 1 again: never two at once', () => {
+    vi.useFakeTimers();
+    const observers = stubObservers();
+    const stub = stubAnimate();
+    restore = stub.restore;
+    const { container } = render(
+      <Sequence>
+        {SCENES.map(([name, Scene]) => (
+          <div id={name} key={name}>
+            <Scene />
+          </div>
+        ))}
+      </Sequence>,
+    );
+    const of = (name: string) =>
+      stub.animations.filter(({ target }) => container.querySelector(`#${name}`)?.contains(target));
+    const playing = () =>
+      SCENES.map(([name]) => name).filter((name) =>
+        of(name).every(({ playState }) => playState === 'running'),
+      );
+    const end = (name: string) => act(() => of(name)[0]?.finish());
+
+    expect(playing()).toEqual([]);
+    act(() => observers.intersect(true));
+    expect(playing()).toEqual(['install']);
+    end('install');
+    expect(playing()).toEqual(['connect']);
+    expect(of('install').every(({ currentTime }) => currentTime === 0)).toBe(true);
+    end('connect');
+    expect(playing()).toEqual(['sign']);
+    end('sign');
+    expect(playing()).toEqual([]);
+    act(() => vi.advanceTimersByTime(SEQUENCE_REST_MS));
+    expect(playing()).toEqual(['install']);
+    vi.useRealTimers();
+  });
+
+  test('a step whose turn comes off screen waits until it is on screen', () => {
+    const observers = stubObservers();
+    const stub = stubAnimate();
+    restore = stub.restore;
+    render(
+      <Sequence>
+        <InstallScene />
+        <ConnectScene />
+      </Sequence>,
+    );
+    const first = stub.animations[0];
+    const second = stub.animations.at(-1);
+
+    act(() => first?.finish());
+    expect(second?.playState).toBe('paused');
+    act(() => observers.intersect(true));
+    expect(second?.playState).toBe('running');
   });
 });
 
