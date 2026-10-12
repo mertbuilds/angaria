@@ -1,16 +1,28 @@
+import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
-import { create, defaultMarker, props } from '@stylexjs/stylex';
+import { create, props } from '@stylexjs/stylex';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { Laptop, MessagesSquare, MousePointerClick, PanelTop, type LucideIcon } from 'lucide-react';
 import type { LinkHTMLAttributes, ReactNode } from 'react';
 import { AppHosts } from '../components/app-hosts.tsx';
 import { CompareSlider } from '../components/compare-slider.tsx';
+import {
+  CompaniesScene,
+  CustomersScene,
+  PdfScene,
+  RatesScene,
+  RepeatScene,
+  RulesScene,
+  StartScene,
+} from '../components/feature-scenes.tsx';
 import { FreeCard } from '../components/free-card.tsx';
 import { Hero, HERO_SIZES } from '../components/hero.tsx';
+import { McpScene } from '../components/mcp-scene.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
-import { Screenshot, type Crop } from '../components/screenshot.tsx';
+import { Screenshot } from '../components/screenshot.tsx';
 import { SectionHeading } from '../components/section-heading.tsx';
 import { ConnectScene, InstallScene, SignScene } from '../components/step-scenes.tsx';
-import { brand, reveal } from '../lib/brand.stylex.ts';
+import { brand } from '../lib/brand.stylex.ts';
 import { SITE_URL } from '../lib/canonical.ts';
 import { LICENSE_URL, SOURCE_URL } from '../lib/config.ts';
 import { layout } from '../lib/layout.ts';
@@ -32,6 +44,41 @@ const structuredData = () => ({
   publisher: { '@type': 'Organization', name: 'Vinena Studio', url: 'https://vinena.studio' },
   url: `${SITE_URL}/`,
 });
+
+/** The questions SSS answers, in its order. */
+const QUESTIONS = [
+  [m.faq_audience_q, m.faq_audience_a],
+  [m.faq_not_for_q, m.faq_not_for_a],
+  [m.faq_efatura_q, m.faq_efatura_a],
+  [m.faq_connect_q, m.faq_connect_a],
+  [m.faq_data_q, m.faq_data_a],
+  [m.faq_foreign_q, m.faq_foreign_a],
+  [m.faq_pdf_q, m.faq_pdf_a],
+  [m.faq_accountant_q, m.faq_accountant_a],
+  [m.faq_free_q, m.faq_free_a],
+  [m.faq_source_q, m.faq_source_a],
+  [m.faq_windows_q, m.faq_windows_a],
+] as const;
+
+/** SSS for search engines, the same questions and answers the page shows. */
+const faqData = () => ({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  inLanguage: 'tr',
+  mainEntity: QUESTIONS.map(([question, answer]) => ({
+    '@type': 'Question',
+    acceptedAnswer: { '@type': 'Answer', text: answer() },
+    name: question(),
+  })),
+});
+
+/** What the MCP section says about the built-in MCP server, each with its icon. */
+const MCP_POINTS: ReadonlyArray<{ body: () => string; icon: LucideIcon; title: () => string }> = [
+  { body: m.mcp_point_ask_body, icon: MessagesSquare, title: m.mcp_point_ask_title },
+  { body: m.mcp_point_background_body, icon: PanelTop, title: m.mcp_point_background_title },
+  { body: m.mcp_point_setup_body, icon: MousePointerClick, title: m.mcp_point_setup_title },
+  { body: m.mcp_point_local_body, icon: Laptop, title: m.mcp_point_local_title },
+];
 
 /**
  * The hero screenshot is the largest paint: preload the export the <picture>
@@ -56,33 +103,28 @@ export const Route = createFileRoute('/')({
   head: () => ({
     links: [{ href: `${SITE_URL}/`, rel: 'canonical' }, ...preloadScreen(SCREENS.hero, HERO_SIZES)],
     meta: [{ content: `${SITE_URL}/`, property: 'og:url' }],
-    scripts: [{ children: JSON.stringify(structuredData()), type: 'application/ld+json' }],
+    scripts: [
+      { children: JSON.stringify(structuredData()), type: 'application/ld+json' },
+      { children: JSON.stringify(faqData()), type: 'application/ld+json' },
+    ],
   }),
 });
 
 const WIDE = '@media (min-width: 640px)';
 /** Where the wide blocks have room for three columns. */
 const ROOMY = '@media (min-width: 960px)';
-const HOVER = '@media (hover: hover)';
+/** WIDE up to ROOMY: apart from it, so the two never compete whatever their order. */
+const TWO_UP = '@media (min-width: 640px) and (max-width: 959.98px)';
 
-/**
- * How wide each screenshot is drawn, zoom included, for the browser's choice
- * of export: a card zooms its crop to about twice the card's width.
- */
-const CARD_SIZES = '(min-width: 992px) 860px, (min-width: 640px) 90vw, 180vw';
-const FEATURED_SIZES = '(min-width: 992px) 900px, (min-width: 640px) 95vw, 160vw';
+/** How wide the compare slider's screenshots are drawn, for the browser's choice of export. */
 const COMPARE_SIZES = '(min-width: 992px) 960px, calc(100vw - 32px)';
 
 const styles = create({
+  // A scene above its words, in a 1px frame. Nothing here is a link, so it
+  // has no hover.
   card: {
     backgroundColor: colors.bg,
-    borderColor: {
-      default: colors.border,
-      [HOVER]: {
-        ':hover': `color-mix(in oklab, ${brand.fill} 55%, ${colors.border})`,
-        default: colors.border,
-      },
-    },
+    borderColor: colors.border,
     borderRadius: radius.base,
     borderStyle: 'solid',
     borderWidth: 1,
@@ -91,9 +133,6 @@ const styles = create({
     height: '100%',
     margin: 0,
     overflow: 'hidden',
-    transitionDuration: '260ms',
-    transitionProperty: 'border-color',
-    transitionTimingFunction: reveal.ease,
   },
   cardBody: {
     display: 'flex',
@@ -104,36 +143,24 @@ const styles = create({
       [WIDE]: spacing.s6,
     },
   },
-  // The first feature leads across both columns, its screenshot beside the
-  // words instead of above them.
-  cardFeatured: {
+  // The card across the whole row: its scene beside the words.
+  cardRow: {
     flexDirection: {
       default: 'column',
       [WIDE]: 'row',
     },
   },
-  cardFeaturedBody: {
-    justifyContent: 'center',
-  },
-  cardMedia: {
-    borderBottomColor: colors.border,
-    borderBottomStyle: 'solid',
-    borderBottomWidth: 1,
-  },
-  cardMediaSide: {
-    borderBottomWidth: {
-      default: 1,
-      [WIDE]: 0,
-    },
-    borderRightColor: colors.border,
-    borderRightStyle: 'solid',
-    borderRightWidth: {
-      default: 0,
-      [WIDE]: 1,
-    },
+  cardRowBody: {
     flexBasis: {
       default: null,
-      [WIDE]: '58%',
+      [WIDE]: '45%',
+    },
+    justifyContent: 'center',
+  },
+  cardRowScene: {
+    flexBasis: {
+      default: null,
+      [WIDE]: '55%',
     },
     flexShrink: 0,
   },
@@ -142,18 +169,21 @@ const styles = create({
     gap: spacing.s4,
     gridTemplateColumns: {
       default: '1fr',
-      [WIDE]: '1fr 1fr',
+      [ROOMY]: 'repeat(3, 1fr)',
+      [TWO_UP]: '1fr 1fr',
     },
     listStyle: 'none',
     margin: 0,
     padding: 0,
   },
   cardTitle: {
+    alignItems: 'center',
+    display: 'flex',
     fontSize: font.sizeMd,
     fontWeight: font.weightMedium,
+    gap: spacing.s2,
     margin: 0,
   },
-  // Across both columns: the leading feature and the one without a screenshot.
   cardWide: {
     gridColumn: {
       default: null,
@@ -189,6 +219,41 @@ const styles = create({
   leadCentered: {
     textAlign: 'center',
   },
+  // The MCP scene beside what MCP does where there is room.
+  mcp: {
+    alignItems: 'center',
+    display: 'grid',
+    gap: {
+      default: spacing.s6,
+      [ROOMY]: spacing.s8,
+    },
+    gridTemplateColumns: {
+      default: '1fr',
+      [ROOMY]: '5fr 6fr',
+    },
+  },
+  mcpPoints: {
+    display: 'grid',
+    gap: spacing.s6,
+    gridTemplateColumns: {
+      default: '1fr',
+      [WIDE]: '1fr 1fr',
+    },
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+  },
+  pointIcon: {
+    alignItems: 'center',
+    backgroundColor: brand.tint,
+    borderRadius: radius.base,
+    color: brand.ink,
+    display: 'flex',
+    height: 32,
+    justifyContent: 'center',
+    marginBlockEnd: spacing.s2,
+    width: 32,
+  },
   privacyLead: {
     fontSize: font.sizeLg,
     fontWeight: font.weightMedium,
@@ -206,19 +271,6 @@ const styles = create({
       [WIDE]: spacing.s12,
     },
   },
-  // A step's scene above its words, in the features' card frame without the
-  // hover: nothing here is a link.
-  stepCard: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderRadius: radius.base,
-    borderStyle: 'solid',
-    borderWidth: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-  },
   // Steps are a real sequence, so they carry their number.
   stepNumber: {
     alignItems: 'center',
@@ -234,14 +286,6 @@ const styles = create({
     justifyContent: 'center',
     width: 24,
   },
-  stepTitle: {
-    alignItems: 'center',
-    display: 'flex',
-    fontSize: font.sizeMd,
-    fontWeight: font.weightMedium,
-    gap: spacing.s2,
-    margin: 0,
-  },
   term: {
     fontWeight: font.weightMedium,
   },
@@ -255,6 +299,36 @@ function Landing() {
   return (
     <>
       <Hero />
+
+      <RevealSection aria-labelledby="mcp" style={[layout.section, styles.section]}>
+        <Reveal index={0}>
+          <SectionHeading id="mcp">{m.mcp_title()}</SectionHeading>
+        </Reveal>
+        <Reveal index={1}>
+          <p {...props(layout.text, layout.muted, styles.lead)}>{m.mcp_lead()}</p>
+        </Reveal>
+        <div {...props(styles.mcp, styles.wide)}>
+          <Reveal index={2}>
+            <div {...props(styles.card)}>
+              <McpScene />
+            </div>
+          </Reveal>
+          <ul {...props(styles.mcpPoints)}>
+            {MCP_POINTS.map(({ body, icon: Icon, title }, index) => (
+              <Reveal as="li" index={index + 3} key={title()} style={styles.item}>
+                <span {...props(styles.pointIcon)}>
+                  <Icon aria-hidden="true" size={16} />
+                </span>
+                <span {...props(styles.term)}>{title()}</span>
+                <span {...props(layout.muted)}>{body()}</span>
+              </Reveal>
+            ))}
+          </ul>
+        </div>
+        <Reveal index={7}>
+          <p {...props(layout.text, layout.muted, layout.small)}>{m.mcp_shared()}</p>
+        </Reveal>
+      </RevealSection>
 
       <RevealSection aria-labelledby="karsilastirma" style={[layout.section, styles.section]}>
         <Reveal index={0}>
@@ -283,22 +357,25 @@ function Landing() {
           <SectionHeading id="nasil">{m.steps_title()}</SectionHeading>
         </Reveal>
         <ol {...props(styles.columns, styles.wide)}>
-          <Step
+          <Card
             body={m.step_install_body()}
             index={1}
             scene={<InstallScene />}
+            step
             title={m.step_install_title()}
           />
-          <Step
+          <Card
             body={m.step_login_body()}
             index={2}
             scene={<ConnectScene />}
+            step
             title={m.step_login_title()}
           />
-          <Step
+          <Card
             body={m.step_sign_body()}
             index={3}
             scene={<SignScene />}
+            step
             title={m.step_sign_title()}
           />
         </ol>
@@ -309,45 +386,47 @@ function Landing() {
           <SectionHeading id="ozellikler">{m.features_title()}</SectionHeading>
         </Reveal>
         <ul {...props(styles.cards, styles.wide)}>
-          <FeatureCard
-            body={m.feature_start_body()}
-            crop={{ x: 60, y: 18, zoom: 1.6 }}
-            featured
+          <Card
+            body={m.feature_rules_body()}
             index={1}
-            screen={SCREENS.start}
+            scene={<RulesScene />}
+            title={m.feature_rules_title()}
+            wide
+          />
+          <Card
+            body={m.feature_start_body()}
+            index={2}
+            scene={<StartScene />}
             title={m.feature_start_title()}
           />
-          <FeatureCard
+          <Card
             body={m.feature_repeat_body()}
-            crop={{ x: 50, y: 38, zoom: 1.8 }}
-            index={2}
-            screen={SCREENS.palette}
+            index={3}
+            scene={<RepeatScene />}
             title={m.feature_repeat_title()}
           />
-          <FeatureCard
+          <Card
             body={m.feature_customers_body()}
-            crop={{ x: 74, y: 100, zoom: 1.8 }}
-            index={3}
-            screen={SCREENS.customers}
+            index={4}
+            scene={<CustomersScene />}
             title={m.feature_customers_title()}
           />
-          <FeatureCard
+          <Card
             body={m.feature_pdf_body()}
-            crop={{ x: 50, y: 0, zoom: 1 }}
-            index={4}
-            screen={SCREENS.pdf}
+            index={5}
+            scene={<PdfScene />}
             title={m.feature_pdf_title()}
           />
-          <FeatureCard
+          <Card
             body={m.feature_rates_body()}
-            crop={{ x: 40, y: 26, zoom: 1.8 }}
-            index={5}
-            screen={SCREENS.rates}
+            index={6}
+            scene={<RatesScene />}
             title={m.feature_rates_title()}
           />
-          <FeatureCard
+          <Card
             body={m.feature_companies_body()}
-            index={6}
+            index={7}
+            scene={<CompaniesScene />}
             title={m.feature_companies_title()}
           />
         </ul>
@@ -405,19 +484,16 @@ function Landing() {
         <Reveal index={0}>
           <SectionHeading id="sss">{m.faq_title()}</SectionHeading>
         </Reveal>
-        <dl {...props(layout.list)}>
-          <Question body={m.faq_audience_a()} index={1} title={m.faq_audience_q()} />
-          <Question body={m.faq_not_for_a()} index={2} title={m.faq_not_for_q()} />
-          <Question body={m.faq_efatura_a()} index={3} title={m.faq_efatura_q()} />
-          <Question body={m.faq_connect_a()} index={4} title={m.faq_connect_q()} />
-          <Question body={m.faq_data_a()} index={5} title={m.faq_data_q()} />
-          <Question body={m.faq_foreign_a()} index={6} title={m.faq_foreign_q()} />
-          <Question body={m.faq_pdf_a()} index={7} title={m.faq_pdf_q()} />
-          <Question body={m.faq_accountant_a()} index={8} title={m.faq_accountant_q()} />
-          <Question body={m.faq_free_a()} index={9} title={m.faq_free_q()} />
-          <Question body={m.faq_source_a()} index={10} title={m.faq_source_q()} />
-          <Question body={m.faq_windows_a()} index={11} title={m.faq_windows_q()} />
-        </dl>
+        <Reveal index={1}>
+          <Accordion>
+            {QUESTIONS.map(([question, answer]) => (
+              <AccordionItem key={question()}>
+                <AccordionTrigger>{question()}</AccordionTrigger>
+                <AccordionPanel>{answer()}</AccordionPanel>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </Reveal>
       </RevealSection>
     </>
   );
@@ -432,75 +508,37 @@ function PainPoint({ body, index, title }: { body: string; index: number; title:
   );
 }
 
-/** One step: its looping scene above the words that say what it shows. */
-function Step({
+/**
+ * A step or a feature: its looping scene above the words that say what it
+ * shows, or beside them across a whole row (`wide`). A step carries its number.
+ */
+function Card({
   body,
   index,
   scene,
+  step = false,
   title,
+  wide = false,
 }: {
   body: string;
   index: number;
   scene: ReactNode;
+  step?: boolean;
   title: string;
+  wide?: boolean;
 }) {
   return (
-    <Reveal as="li" index={index}>
-      <article {...props(styles.stepCard)}>
-        {scene}
-        <div {...props(styles.cardBody)}>
-          <h3 {...props(styles.stepTitle)}>
-            <span {...props(styles.stepNumber)}>{index}</span>
+    <Reveal as="li" index={index} style={wide ? styles.cardWide : undefined}>
+      <article {...props(styles.card, wide && styles.cardRow)}>
+        <div {...props(wide && styles.cardRowScene)}>{scene}</div>
+        <div {...props(styles.cardBody, wide && styles.cardRowBody)}>
+          <h3 {...props(styles.cardTitle)}>
+            {step ? <span {...props(styles.stepNumber)}>{index}</span> : null}
             {title}
           </h3>
           <p {...props(layout.text, layout.muted)}>{body}</p>
         </div>
       </article>
-    </Reveal>
-  );
-}
-
-function FeatureCard({
-  body,
-  crop,
-  featured = false,
-  index,
-  screen,
-  title,
-}: {
-  body: string;
-  crop?: Crop;
-  featured?: boolean;
-  index: number;
-  screen?: Screen;
-  title: string;
-}) {
-  return (
-    <Reveal as="li" index={index} style={featured || !screen ? styles.cardWide : undefined}>
-      <article {...props(styles.card, featured && styles.cardFeatured, defaultMarker())}>
-        {screen ? (
-          <Screenshot
-            crop={crop}
-            screen={screen}
-            sizes={featured ? FEATURED_SIZES : CARD_SIZES}
-            style={[styles.cardMedia, featured && styles.cardMediaSide]}
-          />
-        ) : null}
-        <div {...props(styles.cardBody, featured && styles.cardFeaturedBody)}>
-          <h3 {...props(styles.cardTitle)}>{title}</h3>
-          <p {...props(layout.text, layout.muted)}>{body}</p>
-        </div>
-      </article>
-    </Reveal>
-  );
-}
-
-/** A question and its answer. */
-function Question({ body, index, title }: { body: string; index: number; title: string }) {
-  return (
-    <Reveal index={index} style={styles.item}>
-      <dt {...props(styles.term)}>{title}</dt>
-      <dd {...props(layout.text, layout.muted)}>{body}</dd>
     </Reveal>
   );
 }

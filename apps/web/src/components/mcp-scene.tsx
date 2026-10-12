@@ -3,12 +3,12 @@ import { create, props } from '@stylexjs/stylex';
 import { Check } from 'lucide-react';
 import { brand } from '../lib/brand.stylex.ts';
 import type { Loop } from '../lib/loop.ts';
-import { mcpToolTitle } from '../lib/mcp.ts';
 import { m } from '../paraglide/messages.js';
+import { AppIcon } from './app-icon.tsx';
 import { enter, hidden, progress, shown, Stage, styles as scene, Window } from './scene.tsx';
 
 /*
- * The MCP page's scene: a request in a chat, Angaria's Taslak oluştur tool at
+ * The MCP section's scene: a request in a chat, Angaria's Taslak oluştur tool at
  * work, the draft it made, and the reply that sends the user to Angaria to
  * approve it by SMS. Every part is drawn in its last frame, which is what
  * reduced motion (and the server) shows.
@@ -58,20 +58,6 @@ export const mcpLoop: Loop = {
 const styles = create({
   amount: {
     fontWeight: font.weightMedium,
-  },
-  appIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.fg,
-    borderRadius: 4,
-    color: colors.bg,
-    display: 'flex',
-    flexShrink: 0,
-    fontSize: 10,
-    fontWeight: font.weightMedium,
-    height: 14,
-    justifyContent: 'center',
-    lineHeight: 1,
-    width: 14,
   },
   // GİB's draft status, as the app's outline badge shows it.
   badge: {
@@ -185,9 +171,9 @@ export function McpScene() {
             {m.mcp_scene_prompt()}
           </span>
           <div data-part="tool" {...props(scene.at(13, 62), scene.size(236, 26), styles.tool)}>
-            <span {...props(styles.appIcon)}>{'A'}</span>
+            <AppIcon size={14} />
             <span>{m.mcp_scene_app()}</span>
-            <span {...props(scene.muted)}>{mcpToolTitle('create_invoice')}</span>
+            <span {...props(scene.muted)}>{m.mcp_scene_tool()}</span>
             <span {...props(styles.status)}>
               <span data-part="spinner" {...props(styles.spinner)} />
               <span data-part="check" {...props(styles.check)}>

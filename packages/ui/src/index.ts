@@ -2,6 +2,16 @@
 // attentionawareness and web-starter and adapted to the angaria canon
 // (docs/relaunch.md). Owned here: edit freely, keep the canon.
 export {
+  Accordion,
+  AccordionItem,
+  AccordionPanel,
+  AccordionTrigger,
+  type AccordionItemProps,
+  type AccordionPanelProps,
+  type AccordionProps,
+  type AccordionTriggerProps,
+} from './ui/accordion.tsx';
+export {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,

@@ -12,6 +12,7 @@ import { defineConfig } from 'vite';
 // bundles them at startup. Add an entry when @angaria/ui imports a new package,
 // @base-ui/react subpath or react-aria-components subpath.
 const uiDependencies = [
+  'accordion',
   'alert-dialog',
   'button',
   'checkbox',
