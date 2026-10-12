@@ -299,13 +299,25 @@ export function createEmulator(options: EmulatorOptions = {}): Emulator {
   };
 }
 
-/** Starts the emulator on `host:port` (port 0 picks a free one). */
+/**
+ * Bind addresses that stay on this machine. On any other, a LAN client could
+ * send a loopback Host and reach /__emulator, which has no auth.
+ */
+const LOOPBACK_BIND = /^(?:127(?:\.\d{1,3}){3}|localhost|::1)$/i;
+
+/**
+ * Starts the emulator on `host:port` (port 0 picks a free one). Refuses a host
+ * that is not loopback.
+ */
 export async function startEmulator(
   options: EmulatorOptions & { host?: string; port?: number } = {},
 ): Promise<RunningEmulator> {
+  const host = options.host ?? '127.0.0.1';
+  if (!LOOPBACK_BIND.test(host)) {
+    throw new Error(`Refusing to listen on ${host}: the emulator binds to loopback only.`);
+  }
   const emulator = createEmulator(options);
   const server = createServer(emulator.handle);
-  const host = options.host ?? '127.0.0.1';
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(options.port ?? 0, host, () => resolve());

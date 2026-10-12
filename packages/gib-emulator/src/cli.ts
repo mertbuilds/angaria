@@ -1,7 +1,7 @@
 // `pnpm emulate` (repo root) runs this with --portless, under `node --watch`
 // (the package's start script): a code change restarts it. Plain flags:
 //   --port 5180        GIB_EMULATOR_PORT; the desktop app expects 5180
-//   --host 127.0.0.1   GIB_EMULATOR_HOST
+//   --host 127.0.0.1   GIB_EMULATOR_HOST; loopback only
 //   --state file.json  GIB_EMULATOR_STATE; keep documents across restarts
 //   --config file.json GIB_EMULATOR_CONFIG; a PartialConfig
 //   --portless         register https://gib.angaria.localhost and
