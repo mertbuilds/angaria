@@ -1,16 +1,16 @@
 import type { PostHog } from 'posthog-js';
-import { config, type Plan } from './config.ts';
+import { config } from './config.ts';
 
 /** Where on the site a button sits, so the events can be told apart. */
-export type CtaLocation = 'header' | 'hero' | 'mcp' | 'pricing' | 'thanks';
+export type CtaLocation = 'footer' | 'free' | 'header' | 'hero' | 'mcp';
 
 /**
  * The named events the site sends and what each carries. Page views are
  * captured by PostHog itself.
  */
 interface AnalyticsEvents {
-  checkout_click: { location: CtaLocation; plan: Plan };
   download_click: { location: CtaLocation };
+  source_click: { location: CtaLocation };
 }
 
 let client: PostHog | null = null;

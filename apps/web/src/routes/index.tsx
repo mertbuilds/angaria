@@ -4,49 +4,30 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import type { LinkHTMLAttributes, ReactNode } from 'react';
 import { AppHosts } from '../components/app-hosts.tsx';
 import { CompareSlider } from '../components/compare-slider.tsx';
+import { FreeCard } from '../components/free-card.tsx';
 import { Hero, HERO_SIZES } from '../components/hero.tsx';
-import { PRICES_TRY, Pricing } from '../components/pricing.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
 import { Screenshot, type Crop } from '../components/screenshot.tsx';
 import { SectionHeading } from '../components/section-heading.tsx';
 import { ConnectScene, InstallScene, SignScene } from '../components/step-scenes.tsx';
 import { brand, reveal } from '../lib/brand.stylex.ts';
 import { SITE_URL } from '../lib/canonical.ts';
-import type { Plan } from '../lib/config.ts';
+import { LICENSE_URL, SOURCE_URL } from '../lib/config.ts';
 import { layout } from '../lib/layout.ts';
 import { SCREENS, screenSources, type Screen } from '../lib/screens.ts';
 import { Sentence } from '../lib/slot.tsx';
 import { m } from '../paraglide/messages.js';
 
-/** UN/CEFACT codes for the unit each plan's price is per. */
-const BILLING_UNITS: Record<Plan, 'ANN' | 'MON'> = { monthly: 'MON', yearly: 'ANN' };
-
-/** One plan as an offer: its price before tax, billed once per year or month. */
-const offer = (plan: Plan, name: string) => ({
-  '@type': 'Offer',
-  name,
-  price: String(PRICES_TRY[plan]),
-  priceCurrency: 'TRY',
-  priceSpecification: {
-    '@type': 'UnitPriceSpecification',
-    billingIncrement: 1,
-    price: PRICES_TRY[plan],
-    priceCurrency: 'TRY',
-    unitCode: BILLING_UNITS[plan],
-    valueAddedTaxIncluded: false,
-  },
-  url: `${SITE_URL}/#fiyat`,
-});
-
-/** What search engines read about the app: a macOS business app with a yearly and a monthly offer. */
+/** What search engines read about the app: a free, open source macOS business app. */
 const structuredData = () => ({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   applicationCategory: 'BusinessApplication',
   description: m.meta_app_description(),
   inLanguage: 'tr',
+  license: LICENSE_URL,
   name: 'Angaria',
-  offers: [offer('yearly', m.pricing_yearly()), offer('monthly', m.pricing_monthly())],
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'TRY' },
   operatingSystem: 'macOS',
   publisher: { '@type': 'Organization', name: 'Vinena Studio', url: 'https://vinena.studio' },
   url: `${SITE_URL}/`,
@@ -389,6 +370,14 @@ function Landing() {
           <AppHosts />
         </Reveal>
         <Reveal index={5}>
+          <p {...props(layout.text)}>
+            <Sentence
+              message={(link) => m.privacy_source({ link })}
+              slot={<a href={SOURCE_URL}>{m.privacy_source_link()}</a>}
+            />
+          </p>
+        </Reveal>
+        <Reveal index={6}>
           <p {...props(layout.text, layout.muted, layout.small)}>
             <Sentence
               message={(link) => m.privacy_site_note({ link })}
@@ -398,17 +387,17 @@ function Landing() {
         </Reveal>
       </RevealSection>
 
-      <RevealSection aria-labelledby="fiyat" style={[layout.section, styles.section]}>
+      <RevealSection aria-labelledby="ucretsiz" style={[layout.section, styles.section]}>
         <Reveal index={0}>
-          <SectionHeading centered id="fiyat">
-            {m.pricing_title()}
+          <SectionHeading centered id="ucretsiz">
+            {m.free_title()}
           </SectionHeading>
         </Reveal>
         <Reveal index={1}>
-          <p {...props(layout.text, styles.leadCentered)}>{m.pricing_lead()}</p>
+          <p {...props(layout.text, styles.leadCentered)}>{m.free_lead()}</p>
         </Reveal>
         <Reveal index={2}>
-          <Pricing />
+          <FreeCard />
         </Reveal>
       </RevealSection>
 
@@ -425,10 +414,9 @@ function Landing() {
           <Question body={m.faq_foreign_a()} index={6} title={m.faq_foreign_q()} />
           <Question body={m.faq_pdf_a()} index={7} title={m.faq_pdf_q()} />
           <Question body={m.faq_accountant_a()} index={8} title={m.faq_accountant_q()} />
-          <Question body={m.faq_price_a()} index={9} title={m.faq_price_q()} />
-          <Question body={m.faq_company_a()} index={10} title={m.faq_company_q()} />
-          <Question body={m.faq_cancel_a()} index={11} title={m.faq_cancel_q()} />
-          <Question body={m.faq_windows_a()} index={12} title={m.faq_windows_q()} />
+          <Question body={m.faq_free_a()} index={9} title={m.faq_free_q()} />
+          <Question body={m.faq_source_a()} index={10} title={m.faq_source_q()} />
+          <Question body={m.faq_windows_a()} index={11} title={m.faq_windows_q()} />
         </dl>
       </RevealSection>
     </>

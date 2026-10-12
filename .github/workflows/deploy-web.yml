@@ -48,8 +48,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       # `run deploy`: a bare `pnpm deploy` is pnpm's own command, not the script.
-      # The script refuses to build without VITE_CHECKOUT_URL_YEARLY and
-      # VITE_CHECKOUT_URL_MONTHLY in .env.production.
       - run: pnpm --filter web run deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

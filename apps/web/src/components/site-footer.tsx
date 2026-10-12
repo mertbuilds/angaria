@@ -2,6 +2,7 @@ import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { Link } from '@tanstack/react-router';
 import { brand } from '../lib/brand.stylex.ts';
+import { LICENSE_URL, SOURCE_URL } from '../lib/config.ts';
 import { Sentence } from '../lib/slot.tsx';
 import { m } from '../paraglide/messages.js';
 
@@ -58,9 +59,24 @@ export function SiteFooter() {
           }
         />
       </p>
+      <p {...props(styles.line)}>
+        <Sentence
+          message={(license) => m.footer_license({ license })}
+          slot={
+            <a href={LICENSE_URL} {...props(styles.link)}>
+              {m.free_license()}
+            </a>
+          }
+        />
+      </p>
       <p {...props(styles.line)}>{m.footer_disclaimer()}</p>
       <nav aria-label={m.footer_links()}>
         <ul {...props(styles.links)}>
+          <li>
+            <a href={SOURCE_URL} {...props(styles.link)}>
+              {m.footer_source()}
+            </a>
+          </li>
           <li>
             <Link to="/gizlilik" {...props(styles.link)}>
               {m.footer_privacy()}
