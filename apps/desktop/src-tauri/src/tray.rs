@@ -170,6 +170,8 @@ pub fn menu_entries(view: &TrayView) -> Vec<Entry> {
     item("new-invoice", "Yeni fatura"),
     Entry::Separator,
     check("launch-at-login", "Girişte başlat", view.launch_at_login),
+    // Ayarlar › Görünüm shows it again; Finder or Spotlight opens the window.
+    item("hide-icon", "Menü çubuğundan gizle"),
     Entry::Separator,
     item("quit", "Çık"),
   ]
@@ -260,12 +262,12 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     return;
   };
   match event.id().as_ref() {
-    "mcp-enabled" | "mcp-actions" => {
+    "mcp-enabled" | "mcp-actions" | "hide-icon" => {
       let mut settings = mcp.settings().unwrap_or_default();
-      if event.id() == "mcp-enabled" {
-        settings.enabled = !settings.enabled;
-      } else {
-        settings.allow_actions = !settings.allow_actions;
+      match event.id().as_ref() {
+        "mcp-enabled" => settings.enabled = !settings.enabled,
+        "mcp-actions" => settings.allow_actions = !settings.allow_actions,
+        _ => settings.show_in_menu_bar = false,
       }
       if let Err(error) = mcp::apply_settings(app, settings) {
         log::error!("could not save the MCP settings: {error}");
@@ -435,6 +437,7 @@ mod tests {
         "open",
         "new-invoice",
         "launch-at-login",
+        "hide-icon",
         "quit"
       ]
     );
