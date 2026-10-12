@@ -679,6 +679,10 @@ const closeGIBSession = defineTool({
   name: 'close_gib_session',
   run: async (ctx) => {
     // An open signing operation holds the session; the close would wait behind it.
+    // One that is signing right now is left to finish.
+    if (ctx.state.signing.busy()) {
+      return failure('Önceki onay sürüyor. Sonucunu bekle, sonra oturumu kapat.', { code: 'busy' });
+    }
     ctx.state.signing.endAll('cancelled');
     await ctx.forceLogout();
     ctx.onAction({ kind: 'gib-session-closed' });

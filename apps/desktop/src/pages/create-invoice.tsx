@@ -25,6 +25,7 @@ import {
 } from '@/lib/invoice-form.ts';
 import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
 import { readQRValue } from '@/lib/invoice-preview.ts';
+import { localWeekStore } from '@/lib/invoice-weeks.ts';
 import { rangeCovering } from '@/lib/invoices.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { Invoice, InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
@@ -221,6 +222,8 @@ export function CreateInvoicePage() {
 
       // Make the new draft visible in the invoices list: refetch it and
       // widen the date range to cover the invoice date if needed.
+      // A backdated draft can land in a week this Mac keeps: ask GİB for it again.
+      localWeekStore(account.key).forget(draft.date);
       void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
       setInvoiceDateRange((prev) => rangeCovering(prev, draft.date));
 

@@ -22,6 +22,7 @@ import { importRuns } from '@/lib/import-run.ts';
 import { dueDateOf, saveDueDate } from '@/lib/invoice-due-dates.ts';
 import { saveAngariaPDF, saveEArchive } from '@/lib/invoice-files.ts';
 import { cleanItems, invoiceDefaults, upsertSavedItems } from '@/lib/invoice-form.ts';
+import { localWeekStore } from '@/lib/invoice-weeks.ts';
 import { parseGIBInvoice, rangeCovering } from '@/lib/invoices.ts';
 import { activityInput } from '@/lib/mcp-activity-input.ts';
 import {
@@ -245,6 +246,8 @@ export function McpHost() {
         // What Yeni fatura does after a draft: the list, the due date, the
         // customer and services learned, for the company the draft was made for.
         onDraftCreated: (draft, values) => {
+          // A backdated draft can land in a week this Mac keeps: ask GİB for it again.
+          localWeekStore(account.key).forget(draft.date);
           void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
           if (latest.current.activeEntityId === entity.id) {
             latest.current.setInvoiceDateRange((range) => rangeCovering(range, draft.date));

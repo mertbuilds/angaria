@@ -108,21 +108,25 @@ export const invoiceListProgressKey = (account: GIBAccount, range: DateRange) =>
  */
 export const invoiceListQuery = (account: GIBAccount, range: DateRange) =>
   queryOptions({
-    queryFn: ({ client, queryKey, signal }) =>
-      gib.run(
+    queryFn: ({ client, queryKey, signal }) => {
+      // Rows fill in week by week on the first load only: a refetch keeps
+      // showing the whole list until its new copy is complete.
+      const firstLoad = client.getQueryData(queryKey) === undefined;
+      return gib.run(
         account,
         (session, jobSignal) =>
           loadInvoiceWeeks({
             end: range.end,
             fetchWeek: (start, end) => getDrafts(session, start, end, { signal: jobSignal }),
-            onPartial: (rows) => client.setQueryData(queryKey, rows),
+            onPartial: firstLoad ? (rows) => client.setQueryData(queryKey, rows) : undefined,
             onProgress: (progress) =>
               client.setQueryData(invoiceListProgressKey(account, range), progress),
             start: range.start,
             store: localWeekStore(account.key),
           }),
         { signal },
-      ),
+      );
+    },
     queryKey: ['invoices', account.key, range.start, range.end],
     staleTime: 60_000,
   });

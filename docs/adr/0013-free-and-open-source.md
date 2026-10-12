@@ -4,7 +4,7 @@ Accepted, 2026-10-12. Supersedes `0002-polar-merchant-of-record.md`.
 
 ## Context
 
-Angaria was built as a paid subscription sold through Polar (0002): license keys, an activation limit, a 7-day offline grace period and a lock screen. Before go-live Mert decided to give it away instead: Angaria is free, and its source is public at https://github.com/vinenastudio/angaria.
+Angaria was built as a paid subscription sold through Polar (0002): license keys, an activation limit, a 7-day offline grace period and a lock screen. Before go-live Mert decided to give it away instead: Angaria is free, and its source is public at https://github.com/mertbuilds/angaria.
 
 ## Decision
 

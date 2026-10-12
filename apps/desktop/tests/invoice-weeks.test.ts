@@ -1,11 +1,17 @@
 import { describe, expect, test, vi } from 'vitest';
-import { loadInvoiceWeeks, weeksOf, type WeekStore } from '../src/lib/invoice-weeks.ts';
+import {
+  loadInvoiceWeeks,
+  localWeekStore,
+  weeksOf,
+  type WeekStore,
+} from '../src/lib/invoice-weeks.ts';
 import type { Invoice } from '../src/lib/types.ts';
 
 const memoryStore = (): WeekStore & { weeks: Map<string, Array<Invoice>> } => {
   const weeks = new Map<string, Array<Invoice>>();
   return {
     clear: () => weeks.clear(),
+    forget: () => {},
     get: (monday) => weeks.get(monday),
     set: (monday, rows) => void weeks.set(monday, rows),
     weeks,
@@ -93,5 +99,26 @@ describe('loadInvoiceWeeks', () => {
     });
     expect(rows.map((invoice) => invoice.belgeTarihi)).toEqual(['06-10-2026']);
     expect(store.weeks.size).toBe(0);
+  });
+});
+
+describe('localWeekStore', () => {
+  test('forgets the week a date falls in, and only that week', () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => storage.get(key) ?? null,
+      removeItem: (key: string) => storage.delete(key),
+      setItem: (key: string, value: string) => storage.set(key, value),
+    });
+    const store = localWeekStore('test-user');
+    store.clear();
+    store.set('13/07/2026', [row('14-07-2026')]);
+    store.set('20/07/2026', [row('21-07-2026')]);
+    // Wednesday 15 July 2026 is in the week of Monday 13 July.
+    store.forget('15/07/2026');
+    expect(store.get('13/07/2026')).toBeUndefined();
+    expect(store.get('20/07/2026')).toHaveLength(1);
+    store.clear();
+    vi.unstubAllGlobals();
   });
 });

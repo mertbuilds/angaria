@@ -64,10 +64,10 @@ type Job = {
   | { account: null; run: () => Promise<void> }
 );
 
-/** How long the app's GİB session stays open after the queue empties. */
 /** What a task waiting while the app quits rejects with. */
 const QUITTING = 'Angaria kapanıyor.';
 
+/** How long the app's GİB session stays open after the queue empties. */
 export const SESSION_LINGER_MS = 45_000;
 
 /** GİB refused because the user has a session open (on the portal, in a browser, or left by a crash). */

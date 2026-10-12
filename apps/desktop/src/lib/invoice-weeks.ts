@@ -61,6 +61,8 @@ const final = (rows: ReadonlyArray<Invoice>) =>
 /** The kept weeks of one GİB user code, by their Monday (DD/MM/YYYY). */
 export interface WeekStore {
   clear: () => void;
+  /** Drops the week holding `date` (DD/MM/YYYY), so the next list asks GİB for it. */
+  forget: (date: string) => void;
   get: (monday: string) => Array<Invoice> | undefined;
   set: (monday: string, rows: Array<Invoice>) => void;
 }
@@ -82,6 +84,23 @@ export function localWeekStore(accountKey: string): WeekStore {
         localStorage.removeItem(key);
       } catch {
         // Nothing kept.
+      }
+    },
+    forget: (date) => {
+      const day = parseGIB(date);
+      if (!day) {
+        return;
+      }
+      const monday = toGIB(addDays(startOfDay(day), -((day.getDay() + 6) % 7)));
+      const weeks = read();
+      if (!(monday in weeks)) {
+        return;
+      }
+      delete weeks[monday];
+      try {
+        localStorage.setItem(key, JSON.stringify(weeks));
+      } catch {
+        // Nothing kept to drop.
       }
     },
     get: (monday) => read()[monday],
