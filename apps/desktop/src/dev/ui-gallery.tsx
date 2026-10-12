@@ -3,6 +3,10 @@
 // palettes.css; Kit (no palette, the default) renders the components exactly as
 // the package ships them, Serin and Sıcak as the app does.
 import {
+  Accordion,
+  AccordionItem,
+  AccordionPanel,
+  AccordionTrigger,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -590,6 +594,21 @@ function Showcase() {
           <Wordmark style={styles.wordmarkLarge} />
           <Wordmark />
         </div>
+      </Section>
+
+      <Section title="Accordion">
+        <Accordion>
+          <AccordionItem>
+            <AccordionTrigger>Angaria kimler için?</AccordionTrigger>
+            <AccordionPanel>
+              Ayda birkaç e-Arşiv faturası kesen serbest çalışanlar ve şahıs şirketleri için.
+            </AccordionPanel>
+          </AccordionItem>
+          <AccordionItem>
+            <AccordionTrigger>Windows sürümü var mı?</AccordionTrigger>
+            <AccordionPanel>Henüz yok, Angaria şimdilik yalnızca Mac’te çalışıyor.</AccordionPanel>
+          </AccordionItem>
+        </Accordion>
       </Section>
 
       <Section title="Button">
