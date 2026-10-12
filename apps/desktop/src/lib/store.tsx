@@ -131,7 +131,8 @@ function makeBlankItem(): InvoiceItem {
   };
 }
 
-function blankForm(): InvoiceFormValues {
+/** A fresh blank invoice form, as Temizle leaves it. */
+export function blankForm(): InvoiceFormValues {
   return {
     advancedFields: { ...DEFAULT_ADVANCED_FIELDS },
     invoiceSettings: { ...DEFAULT_SETTINGS },

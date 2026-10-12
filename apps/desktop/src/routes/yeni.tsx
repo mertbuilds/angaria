@@ -6,8 +6,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { LoaderCircleIcon, XIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useRef } from 'react';
 import { invoiceDetailQuery, useGIBAccount } from '@/lib/gib.ts';
-import { isBlankForm } from '@/lib/invoice-form.ts';
-import { useStore } from '@/lib/store.tsx';
+import { isBlankForm, sameAsBlank } from '@/lib/invoice-form.ts';
+import { blankForm, useStore } from '@/lib/store.tsx';
 import { CreateInvoicePage } from '@/pages/create-invoice.tsx';
 import { InvoiceStart } from '@/pages/invoice-start.tsx';
 import { useClearInvoiceForm, useStoredInvoiceForm } from '@/pages/use-invoice-form.ts';
@@ -123,11 +123,11 @@ function useFormSource() {
   // The ETTN applied last, so a repeated run (StrictMode) loads and toasts once.
   const applied = useRef<string | null>(null);
   // Toast options with an undo that puts back the form a load is about to
-  // replace, or none when it is blank.
+  // replace, or none when it holds nothing a blank form does not.
   const undoReplace = useEffectEvent(() => {
     const values = stored;
     const source = invoiceSource;
-    return isBlankForm(values)
+    return sameAsBlank(values, blankForm())
       ? undefined
       : { action: { label: 'Geri al', onClick: () => restoreInvoiceDraft(values, source) } };
   });
