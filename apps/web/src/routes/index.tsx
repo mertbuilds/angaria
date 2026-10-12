@@ -37,7 +37,7 @@ const structuredData = () => ({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   applicationCategory: 'BusinessApplication',
-  author: { '@type': 'Person', name: 'Mert Duzgun', url: 'https://mertbuilds.com' },
+  author: { '@type': 'Person', name: 'Mert Düzgün', url: 'https://mertbuilds.com' },
   description: m.meta_app_description(),
   inLanguage: 'tr',
   license: LICENSE_URL,

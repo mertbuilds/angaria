@@ -1,6 +1,6 @@
 // TODO(lawyer): these terms are a plain-language draft, not reviewed. Before
 // go-live a lawyer checks them against Turkish law and the AGPL-3.0 warranty
-// disclaimer, and fills in the publisher's (Mert Duzgun) legal details and address.
+// disclaimer, and fills in the publisher's (Mert Düzgün) legal details and address.
 import { createFileRoute } from '@tanstack/react-router';
 import { LegalPage, LegalSection, Paragraph } from '../components/legal.tsx';
 import { SITE_URL } from '../lib/canonical.ts';
