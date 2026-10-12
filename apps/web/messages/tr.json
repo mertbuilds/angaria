@@ -161,7 +161,11 @@
   "faq_windows_q": "Windows sürümü var mı?",
   "faq_windows_a": "Henüz yok, Angaria şimdilik yalnızca Mac'te çalışıyor. Windows sürümü planlarımızda; hazır olunca bu sayfada duyuracağız.",
 
-  "mcp_title": "Angaria'yı Claude'a bağla",
+  "mcp_title": "Angaria'yı {app} bağla",
+  "mcp_title_all": "Angaria'yı Claude'a, Codex'e ve Cursor'a bağla",
+  "mcp_app_claude": "Claude'a",
+  "mcp_app_codex": "Codex'e",
+  "mcp_app_cursor": "Cursor'a",
   "mcp_lead": "Claude, Cursor, Codex ve 20'den fazla yapay zekâ uygulaması Angaria'yla faturalarını listeler, yeni faturanın taslağını hazırlar ve izin verirsen senin SMS şifrenle onaylar.",
   "mcp_point_ask_title": "Sor, hazırlasın",
   "mcp_point_ask_body": "Geçen ayın faturalarını sor, yeni faturanın taslağını hazırlat. İzin verirsen telefonuna gelen SMS şifresini yazarsın, faturayı o onaylar.",

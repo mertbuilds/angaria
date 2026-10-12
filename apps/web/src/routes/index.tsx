@@ -6,6 +6,7 @@ import { Laptop, MessagesSquare, MousePointerClick, PanelTop, type LucideIcon } 
 import type { LinkHTMLAttributes, ReactNode } from 'react';
 import { AppHosts } from '../components/app-hosts.tsx';
 import { CompareSlider } from '../components/compare-slider.tsx';
+import { CyclingWord } from '../components/cycling-word.tsx';
 import {
   CompaniesScene,
   CustomersScene,
@@ -80,6 +81,9 @@ const MCP_POINTS: ReadonlyArray<{ body: () => string; icon: LucideIcon; title: (
   { body: m.mcp_point_setup_body, icon: MousePointerClick, title: m.mcp_point_setup_title },
   { body: m.mcp_point_local_body, icon: Laptop, title: m.mcp_point_local_title },
 ];
+
+/** The apps the MCP heading names in turn, each with its own suffix. */
+const MCP_APPS = [m.mcp_app_claude, m.mcp_app_codex, m.mcp_app_cursor] as const;
 
 /**
  * The hero screenshot is the largest paint: preload the export the <picture>
@@ -272,6 +276,18 @@ const styles = create({
       [WIDE]: spacing.s12,
     },
   },
+  // For assistive tech only: the heading's full sentence, its moving word aside.
+  srOnly: {
+    borderWidth: 0,
+    clip: 'rect(0, 0, 0, 0)',
+    height: 1,
+    margin: -1,
+    overflow: 'hidden',
+    padding: 0,
+    position: 'absolute',
+    whiteSpace: 'nowrap',
+    width: 1,
+  },
   // Steps are a real sequence, so they carry their number.
   stepNumber: {
     alignItems: 'center',
@@ -303,7 +319,15 @@ function Landing() {
 
       <RevealSection aria-labelledby="mcp" style={[layout.section, styles.section]}>
         <Reveal index={0}>
-          <SectionHeading id="mcp">{m.mcp_title()}</SectionHeading>
+          <SectionHeading id="mcp">
+            <span {...props(styles.srOnly)}>{m.mcp_title_all()}</span>
+            <span aria-hidden="true">
+              <Sentence
+                message={(app) => m.mcp_title({ app })}
+                slot={<CyclingWord part="mcp-app" words={MCP_APPS.map((app) => app())} />}
+              />
+            </span>
+          </SectionHeading>
         </Reveal>
         <Reveal index={1}>
           <p {...props(layout.text, layout.muted, styles.lead)}>{m.mcp_lead()}</p>

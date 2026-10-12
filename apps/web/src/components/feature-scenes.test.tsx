@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { Loop } from '../lib/loop.ts';
 import { stubAnimate } from '../test/animations.ts';
 import { stubObservers } from '../test/observers.ts';
+import { cycleLoop } from './cycling-word.tsx';
 import {
   companiesLoop,
   CompaniesScene,
@@ -89,8 +90,9 @@ describe.each(SCENES)('%s scene', (_, Scene, loop) => {
   });
 });
 
-test('no two scenes move the same part', () => {
-  const parts = SCENES.flatMap(([, , loop]) => loop.tracks.map(({ part }) => part));
+test('no two scenes, nor the MCP heading, move the same part', () => {
+  const loops = [...SCENES.map(([, , loop]) => loop), cycleLoop('mcp-app', 3)];
+  const parts = loops.flatMap((loop) => loop.tracks.map(({ part }) => part));
   expect(parts.filter((part, index) => parts.indexOf(part) !== index)).toEqual([]);
 });
 
