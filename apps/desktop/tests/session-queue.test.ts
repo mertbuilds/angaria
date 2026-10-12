@@ -416,6 +416,29 @@ describe('the session after the queue empties', () => {
     expect(task).not.toHaveBeenCalled();
   });
 
+  test('quit while another account waits on a logout logs that account in no more', async () => {
+    const { client, log } = fakeClient();
+    const loggedOut = deferred<void>();
+    client.logout.mockImplementationOnce(async (session: SessionInfo) => {
+      log.push(`logout ${session.token}`);
+      return loggedOut.promise;
+    });
+    const queue = createSessionQueue(client, { lingerMs: 45_000 });
+    await queue.run(account('33333301'), async () => {});
+    const task = vi.fn(async () => {});
+    const running = queue.run(account('33333302'), task);
+    await tick();
+
+    const quitting = queue.quit();
+    await tick();
+    loggedOut.resolve();
+    await quitting;
+    await expect(running).rejects.toThrow('Angaria kapanıyor.');
+    await tick();
+    expect(log).toEqual(['login 33333301', 'logout t1']);
+    expect(task).not.toHaveBeenCalled();
+  });
+
   test('another account logs out of the lingering session first', async () => {
     vi.useFakeTimers();
     try {

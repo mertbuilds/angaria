@@ -174,6 +174,9 @@ export function createSessionQueue(
 
   /** Opens the account's session; one that arrives after quit() is logged out at once. */
   async function openSession(account: GIBAccount) {
+    if (quitting) {
+      throw new Error(QUITTING);
+    }
     const session = await signIn(account);
     if (quitting) {
       await client.logout(session).then(
