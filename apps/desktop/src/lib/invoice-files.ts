@@ -2,7 +2,6 @@
 // and GİB's own document (the e-Arşiv PDF of GİB's page, GİB's zip). The
 // invoice detail and the MCP tool download_invoice both save through here.
 import type { InvoicePDFData } from '../components/invoice-pdf.tsx';
-import { roundKurus } from './invoice-form.ts';
 import { buildEArchiveFilename } from './invoice-pdf-i18n.ts';
 import { readQRValue } from './invoice-preview.ts';
 import type { GIBInvoice } from './invoices.ts';
@@ -23,7 +22,7 @@ export interface InvoiceFileSource {
 /** Angaria's PDF data for an invoice read from GİB, with GİB's rounded totals. */
 export function gibInvoicePDFData(
   { company, dueDate, entityName, invoice }: Omit<InvoiceFileSource, 'readHTML'>,
-  { items, note, recipient, settings, subtotal, vat }: GIBInvoice,
+  { items, note, recipient, settings, subtotal, total, vat }: GIBInvoice,
   language: PDFLanguage,
   qrValue?: string,
 ): InvoicePDFData {
@@ -41,7 +40,7 @@ export function gibInvoicePDFData(
     qrValue,
     recipient: { ...recipient, id: '' },
     settings,
-    total: roundKurus(subtotal + vat),
+    total,
     totalVAT: vat,
   };
 }
