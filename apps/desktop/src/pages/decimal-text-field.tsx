@@ -10,6 +10,17 @@ function toText(value: number) {
 }
 
 /**
+ * The number the stored text means. toText keeps a negative result as "-5",
+ * which parseDecimal refuses; the field shows it while the form's check
+ * reports it.
+ */
+function textValue(text: string) {
+  const digits = /^\s*-(.*\d.*)$/.exec(text)?.[1];
+  const negative = digits === undefined ? null : parseDecimal(digits);
+  return parseDecimal(text) ?? (negative === null ? Number.NaN : -negative);
+}
+
+/**
  * NumberField for a number the invoice form keeps as text (the currency rate,
  * Ödenecek tutar): the text stays as typed and an expression ("3*1.500") stores
  * its result. Text that does not parse is stored as typed, so the form's check
@@ -33,7 +44,7 @@ export function DecimalTextField({
   const error = useFieldError({ typed: true });
   const inputRef = useRef<HTMLInputElement>(null);
   const text = field.state.value;
-  const value = text.trim() ? (parseDecimal(text) ?? Number.NaN) : Number.NaN;
+  const value = text.trim() ? textValue(text) : Number.NaN;
   return (
     <FieldFrame {...frame} error={error} id={field.name}>
       {(describedBy) => (
