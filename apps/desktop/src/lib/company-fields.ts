@@ -8,9 +8,9 @@ import {
   isValidSWIFT,
   isValidTCKN,
   isValidTRIBAN,
+  isBarePhonePrefix,
   isValidVKN,
   normalizeIBAN,
-  PHONE_PREFIX,
 } from './tr-validators.ts';
 import type { CompanyInfo } from './types.ts';
 
@@ -41,7 +41,10 @@ export const bankFields: Array<CompanyField> = [
   { key: 'bankAddress', kind: 'textarea', label: 'Banka adresi', placeholder: 'Banka şube adresi' },
 ];
 
-/** What is wrong with a company field's value, in the user's words. Empty is fine. */
+/**
+ * What is wrong with a company field's value, in the user's words. Empty is
+ * fine, and so is a phone holding only the start of the +90 it starts with.
+ */
 export function companyFieldError(kind: CompanyFieldKind, value: string) {
   const text = value.trim();
   if (!text) {
@@ -58,7 +61,7 @@ export function companyFieldError(kind: CompanyFieldKind, value: string) {
         ? undefined
         : 'Bu IBAN’ın kontrol haneleri tutmuyor. Numarayı kontrol et.';
     case 'phone':
-      return isValidPhone(text)
+      return isBarePhonePrefix(text) || isValidPhone(text)
         ? undefined
         : 'Telefonu ülke koduyla yaz, örneğin +90 532 123 45 67 ya da +49 30 1234 5678';
     case 'swift':
@@ -87,7 +90,8 @@ export function companyFieldError(kind: CompanyFieldKind, value: string) {
 /**
  * The value a field keeps once it is left, the form the PDF prints: spaces out
  * of a tax ID and a SWIFT code, an IBAN grouped by four, a phone number in its
- * clean form and a bare +90 (what the field starts with) cleared.
+ * clean form and a bare +90 (what the field starts with, or any start of it)
+ * cleared.
  */
 export function normalizeCompanyField(kind: CompanyFieldKind, value: string) {
   switch (kind) {
@@ -96,7 +100,7 @@ export function normalizeCompanyField(kind: CompanyFieldKind, value: string) {
     case 'iban':
       return normalizeIBAN(value).replaceAll(/(.{4})(?=.)/g, '$1 ');
     case 'phone':
-      return value.trim() === PHONE_PREFIX.trim() ? '' : formatPhone(value);
+      return isBarePhonePrefix(value) ? '' : formatPhone(value);
     case 'swift':
       return value.replaceAll(/\s/g, '').toUpperCase();
     case 'taxID':

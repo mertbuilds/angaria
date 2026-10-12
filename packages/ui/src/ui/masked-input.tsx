@@ -6,6 +6,11 @@ import { useCallback, useMemo } from 'react';
 import { Input, type InputProps } from './input.tsx';
 
 export type MaskedInputProps = InputProps & {
+  /**
+   * Typed and pasted spaces reach the mask, for one that groups as given (a
+   * phone number of another country); otherwise the mask puts its own back.
+   */
+  keepSpaces?: boolean;
   /** A fixed-shape mask (IBAN, phone, GTİP). Keep it a stable module constant. */
   mask: MaskitoOptions;
 };
@@ -20,11 +25,21 @@ const normalizeInsert: MaskitoPreprocessor = ({ data, elementState }, actionType
     ? { data: data.replaceAll(/\s/g, '').toUpperCase(), elementState }
     : { data, elementState };
 
+/** normalizeInsert without removing the spaces. */
+const upperCaseInsert: MaskitoPreprocessor = ({ data, elementState }, actionType) =>
+  actionType === 'insert' ? { data: data.toUpperCase(), elementState } : { data, elementState };
+
 /** An Input with a Maskito mask for a fixed-shape ID. */
-const MaskedInput = ({ mask, ref, ...props }: MaskedInputProps) => {
+const MaskedInput = ({ keepSpaces = false, mask, ref, ...props }: MaskedInputProps) => {
   const options = useMemo(
-    () => ({ ...mask, preprocessors: [normalizeInsert, ...(mask.preprocessors ?? [])] }),
-    [mask],
+    () => ({
+      ...mask,
+      preprocessors: [
+        keepSpaces ? upperCaseInsert : normalizeInsert,
+        ...(mask.preprocessors ?? []),
+      ],
+    }),
+    [keepSpaces, mask],
   );
   const maskRef = useMaskito({ options });
   const mergedRef = useCallback(

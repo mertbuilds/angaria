@@ -125,12 +125,16 @@ export const GTIP_MASK: MaskitoOptions = {
 /** What an empty phone field starts with: most numbers are Turkish. */
 export const PHONE_PREFIX = '+90 ';
 
+/** Nothing typed past the start of +90 (`+`, `+9`, `90`, `0`, …): an empty phone. */
+export const isBarePhonePrefix = (text: string) => /^\+?9?0?$/.test(text.replaceAll(/\s/g, ''));
+
 /**
  * A phone number in its clean form. Turkish ones (+90, 0532…, 532…) read
  * `+90 532 123 45 67`; another country's keeps its + and digits, grouped as
  * given (`+49 30 1234 5678`; 0049… counts as +49…). `cap` cuts the digits a
  * number can have (10 after +90, 15 in all), for the field as it is typed;
- * the check sees them all.
+ * the check sees them all, and a typed space after another country's
+ * digits stays, so the next group can follow it.
  */
 export function formatPhone(text: string, { cap = false } = {}) {
   const trimmed = text.trim();
@@ -163,18 +167,26 @@ export function formatPhone(text: string, { cap = false } = {}) {
       return kept;
     });
   }
-  return `+${groups.filter(Boolean).join(' ')}`;
+  const phone = `+${groups.filter(Boolean).join(' ')}`;
+  return cap && phone !== '+' && /\s$/.test(text) ? `${phone} ` : phone;
 }
 
 const TR_PHONE_SHAPE = /^\+90 \d{3} \d{3} \d{2} \d{2}$/;
 
-/** A Turkish number in full (+90 and 10 digits), or another country's with 8 to 15 digits. */
+/**
+ * A Turkish number in full (+90 and 10 digits), or another country's with 8 to
+ * 15 digits. No country code is a lone 9.
+ */
 export function isValidPhone(text: string) {
   const phone = formatPhone(text);
   if (phone.startsWith('+90')) {
     return TR_PHONE_SHAPE.test(phone);
   }
-  return /^\+[1-9]/.test(phone) && /^\d{8,15}$/.test(phone.replaceAll(/\D/g, ''));
+  return (
+    /^\+[1-9]/.test(phone) &&
+    !phone.startsWith('+9 ') &&
+    /^\d{8,15}$/.test(phone.replaceAll(/\D/g, ''))
+  );
 }
 
 /** The digits and + a caret has before it, so it lands after the same ones once formatted. */
@@ -198,9 +210,10 @@ function caretAfter(text: string, count: number) {
 }
 
 /**
- * Only digits and a leading + go in. A whole number pasted or typed over an
- * empty field (or one holding only the +90 it starts with) replaces it, so
- * `+49…` or `0532…` pasted after +90 is not doubled.
+ * Only digits, spaces and a leading + go in (the spaces group another
+ * country's number as given). A whole number pasted or typed over an empty
+ * field (or one holding only the +90 it starts with) replaces it, so `+49…` or
+ * `0532…` pasted after +90 is not doubled.
  */
 const phoneInsert: MaskitoPreprocessor = ({ data, elementState }, actionType) => {
   if (actionType !== 'insert') {
@@ -209,19 +222,25 @@ const phoneInsert: MaskitoPreprocessor = ({ data, elementState }, actionType) =>
   const { selection, value } = elementState;
   const [from, to] = selection;
   const rest = (value.slice(0, from) + value.slice(to)).trim();
-  const cleaned = data.replaceAll(/[^\d+]/g, '');
-  const whole = cleaned.startsWith('+') || cleaned.replaceAll(/\D/g, '').length >= 10;
+  const cleaned = data.replaceAll(/[^\d+\s]/g, '').replaceAll(/\s+/g, ' ');
+  const whole = cleaned.trim().startsWith('+') || cleaned.replaceAll(/\D/g, '').length >= 10;
   if (whole && (rest === '' || rest === PHONE_PREFIX.trim())) {
-    return { data: cleaned, elementState: { selection: [0, 0], value: '' } };
+    return { data: cleaned.trim(), elementState: { selection: [0, 0], value: '' } };
   }
-  const plusFirst = from === 0 && !value.startsWith('+') && cleaned.startsWith('+');
-  return { data: plusFirst ? cleaned : cleaned.replaceAll('+', ''), elementState };
+  const plusFirst = from === 0 && !value.startsWith('+') && cleaned.trimStart().startsWith('+');
+  return { data: plusFirst ? cleaned.trimStart() : cleaned.replaceAll('+', ''), elementState };
 };
 
-/** Reformats the number as it is typed, keeping the caret after the same digit. */
+/**
+ * Reformats the number as it is typed, keeping the caret after the same digit,
+ * or at the end when it was there (after a typed space).
+ */
 const phoneFormat: MaskitoPostprocessor = ({ selection, value }) => {
   const formatted = formatPhone(value, { cap: true });
-  const caret = caretAfter(formatted, significantBefore(value, selection[1]));
+  const caret =
+    selection[1] === value.length
+      ? formatted.length
+      : caretAfter(formatted, significantBefore(value, selection[1]));
   return { selection: [caret, caret], value: formatted };
 };
 

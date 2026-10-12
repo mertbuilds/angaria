@@ -79,7 +79,7 @@ import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/pal
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import { ibanBankName } from '@/lib/tr-banks.ts';
-import { IBAN_MASK, PHONE_MASK, PHONE_PREFIX } from '@/lib/tr-validators.ts';
+import { IBAN_MASK, isBarePhonePrefix, PHONE_MASK, PHONE_PREFIX } from '@/lib/tr-validators.ts';
 import type { Entity, PDFStyle } from '@/lib/types.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
 import { useImportFromGIB } from '@/shell/import-from-gib.tsx';
@@ -607,10 +607,14 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
   const { activeEntity, activeEntityId, companyInfo, entities, setCompanyInfo } = useStore();
   const [left, setLeft] = useState(false);
   const [taken, setTaken] = useState<string | null>(null);
+  // A phone holding only the start of +90 shows it here and stores nothing,
+  // so leaving Ayarlar without a blur (⌘1-6, ⌘Q) never saves a bare +90.
+  const [bare, setBare] = useState<string | null>(null);
   const before = useRef(companyInfo[field.key]);
   const id = `company-${field.key}`;
   const kind = field.kind ?? 'text';
   const value = taken ?? companyInfo[field.key];
+  const shown = bare !== null && !value ? bare : value;
   const ownerOf = (taxID: string) =>
     kind === 'taxID' ? taxIDOwner(companyKeys(entities), activeEntityId, taxID) : undefined;
   const owner = ownerOf(value);
@@ -620,7 +624,10 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
   }
   const mask = masks[kind];
 
-  const setValue = (next: string) => {
+  const setValue = (typed: string) => {
+    const prefixOnly = kind === 'phone' && isBarePhonePrefix(typed);
+    setBare(prefixOnly ? typed : null);
+    const next = prefixOnly ? '' : typed;
     const nextOwner = ownerOf(next);
     setTaken(nextOwner ? next : null);
     setCompanyInfo((info) => ({ ...info, [field.key]: nextOwner ? before.current : next }));
@@ -628,6 +635,7 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
 
   const handleBlur = () => {
     setLeft(true);
+    setBare(null);
     const normal = normalizeCompanyField(kind, value);
     if (normal !== value) {
       setValue(normal);
@@ -699,7 +707,7 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
               before.current = companyInfo[field.key];
               // An empty phone starts with Türkiye's code; leaving it bare clears it.
               if (kind === 'phone' && !value.trim()) {
-                setValue(PHONE_PREFIX);
+                setBare(PHONE_PREFIX);
               }
             },
             placeholder: field.placeholder,
@@ -710,7 +718,7 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
                 rows={2}
                 {...control}
                 onChange={(event) => setValue(event.target.value)}
-                value={value}
+                value={shown}
               />
             );
           }
@@ -720,11 +728,12 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
                 {...control}
                 autoComplete={kind === 'phone' ? 'tel' : 'off'}
                 inputMode={kind === 'phone' ? 'tel' : 'text'}
+                keepSpaces={kind === 'phone'}
                 mask={mask}
                 onInput={(event) => setValue(event.currentTarget.value)}
                 style={styles.tabular}
                 type={kind === 'phone' ? 'tel' : 'text'}
-                value={value}
+                value={shown}
               />
             );
           }
@@ -737,7 +746,7 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
               spellCheck={kind === 'email' || kind === 'taxID' ? false : undefined}
               style={kind === 'taxID' ? styles.tabular : undefined}
               type={kind === 'email' ? 'email' : 'text'}
-              value={value}
+              value={shown}
             />
           );
         }}

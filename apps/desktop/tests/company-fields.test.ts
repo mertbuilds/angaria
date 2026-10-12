@@ -8,11 +8,12 @@ const save = (kind: Parameters<typeof normalizeCompanyField>[0], value: string) 
 };
 
 describe('phone', () => {
-  test('only a bare +90 clears it', () => {
-    expect(save('phone', '+90 ')).toEqual({ error: undefined, value: '' });
-    expect(save('phone', '+90')).toEqual({ error: undefined, value: '' });
-    expect(save('phone', '')).toEqual({ error: undefined, value: '' });
-    for (const partial of ['9', '90', '+9', '+']) {
+  test('a bare +90, or any start of it, clears it', () => {
+    for (const bare of ['+90 ', '+90', '', '9', '90', '+9', '+', '0', '+ 9 0']) {
+      expect(save('phone', bare), bare).toEqual({ error: undefined, value: '' });
+      expect(companyFieldError('phone', bare), bare).toBeUndefined();
+    }
+    for (const partial of ['+4', '+90 5', '05']) {
       const saved = save('phone', partial);
       expect(saved.error, partial).toBeDefined();
       expect(saved.value, partial).not.toBe('');
