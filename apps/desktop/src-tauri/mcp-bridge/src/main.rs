@@ -92,8 +92,9 @@ fn read_state(dir: &Path) -> AppState {
   }
 }
 
-/// Whether `processes` (`ps -axo comm=`, one executable path per line) has
-/// the app running from `bundle`. The bridges there (`own`) do not count.
+/// Whether `processes` (`ps -xo comm=`: this user's processes, one executable
+/// path per line) has the app running from `bundle`. The bridges there (`own`)
+/// do not count.
 fn app_running(processes: &str, bundle: &Path, own: &str) -> bool {
   let executables = bundle.join("Contents").join("MacOS");
   processes.lines().map(Path::new).any(|exe| {
@@ -112,7 +113,7 @@ fn open_in_background(bundle: &Path) -> bool {
     .and_then(|exe| exe.file_name().map(|name| name.to_string_lossy().into_owned()))
     .unwrap_or_default();
   let running = Command::new("ps")
-    .args(["-axo", "comm="])
+    .args(["-xo", "comm="])
     .output()
     .is_ok_and(|out| app_running(&String::from_utf8_lossy(&out.stdout), bundle, &own));
   if running {
