@@ -86,7 +86,9 @@ export function imageHeaderSize(bytes: Uint8Array): { height: number; width: num
   let at = 2;
   while (at + 9 <= bytes.length) {
     if (bytes[at] !== 0xff) {
-      return null;
+      // A stray byte between segments: skip to the next marker, as decoders do.
+      at += 1;
+      continue;
     }
     const marker = bytes[at + 1];
     if (marker === 0xff) {
