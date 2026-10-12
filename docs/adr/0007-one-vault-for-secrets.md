@@ -8,7 +8,7 @@ The desktop app kept a keychain item per secret: the license record and one GİB
 
 ## Decision
 
-Every secret lives in one keychain item, service `com.vinena.angaria`, account `vault`, as JSON: `{ v: 1, license?, gibPasswords: { [entityId]: password } }`. The app reads it once per launch, on first need, keeps it in memory and writes only when the serialized content changes. Password typing writes after a 500 ms pause. The license writes on a new status, key, details, expiry or check time; the time seen alone at most once a day. The first launch moves the old items into the vault and deletes them only after the vault is written.
+Every secret lives in one keychain item, service `com.vinena.angaria`, account `vault`, as JSON. The original shape was `{ v: 1, license?, gibPasswords: { [entityId]: password } }`; since then `gibSessions?` holds the GİB sessions open now, by user code, until their logout, and `license` is gone (see the status line). The app reads it once per launch, on first need, keeps it in memory and writes only when the serialized content changes. Password typing writes after a 500 ms pause. The license writes on a new status, key, details, expiry or check time; the time seen alone at most once a day. The first launch moves the old items into the vault and deletes them only after the vault is written.
 
 Dev builds (`debug_assertions`) keep the vault in a JSON file with mode 0600 in the app data dir behind the same `vault_read` and `vault_write` commands. `ANGARIA_DEV_KEYCHAIN=1` opts a dev build into the keychain. Release builds always use the keychain.
 

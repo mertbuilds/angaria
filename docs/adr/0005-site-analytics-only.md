@@ -8,7 +8,7 @@ Privacy is part of the product: no Angaria server, no tracking, credentials in t
 
 ## Decision
 
-The site uses PostHog EU through its own `/ingest` proxy, cookieless (`persistence: 'memory'`): page views plus the named CTA events (`download_click`, `checkout_click`) only. Autocapture, session recording, surveys and heatmaps stay off. Without `VITE_POSTHOG_KEY` nothing loads. The desktop app has zero telemetry: no analytics and no crash reporting. It reaches only GİB, TCMB, Polar (0002) and `dl.angaria.app` (0004).
+The site uses PostHog EU through its own `/ingest` proxy, cookieless (`persistence: 'memory'`): page views plus the named CTA events (`download_click`, `source_click`) only. Autocapture, session recording, surveys and heatmaps stay off. Without `VITE_POSTHOG_KEY` nothing loads. The desktop app has zero telemetry: no analytics and no crash reporting. It reaches only GİB, TCMB and `dl.angaria.app` (0004).
 
 ## Consequences
 
