@@ -1,4 +1,4 @@
-import type { MaskitoOptions, MaskitoPreprocessor } from '@maskito/core';
+import type { MaskitoOptions, MaskitoPostprocessor, MaskitoPreprocessor } from '@maskito/core';
 
 // Checks and masks for Turkish IDs and numbers: VKN, TCKN, IBAN, GTİP, phone,
 // SWIFT and e-mail. Pure functions; the masks feed MaskedField.
@@ -122,45 +122,112 @@ export const GTIP_MASK: MaskitoOptions = {
   ],
 };
 
-const PHONE_PREFIX = '+90 ';
+/** What an empty phone field starts with: most numbers are Turkish. */
+export const PHONE_PREFIX = '+90 ';
 
 /**
- * Turns a pasted or typed number into the digits after +90: `+90 532…`,
- * `0532…` and `532…` all become `532…`. A leading 0 typed into an empty
- * field is dropped too.
+ * A phone number in its clean form. Turkish ones (+90, 0532…, 532…) read
+ * `+90 532 123 45 67`; another country's keeps its + and digits, grouped as
+ * given (`+49 30 1234 5678`; 0049… counts as +49…). `cap` cuts the digits a
+ * number can have (10 after +90, 15 in all), for the field as it is typed;
+ * the check sees them all.
  */
-const phoneDigits: MaskitoPreprocessor = ({ data, elementState }, actionType) => {
+export function formatPhone(text: string, { cap = false } = {}) {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return '';
+  }
+  const plus = trimmed.startsWith('+');
+  let groups = trimmed.split(/\D+/).filter(Boolean);
+  if (!plus && groups.join('').startsWith('00')) {
+    groups[0] = groups[0]?.replace(/^00/, '') ?? '';
+    groups = groups.filter(Boolean);
+  } else if (!plus && !groups.join('').startsWith('90')) {
+    // A Turkish number without its country code; no area code starts with 9.
+    groups = ['90', ...groups];
+  }
+  const digits = groups.join('');
+  if (digits.startsWith('90')) {
+    let national = digits.slice(2).replace(/^0+/, '');
+    if (cap) {
+      national = national.slice(0, 10);
+    }
+    const parts = [national.slice(0, 3), national.slice(3, 6), national.slice(6, 8)];
+    return ['+90', ...parts, national.slice(8)].filter(Boolean).join(' ');
+  }
+  if (cap) {
+    let room = 15;
+    groups = groups.map((group) => {
+      const kept = group.slice(0, room);
+      room -= kept.length;
+      return kept;
+    });
+  }
+  return `+${groups.filter(Boolean).join(' ')}`;
+}
+
+const TR_PHONE_SHAPE = /^\+90 \d{3} \d{3} \d{2} \d{2}$/;
+
+/** A Turkish number in full (+90 and 10 digits), or another country's with 8 to 15 digits. */
+export function isValidPhone(text: string) {
+  const phone = formatPhone(text);
+  if (phone.startsWith('+90')) {
+    return TR_PHONE_SHAPE.test(phone);
+  }
+  return /^\+[1-9]/.test(phone) && /^\d{8,15}$/.test(phone.replaceAll(/\D/g, ''));
+}
+
+/** The digits and + a caret has before it, so it lands after the same ones once formatted. */
+const significantBefore = (text: string, at: number) =>
+  text.slice(0, at).replaceAll(/[^\d+]/g, '').length;
+
+function caretAfter(text: string, count: number) {
+  if (count === 0) {
+    return 0;
+  }
+  let seen = 0;
+  for (const [index, char] of [...text].entries()) {
+    if (/[\d+]/.test(char)) {
+      seen += 1;
+      if (seen === count) {
+        return index + 1;
+      }
+    }
+  }
+  return text.length;
+}
+
+/**
+ * Only digits and a leading + go in. A whole number pasted or typed over an
+ * empty field (or one holding only the +90 it starts with) replaces it, so
+ * `+49…` or `0532…` pasted after +90 is not doubled.
+ */
+const phoneInsert: MaskitoPreprocessor = ({ data, elementState }, actionType) => {
   if (actionType !== 'insert') {
     return { data, elementState };
   }
-  let digits = data.replaceAll(/\D/g, '');
-  if (digits.length >= 12 && digits.startsWith('90')) {
-    digits = digits.slice(2);
+  const { selection, value } = elementState;
+  const [from, to] = selection;
+  const rest = (value.slice(0, from) + value.slice(to)).trim();
+  const cleaned = data.replaceAll(/[^\d+]/g, '');
+  const whole = cleaned.startsWith('+') || cleaned.replaceAll(/\D/g, '').length >= 10;
+  if (whole && (rest === '' || rest === PHONE_PREFIX.trim())) {
+    return { data: cleaned, elementState: { selection: [0, 0], value: '' } };
   }
-  const [from] = elementState.selection;
-  if (from <= PHONE_PREFIX.length) {
-    digits = digits.replace(/^0+/, '');
-  }
-  return { data: digits, elementState };
+  const plusFirst = from === 0 && !value.startsWith('+') && cleaned.startsWith('+');
+  return { data: plusFirst ? cleaned : cleaned.replaceAll('+', ''), elementState };
 };
 
-/** A Turkish phone number: `+90 532 123 45 67`. */
-export const TR_PHONE_MASK: MaskitoOptions = {
-  mask: [
-    ...PHONE_PREFIX,
-    digit,
-    digit,
-    digit,
-    ' ',
-    digit,
-    digit,
-    digit,
-    ' ',
-    digit,
-    digit,
-    ' ',
-    digit,
-    digit,
-  ],
-  preprocessors: [phoneDigits],
+/** Reformats the number as it is typed, keeping the caret after the same digit. */
+const phoneFormat: MaskitoPostprocessor = ({ selection, value }) => {
+  const formatted = formatPhone(value, { cap: true });
+  const caret = caretAfter(formatted, significantBefore(value, selection[1]));
+  return { selection: [caret, caret], value: formatted };
+};
+
+/** A phone number of any country, Turkish ones as `+90 532 123 45 67`. */
+export const PHONE_MASK: MaskitoOptions = {
+  mask: /^\+?[\d ]*$/,
+  postprocessors: [phoneFormat],
+  preprocessors: [phoneInsert],
 };

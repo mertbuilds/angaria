@@ -79,7 +79,7 @@ import { paletteChoices, paletteLabels, setPalette, usePalette } from '@/lib/pal
 import { useStore } from '@/lib/store.tsx';
 import { setTheme } from '@/lib/theme.ts';
 import { ibanBankName } from '@/lib/tr-banks.ts';
-import { IBAN_MASK, TR_PHONE_MASK } from '@/lib/tr-validators.ts';
+import { IBAN_MASK, PHONE_MASK, PHONE_PREFIX } from '@/lib/tr-validators.ts';
 import type { Entity, PDFStyle } from '@/lib/types.ts';
 import { checkForUpdate, installUpdate, type Update } from '@/lib/updater.ts';
 import { useImportFromGIB } from '@/shell/import-from-gib.tsx';
@@ -594,7 +594,7 @@ const SWIFT_MASK: MaskitoOptions = { mask: /^[0-9A-Z]{0,11}$/ };
 
 const masks: Partial<Record<CompanyFieldKind, MaskitoOptions>> = {
   iban: IBAN_MASK,
-  phone: TR_PHONE_MASK,
+  phone: PHONE_MASK,
   swift: SWIFT_MASK,
 };
 
@@ -662,6 +662,8 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
         {fill}
       </>
     );
+  } else if (kind === 'phone') {
+    note = 'Başka bir ülkenin numarasını ülke koduyla yaz, örneğin +49';
   } else if (bank) {
     note = (
       <>
@@ -695,6 +697,10 @@ function CompanyFieldRow({ field }: { field: CompanyField }) {
             onBlur: handleBlur,
             onFocus: () => {
               before.current = companyInfo[field.key];
+              // An empty phone starts with Türkiye's code; leaving it bare clears it.
+              if (kind === 'phone' && !value.trim()) {
+                setValue(PHONE_PREFIX);
+              }
             },
             placeholder: field.placeholder,
           };
