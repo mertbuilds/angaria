@@ -17,15 +17,14 @@ import '../brand.css';
 import '../app.css';
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  void import('react-grab');
   // Dev-only: StyleX HMR runtime injects styles; production CSS is emitted into app.css at build.
   void import('virtual:stylex:runtime');
   // Dev-only: devknobs emulates color scheme, motion, contrast, locale, geo and
-  // layout from inside the page; `d` toggles it. It defaults to open, so pin it
-  // closed, otherwise the panel covers the right edge on every load.
+  // layout from inside the page (⇧K toggles it), and grabs an element's context
+  // for an agent (⇧G).
   // oxlint-disable-next-line unicorn/prefer-top-level-await -- awaiting here would stop the route module from evaluating if the chunk fails
   void import('devknobs')
-    .then(({ mount }) => mount({ open: false }))
+    .then(({ mount }) => mount())
     // oxlint-disable-next-line no-console -- the browser console is the only channel this dev-only failure has
     .catch((error: unknown) => console.warn('devknobs failed to load', error));
 }
