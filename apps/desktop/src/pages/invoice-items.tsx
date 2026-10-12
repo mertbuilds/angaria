@@ -25,6 +25,7 @@ import {
   formatAmount,
   formatDecimal,
   invoiceWarnings,
+  isExportIstisna,
   lineTotals,
   parseDecimal,
 } from '@/lib/invoice-form.ts';
@@ -264,12 +265,15 @@ export const UNIT_OPTIONS: ReadonlyArray<ChoiceOption<string>> = COMMON_UNITS.ma
   value: code,
 }));
 
-/** KDV's hint on an İstisna invoice. */
+/** KDV's hint on an İstisna invoice for an export (301, 302). */
 const ISTISNA_VAT_HINT = ruleMessage(
   'İstisna faturada KDV %0 (',
   cite('exportExemption', 'KDV Kanunu 11/1-a'),
   ')',
 );
+
+/** KDV's hint on an İstisna invoice for another reason (350): no linked source. */
+const OTHER_ISTISNA_VAT_HINT = 'İstisna faturada KDV %0';
 
 /** A rate typed with or without its sign: "18", "%18" and "18%" are 18. */
 const parsePercent = (text: string) => parseDecimal(text.replace('%', ''));
@@ -427,6 +431,9 @@ function ItemRow({
   const istisna = useFormState(
     form.store,
     (state) => state.values.invoiceSettings.invoiceType === 'ISTISNA',
+  );
+  const exportIstisna = useFormState(form.store, (state) =>
+    isExportIstisna(state.values.invoiceSettings.istisnaCode),
   );
   const vatWarning = useFormState(
     form.store,
@@ -638,7 +645,15 @@ function ItemRow({
             {(field) => (
               <field.ChoiceField
                 compact
-                description={istisna ? <RuleText message={ISTISNA_VAT_HINT} /> : undefined}
+                description={
+                  istisna ? (
+                    exportIstisna ? (
+                      <RuleText message={ISTISNA_VAT_HINT} />
+                    ) : (
+                      OTHER_ISTISNA_VAT_HINT
+                    )
+                  ) : undefined
+                }
                 disabled={istisna}
                 label="KDV"
                 options={VAT_OPTIONS}

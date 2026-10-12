@@ -409,6 +409,24 @@ describe('validateInvoice', () => {
     });
   });
 
+  test.each([
+    ['301', 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)'],
+    ['302', 'İstisna faturada KDV oranı %0 olmalı (KDV Kanunu 11/1-a)'],
+    ['350', 'İstisna faturada KDV oranı %0 olmalı'],
+  ])('cites KDV Kanunu 11/1-a only for an export: İstisna %s', (istisnaCode, message) => {
+    const invoiceSettings = {
+      currency: 'TRY',
+      currencyRate: '',
+      invoiceType: 'ISTISNA',
+      istisnaCode,
+    };
+    const result = validateInvoice(
+      form({ invoiceSettings, items: [item({ VATRate: 20 })] }),
+      today,
+    );
+    expect(result?.fields['items[0].VATRate']).toBe(message);
+  });
+
   test.each(['TEVKIFAT', 'IADE', 'OZELMATRAH', 'IHRACKAYITLI', ''])(
     'blocks the unsupported invoice type %j',
     (invoiceType) => {
