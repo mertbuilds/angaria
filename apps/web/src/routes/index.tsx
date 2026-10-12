@@ -226,7 +226,7 @@ const styles = create({
   },
   // The MCP scene beside what MCP does where there is room.
   mcp: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     display: 'grid',
     gap: {
       default: spacing.s6,
@@ -234,7 +234,7 @@ const styles = create({
     },
     gridTemplateColumns: {
       default: '1fr',
-      [ROOMY]: '5fr 6fr',
+      [ROOMY]: '1fr 1fr',
     },
   },
   mcpPoints: {

@@ -18,6 +18,9 @@ import { enter, hidden, progress, shown, Stage, styles as scene, Window } from '
 const AWAY = 'cubic-bezier(0.4, 0, 1, 1)';
 const translateY = (y: number) => `translateY(${y}px)`;
 
+/** Wider than the step cards' stage, so the request has room around it. */
+const STAGE = { height: 224, width: 320 } as const;
+const INNER = STAGE.width - 2 * 16;
 const CUSTOMER = 'Agent Caffeine';
 const AMOUNT = '$4.500,00';
 const TOOL_AT = 1000;
@@ -120,8 +123,8 @@ const styles = create({
     height: 26,
     paddingInline: 10,
     position: 'absolute',
-    right: 13,
-    top: 28,
+    right: 16,
+    top: 34,
     transformOrigin: '100% 100%',
     whiteSpace: 'nowrap',
   },
@@ -164,13 +167,13 @@ const styles = create({
 /** Decorative: the page's words say what it shows. */
 export function McpScene() {
   return (
-    <Stage loop={mcpLoop}>
-      <Window height={188} width={264} x={0} y={6}>
+    <Stage grow loop={mcpLoop} size={STAGE}>
+      <Window height={STAGE.height - 12} width={STAGE.width} x={0} y={6}>
         <div data-part="chat" {...props(styles.fill)}>
           <span data-part="prompt" {...props(styles.prompt)}>
             {m.mcp_scene_prompt()}
           </span>
-          <div data-part="tool" {...props(scene.at(13, 62), scene.size(236, 26), styles.tool)}>
+          <div data-part="tool" {...props(scene.at(16, 74), scene.size(INNER, 28), styles.tool)}>
             <AppIcon size={14} />
             <span>{m.mcp_scene_app()}</span>
             <span {...props(scene.muted)}>{m.mcp_scene_tool()}</span>
@@ -181,7 +184,7 @@ export function McpScene() {
               </span>
             </span>
           </div>
-          <div data-part="card" {...props(scene.at(13, 96), scene.size(236, 52), styles.card)}>
+          <div data-part="card" {...props(scene.at(16, 112), scene.size(INNER, 56), styles.card)}>
             <div {...props(styles.between)}>
               <span {...props(styles.customer)}>{CUSTOMER}</span>
               <span data-part="badge" {...props(styles.badge)}>
@@ -193,7 +196,10 @@ export function McpScene() {
               <span {...props(styles.amount)}>{AMOUNT}</span>
             </div>
           </div>
-          <span data-part="reply" {...props(scene.at(13, 156), scene.size(236, 30), styles.reply)}>
+          <span
+            data-part="reply"
+            {...props(scene.at(16, 178), scene.size(INNER, 30), styles.reply)}
+          >
             {m.mcp_scene_reply()}
           </span>
         </div>

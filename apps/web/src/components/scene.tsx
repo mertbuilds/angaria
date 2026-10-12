@@ -184,6 +184,11 @@ export const styles = create({
     overflow: 'hidden',
     position: 'relative',
   },
+  mediaGrow: {
+    flexGrow: 1,
+    minHeight: 280,
+  },
+  // A growing stage is drawn a fifth larger where its card is wide.
   origin: (x: number, y: number) => ({
     transformOrigin: `${x}px ${y}px`,
   }),
@@ -209,6 +214,12 @@ export const styles = create({
     lineHeight: 1.3,
     position: 'relative',
     width: STAGE.width,
+  },
+  stageGrow: {
+    transform: {
+      '@media (min-width: 960px)': 'scale(1.2)',
+      default: null,
+    },
   },
   titleDot: {
     backgroundColor: colors.border,
@@ -275,11 +286,25 @@ export function Sequence({ children }: { children: ReactNode }) {
  * loop with a `progress` track. Decorative: the step's words beside it say
  * what it shows.
  */
-export function Stage({ children, loop }: { children: ReactNode; loop: Loop }) {
+export function Stage({
+  children,
+  grow = false,
+  loop,
+  size = STAGE,
+}: {
+  children: ReactNode;
+  /** Fills the height its card gives it, beyond the usual 240px. */
+  grow?: boolean;
+  loop: Loop;
+  /** The drawing's own size; the step and feature cards share the default. */
+  size?: { height: number; width: number };
+}) {
   const ref = useLoop<HTMLDivElement>(loop, useContext(TurnContext));
   return (
-    <div aria-hidden="true" ref={ref} {...props(styles.media)}>
-      <div {...props(styles.stage)}>{children}</div>
+    <div aria-hidden="true" ref={ref} {...props(styles.media, grow && styles.mediaGrow)}>
+      <div {...props(styles.stage, styles.size(size.width, size.height), grow && styles.stageGrow)}>
+        {children}
+      </div>
       {loop.tracks.some(({ part }) => part === 'progress') ? (
         <div {...props(styles.line)}>
           <div data-part="progress" {...props(styles.lineFill)} />
