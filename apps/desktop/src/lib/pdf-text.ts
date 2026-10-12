@@ -10,7 +10,8 @@ const isEmojiGlue = (codePoint: number) =>
 /**
  * `text` without the characters the PDF's font has no glyph for (emoji and
  * other symbols): react-pdf would draw them as a box over the next letters.
- * Line breaks and tabs stay; spaces left doubled by a removed character close up.
+ * Line breaks and tabs stay; spaces left doubled by a removed character close up,
+ * and spaces it leaves at a line's start or end go.
  */
 export function printableText(text: string, covers: (codePoint: number) => boolean): string {
   const normalized = text.normalize('NFC');
@@ -24,7 +25,7 @@ export function printableText(text: string, covers: (codePoint: number) => boole
       removed = true;
     }
   }
-  return removed ? kept.replaceAll(/ {2,}/g, ' ').trim() : normalized;
+  return removed ? kept.replaceAll(/ {2,}/g, ' ').replaceAll(/^ +| +$/gm, '') : normalized;
 }
 
 /** Fields that never print as text: the logo's data URL and the QR code's content. */
