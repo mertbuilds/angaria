@@ -507,6 +507,31 @@ describe('sessions an earlier run left open', () => {
     expect(sessions).toEqual({});
   });
 
+  test('a call the user asks for runs between two leftover logouts', async () => {
+    const { client, log } = fakeClient();
+    const firstLogout = deferred<void>();
+    client.logout.mockImplementation(async (session) => {
+      log.push(`logout ${session.token}`);
+      if (session.token === 'old-a') {
+        await firstLogout.promise;
+      }
+    });
+    const { store } = memoryStore({ a: leftover('old-a'), b: leftover('old-b') });
+    const queue = createSessionQueue(client, { store });
+
+    const ended = queue.endLeftovers();
+    await tick();
+    expect(log).toEqual(['logout old-a']);
+    const list = queue.run(account('33333301'), async () => {
+      log.push('list');
+    });
+    firstLogout.resolve();
+    await list;
+    await ended;
+    await tick();
+    expect(log).toEqual(['logout old-a', 'login 33333301', 'list', 'logout old-b', 'logout t1']);
+  });
+
   test('the first login of an account logs its leftover out first', async () => {
     const { client, log } = fakeClient();
     const { sessions, store } = memoryStore({ '33333301': leftover('old') });

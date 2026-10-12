@@ -313,16 +313,20 @@ export function createSessionQueue(
 
   /**
    * Logs out every session an earlier run left open (launch), after the
-   * calls the user asked for. Never rejects.
+   * calls the user asked for: one background task per account, so a call
+   * asked for meanwhile runs before the next logout. Never rejects.
    */
-  function endLeftovers(): Promise<void> {
-    return runBare(async () => {
-      for (const key of (await storedSessions()).keys()) {
-        if (open?.key !== key) {
-          await endLeftover(key);
-        }
-      }
-    }, true).catch(() => {});
+  async function endLeftovers(): Promise<void> {
+    const keys = [...(await storedSessions()).keys()];
+    await Promise.all(
+      keys.map((key) =>
+        runBare(async () => {
+          if (open?.key !== key) {
+            await endLeftover(key);
+          }
+        }, true).catch(() => {}),
+      ),
+    );
   }
 
   /**
