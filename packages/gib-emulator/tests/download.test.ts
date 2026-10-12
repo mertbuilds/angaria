@@ -31,9 +31,9 @@ async function login() {
   return String(((await response.json()) as Record<string, unknown>).token);
 }
 
-async function seedSigned() {
+async function seedSigned(status = 'Onaylandı') {
   const response = await fetch(`${emulator.url}/__emulator/seed`, {
-    body: JSON.stringify({ invoices: [{ status: 'Onaylandı', userid: '33333301' }] }),
+    body: JSON.stringify({ invoices: [{ status, userid: '33333301' }] }),
     method: 'POST',
   });
   const { invoices } = (await response.json()) as { invoices: Array<{ ettn: string }> };
@@ -109,6 +109,16 @@ test('an unknown ETTN gets the error envelope', async () => {
   expect(await response.json()).toMatchObject({
     error: '1',
     messages: [{ text: messages.invoiceNotFound }],
+  });
+});
+
+test('a deleted draft does not download', async () => {
+  const ettn = await seedSigned('Silinmiş');
+  const token = await login();
+  const response = await download({ ettn, onayDurumu: 'Silinmiş', token });
+  expect(await response.json()).toMatchObject({
+    error: '1',
+    messages: [{ text: messages.deletedNotShown }],
   });
 });
 

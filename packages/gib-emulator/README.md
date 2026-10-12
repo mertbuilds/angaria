@@ -112,7 +112,7 @@ Start config comes from `GIB_EMULATOR_*` variables, a JSON file (`--config file.
 | Variable                        | Config                                                                          | Default  |
 | ------------------------------- | ------------------------------------------------------------------------------- | -------- |
 | `GIB_EMULATOR_PORT`, `--port`   |                                                                                 | `5180`   |
-| `GIB_EMULATOR_HOST`, `--host`   |                                                                                 | loopback |
+| `GIB_EMULATOR_HOST`, `--host`   | loopback addresses only                                                         | loopback |
 | `GIB_EMULATOR_STATE`, `--state` | `stateFile`                                                                     | memory   |
 | `GIB_EMULATOR_SMS_CODE`         | `smsCode` (`random` too)                                                        | `123456` |
 | `GIB_EMULATOR_MAX_RANGE_DAYS`   | `maxRangeDays`                                                                  | `7`      |
@@ -130,7 +130,7 @@ With `stateFile`, documents, numbering and edited profiles are written after eve
 
 ## Control API
 
-No auth, so the emulator guards it in other ways. Every request must name a loopback host (`127.0.0.1`, `localhost`, `[::1]`, with any port) or a `*.angaria.localhost` alias in `Host`, else 403: this stops DNS rebinding, and it means the emulator only works on loopback. `/__emulator` sends no CORS headers and answers 403 to a request whose `Origin` is not one of those names, so a web page elsewhere cannot drive it. Keep the default loopback host.
+No auth, so the emulator guards it in other ways. Every request must name a loopback host (`127.0.0.1`, `localhost`, `[::1]`, with any port) or a `*.angaria.localhost` alias in `Host`, else 403: this stops DNS rebinding, and it means the emulator only works on loopback. `/__emulator` sends no CORS headers and answers 403 to a request whose `Origin` is not one of those names, so a web page elsewhere cannot drive it. For the same reason it refuses to listen on an address other than loopback (`127.x.x.x`, `localhost`, `::1`): on `0.0.0.0` or a LAN address, another machine could send a loopback `Host` and read or change its state.
 
 | Request                            | Body                                                                                                                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

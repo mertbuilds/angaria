@@ -92,6 +92,9 @@ export function downloadReply(ctx: PortalContext, query: URLSearchParams): Reply
   if (invoice?.userid !== user.userid || query.get('cmd') !== 'EARSIV_PORTAL_BELGE_INDIR') {
     return fail(ctx, messages.invoiceNotFound);
   }
+  if (invoice.onayDurumu === 'Silinmiş') {
+    return fail(ctx, messages.deletedNotShown);
+  }
   ctx.log(`${user.userid}: ${invoice.belgeNumarasi} downloaded`);
   return {
     body: zip(

@@ -15,9 +15,12 @@ const above: Values = { opacity: 0, transform: 'translateY(-0.4em)' };
 /**
  * One track per word, each word in its turn: it rises in from below as the
  * one before it rises away, stays, then rises away itself. The first word is
- * back in place when the loop ends.
+ * back in place when the loop ends. One word has nothing to swap: it stays.
  */
 export function cycleLoop(part: string, count: number): Loop {
+  if (count < 2) {
+    return { duration: STEP, tracks: [] };
+  }
   const duration = count * STEP;
   return {
     duration,

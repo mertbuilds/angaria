@@ -912,6 +912,22 @@ describe('access', () => {
     expect(local.headers['access-control-allow-origin']).toBeUndefined();
   });
 
+  test('refuses to listen on an address other than loopback', async () => {
+    for (const host of ['0.0.0.0', '::', '192.168.1.10']) {
+      await expect(startEmulator({ host })).rejects.toThrow(/loopback only/);
+    }
+  });
+
+  test('the index page escapes user IDs and passwords', async () => {
+    await admin('POST', '/seed', {
+      users: [{ password: '<img src=x onerror=alert(1)>', userid: '"><b>', vknTckn: '1111111111' }],
+    });
+    const page = await (await fetch(emulator.url)).text();
+    expect(page).not.toContain('<img');
+    expect(page).not.toContain('<b>');
+    expect(page).toContain('&#60;img src=x onerror=alert(1)&#62;');
+  });
+
   test('PATCH /__emulator/config never takes a state file', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'gib-emulator-'));
     const stateFile = join(dir, 'written.json');

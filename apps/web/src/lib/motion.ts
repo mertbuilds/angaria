@@ -30,7 +30,7 @@ export function useInView<T extends Element>({
         if (!entry) {
           return;
         }
-        setInView(entry.isIntersecting);
+        setInView((was) => (once && was) || entry.isIntersecting);
         if (once && entry.isIntersecting) {
           observer.disconnect();
         }

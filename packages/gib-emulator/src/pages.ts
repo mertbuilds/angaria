@@ -48,13 +48,16 @@ export const notFoundHTML = `<html>
 </html>
 `;
 
+const escapeHTML = (value: string) =>
+  value.replaceAll(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
+
 export const indexHTML = (users: Array<{ password: string; userid: string }>) => `<!DOCTYPE html>
 <html lang="tr">
 <head><meta charset="UTF-8"><title>GİB e-Arşiv emülatörü</title></head>
 <body style="font-family:system-ui,sans-serif;max-width:640px;margin:48px auto;padding:0 16px">
 <h1 style="font-weight:500">GİB e-Arşiv emülatörü</h1>
 <p>Local stand-in for earsivportal.efatura.gov.tr and www.tcmb.gov.tr/kurlar.</p>
-<p>Users: ${users.map(({ password, userid }) => `<code>${userid}</code> / <code>${password}</code>`).join(', ')}</p>
+<p>Users: ${users.map(({ password, userid }) => `<code>${escapeHTML(userid)}</code> / <code>${escapeHTML(password)}</code>`).join(', ')}</p>
 <p>State: <a href="/__emulator/state">/__emulator/state</a>. Today's rates: <a href="/kurlar/today.xml">/kurlar/today.xml</a>.</p>
 </body>
 </html>

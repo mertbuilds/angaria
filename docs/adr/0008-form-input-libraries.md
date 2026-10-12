@@ -23,7 +23,7 @@ Candidates and what we found:
 - Choices: Base UI `RadioGroup` for `ChoiceChips`, Base UI `OTPField` for the SMS code. Base UI `ToggleGroup` is not used: its value is an array, meant for view switches.
 - Motion: CSS and the Web Animations API with Base UI's `data-starting-style`, no motion library.
 - Money stays in decimal numbers rounded per line, not integer kuruş: integer kuruş would mean migrating the persisted store, the PDF and the SDK.
-- Versions live in the pnpm catalog. Every package and subpath `@angaria/ui` imports is listed in `uiDependencies` in `apps/web/vite.config.ts`.
+- Versions live in the pnpm catalog. Every package and subpath `@angaria/ui` imports that the web's dev server must pre-bundle is listed in `uiDependencies` in `apps/web/vite.config.ts`. React, `@stylexjs/stylex` and `lucide-react` are not: the web imports them itself, so the dependency scanner finds them.
 
 ## Consequences
 

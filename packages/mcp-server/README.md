@@ -47,8 +47,8 @@ Environment variables only:
 
 ```bash
 claude mcp add angaria --scope user \
-  -e GIB_USERNAME=<user> \
-  -e GIB_PASSWORD=<password> \
+  -e GIB_USERNAME='your-user-code' \
+  -e GIB_PASSWORD='your-password' \
   -- node /absolute/path/to/angaria/packages/mcp-server/dist/index.mjs
 ```
 

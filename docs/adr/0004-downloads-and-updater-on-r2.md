@@ -15,4 +15,4 @@ A Cloudflare R2 bucket (`angaria-downloads`) serves both through the custom doma
 - There is no update server: the manifest is a file and a release is an upload.
 - `dl.angaria.app` is on the app's http allowlist and in the privacy host list.
 - Losing the updater private key means users reinstall from the `.dmg` after a key rotation.
-- A bad release is fixed with a new patch release; to stop it spreading first, re-upload a `latest.json` that points at the previous version. Details: `docs/release.md`.
+- A bad release is fixed with a new patch release; to stop it spreading first, re-upload a `latest.json` that points at the previous version and the previous `.dmg` to `latest/Angaria.dmg`. Details: `docs/release.md`.
