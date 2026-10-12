@@ -4,7 +4,7 @@ Marketing screenshots of the Angaria desktop app for angaria.app. The frontend r
 
 ## Files
 
-WebP only (quality 82). PNG fallbacks would have taken the folder past 12 MB; these come to 5.1 MB.
+WebP only (quality 82). PNG fallbacks would have taken the folder past 12 MB; these come to 2.0 MB.
 
 Each app screen comes in eight files, `<screen>-<theme>[-framed]-<width>.webp`:
 
@@ -16,17 +16,6 @@ Each app screen comes in eight files, `<screen>-<theme>[-framed]-<width>.webp`:
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `faturalar-detail` | Faturalar, Son 3 ay: eleven invoices with totals and Taslak / Onaylı badges (two drafts, nine signed). The signed Northwind Labs invoice GIB2026000000023 ($7.640,00) is open: GİB's e-Arşiv preview with the QR code, PDF indir (Türkçe ve İngilizce), Tekrar kes.                                                                                                                                                                                                           |
 | `yeni-fatura`      | Yeni fatura from Tekrar kes on GIB2026000000023, scrolled to Fatura: the Tarih and Son ödeme tarihi date fields (14 gün sonra), İstisna with 302 · Hizmet ihracatı, USD at TCMB's buying rate (45,1961, the 1 Ekim 2026 bulletin), and the first of the two services under Hizmetler (Yazılım geliştirme hizmeti, 1 × 6.500,00 $) with its Birim and KDV choices. The Özet card shows Genel toplam, TL karşılığı, the TR+EN PDF switch, Taslak oluştur and Oluştur ve onayla. |
-| `yeni-start`       | Yeni fatura's start screen, "Geçen faturadan başla": the five newest invoices with Tekrar kes, and Boş fatura.                                                                                                                                                                                                                                                                                                                                                                |
-| `musteriler`       | Müşteriler: five customers, Northwind Labs Inc. selected and scrolled to its Fatura varsayılanları (USD, İstisna, PDF TR+EN, KDV %0, Son ödeme tarihi 14 gün).                                                                                                                                                                                                                                                                                                                |
-| `palette`          | The ⌘K command palette over Faturalar, filtered by "fatura": Yeni fatura (⌘N), Geçen ayın faturasını tekrar kes (highlighted) and Faturalar (⌘1). Unfiltered, its list scrolls and cuts the last group at the edge.                                                                                                                                                                                                                                                           |
-| `mcp`              | MCP with the server switched on: Durum Çalışıyor, 127.0.0.1:41234, Şirket Deniz Yılmaz Yazılım, and Kurulum's buttons (Claude Desktop’a ekle, Komutu kopyala, Cursor’a ekle, JSON’u kopyala). A stand-in for Tauri's IPC answered the server's status and the bridge's path; the tool calls behind Son çağrılar (below the window) ran through the app. Shown framed on /mcp, above the setup steps.                                                                          |
-
-The PDF is paper, so it has one version and no frame:
-
-| File            | What it shows                                                                                                                                     |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pdf-2880.webp` | Page 1 of the PDF of GIB2026000000023 as the app downloads it: minimal style, Turkish and English side by side, QR code, bank details. 2880×4073. |
-| `pdf-1440.webp` | The same at 1440×2037.                                                                                                                            |
 
 The GİB portal has no dark theme, so it has one version and no frame. It is the other side of the landing's compare slider, against `yeni-fatura`:
 

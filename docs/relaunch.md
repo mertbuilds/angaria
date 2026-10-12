@@ -55,11 +55,15 @@ Source of truth: the attentionawareness repo's `packages/ui/src/theme.css` (+ `t
 Turkish. Sections:
 
 1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" CTA (free and open source since 2026-10-12).
-2. GİB vs Angaria: a compare slider over the GİB portal's e-Arşiv fatura form and Angaria's Yeni fatura.
-3. Features: geçen faturadan başla, geçen ayın faturasını tekrar kes, müşteri ve hizmet kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers).
-4. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, update check); credentials in system keychain; data stays on device.
-5. Free and open source: no pricing (removed 2026-10-12); the AGPL and a link to the source code.
-6. SSS (FAQ), footer.
+2. MCP (2026-10-12, moved from its own /mcp page, which now redirects to `/#mcp`): Claude, Cursor and other AI apps list, draft and, with the user's SMS code, sign invoices; Angaria runs in the background from the menu bar; one-click setup; it runs on the Mac.
+3. GİB vs Angaria: a compare slider over the GİB portal's e-Arşiv fatura form and Angaria's Yeni fatura.
+4. Nasıl çalışır: three steps, each a looping scene.
+5. Features, each a looping scene with a motion of its own (2026-10-12; cropped screenshots before): mevzuata göre uyarılar (the app's own rule messages, the cited law linked), geçen faturadan başla, geçen ayın faturasını tekrar kes, müşteri ve hizmet kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers), yurt dışı müşteri ve TCMB kuru, birden fazla şirket.
+6. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, update check); credentials in system keychain; data stays on device.
+7. Free and open source: no pricing (removed 2026-10-12); the AGPL and a link to the source code.
+8. SSS (FAQ) as an accordion, all answers closed at first; footer.
+
+Header (2026-10-12): the same as attentionawareness and Agent Caffeine: the app icon beside the name, the sections, GitHub and İndir; it gathers into a pill on scroll and has a menu on a phone. The app icon is in the header, not in the hero.
 
 ## Go-live
 
