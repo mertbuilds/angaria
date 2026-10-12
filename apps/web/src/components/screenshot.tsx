@@ -19,7 +19,9 @@ const styles = create({
  * page, the light one otherwise. A themed screen renders both exports, each in
  * a `data-shot` box that `app.css` shows for its theme, so a theme chosen in
  * the footer switches them too (a `<picture>` media query follows only the
- * system). A lazy image in a hidden box is never fetched.
+ * system). A lazy image in a hidden box is never fetched. With `priority`,
+ * only the light export is eager; the route's preload fetches the dark one
+ * early for a dark system.
  */
 export function Screenshot({
   priority = false,
@@ -27,7 +29,7 @@ export function Screenshot({
   sizes,
   style,
 }: {
-  /** The page's largest image: fetched first, never lazily. */
+  /** The page's largest image: its light export is fetched first, never lazily. */
   priority?: boolean;
   screen: Screen;
   sizes: string;
@@ -35,14 +37,15 @@ export function Screenshot({
 }) {
   const image = (theme: 'dark' | 'light', alt: string) => {
     const sources = screenSources(screen, theme);
+    const eager = priority && theme === 'light';
     return (
       <img
         alt={alt}
         decoding="async"
         draggable={false}
-        fetchPriority={priority ? 'high' : 'auto'}
+        fetchPriority={eager ? 'high' : 'auto'}
         height={screen.height}
-        loading={priority ? 'eager' : 'lazy'}
+        loading={eager ? 'eager' : 'lazy'}
         sizes={sizes}
         src={sources.src}
         srcSet={sources.srcSet}
