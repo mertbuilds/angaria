@@ -37,13 +37,13 @@ const structuredData = () => ({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   applicationCategory: 'BusinessApplication',
+  author: { '@type': 'Person', name: 'Mert Duzgun', url: 'https://mertbuilds.com' },
   description: m.meta_app_description(),
   inLanguage: 'tr',
   license: LICENSE_URL,
   name: 'Angaria',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'TRY' },
   operatingSystem: 'macOS',
-  publisher: { '@type': 'Organization', name: 'Vinena Studio', url: 'https://vinena.studio' },
   url: `${SITE_URL}/`,
 });
 

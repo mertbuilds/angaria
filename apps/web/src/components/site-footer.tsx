@@ -8,8 +8,8 @@ import { m } from '../paraglide/messages.js';
 
 export const CONTACT_EMAIL = 'destek@angaria.app';
 /** Every link to one of our own sites carries utm tags, so the visit is traced to this one. */
-const STUDIO_URL =
-  'https://vinena.studio/?utm_source=angaria.app&utm_medium=referral&utm_campaign=footer';
+const AUTHOR_URL =
+  'https://mertbuilds.com/?utm_source=angaria.app&utm_medium=referral&utm_campaign=footer';
 /** Read once per load, not per render: the copyright line only moves at New Year. */
 const YEAR = new Date().getFullYear();
 
@@ -53,7 +53,7 @@ export function SiteFooter() {
         <Sentence
           message={(studio) => m.footer_made_by({ studio })}
           slot={
-            <a href={STUDIO_URL} {...props(styles.link)}>
+            <a href={AUTHOR_URL} {...props(styles.link)}>
               {m.footer_studio()}
             </a>
           }

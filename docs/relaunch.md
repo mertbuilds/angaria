@@ -5,7 +5,7 @@ Decisions from the grilling session with Mert. Every agent working on the relaun
 ## Product
 
 - Angaria: Tauri desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers (1-2 invoices/month).
-- **Free and open source** (2026-10-12, Mert's call; it was a paid Polar subscription before): GNU Affero General Public License v3.0 only (`LICENSE`), source at https://github.com/vinenastudio/angaria. No billing, no license check, no trial. Why the AGPL: `docs/adr/0013-free-and-open-source.md`.
+- **Free and open source** (2026-10-12, Mert's call; it was a paid Polar subscription before): GNU Affero General Public License v3.0 only (`LICENSE`), source at https://github.com/mertbuilds/angaria. No billing, no license check, no trial. Why the AGPL: `docs/adr/0013-free-and-open-source.md`.
 - Turkish only (app + site). Wordmark-only brand: `Angaria` with a capital A (Turkish suffixes after an apostrophe: Angaria'yı, Angaria'nın) in Suisse Intl Medium. No symbol mark.
 
 ## Repo layout (target)

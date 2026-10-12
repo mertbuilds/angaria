@@ -62,7 +62,7 @@ Before a bare `cargo check`, `cargo clippy` or `cargo test` in `apps/desktop/src
 
 ### Fonts
 
-The official app uses Suisse Intl. Its license is commercial, so the font files are not in this repository and must never be committed. Builds from source use Inter instead, in the UI and in the invoice PDF, and need nothing else. `pnpm fonts` fetches Suisse Intl from a private bucket for Vinena Studio's official releases; `scripts/release-mac.sh` refuses to build a release without it.
+The official app uses Suisse Intl. Its license is commercial, so the font files are not in this repository and must never be committed. Builds from source use Inter instead, in the UI and in the invoice PDF, and need nothing else. `pnpm fonts` fetches Suisse Intl from a private bucket for the official releases; `scripts/release-mac.sh` refuses to build a release without it.
 
 ## Advanced: connect over HTTP
 
@@ -88,7 +88,7 @@ By contributing you agree that your contribution is licensed under the AGPL-3.0,
 
 ## License
 
-Copyright (C) 2026 Vinena Studio.
+Copyright (C) 2026 Mert Duzgun.
 
 Angaria is free software: you can redistribute it and modify it under the terms of the GNU Affero General Public License, version 3, as published by the Free Software Foundation. It comes with no warranty. The full text is in `LICENSE`.
 

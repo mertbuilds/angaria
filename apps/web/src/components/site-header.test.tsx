@@ -71,7 +71,7 @@ describe('header', () => {
     expect(screen.getByRole('link', { name: 'Angaria ana sayfa' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
       'href',
-      'https://github.com/vinenastudio/angaria',
+      'https://github.com/mertbuilds/angaria',
     );
     expect(screen.getByRole('link', { name: 'İndir' })).toHaveAttribute(
       'href',

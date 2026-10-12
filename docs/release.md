@@ -92,7 +92,7 @@ The dashboard path is R2, `angaria-downloads`, Settings, Custom Domains, Connect
 
 ## Go-live checklist
 
-- Make https://github.com/vinenastudio/angaria public: Ayarlar › Hakkında links it as the AGPL source offer.
+- Make https://github.com/mertbuilds/angaria public: Ayarlar › Hakkında links it as the AGPL source offer.
 - The desktop build needs no environment values. Official releases need Suisse Intl (Fonts above); builds from source use Inter.
 
 ## Release steps

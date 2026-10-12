@@ -4,7 +4,7 @@ const DEFAULT_DOWNLOAD_URL = 'https://dl.angaria.app/latest/Angaria.dmg';
 const DEFAULT_POSTHOG_HOST = '/ingest';
 
 /** Angaria's public source code. */
-export const SOURCE_URL = 'https://github.com/vinenastudio/angaria';
+export const SOURCE_URL = 'https://github.com/mertbuilds/angaria';
 /** The license the code is published under, AGPL-3.0-only. */
 export const LICENSE_URL = `${SOURCE_URL}/blob/main/LICENSE`;
 

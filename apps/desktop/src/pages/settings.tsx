@@ -926,7 +926,7 @@ function updateStatus(state: UpdateState) {
 }
 
 // The AGPL's source offer: every copy of the app links its full source.
-const SOURCE_CODE_URL = 'https://github.com/vinenastudio/angaria';
+const SOURCE_CODE_URL = 'https://github.com/mertbuilds/angaria';
 
 function openSourceCode() {
   openUrl(SOURCE_CODE_URL).catch(() => toast.error('Sayfa tarayıcıda açılamadı. Tekrar dene.'));
@@ -1006,7 +1006,7 @@ function AboutSection() {
         )}
       </SettingsRow>
       <SettingsRow
-        hint="Bu sürümün tam kaynak kodu herkese açık: github.com/vinenastudio/angaria"
+        hint="Bu sürümün tam kaynak kodu herkese açık: github.com/mertbuilds/angaria"
         label="Kaynak kodu"
       >
         <Button onClick={openSourceCode} variant="outline">
