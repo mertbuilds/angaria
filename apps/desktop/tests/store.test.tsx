@@ -295,3 +295,57 @@ test('a new install starts with sample customers and services in a dev build', a
   expect(entity.savedItems).toHaveLength(3);
   act(() => root.unmount());
 });
+
+function UsernameChanger({ to }: { to: Array<string> }) {
+  const { setCredentials } = useStore();
+  return (
+    <button
+      onClick={async () => {
+        for (const username of to) {
+          await setCredentials('a', { username });
+        }
+      }}
+      type="button"
+    >
+      Kaydet
+    </button>
+  );
+}
+
+const gibIdentity = { name: 'Deniz Yılmaz', taxID: '33333333301', taxOffice: 'Kadıköy' };
+
+/** Loads one company that logged in as 33333301, saves `to` as its username, returns the stored gibIdentity. */
+async function identityAfterSaving(to: Array<string>) {
+  storage.clear();
+  storage.set(
+    'fatura-entities',
+    JSON.stringify([
+      {
+        companyInfo: details(''),
+        creds: { username: '33333301' },
+        gibIdentity,
+        id: 'a',
+        name: 'Ana Varlık',
+      },
+    ]),
+  );
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      <StoreProvider>
+        <UsernameChanger to={to} />
+      </StoreProvider>,
+    ),
+  );
+  await settle();
+  await act(async () => container.querySelector('button')?.click());
+  await settle();
+  act(() => root.unmount());
+  return JSON.parse(storage.get('fatura-entities') ?? '[]')[0].gibIdentity;
+}
+
+test("a changed GİB username forgets what GİB said of the old account's taxpayer", async () => {
+  expect(await identityAfterSaving([' 33333301 '])).toEqual(gibIdentity);
+  expect(await identityAfterSaving(['12345678'])).toBeUndefined();
+});

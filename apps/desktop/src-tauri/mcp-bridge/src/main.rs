@@ -92,9 +92,32 @@ fn read_state(dir: &Path) -> AppState {
   }
 }
 
+/// Whether `processes` (`ps -axo comm=`, one executable path per line) has
+/// the app running from `bundle`. The bridges there (`own`) do not count.
+fn app_running(processes: &str, bundle: &Path, own: &str) -> bool {
+  let executables = bundle.join("Contents").join("MacOS");
+  processes.lines().map(Path::new).any(|exe| {
+    exe.parent() == Some(executables.as_path())
+      && exe.file_name().is_some_and(|name| name != own)
+  })
+}
+
 /// Opens Angaria in the background: `open -g -j` neither shows nor
 /// activates it, and the app keeps its window hidden for `--background`.
+/// An app already running (still starting its server) is left alone: `open`
+/// would make it reopen, which shows its window.
 fn open_in_background(bundle: &Path) -> bool {
+  let own = env::current_exe()
+    .ok()
+    .and_then(|exe| exe.file_name().map(|name| name.to_string_lossy().into_owned()))
+    .unwrap_or_default();
+  let running = Command::new("ps")
+    .args(["-axo", "comm="])
+    .output()
+    .is_ok_and(|out| app_running(&String::from_utf8_lossy(&out.stdout), bundle, &own));
+  if running {
+    return true;
+  }
   Command::new("open")
     .args(["-g", "-j", "-a"])
     .arg(bundle)
@@ -627,6 +650,17 @@ mod tests {
     bridge.cancel("5");
     assert!(bridge.flights.lock().unwrap().is_empty());
     fs::remove_dir_all(dir).unwrap();
+  }
+
+  #[test]
+  fn a_running_app_is_found_by_its_bundle_and_not_by_a_bridge() {
+    let bundle = Path::new("/Applications/Angaria.app");
+    let others = "/sbin/launchd\n/Applications/Other.app/Contents/MacOS/Angaria\n";
+    let bridge = "/Applications/Angaria.app/Contents/MacOS/angaria-mcp\n";
+    let app = "/Applications/Angaria.app/Contents/MacOS/Angaria\n";
+    assert!(!app_running(others, bundle, "angaria-mcp"));
+    assert!(!app_running(&format!("{others}{bridge}"), bundle, "angaria-mcp"));
+    assert!(app_running(&format!("{others}{bridge}{app}"), bundle, "angaria-mcp"));
   }
 
   #[test]

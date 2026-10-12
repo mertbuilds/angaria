@@ -12,6 +12,7 @@ import {
   logout,
 } from './angaria.ts';
 import { vault } from './app-vault.ts';
+import { untilStarted } from './foreground-fetch.ts';
 import { withQRCode } from './invoice-preview.ts';
 import { loadInvoiceWeeks, localWeekStore } from './invoice-weeks.ts';
 import type { DateRange } from './invoices.ts';
@@ -143,8 +144,17 @@ export const cachedInvoices = (queryClient: QueryClient, account: GIBAccount) =>
  */
 export const invoiceDetailQuery = (account: GIBAccount, ettn: string, background = false) =>
   queryOptions({
-    queryFn: ({ signal }) =>
-      gib.run(account, (session) => getInvoiceDetail(session, ettn), { background, signal }),
+    queryFn: ({ queryKey, signal }) =>
+      untilStarted(queryKey, (started) =>
+        gib.run(
+          account,
+          (session) => {
+            started();
+            return getInvoiceDetail(session, ettn);
+          },
+          { background, signal },
+        ),
+      ),
     queryKey: ['invoice-detail', account.key, ettn],
     staleTime: Number.POSITIVE_INFINITY,
   });

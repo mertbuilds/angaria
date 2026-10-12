@@ -104,6 +104,8 @@ export function createSessionQueue(
   let stale = false;
   // The app is quitting: no task logs in again.
   let quitting = false;
+  // A login on its way: settles once its session is open, or logged out for a quit.
+  let opening: Promise<void> | null = null;
   // The store's sessions, read once; then kept in step with every write.
   let stored: Promise<Map<string, SessionInfo>> | null = null;
   let writes: Promise<void> = Promise.resolve();
@@ -167,6 +169,20 @@ export function createSessionQueue(
     }
     leftovers.delete(account.key);
     void remember(account.key, session);
+    return session;
+  }
+
+  /** Opens the account's session; one that arrives after quit() is logged out at once. */
+  async function openSession(account: GIBAccount) {
+    const session = await signIn(account);
+    if (quitting) {
+      await client.logout(session).then(
+        () => remember(account.key, null),
+        () => {},
+      );
+      throw new Error(QUITTING);
+    }
+    open = { key: account.key, session };
     return session;
   }
 
@@ -242,11 +258,19 @@ export function createSessionQueue(
           if (open && (stale || open.key !== account.key)) {
             await close();
           }
-          if (!open) {
+          let session = open?.session;
+          if (!session) {
             await closing;
-            open = { key: account.key, session: await signIn(account) };
+            const signingIn = openSession(account);
+            opening = signingIn.then(
+              () => {},
+              () => {},
+            );
+            session = await signingIn.finally(() => {
+              opening = null;
+            });
           }
-          await job.run(open.session);
+          await job.run(session);
         } catch (error) {
           if (isSessionLocked(error)) {
             closers.set(error, () => forceClose(account));
@@ -289,16 +313,20 @@ export function createSessionQueue(
 
   /**
    * Logs out every session an earlier run left open (launch), after the
-   * calls the user asked for. Never rejects.
+   * calls the user asked for: one background task per account, so a call
+   * asked for meanwhile runs before the next logout. Never rejects.
    */
-  function endLeftovers(): Promise<void> {
-    return runBare(async () => {
-      for (const key of (await storedSessions()).keys()) {
-        if (open?.key !== key) {
-          await endLeftover(key);
-        }
-      }
-    }, true).catch(() => {});
+  async function endLeftovers(): Promise<void> {
+    const keys = [...(await storedSessions()).keys()];
+    await Promise.all(
+      keys.map((key) =>
+        runBare(async () => {
+          if (open?.key !== key) {
+            await endLeftover(key);
+          }
+        }, true).catch(() => {}),
+      ),
+    );
   }
 
   /**
@@ -433,8 +461,8 @@ export function createSessionQueue(
    * The app quits: logs out of the open session at once, even under a running
    * task or a lease (the SMS dialog, an MCP signing operation, an import's
    * request), which fail as the app goes; drops the waiting tasks and logs in
-   * no more. Settles when the logout does; a failed one keeps the session
-   * stored for the next launch to end.
+   * no more. A login on its way is waited for and logged out. Settles when the
+   * logout does; a failed one keeps the session stored for the next launch to end.
    */
   function quit(): Promise<void> {
     quitting = true;
@@ -453,7 +481,7 @@ export function createSessionQueue(
         ),
       );
     }
-    return closing;
+    return Promise.all([closing, opening]).then(() => {});
   }
 
   return { close: closeSession, endLeftovers, forceClose, lease, leaseWith, quit, run };

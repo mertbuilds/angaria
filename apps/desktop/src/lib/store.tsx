@@ -467,9 +467,18 @@ function LoadedStoreProvider({
   const updateCreds = useCallback(
     (entityId: string, updater: (creds: StoredCredentials) => StoredCredentials) => {
       setEntities((prev) =>
-        prev.map((entity) =>
-          entity.id === entityId ? { ...entity, creds: updater(entity.creds) } : entity,
-        ),
+        prev.map((entity) => {
+          if (entity.id !== entityId) {
+            return entity;
+          }
+          const creds = updater(entity.creds);
+          // What GİB said belongs to the old account: Ayarlar would compare against it.
+          if (creds.username.trim() !== entity.creds.username.trim()) {
+            const { gibIdentity: _, ...rest } = entity;
+            return { ...rest, creds };
+          }
+          return { ...entity, creds };
+        }),
       );
     },
     [],

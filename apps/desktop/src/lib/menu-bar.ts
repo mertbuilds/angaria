@@ -45,6 +45,9 @@ export function startingSettings(
     : { save: false, settings: toMcpSettings(saved) };
 }
 
+/** How long a failed first save waits before it goes again, once the app shows. */
+export const FIRST_SAVE_RETRY_MS = 1000;
+
 const save = (settings: McpSettings) =>
   void mcpSetSettings(settings).catch((error: unknown) =>
     toast.error('MCP ayarı kaydedilemedi', { description: errorMessage(error) }),
@@ -59,7 +62,11 @@ export async function connectMenuBar(navigate: (route: MenuBarRoute) => void) {
     const { save: first, settings } = startingSettings(await mcpSettings(), readMcpSettings());
     replaceMcpSettings(settings);
     if (first) {
-      await mcpSetSettings(settings);
+      // Until Rust has them, the tray says MCP is off and closing quits: try
+      // again after the first render, where a second failure shows a toast.
+      await mcpSetSettings(settings).catch(() => {
+        setTimeout(() => save(readMcpSettings()), FIRST_SAVE_RETRY_MS);
+      });
     }
   } catch {
     // Rust could not read mcp.json: the webview's copy, saved on the next change.

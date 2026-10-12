@@ -11,7 +11,7 @@ function fakeClient() {
   const log: Array<string> = [];
   let logins = 0;
   const client = {
-    login: vi.fn(async (username: string) => {
+    login: vi.fn(async (username: string): Promise<SessionInfo> => {
       logins++;
       log.push(`login ${username}`);
       return { baseUrl: username, cookies: [], token: `t${logins}` } satisfies SessionInfo;
@@ -391,6 +391,31 @@ describe('the session after the queue empties', () => {
     expect(log).toEqual(['login 33333301', 'logout t1']);
   });
 
+  test('quit during a login waits for it and logs it out, and its task never runs', async () => {
+    const { client, log } = fakeClient();
+    const signedIn = deferred<SessionInfo>();
+    client.login.mockImplementationOnce(async (username: string) => {
+      log.push(`login ${username}`);
+      return signedIn.promise;
+    });
+    const queue = createSessionQueue(client, { lingerMs: 45_000 });
+    const task = vi.fn(async () => {});
+    const running = queue.run(account('33333301'), task);
+    await tick();
+
+    let quit = false;
+    const quitting = queue.quit().then(() => {
+      quit = true;
+    });
+    await tick();
+    expect(quit).toBe(false);
+    signedIn.resolve({ baseUrl: 'gib', cookies: [], token: 't1' });
+    await quitting;
+    expect(log).toEqual(['login 33333301', 'logout t1']);
+    await expect(running).rejects.toThrow('Angaria kapanıyor.');
+    expect(task).not.toHaveBeenCalled();
+  });
+
   test('another account logs out of the lingering session first', async () => {
     vi.useFakeTimers();
     try {
@@ -480,6 +505,31 @@ describe('sessions an earlier run left open', () => {
     await tick();
     expect(log).toEqual(['login 33333301', 'list', 'logout old-a', 'logout old-b', 'logout t1']);
     expect(sessions).toEqual({});
+  });
+
+  test('a call the user asks for runs between two leftover logouts', async () => {
+    const { client, log } = fakeClient();
+    const firstLogout = deferred<void>();
+    client.logout.mockImplementation(async (session) => {
+      log.push(`logout ${session.token}`);
+      if (session.token === 'old-a') {
+        await firstLogout.promise;
+      }
+    });
+    const { store } = memoryStore({ a: leftover('old-a'), b: leftover('old-b') });
+    const queue = createSessionQueue(client, { store });
+
+    const ended = queue.endLeftovers();
+    await tick();
+    expect(log).toEqual(['logout old-a']);
+    const list = queue.run(account('33333301'), async () => {
+      log.push('list');
+    });
+    firstLogout.resolve();
+    await list;
+    await ended;
+    await tick();
+    expect(log).toEqual(['logout old-a', 'login 33333301', 'list', 'logout old-b', 'logout t1']);
   });
 
   test('the first login of an account logs its leftover out first', async () => {
