@@ -2,6 +2,7 @@
 // and GİB's own document (the e-Arşiv PDF of GİB's page, GİB's zip). The
 // invoice detail and the MCP tool download_invoice both save through here.
 import type { InvoicePDFData } from '../components/invoice-pdf.tsx';
+import { roundKurus } from './invoice-form.ts';
 import { buildEArchiveFilename } from './invoice-pdf-i18n.ts';
 import { readQRValue } from './invoice-preview.ts';
 import type { GIBInvoice } from './invoices.ts';
@@ -37,10 +38,12 @@ export function gibInvoicePDFData(
     items: items.map((item, index) => ({ ...item, id: String(index) })),
     language,
     note,
+    // GİB's payable amount (after a withholding, or as typed); the total adds up the rows.
+    paymentTotal: total,
     qrValue,
     recipient: { ...recipient, id: '' },
     settings,
-    total,
+    total: roundKurus(subtotal + vat),
     totalVAT: vat,
   };
 }

@@ -59,6 +59,7 @@ export interface PDFLabels {
   invoice: string;
   invoiceNumber: string;
   note: string;
+  paymentTotal: string;
   quantity: string;
   subtotal: string;
   swiftCode: string;
@@ -91,6 +92,7 @@ const TR: PDFLabels = {
   invoice: 'Fatura',
   invoiceNumber: 'Fatura no',
   note: 'Not',
+  paymentTotal: 'Ödenecek tutar',
   quantity: 'Miktar',
   subtotal: 'Ara toplam',
   swiftCode: 'SWIFT',
@@ -123,6 +125,7 @@ const EN: PDFLabels = {
   invoice: 'Invoice',
   invoiceNumber: 'Invoice no.',
   note: 'Note',
+  paymentTotal: 'Amount due',
   quantity: 'Qty',
   subtotal: 'Subtotal',
   swiftCode: 'SWIFT',
