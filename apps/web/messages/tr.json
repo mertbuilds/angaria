@@ -120,8 +120,6 @@
   "privacy_device": "Mac'in",
   "privacy_blocked_host": "Diğer tüm adresler",
   "privacy_blocked": "Engellenir",
-  "privacy_site_note": "Bu site ise ziyaretleri çerez kullanmadan, anonim olarak sayar. Ayrıntılar {link}.",
-  "privacy_site_note_link": "gizlilik politikasında",
   "privacy_source": "Kod açık. Bu listeyi {link} sen de kontrol edebilirsin.",
   "privacy_source_link": "GitHub'daki kaynak kodda",
 

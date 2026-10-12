@@ -1,7 +1,7 @@
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from '@angaria/ui';
 import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { Laptop, MessagesSquare, MousePointerClick, PanelTop, type LucideIcon } from 'lucide-react';
 import type { LinkHTMLAttributes, ReactNode } from 'react';
 import { AppHosts } from '../components/app-hosts.tsx';
@@ -480,14 +480,6 @@ function Landing() {
             <Sentence
               message={(link) => m.privacy_source({ link })}
               slot={<a href={SOURCE_URL}>{m.privacy_source_link()}</a>}
-            />
-          </p>
-        </Reveal>
-        <Reveal index={6}>
-          <p {...props(layout.text, layout.muted, layout.small)}>
-            <Sentence
-              message={(link) => m.privacy_site_note({ link })}
-              slot={<Link to="/gizlilik">{m.privacy_site_note_link()}</Link>}
             />
           </p>
         </Reveal>
