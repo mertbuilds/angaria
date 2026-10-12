@@ -35,10 +35,5 @@ jobs:
           # Turbo groups task output in CI, so a hang prints nothing at all.
           TURBO_LOG_ORDER: stream
       - run: pnpm exec turbo run build --filter=web
-      # Frontend only, no Rust. The production guard in apps/desktop/vite.config.ts
-      # needs the Polar values; these placeholders are CI-only and never shipped.
+      # Frontend only, no Rust.
       - run: pnpm exec turbo run build --filter=desktop
-        env:
-          VITE_POLAR_ORGANIZATION_ID: ci-placeholder-organization
-          VITE_POLAR_CHECKOUT_URL: https://example.invalid/ci-checkout
-          VITE_POLAR_PORTAL_URL: https://example.invalid/ci-portal

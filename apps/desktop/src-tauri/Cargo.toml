@@ -3,7 +3,7 @@ name = "angaria"
 version = "0.1.0"
 description = "GİB e-Arşiv faturaları için masaüstü uygulaması"
 authors = ["Vinena Studio"]
-license = "Proprietary"
+license = "AGPL-3.0-only"
 repository = "https://github.com/vinenastudio/angaria"
 publish = false
 edition = "2021"
@@ -40,7 +40,6 @@ tauri-plugin-log = "2"
 tauri-plugin-http = "2"
 # Tilde: newer minors need tauri 2.12, the app is on 2.10.
 tauri-plugin-opener = "~2.5"
-tauri-plugin-os = "~2.3"
 tauri-plugin-process = "2"
 # Girişte başlat: a LaunchAgent that starts the app with --background.
 # Tilde: newer minors need tauri 2.12.

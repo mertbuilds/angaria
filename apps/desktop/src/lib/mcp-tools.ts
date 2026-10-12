@@ -51,8 +51,6 @@ import {
   gibCountry,
   issueFields,
   json,
-  LICENSE_CHECKING,
-  LICENSE_LOCKED,
   matches,
   parseInput,
   textField,
@@ -72,7 +70,6 @@ import { parseGIB, toGIB } from './utils.ts';
 
 export {
   ACTIONS_OFF,
-  LICENSE_LOCKED,
   NO_LOGIN,
   type CreatedDraft,
   type McpAction,
@@ -834,9 +831,8 @@ export interface McpCallActivity {
 }
 
 /**
- * Runs one tools/call and says for the activity log what came of it. Every
- * tool needs a license that is valid or in its grace period; failures are
- * Turkish tool errors the model can relay.
+ * Runs one tools/call and says for the activity log what came of it. Failures
+ * are Turkish tool errors the model can relay.
  */
 export async function runMcpTool(
   ctx: McpToolContext,
@@ -851,10 +847,6 @@ export async function runMcpTool(
   });
   if (!tool) {
     return fail(`Bilinmeyen araç: ${name}`, 'unknown-tool');
-  }
-  const license = await ctx.license();
-  if (license !== 'ok') {
-    return fail(license === 'checking' ? LICENSE_CHECKING : LICENSE_LOCKED, 'license');
   }
   const { company, output, summary } = await tool.call(ctx, args, signal);
   const { activity, ...result } = output;

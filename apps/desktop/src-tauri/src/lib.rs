@@ -14,7 +14,6 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_opener::init())
-    .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_autostart::init(
       MacosLauncher::LaunchAgent,

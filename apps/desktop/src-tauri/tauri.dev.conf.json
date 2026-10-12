@@ -22,24 +22,6 @@
               "allow": [{ "url": "http://127.0.0.1:5180/*" }]
             }
           ]
-        },
-        {
-          "identifier": "polar-sandbox",
-          "description": "Dev only: the Polar sandbox for license checks (.env.development) and its checkout and customer portal. Merged by `tauri dev --config src-tauri/tauri.dev.conf.json`, never by a release build.",
-          "windows": ["main"],
-          "permissions": [
-            {
-              "identifier": "http:default",
-              "allow": [{ "url": "https://sandbox-api.polar.sh/*" }]
-            },
-            {
-              "identifier": "opener:allow-open-url",
-              "allow": [
-                { "url": "https://sandbox.polar.sh/*" },
-                { "url": "https://sandbox-api.polar.sh/*" }
-              ]
-            }
-          ]
         }
       ]
     }

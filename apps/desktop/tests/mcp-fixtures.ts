@@ -105,12 +105,10 @@ export interface TestCompany extends McpCompany {
 export function setup({
   actions = false,
   company = {},
-  license = 'ok',
   state: stateOptions = {},
 }: {
   actions?: boolean;
   company?: Partial<TestCompany>;
-  license?: 'checking' | 'locked' | 'ok';
   state?: McpStateOptions;
 } = {}) {
   const log: Array<string> = [];
@@ -224,7 +222,6 @@ export function setup({
       gib: (task, signal, options) => queue.run(account, task, { ...options, signal }),
       imports,
       lease: (signal) => queue.lease(account, { signal }),
-      license: async () => license,
       newId: () => `id-${++ids}`,
       now: () => NOW,
       setCompanyInfo: (update) => {

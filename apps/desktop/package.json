@@ -2,6 +2,7 @@
   "name": "desktop",
   "version": "0.0.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "build": "vite build",
@@ -27,7 +28,6 @@
     "@tauri-apps/api": "catalog:",
     "@tauri-apps/plugin-http": "catalog:",
     "@tauri-apps/plugin-opener": "catalog:",
-    "@tauri-apps/plugin-os": "catalog:",
     "@tauri-apps/plugin-process": "catalog:",
     "@tauri-apps/plugin-updater": "catalog:",
     "angaria-earsiv-sdk": "workspace:*",
