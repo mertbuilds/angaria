@@ -15,8 +15,11 @@ const styles = create({
 });
 
 /**
- * An app screenshot that follows the color scheme: the dark export for a dark
- * system, the light one otherwise.
+ * An app screenshot that follows the page's theme: the dark export for a dark
+ * page, the light one otherwise. A themed screen renders both exports, each in
+ * a `data-shot` box that `app.css` shows for its theme, so a theme chosen in
+ * the footer switches them too (a `<picture>` media query follows only the
+ * system). A lazy image in a hidden box is never fetched.
  */
 export function Screenshot({
   priority = false,
@@ -30,29 +33,31 @@ export function Screenshot({
   sizes: string;
   style?: StyleXStyles | undefined;
 }) {
-  const light = screenSources(screen, 'light');
-  return (
-    <picture>
-      {screen.themed ? (
-        <source
-          media="(prefers-color-scheme: dark)"
-          sizes={sizes}
-          srcSet={screenSources(screen, 'dark').srcSet}
-        />
-      ) : null}
+  const image = (theme: 'dark' | 'light', alt: string) => {
+    const sources = screenSources(screen, theme);
+    return (
       <img
-        alt={screen.alt()}
+        alt={alt}
         decoding="async"
         draggable={false}
         fetchPriority={priority ? 'high' : 'auto'}
         height={screen.height}
         loading={priority ? 'eager' : 'lazy'}
         sizes={sizes}
-        src={light.src}
-        srcSet={light.srcSet}
+        src={sources.src}
+        srcSet={sources.srcSet}
         width={screen.width}
         {...props(styles.image, screen.framed && styles.framed, style)}
       />
-    </picture>
+    );
+  };
+  if (!screen.themed) {
+    return image('light', screen.alt());
+  }
+  return (
+    <>
+      <span data-shot="light">{image('light', screen.alt())}</span>
+      <span data-shot="dark">{image('dark', screen.alt())}</span>
+    </>
   );
 }

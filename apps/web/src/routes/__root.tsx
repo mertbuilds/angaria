@@ -8,6 +8,7 @@ import { SiteHeader } from '../components/site-header.tsx';
 import { startAnalytics } from '../lib/analytics.ts';
 import { SITE_URL } from '../lib/canonical.ts';
 import { layout } from '../lib/layout.ts';
+import { THEME_GROUND, THEME_SCRIPT } from '../lib/theme.ts';
 import { m } from '../paraglide/messages.js';
 import { getLocale } from '../paraglide/runtime.js';
 import '@angaria/ui/fonts.css';
@@ -30,9 +31,6 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 }
 
 const OG_IMAGE = `${SITE_URL}/og.png`;
-
-/** The page's ground in each system theme, as `--background` in @angaria/ui/theme.css has it. */
-const THEME_GROUND = { dark: '#000000', light: '#ffffff' } as const;
 
 const styles = create({
   main: {
@@ -135,18 +133,21 @@ function NotFound() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang={getLocale()}>
+    // The theme's script marks the element before the page comes alive.
+    <html lang={getLocale()} suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* The page's ground, for the browser's own chrome and what it shows
         behind the page: one per system theme, written here because the head's
-        list keeps one meta per name. */}
+        list keeps one meta per name. A theme chosen in the footer adds its own
+        (`lib/theme.ts`), and the script under them does it for a kept choice. */}
         <meta
           content={THEME_GROUND.light}
           media="(prefers-color-scheme: light)"
           name="theme-color"
         />
         <meta content={THEME_GROUND.dark} media="(prefers-color-scheme: dark)" name="theme-color" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
         <div {...props(styles.shell)}>

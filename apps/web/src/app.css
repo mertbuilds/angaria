@@ -50,3 +50,35 @@ body {
 :root:active-view-transition-type(morph-spreading)::view-transition-new(*) {
   animation-timing-function: linear;
 }
+
+/* The picked segment of the theme control (components/theme-switch.tsx), in
+   the page's ink. It is drawn from the choice on the root, which the head's
+   script sets before first paint, so a kept choice never shows as the
+   system's first. No choice on the root is the system's. */
+:root:not([data-theme-choice]) [data-theme-pick='system'],
+:root[data-theme-choice='light'] [data-theme-pick='light'],
+:root[data-theme-choice='dark'] [data-theme-pick='dark'] {
+  background-color: var(--foreground);
+  color: var(--background);
+}
+
+/* A themed screenshot (components/screenshot.tsx) renders both exports; the
+   page's theme shows one. A <picture> media query would follow only the
+   system, not a theme chosen in the footer. */
+[data-shot='dark'] {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) [data-shot='light'] {
+    display: none;
+  }
+  :root:not([data-theme='light']) [data-shot='dark'] {
+    display: block;
+  }
+}
+:root[data-theme='dark'] [data-shot='light'] {
+  display: none;
+}
+:root[data-theme='dark'] [data-shot='dark'] {
+  display: block;
+}
