@@ -113,7 +113,7 @@ describe('with reduced motion', () => {
     expect(customers).toHaveTextContent('14 gün vade');
     expect(pdf).toHaveTextContent('INVOICE');
     expect(rates).toHaveTextContent('₺315.417,40');
-    expect(companies).toHaveTextContent('Deniz Yılmaz Yazılım');
+    expect(companies).toHaveTextContent('Mert Düzgün');
   });
 });
 

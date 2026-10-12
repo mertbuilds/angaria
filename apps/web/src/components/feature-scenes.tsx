@@ -344,11 +344,11 @@ const styles = create({
    ↵ picks one, and the form comes with its customer, lines and KDV. */
 
 const LAST_INVOICES = [
-  ['Northwind Labs', '$7.640,00'],
-  ['Hafenblick Studio', '€4.200,00'],
-  ['Atlas Dijital', '₺22.200,00'],
-  ['Kestrel Analytics', '£3.150,00'],
-  ['Mavi Kare Reklam', '₺9.600,00'],
+  ['Agent Caffeine', '$7.640,00'],
+  ['knobs.dev', '€4.200,00'],
+  ['Vinena Studio', '₺22.200,00'],
+  ['attention awareness', '£3.150,00'],
+  ['Ahmet Buğra Yiğiter', '₺9.600,00'],
 ] as const;
 const ROW = 22;
 const PICK_AT = 2050;
@@ -624,9 +624,9 @@ export function CustomersScene() {
         <div {...props(scene.at(14, 32), scene.size(212, 26), scene.input)}>
           <span data-part="customers-focus" {...props(scene.focus)} />
           <span data-part="customers-query" {...props(scene.at(12, 7), scene.hidden)}>
-            {'Nor'}
+            {'Age'}
           </span>
-          <span data-part="customers-picked">{'Northwind Labs Inc.'}</span>
+          <span data-part="customers-picked">{'Agent Caffeine'}</span>
         </div>
         <span data-part="customers-label" {...props(scene.at(14, 66), scene.muted)}>
           {m.scene_feature_defaults()}
@@ -659,7 +659,7 @@ export function CustomersScene() {
         )}
       >
         <div {...props(scene.at(4, 4), scene.size(202, 25), styles.choice, styles.choiceOn)}>
-          <span>{'Northwind Labs Inc.'}</span>
+          <span>{'Agent Caffeine'}</span>
           <span {...props(scene.muted)}>{'USD'}</span>
         </div>
         <div {...props(scene.at(4, 30), scene.size(202, 25), styles.choice)}>
@@ -731,7 +731,7 @@ function PdfFace({
   return (
     <div data-part={part} {...props(scene.at(66, 40), scene.size(132, 154), styles.paper, style)}>
       <span {...props(styles.paperTitle)}>{words.title}</span>
-      <span {...props(styles.paperMuted)}>{'Hafenblick Studio GmbH'}</span>
+      <span {...props(styles.paperMuted)}>{'knobs.dev'}</span>
       <span {...props(styles.paperRule)} />
       <span {...props(styles.between)}>
         <span>{words.service}</span>
@@ -890,21 +890,21 @@ const COMPANIES = [
   {
     initials: 'DY',
     invoices: [
-      ['Northwind Labs', '$7.640,00'],
-      ['Hafenblick Studio', '€4.200,00'],
-      ['Atlas Dijital', '₺22.200,00'],
+      ['Agent Caffeine', '$7.640,00'],
+      ['knobs.dev', '€4.200,00'],
+      ['Vinena Studio', '₺22.200,00'],
     ],
-    name: 'Deniz Yılmaz Yazılım',
+    name: 'Mert Düzgün',
     user: '48172936',
   },
   {
     initials: 'MK',
     invoices: [
       ['Lumen Mimarlık', '₺12.400,00'],
-      ['Kestrel Analytics', '£3.150,00'],
+      ['attention awareness', '£3.150,00'],
       ['Ada Yayıncılık', '₺6.800,00'],
     ],
-    name: 'Mavi Kare Reklam',
+    name: 'Ömer Faruk Oruç',
     user: '87654321',
   },
 ] as const;

@@ -550,10 +550,10 @@ const SECRET = { x: 30, y: 87 } as const;
 const LOCK = { x: 29, y: 163 } as const;
 const FLY_AT = 1650;
 const INVOICES = [
-  ['Northwind Labs', '$7.640,00'],
-  ['Hafenblick Studio', '€4.200,00'],
-  ['Atlas Dijital', '₺18.500,00'],
-  ['Kestrel Analytics', '£3.150,00'],
+  ['Agent Caffeine', '$7.640,00'],
+  ['knobs.dev', '€4.200,00'],
+  ['Vinena Studio', '₺18.500,00'],
+  ['attention awareness', '£3.150,00'],
 ] as const;
 
 /** The window has come in: where the scene waits for its turn. */
@@ -734,9 +734,9 @@ const CODE_STEP = 25;
 /** The total's rolling digits, $7.640,00: each reel stops on its digit (10 is a zero after a full turn). */
 const REELS = [7, 6, 4, 10] as const;
 const RECENT = [
-  ['Northwind Labs', '$7.640,00'],
-  ['Atlas Dijital', '₺18.500,00'],
-  ['Hafenblick Studio', '€4.200,00'],
+  ['Agent Caffeine', '$7.640,00'],
+  ['Vinena Studio', '₺18.500,00'],
+  ['knobs.dev', '€4.200,00'],
 ] as const;
 const LINES = [
   [m.scene_sign_line_development, '$6.500,00'],

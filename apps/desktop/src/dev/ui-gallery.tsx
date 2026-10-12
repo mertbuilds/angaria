@@ -294,12 +294,12 @@ const themeLabels: Record<ThemeChoice, string> = {
   system: 'Sistem',
 };
 
-const customers = ['Acme GmbH', 'Linear Orbit Inc.', 'Kuzey Yazılım', 'Mavi Tasarım'];
+const customers = ['knobs.dev', 'Agent Caffeine', 'Vinena Studio', 'attention awareness'];
 
 const invoices = [
-  { amount: '1.499,00 ₺', customer: 'Kuzey Yazılım', date: '01.10.2026', no: 'GIB2026000000012' },
-  { amount: '$2,400.00', customer: 'Acme GmbH', date: '28.09.2026', no: 'GIB2026000000011' },
-  { amount: '€980.00', customer: 'Linear Orbit Inc.', date: '02.09.2026', no: 'GIB2026000000010' },
+  { amount: '1.499,00 ₺', customer: 'Vinena Studio', date: '01.10.2026', no: 'GIB2026000000012' },
+  { amount: '$2,400.00', customer: 'knobs.dev', date: '28.09.2026', no: 'GIB2026000000011' },
+  { amount: '€980.00', customer: 'Agent Caffeine', date: '02.09.2026', no: 'GIB2026000000010' },
 ];
 
 // Gallery only: Turkish amounts, dots grouping thousands. The app's NumberField
@@ -681,7 +681,7 @@ function Showcase() {
         <FieldGroup style={styles.stack}>
           <Field>
             <FieldLabel htmlFor="gallery-name">Müşteri adı</FieldLabel>
-            <Input id="gallery-name" placeholder="Acme GmbH" />
+            <Input id="gallery-name" placeholder="knobs.dev" />
             <FieldDescription>Faturada görünen ad.</FieldDescription>
           </Field>
           <Field>
@@ -825,7 +825,7 @@ function Showcase() {
               </DialogHeader>
               <Field>
                 <FieldLabel htmlFor="dialog-name">Ad</FieldLabel>
-                <Input id="dialog-name" placeholder="Acme GmbH" />
+                <Input id="dialog-name" placeholder="knobs.dev" />
               </Field>
               <DialogFooter>
                 <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
@@ -936,7 +936,7 @@ function Showcase() {
         <Card style={styles.cardWidth}>
           <CardHeader>
             <CardTitle>Ekim faturası</CardTitle>
-            <CardDescription>Acme GmbH, 2.400 € / ay.</CardDescription>
+            <CardDescription>knobs.dev, 2.400 € / ay.</CardDescription>
             <CardAction>
               <Badge variant="secondary">Taslak</Badge>
             </CardAction>

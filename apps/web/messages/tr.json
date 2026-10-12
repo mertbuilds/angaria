@@ -175,7 +175,7 @@
   "mcp_point_local_body": "MCP kapalı gelir, sen açarsın. Yalnızca bu Mac'ten gelen bağlantıları kabul eder, arada sunucumuz yok. GİB şifren Anahtar Zinciri'nde kalır.",
   "mcp_shared": "Sorduğun faturaların bilgisi, kullandığın yapay zekâ uygulamasına gider ve onun gizlilik koşullarına tabidir.",
   "mcp_scene_tool": "Taslak oluştur",
-  "mcp_scene_prompt": "Acme için 4.500 USD taslak hazırla",
+  "mcp_scene_prompt": "Agent Caffeine için 4.500 USD taslak hazırla",
   "mcp_scene_app": "Angaria",
   "mcp_scene_draft": "Taslak",
   "mcp_scene_reply": "Taslak oluşturuldu, Angaria'da SMS ile onayla.",

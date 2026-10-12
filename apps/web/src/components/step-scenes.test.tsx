@@ -144,9 +144,9 @@ describe('with reduced motion', () => {
     expect(install).toHaveTextContent('Uygulamalar');
     expect(install.querySelector('[data-part="check"]')).toBeInTheDocument();
     expect(connect).toHaveTextContent("GİB'den geldi");
-    expect(connect).toHaveTextContent('Kestrel Analytics');
+    expect(connect).toHaveTextContent('attention awareness');
     expect(sign).toHaveTextContent('Onaylandı');
-    expect(sign).toHaveTextContent('Northwind Labs');
+    expect(sign).toHaveTextContent('Agent Caffeine');
     expect(sign.querySelector('[data-part="digit-5"]')).toHaveTextContent('6');
   });
 });

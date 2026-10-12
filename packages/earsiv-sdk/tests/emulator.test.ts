@@ -103,7 +103,7 @@ describe('session', () => {
     await client.logout(company);
     const person = await client.login('12345678', 'angaria');
     expect(await client.getUserInfo(person)).toMatchObject({
-      name: 'Deniz Yılmaz',
+      name: 'Mert Düzgün',
       taxID: '10000000146',
     });
     await client.logout(person);

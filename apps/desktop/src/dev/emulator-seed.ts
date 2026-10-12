@@ -20,13 +20,13 @@ export interface EmulatorProfile {
 export const EMULATOR_PROFILES: ReadonlyArray<EmulatorProfile> = [
   {
     company: {
-      accountHolder: 'Deniz Yılmaz',
+      accountHolder: 'Mert Düzgün',
       address: 'Moda Cad. No:12 D:4\nKadıköy / İstanbul',
       bankAddress: 'Kadıköy Şubesi, İstanbul',
       bankName: 'İş Bankası',
-      email: 'deniz@example.com',
+      email: 'mert@example.com',
       iban: 'TR51 0006 4000 0012 3456 7890 12',
-      name: 'Deniz Yılmaz Yazılım',
+      name: 'Mert Düzgün',
       phone: '+90 532 123 45 67',
       swiftCode: 'ISBKTRIS',
       taxID: '10000000146',
@@ -36,13 +36,13 @@ export const EMULATOR_PROFILES: ReadonlyArray<EmulatorProfile> = [
   },
   {
     company: {
-      accountHolder: 'Ece Kaya',
+      accountHolder: 'Ömer Faruk Oruç',
       address: 'Kordon Boyu Cad. No:7 D:3\nKonak / İzmir',
       bankAddress: 'Alsancak Şubesi, İzmir',
       bankName: 'Garanti BBVA',
-      email: 'ece@example.com',
+      email: 'faruk@example.com',
       iban: 'TR35 0006 2000 0009 8765 4321 01',
-      name: 'Ece Kaya Tasarım',
+      name: 'Ömer Faruk Oruç',
       phone: '+90 532 987 65 43',
       swiftCode: 'TGBATRIS',
       taxID: '34567890170',
@@ -68,7 +68,7 @@ export const sampleCustomers = (newId: () => string): Array<Recipient> => [
     surname: '',
     taxIDOrTRID: '2222222222',
     taxOffice: '',
-    title: 'NORTHWIND TRADERS LLC',
+    title: 'Agent Caffeine',
     VATRate: 0,
   },
   {
@@ -84,7 +84,7 @@ export const sampleCustomers = (newId: () => string): Array<Recipient> => [
     surname: '',
     taxIDOrTRID: '1234567890',
     taxOffice: 'Kadıköy',
-    title: 'ÖRNEK TEKNOLOJİ A.Ş.',
+    title: 'Vinena Studio',
     VATRate: 20,
   },
 ];

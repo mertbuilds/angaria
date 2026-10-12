@@ -165,7 +165,7 @@ describe('seedEmulatorData', () => {
   });
 
   test('never fills a VKN / TCKN another company has', async () => {
-    // Another company took Deniz's VKN with a user code of its own.
+    // Another company took Mert's VKN with a user code of its own.
     const { state, store } = fakeStore({
       login: { password: 'gizli', username: DENIZ.login.username },
       others: [otherCompany('33333301', { taxID: DENIZ.company.taxID })],

@@ -18,7 +18,7 @@ import { enter, hidden, progress, shown, Stage, styles as scene, Window } from '
 const AWAY = 'cubic-bezier(0.4, 0, 1, 1)';
 const translateY = (y: number) => `translateY(${y}px)`;
 
-const CUSTOMER = 'Acme Corp';
+const CUSTOMER = 'Agent Caffeine';
 const AMOUNT = '$4.500,00';
 const TOOL_AT = 1000;
 const DONE_AT = 2400;

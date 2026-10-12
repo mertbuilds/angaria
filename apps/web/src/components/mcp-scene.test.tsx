@@ -46,9 +46,9 @@ describe('MCP scene', () => {
     act(() => observers.intersect(true));
 
     expect(stub.animate).not.toHaveBeenCalled();
-    expect(container).toHaveTextContent('Acme için 4.500 USD taslak hazırla');
+    expect(container).toHaveTextContent('Agent Caffeine için 4.500 USD taslak hazırla');
     expect(container).toHaveTextContent('Taslak oluştur');
-    expect(container).toHaveTextContent('Acme Corp');
+    expect(container).toHaveTextContent('Agent Caffeine');
     expect(container).toHaveTextContent("Taslak oluşturuldu, Angaria'da SMS ile onayla.");
   });
 });

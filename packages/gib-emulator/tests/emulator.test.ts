@@ -442,8 +442,8 @@ describe('dispatch', () => {
   test('returns the user info', async () => {
     const { token } = await login('12345678', 'angaria');
     expect((await dispatch(token, 'EARSIV_PORTAL_KULLANICI_BILGILERI_GETIR')).data).toMatchObject({
-      ad: 'Deniz',
-      soyad: 'Yılmaz',
+      ad: 'Mert',
+      soyad: 'Düzgün',
       vknTckn: '10000000146',
     });
   });
