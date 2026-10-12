@@ -165,6 +165,11 @@ export function setup({
     }),
     getInvoiceDetail: vi.fn<McpGIBClient['getInvoiceDetail']>(async () => ({})),
     getInvoiceHTML: vi.fn<McpGIBClient['getInvoiceHTML']>(async () => '<html>fatura</html>'),
+    getTaxpayer: vi.fn<McpGIBClient['getTaxpayer']>(async (_session, taxID) =>
+      taxID === '1234567890'
+        ? { name: '', surname: '', taxOffice: 'Kadıköy', title: 'VİNENA STUDIO' }
+        : null,
+    ),
     startSMSSign: vi.fn<McpGIBClient['startSMSSign']>(async () => {
       log.push('sms');
       return { oid: 'oid-1', phone: '5550000001' };

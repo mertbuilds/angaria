@@ -261,6 +261,20 @@ describe('SMS signing', () => {
   });
 });
 
+describe('lookup_taxpayer', () => {
+  test('returns GİB’s name and tax office, refuses bad and placeholder numbers', async () => {
+    const { ctx } = setup();
+    const found = await call(ctx, 'lookup_taxpayer', { taxIDOrTRID: '1234567890' });
+    expect(found.json).toMatchObject({ taxOffice: 'Kadıköy', title: 'VİNENA STUDIO' });
+    const missing = await call(ctx, 'lookup_taxpayer', { taxIDOrTRID: '10000000146' });
+    expect(missing.json.error.code).toBe('not-found');
+    const placeholder = await call(ctx, 'lookup_taxpayer', { taxIDOrTRID: '2222222222' });
+    expect(placeholder.json.error.code).toBe('placeholder');
+    const wrong = await call(ctx, 'lookup_taxpayer', { taxIDOrTRID: '1234567891' });
+    expect(wrong.json.error.code).toBe('invalid-tax-id');
+  });
+});
+
 describe('companies', () => {
   test('lists every company with its GİB login state, never credentials', async () => {
     const { companies, ctx } = setup();

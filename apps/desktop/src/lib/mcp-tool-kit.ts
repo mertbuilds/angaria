@@ -68,6 +68,7 @@ export type McpGIBClient = Pick<
   | 'getDrafts'
   | 'getInvoiceDetail'
   | 'getInvoiceHTML'
+  | 'getTaxpayer'
   | 'startSMSSign'
   | 'verifyAndSign'
 >;

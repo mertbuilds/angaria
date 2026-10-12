@@ -109,6 +109,22 @@ describe('session', () => {
     await client.logout(person);
   });
 
+  test('looks up a taxpayer in the registry, null for an unknown number', async () => {
+    const session = await client.login('12345678', 'angaria');
+    expect(await client.getTaxpayer(session, '1234567890')).toEqual({
+      name: '',
+      surname: '',
+      taxOffice: 'Kadıköy',
+      title: 'VİNENA STUDIO',
+    });
+    expect(await client.getTaxpayer(session, '23456789060')).toMatchObject({
+      name: 'AHMET BUĞRA',
+      surname: 'YİĞİTER',
+    });
+    expect(await client.getTaxpayer(session, '9876543210')).toBeNull();
+    await client.logout(session);
+  });
+
   test('an expired token fails with the portal message', async () => {
     const session = await client.login('33333301', '1');
     await admin('POST', '/expire');

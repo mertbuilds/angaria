@@ -10,6 +10,7 @@ import {
   getDrafts,
   getInvoiceDetail,
   getInvoiceHTML,
+  getTaxpayer,
   startSMSSign,
   verifyAndSign,
 } from '@/lib/angaria.ts';
@@ -184,6 +185,7 @@ export function McpHost() {
           getDrafts,
           getInvoiceDetail,
           getInvoiceHTML,
+          getTaxpayer,
           startSMSSign,
           verifyAndSign,
         },

@@ -37,6 +37,8 @@ export const downloadInvoice = (...args: Parameters<typeof client.downloadInvoic
   client.downloadInvoice(...args);
 export const getUserInfo = (...args: Parameters<typeof client.getUserInfo>) =>
   client.getUserInfo(...args);
+export const getTaxpayer = (...args: Parameters<typeof client.getTaxpayer>) =>
+  client.getTaxpayer(...args);
 export const getDrafts = (...args: Parameters<typeof client.getDrafts>) =>
   client.getDrafts(...args);
 export const verifyAndSign = (...args: Parameters<typeof client.verifyAndSign>) =>

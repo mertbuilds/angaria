@@ -424,14 +424,24 @@ function saveUser(ctx: CommandContext, data: Record<string, unknown>): Reply {
   return ok(ctx, messages.userSaved);
 }
 
+/** Taxpayers the registry knows besides the portal's users: the demo customers. */
+const REGISTRY: Record<
+  string,
+  { adi?: string; soyadi?: string; unvan?: string; vergiDairesi: string }
+> = {
+  '1234567890': { unvan: 'VİNENA STUDIO', vergiDairesi: 'Kadıköy' },
+  '23456789060': { adi: 'AHMET BUĞRA', soyadi: 'YİĞİTER', vergiDairesi: 'Çankaya' },
+};
+
 function lookupRecipient(ctx: CommandContext, data: Record<string, unknown>): Reply {
   const id = str(data.vknTcknn);
   const user = [...ctx.state.users.values()].find((item) => item.vknTckn === id);
+  const known = REGISTRY[id];
   return ok(ctx, {
-    adi: user?.ad ?? '',
-    soyadi: user?.soyad ?? '',
-    unvan: user?.unvan ?? '',
-    vergiDairesi: user?.vergiDairesi ?? '',
+    adi: user?.ad ?? known?.adi ?? '',
+    soyadi: user?.soyad ?? known?.soyadi ?? '',
+    unvan: user?.unvan ?? known?.unvan ?? '',
+    vergiDairesi: user?.vergiDairesi ?? known?.vergiDairesi ?? '',
   });
 }
 

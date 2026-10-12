@@ -24,6 +24,7 @@ function fakeClient(overrides: Partial<EarsivClient> = {}): EarsivClient {
     getInvoiceDetail: vi.fn(unused),
     getInvoiceHTML: vi.fn(async () => '<html></html>'),
     getSigningPhone: vi.fn(unused),
+    getTaxpayer: vi.fn(unused),
     getUserInfo: vi.fn(unused),
     getUUID: vi.fn(unused),
     login: vi.fn(async () => session),

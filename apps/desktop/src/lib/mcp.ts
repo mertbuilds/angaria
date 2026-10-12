@@ -307,6 +307,11 @@ export const MCP_TOOL_COPY = {
     description: 'Kayıtlı kullanıcı koduyla GİB’e girip çıkar. Şifre ajana gitmez.',
     title: 'GİB bağlantısını dene',
   },
+  lookup_taxpayer: {
+    description:
+      'Bir VKN ya da TCKN için GİB kaydındaki unvanı ya da adı soyadı ve vergi dairesini getirir',
+    title: 'Mükellefi bul',
+  },
   close_gib_session: {
     description: 'e-Arşiv portalında açık kalan oturumu kapatır',
     gated: true,

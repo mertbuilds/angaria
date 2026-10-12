@@ -38,6 +38,7 @@ import {
   unitCode,
 } from './mcp-tool-kit.ts';
 import { historyCurrency } from './services.ts';
+import { isTaxIDPlaceholder, isValidTCKN, isValidVKN } from './tr-validators.ts';
 import type { CompanyInfo, Recipient, Service } from './types.ts';
 import { parseGIB, toGIB } from './utils.ts';
 
@@ -636,6 +637,38 @@ const checkGIBConnection = defineTool({
   },
 });
 
+const lookupTaxpayer = defineTool({
+  annotations: { openWorldHint: true, readOnlyHint: true },
+  description:
+    "The unvan, or a person's first and last name, and the tax office GİB's registry (sicil, MERNİS) has for a VKN or TCKN, as the e-Arşiv portal's own invoice form fills them. Use it before create_customer or create_invoice for a recipient in Türkiye whose name or tax office is not known. GİB gives no address.",
+  gib: true,
+  inputSchema: z.object({
+    taxIDOrTRID: z
+      .string()
+      .regex(/^\d{10,11}$/, 'VKN 10, TCKN 11 haneli olmalı.')
+      .describe('VKN (10 digits) or TCKN (11 digits) of a taxpayer in Türkiye'),
+  }),
+  limit: { max: 20, windowMs: 60_000 },
+  name: 'lookup_taxpayer',
+  run: async (ctx, { taxIDOrTRID }, signal) => {
+    if (isTaxIDPlaceholder(taxIDOrTRID)) {
+      return failure('Bu numara GİB’in yer tutucu numarası, kayıtta bir mükellefi yok.', {
+        code: 'placeholder',
+      });
+    }
+    if (!isValidVKN(taxIDOrTRID) && !isValidTCKN(taxIDOrTRID)) {
+      return failure('Bu VKN / TCKN’nin kontrol hanesi tutmuyor. Numarayı kontrol et.', {
+        code: 'invalid-tax-id',
+      });
+    }
+    const found = await ctx.gib((session) => ctx.client.getTaxpayer(session, taxIDOrTRID), signal);
+    if (!found) {
+      return failure('GİB’in kaydında bu numarayla bir mükellef yok.', { code: 'not-found' });
+    }
+    return json({ taxIDOrTRID, ...found }, found.title || `${found.name} ${found.surname}`);
+  },
+});
+
 const closeGIBSession = defineTool({
   annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: true },
   description:
@@ -669,5 +702,6 @@ export const RECORD_TOOLS = [
   updateCompanyDetails,
   getExchangeRate,
   checkGIBConnection,
+  lookupTaxpayer,
   closeGIBSession,
 ];

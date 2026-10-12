@@ -95,6 +95,17 @@ export interface UserInfo {
   taxOffice: string;
 }
 
+/** A taxpayer as GİB's registry (sicil, MERNİS) knows it; empty strings where it says nothing. */
+export interface Taxpayer {
+  /** A person's first name */
+  name: string;
+  /** A person's last name */
+  surname: string;
+  taxOffice: string;
+  /** A company's unvan */
+  title: string;
+}
+
 export interface EarsivClient {
   cancelInvoice(
     session: SessionInfo,
@@ -125,6 +136,11 @@ export interface EarsivClient {
   getInvoiceDetail(session: SessionInfo, ettn: string): Promise<Record<string, unknown>>;
   getInvoiceHTML(session: SessionInfo, uuid: string, onayDurumu: string): Promise<string>;
   getSigningPhone(session: SessionInfo): Promise<string>;
+  /**
+   * The registry's unvan or name and tax office for a VKN / TCKN, as the
+   * portal's own Yeni fatura fills them; null when GİB knows nothing for it.
+   */
+  getTaxpayer(session: SessionInfo, taxID: string): Promise<Taxpayer | null>;
   /** Kullanıcı bilgileri: the account's VKN / TCKN, unvan or name, and tax office. */
   getUserInfo(session: SessionInfo): Promise<UserInfo>;
   getUUID(session: SessionInfo): Promise<string>;
@@ -778,6 +794,27 @@ export function createClient(options?: ClientOptions): EarsivClient {
     };
   }
 
+  async function getTaxpayer(session: SessionInfo, taxID: string): Promise<Taxpayer | null> {
+    // The parameter is spelled vknTcknn by the portal itself.
+    const result = await dispatch(
+      session,
+      'SICIL_VEYA_MERNISTEN_BILGILERI_GETIR',
+      'RG_BASITFATURA',
+      {
+        vknTcknn: taxID,
+      },
+    );
+    const data = isRecord(result.data) ? result.data : {};
+    const text = (key: string) => (typeof data[key] === 'string' ? data[key].trim() : '');
+    const found: Taxpayer = {
+      name: text('adi'),
+      surname: text('soyadi'),
+      taxOffice: text('vergiDairesi'),
+      title: text('unvan'),
+    };
+    return found.title || found.name || found.surname ? found : null;
+  }
+
   async function requestSigningSMS(session: SessionInfo, phone: string): Promise<string> {
     const result = await dispatch(
       session,
@@ -850,6 +887,7 @@ export function createClient(options?: ClientOptions): EarsivClient {
     signInvoiceHSM,
     getSigningPhone,
     getUserInfo,
+    getTaxpayer,
     requestSigningSMS,
     verifyAndSign,
     startSMSSign,

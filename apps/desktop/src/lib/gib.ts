@@ -6,6 +6,7 @@ import {
   getDrafts,
   getInvoiceDetail,
   getInvoiceHTML,
+  getTaxpayer,
   getUserInfo,
   login,
   logout,
@@ -80,6 +81,17 @@ export function useGIBAccount(): GIBAccount {
     [activeEntityId, creds.username, getCredentials],
   );
 }
+
+/**
+ * The name and tax office GİB's registry has for `taxID`, as the portal's own
+ * form fills them: null when it has none. Asked once per number this session.
+ */
+export const taxpayerQuery = (account: GIBAccount, taxID: string) =>
+  queryOptions({
+    queryFn: ({ signal }) => gib.run(account, (session) => getTaxpayer(session, taxID), { signal }),
+    queryKey: ['taxpayer', account.key, taxID],
+    staleTime: Number.POSITIVE_INFINITY,
+  });
 
 /**
  * Every document dated within `range`, newest first. Long ranges fill in week
