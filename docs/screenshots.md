@@ -2,6 +2,8 @@
 
 Marketing screenshots of the Angaria desktop app for angaria.app, captured 2026-10-13. The dev frontend (`pnpm --filter desktop dev`) ran in a browser at a 1440×900 viewport, device scale 2 (captured through CDP `Page.captureScreenshot`), in the default palette (mist, Serin), against the GİB emulator (Ayarlar › Gelişmiş › Emülatör, user 12345678) with its seed invoices and TCMB rates, and Suisse Intl. The sidebar icon was swapped for the release (blue) icon before each capture. Every name and number is demo data: the seller is Mert Düzgün (emulator user 12345678), the customers are Agent Caffeine (USD), knobs.dev (EUR), attention awareness (GBP), Vinena Studio (TRY, Satış) and Ahmet Buğra Yiğiter (TRY, a person).
 
+Colors: the captures on this Mac come out in Display P3 (the PNG carries a Skia P3 profile), and a WebP written without that profile shows them dull. Convert each PNG to sRGB with its embedded profile first (Pillow `ImageCms.profileToProfile(image, embeddedProfile, sRGB)`), then check a known color: the light theme's Yeni fatura button must read `#0077c8` and the dark theme's `#0098f2`.
+
 A plain browser cannot keep the GİB session in the vault or force-close one (no cross-origin cookies), so do not reload during a capture: change the theme in Ayarlar › Görünüm and navigate inside the app. If GİB refuses a login for an open session, restart the emulator (touch a file in `packages/gib-emulator/src`).
 
 ## Files
