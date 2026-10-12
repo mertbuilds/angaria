@@ -19,6 +19,7 @@ const OFFICIAL_HOSTS = [
   'www.mevzuat.gov.tr',
   'www.resmigazete.gov.tr',
   'www.tcmb.gov.tr',
+  'www.tcmb.gov.tr',
 ];
 
 let root: Root | null = null;

@@ -46,7 +46,7 @@ Note on deep links: neither mevzuat.gov.tr nor gib.gov.tr has per-article URLs o
 
 ## Implemented (CONFIRMED rules only)
 
-- Registry `apps/desktop/src/lib/rule-sources.ts`: `invoiceWindow` (VUK md. 231/5), `exportExemption` (KDV Kanunu md. 11/1-a), `exchangeRate` (KDV Genel Uygulama Tebliği III/A-1.1), `placeholderIDs` (GİB özelgesi, 04.05.2023), all `verifiedAt: 2026-10-10`.
+- Registry `apps/desktop/src/lib/rule-sources.ts`: `invoiceWindow` (VUK md. 231/5), `exportExemption` (KDV Kanunu md. 11/1-a), `tcmbRates` (TCMB's rates page, https://www.tcmb.gov.tr/kurlar/kurlar_tr.html, linked from the rate caption since 2026-10-12; the rule itself is KDV Genel Uygulama Tebliği III/A-1.1, 7a), `placeholderIDs` (GİB özelgesi, 04.05.2023), all `verifiedAt: 2026-10-10`.
 - Links shown (since 2026-10-10 on the citing words in the message, no separate Kaynak link): 7-day warning "VUK 231/5" (date field and summary), İstisna KDV error and hint "KDV Kanunu 11/1-a", İstisna nedeni hint for 301 and 302 "KDV Kanunu 11/1-a" (none for 350), Döviz kuru caption "TCMB döviz alış" (always the previous business day's bulletin; the Kur günü setting and its hint were removed 2026-10-10).
 - Opener scope: `https://www.gib.gov.tr/*` and `https://www.mevzuat.gov.tr/*` only (the hosts the registry uses).
 

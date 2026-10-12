@@ -25,11 +25,15 @@ export const RULE_SOURCES = {
     url: 'https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=3065&MevzuatTur=1&MevzuatTertip=5',
     verifiedAt: '2026-10-10',
   },
-  /** Döviz, vergiyi doğuran olay günkü Resmî Gazete'deki TCMB döviz alış kuruyla çevrilir. */
-  exchangeRate: {
-    label: 'KDV Genel Uygulama Tebliği III/A-1.1',
-    url: 'https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=19631&MevzuatTur=9&MevzuatTertip=5',
-    verifiedAt: '2026-10-10',
+  /**
+   * TCMB's indicative rates, where the döviz alış column the rate field takes
+   * is published. Why that rate: KDV Genel Uygulama Tebliği III/A-1.1
+   * (docs/rule-sources.md, 7a).
+   */
+  tcmbRates: {
+    label: 'TCMB gösterge niteliğindeki döviz kurları',
+    url: 'https://www.tcmb.gov.tr/kurlar/kurlar_tr.html',
+    verifiedAt: '2026-10-12',
   },
   /** e-Arşiv'de gerçek numara gerekmeyen alıcıya TCKN 11111111111, VKN 2222222222. */
   placeholderIDs: {
@@ -42,7 +46,11 @@ export const RULE_SOURCES = {
 export type RuleSourceID = keyof typeof RULE_SOURCES;
 
 /** The hosts a rule source may link to, exactly, no subdomains. */
-export const RULE_SOURCE_HOSTS: ReadonlyArray<string> = ['www.gib.gov.tr', 'www.mevzuat.gov.tr'];
+export const RULE_SOURCE_HOSTS: ReadonlyArray<string> = [
+  'www.gib.gov.tr',
+  'www.mevzuat.gov.tr',
+  'www.tcmb.gov.tr',
+];
 
 /** The words of a message that cite `rule`. */
 export interface RuleCitation {

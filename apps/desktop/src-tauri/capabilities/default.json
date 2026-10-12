@@ -51,6 +51,9 @@
         },
         {
           "url": "https://www.mevzuat.gov.tr/*"
+        },
+        {
+          "url": "https://www.tcmb.gov.tr/*"
         }
       ]
     },

@@ -157,7 +157,7 @@ function rateCaption(description: RateDescription | null): ReactNode {
       return (
         <RuleText
           message={ruleMessage(
-            cite('exchangeRate', 'TCMB döviz alış'),
+            cite('tcmbRates', 'TCMB döviz alış'),
             `, ${shortDate(publishedOn)} bülteni (${shortDate(validFor)} için)`,
           )}
         />
