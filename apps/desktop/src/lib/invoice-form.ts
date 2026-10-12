@@ -676,6 +676,27 @@ export function isBlankForm(values: InvoiceFormValues) {
   );
 }
 
+/** Equal values, ids aside; a missing key equals undefined. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) {
+    return true;
+  }
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+    return false;
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+  const x = a as Record<string, unknown>;
+  const y = b as Record<string, unknown>;
+  const keys = new Set([...Object.keys(x), ...Object.keys(y)]);
+  return [...keys].every((key) => key === 'id' || sameValue(x[key], y[key]));
+}
+
+/** true when `values` holds nothing that `blank` (a fresh blank form) does not: a clear loses nothing. */
+export const sameAsBlank = (values: InvoiceFormValues, blank: InvoiceFormValues) =>
+  sameValue(values, blank);
+
 /** Rows with every unparsable number as 0, for saving as services. */
 export const cleanItems = (items: ReadonlyArray<InvoiceItem>): Array<InvoiceItem> =>
   items.map((item) => ({

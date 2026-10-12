@@ -1,7 +1,7 @@
 import { toast } from '@angaria/ui';
 import { useCallback, useMemo } from 'react';
 import { useAppForm } from '@/lib/form.tsx';
-import { isBlankForm, validateInvoice } from '@/lib/invoice-form.ts';
+import { sameAsBlank, validateInvoice } from '@/lib/invoice-form.ts';
 import { useStore } from '@/lib/store.tsx';
 import type { InvoiceFormValues } from '@/lib/types.ts';
 
@@ -48,8 +48,7 @@ export function useClearInvoiceForm() {
   const values = useStoredInvoiceForm();
 
   return useCallback(() => {
-    resetInvoiceForm();
-    if (!isBlankForm(values)) {
+    if (!sameAsBlank(values, resetInvoiceForm())) {
       toast('Form temizlendi', {
         action: { label: 'Geri al', onClick: () => restoreInvoiceDraft(values, invoiceSource) },
       });

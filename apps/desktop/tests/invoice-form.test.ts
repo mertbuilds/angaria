@@ -19,6 +19,7 @@ import {
   normalizeTime,
   parseDecimal,
   roundKurus,
+  sameAsBlank,
   sameInvoice,
   toDraftDetails,
   toPDFData,
@@ -914,6 +915,28 @@ test('isBlankForm ignores the default row and settings', () => {
   expect(isBlankForm(blank)).toBe(true);
   expect(isBlankForm({ ...blank, note: 'Ekim' })).toBe(false);
   expect(isBlankForm(form())).toBe(false);
+});
+
+test('sameAsBlank counts every value a clear would lose, ids aside', () => {
+  const blank = form({
+    items: [item({ name: '', unitPrice: 0 })],
+    recipient: { ...form().recipient, fullAddress: '', taxIDOrTRID: '', title: '' },
+  });
+  const fresh = { ...blank, items: blank.items.map((row) => ({ ...row, id: 'other' })) };
+  expect(sameAsBlank(fresh, blank)).toBe(true);
+  const withAdvanced = (patch: Partial<InvoiceFormValues['advancedFields']>) => ({
+    ...blank,
+    advancedFields: { ...blank.advancedFields, ...patch },
+  });
+  expect(sameAsBlank(withAdvanced({ manualDate: '01/10/2026' }), blank)).toBe(false);
+  expect(sameAsBlank(withAdvanced({ paymentTotal: '1.000' }), blank)).toBe(false);
+  expect(
+    sameAsBlank(
+      { ...blank, invoiceSettings: { ...blank.invoiceSettings, currency: 'USD' } },
+      blank,
+    ),
+  ).toBe(false);
+  expect(sameAsBlank(withAdvanced({ dueDays: undefined }), blank)).toBe(true);
 });
 
 test('cleanItems turns unparsable numbers into 0', () => {
