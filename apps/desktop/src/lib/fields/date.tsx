@@ -1,7 +1,6 @@
 import { DateField as DateInput, Input, type DatePreset } from '@angaria/ui';
-import { getLocalTimeZone, today as todayIn } from '@internationalized/date';
 import { create } from '@stylexjs/stylex';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { FieldFrame, useFieldContext, useFieldError, type FieldProps } from '../form-field.tsx';
 import {
   calendarDateToGIB,
@@ -10,6 +9,7 @@ import {
   parseTurkishDate,
   type DateBias,
 } from '../tr-date.ts';
+import { useToday } from '../use-today.ts';
 
 const styles = create({
   tabular: {
@@ -38,7 +38,7 @@ export function DateField({
 }) {
   const field = useFieldContext<string>();
   const error = useFieldError();
-  const [today] = useState(() => todayIn(getLocalTimeZone()));
+  const today = useToday();
   const value = useMemo(
     () => gibToCalendarDate(field.state.value) ?? (emptyIsToday ? today : null),
     [emptyIsToday, field.state.value, today],

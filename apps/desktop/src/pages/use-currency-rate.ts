@@ -2,7 +2,9 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { fetchTCMBRateTable } from '@/lib/angaria.ts';
 import { formatRate } from '@/lib/invoice-form.ts';
+import { calendarDateToGIB } from '@/lib/tr-date.ts';
 import type { InvoiceFormValues } from '@/lib/types.ts';
+import { useToday } from '@/lib/use-today.ts';
 import { parseGIB } from '@/lib/utils.ts';
 import type { InvoiceForm } from './use-invoice-form.ts';
 
@@ -17,10 +19,7 @@ export type RateDescription =
   // TCMB publishes no rate for this currency.
   | { kind: 'unpublished' };
 
-/**
- * TCMB's bulletin for an invoice dated `rateDate` (GİB's format, empty:
- * today): the previous business day's.
- */
+/** TCMB's bulletin for an invoice dated `rateDate` (GİB's format): the previous business day's. */
 export const tcmbRatesQuery = (rateDate: string) =>
   queryOptions({
     queryFn: () => fetchTCMBRateTable(parseGIB(rateDate)),
@@ -37,7 +36,9 @@ export const tcmbRatesQuery = (rateDate: string) =>
 export function useCurrencyRate(form: InvoiceForm, values: InvoiceFormValues) {
   const currency = values.invoiceSettings.currency;
   const foreign = currency !== 'TRY';
-  const rateDate = values.advancedFields.manualDate;
+  // Empty is today, which turns over at midnight with the rate it needs.
+  const today = calendarDateToGIB(useToday());
+  const rateDate = values.advancedFields.manualDate || today;
   const rateManual = values.advancedFields.currencyRateManual === true;
   const rates = useQuery({ ...tcmbRatesQuery(rateDate), enabled: foreign });
   const tcmbRate = foreign ? rates.data?.rates.get(currency) : undefined;

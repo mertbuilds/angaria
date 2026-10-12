@@ -41,8 +41,10 @@ import {
   type PriceConversion,
 } from '@/lib/services.ts';
 import { useStore } from '@/lib/store.tsx';
+import { calendarDateToGIB } from '@/lib/tr-date.ts';
 import { GTIP_MASK } from '@/lib/tr-validators.ts';
 import type { InvoiceItem } from '@/lib/types.ts';
+import { useToday } from '@/lib/use-today.ts';
 import { formatMoney, formatNumber, matchesQuery, unitLabel } from '@/shell/searchable-list.tsx';
 import { tones } from '../shell/palette.stylex.ts';
 import { tcmbRatesQuery } from './use-currency-rate.ts';
@@ -794,7 +796,9 @@ export function InvoiceItems({ form }: { form: InvoiceForm }) {
     form.store,
     (state) => state.values.advancedFields.currencyRateManual === true,
   );
-  const rateDate = useFormState(form.store, (state) => state.values.advancedFields.manualDate);
+  const today = calendarDateToGIB(useToday());
+  const rateDate =
+    useFormState(form.store, (state) => state.values.advancedFields.manualDate) || today;
   // A service priced in a foreign currency other than the invoice's needs
   // TCMB's rate for it, a lira invoice too. The header's rate shares the query.
   const tcmb = useQuery({
