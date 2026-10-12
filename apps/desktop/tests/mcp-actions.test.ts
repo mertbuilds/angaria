@@ -191,6 +191,31 @@ describe('SMS signing', () => {
     expect((await call(ctx, 'check_gib_connection', {})).error).toBe(false);
   });
 
+  test('asking again after a minute replaces the open operation at once', async () => {
+    let now = NOW.getTime();
+    const { ctx } = signingSetup({ state: { now: () => now } });
+    const first = await call(ctx, 'request_signing_sms', { uuids: ['ettn-new'] });
+    expect(first.json.operationId).toBe('op-1');
+    now += 61_000;
+    const second = await call(ctx, 'request_signing_sms', { uuids: ['ettn-new'] });
+    expect(second.error).toBe(false);
+    expect(second.json.operationId).toBe('op-2');
+    const replaced = await call(ctx, 'sign_invoices', { code: '123456', operationId: 'op-1' });
+    expect(replaced.error).toBe(true);
+    expect((await call(ctx, 'sign_invoices', { code: '123456', operationId: 'op-2' })).error).toBe(
+      false,
+    );
+  });
+
+  test('close_gib_session ends an open operation instead of waiting behind it', async () => {
+    const { ctx } = signingSetup();
+    await call(ctx, 'request_signing_sms', { uuids: ['ettn-new'] });
+    const closed = await call(ctx, 'close_gib_session', {});
+    expect(closed.error).toBe(false);
+    const gone = await call(ctx, 'sign_invoices', { code: '123456', operationId: 'op-1' });
+    expect(gone.error).toBe(true);
+  });
+
   test('an operation is bound to its company', async () => {
     const { ctx } = signingSetup();
     const requested = await call(ctx, 'request_signing_sms', {

@@ -194,7 +194,7 @@
   "not_found_body": "Aradığın sayfa burada yok. Adres yanlış yazılmış ya da sayfa kaldırılmış olabilir.",
   "not_found_home": "Ana sayfaya dön",
 
-  "legal_updated": "Son güncelleme: 2 Ekim 2026",
+  "legal_updated": "Son güncelleme: 12 Ekim 2026",
 
   "privacy_page_meta_title": "Gizlilik politikası · Angaria",
   "privacy_page_meta_description": "Angaria uygulaması ve angaria.app hangi kişisel verileri işler, nerede saklar, kimlerle paylaşır.",
@@ -207,7 +207,7 @@
   "privacy_page_app_gib": "GİB e-Arşiv portalı: faturalarını kesmek, listelemek ve onaylamak için kendi kullanıcı kodun ve şifrenle bağlanır. Bağlantı Mac'inden doğrudan GİB'e gider, bizden geçmez.",
   "privacy_page_app_tcmb": "TCMB: döviz kurlarını Merkez Bankası'nın herkese açık kur sayfasından alır. Bu isteklerde kişisel veri gönderilmez.",
   "privacy_page_app_updates": "dl.angaria.app: yeni sürüm olup olmadığına bakar ve güncellemeleri indirir. Bu istekte kişisel veri gönderilmez.",
-  "privacy_page_app_mcp": "MCP: Angaria'da MCP'yi açarsan, bu Mac'teki yapay zekâ uygulamaları (Claude, Cursor gibi) Angaria üzerinden faturalarını, müşteri ve hizmet kayıtlarını okuyabilir, taslak hazırlayabilir ve kayıt ekleyebilir. Ayrıca izin verirsen, senin ona yazdığın SMS şifresiyle fatura onaylayabilir, kayıt silebilir ve firma bilgilerini değiştirebilir. MCP ve bu izin varsayılan olarak kapalıdır. Açıkken yalnızca bu Mac'ten, Angaria'nın ürettiği erişim anahtarıyla bağlanılır ve bize hiçbir veri gelmez. Bu uygulamalar araçların cevabını kendi yapay zekâ sağlayıcılarına gönderir; bu aktarım senin isteğinle olur ve o uygulamanın gizlilik koşullarına tabidir. Angaria bu çağrılardan son 200'ünün aracını, saatini, şirketini, kısa bir özetini ve sonucunu bu Mac'te tutar; araca verilen bilgileri ve SMS şifrelerini tutmaz.",
+  "privacy_page_app_mcp": "MCP: Angaria'da MCP'yi açarsan, bu Mac'teki yapay zekâ uygulamaları (Claude, Cursor gibi) Angaria üzerinden faturalarını, müşteri ve hizmet kayıtlarını okuyabilir, taslak hazırlayabilir ve kayıt ekleyebilir. Ayrıca izin verirsen, senin ona yazdığın SMS şifresiyle fatura onaylayabilir, kayıt silebilir ve firma bilgilerini değiştirebilir. MCP ve bu izin varsayılan olarak kapalıdır. Açıkken yalnızca bu Mac'ten, Angaria'nın ürettiği erişim anahtarıyla bağlanılır ve bize hiçbir veri gelmez. Bu uygulamalar araçların cevabını kendi yapay zekâ sağlayıcılarına gönderir; bu aktarım senin isteğinle olur ve o uygulamanın gizlilik koşullarına tabidir. Angaria bu çağrılardan son 200'ünün aracını, saatini, şirketini, araca verilen girdiyi ve sonucunu bu Mac'te tutar. Girdide müşteri adı, VKN, adres, tutar ve IBAN gibi bilgiler olabilir; SMS şifreleri, şifreler ve erişim anahtarları gizlenir. Bu kayıt bu Mac'ten çıkmaz.",
   "privacy_page_site_title": "Web sitesi",
   "privacy_page_site_body": "angaria.app, ziyaretleri saymak için PostHog'u (Avrupa Birliği sunucuları) anonim ve çerezsiz kullanır. Sayfa görüntülemelerini ve indirme ve GitHub butonlarına tıklamaları kaydederiz. Bu kayıtlarda tarayıcı türü, cihaz türü ve hangi sayfadan geldiğin gibi bilgiler de bulunur.",
   "privacy_page_site_storage": "Çerez ya da tarayıcı depolaması kullanmayız; sayfayı yeniden yüklediğinde seni yeni bir ziyaretçi olarak görürüz. Veriler sitenin kendi adresi üzerinden iletilir ve bu sırada IP adresin çıkarılır.",

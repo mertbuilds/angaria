@@ -42,6 +42,14 @@ const requestSigningSMS = defineTool({
         { code: 'rate-limit', retryAfterSeconds: wait },
       );
     }
+    // A new request replaces the open operation. Its lease holds the session,
+    // so it ends first; otherwise the new lease waits behind it until it times out.
+    if (ctx.state.signing.busy()) {
+      return failure('Önceki onay sürüyor. Sonucunu bekle, sonra yeni SMS şifresi iste.', {
+        code: 'busy',
+      });
+    }
+    ctx.state.signing.endAll('replaced');
     const lease = await ctx.lease(signal);
     let checked;
     try {

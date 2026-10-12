@@ -642,6 +642,8 @@ const closeGIBSession = defineTool({
   limit: { max: 3, windowMs: 60_000 },
   name: 'close_gib_session',
   run: async (ctx) => {
+    // An open signing operation holds the session; the close would wait behind it.
+    ctx.state.signing.endAll('cancelled');
     await ctx.forceLogout();
     ctx.onAction({ kind: 'gib-session-closed' });
     return json({ message: 'Oturum kapatıldı.' }, 'Oturum kapatıldı');

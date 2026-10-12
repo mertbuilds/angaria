@@ -98,6 +98,8 @@ export function createMcpState({
   }
 
   const signing = {
+    /** True while an operation is signing: it must not be ended under it. */
+    busy: () => [...operations.values()].some(({ operation }) => operation.busy),
     /** Ends every open operation. */
     endAll: (reason: SigningEnd = 'cancelled') => {
       for (const id of operations.keys()) {
