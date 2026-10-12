@@ -93,6 +93,14 @@ export const taxpayerQuery = (account: GIBAccount, taxID: string) =>
     staleTime: Number.POSITIVE_INFINITY,
   });
 
+/** Where invoiceListQuery reports how many of its weeks it has read. */
+export const invoiceListProgressKey = (account: GIBAccount, range: DateRange) => [
+  'invoices-progress',
+  account.key,
+  range.start,
+  range.end,
+];
+
 /**
  * Every document dated within `range`, newest first. Long ranges fill in week
  * by week, newest first, and settled weeks come from this Mac
@@ -108,6 +116,8 @@ export const invoiceListQuery = (account: GIBAccount, range: DateRange) =>
             end: range.end,
             fetchWeek: (start, end) => getDrafts(session, start, end, { signal: jobSignal }),
             onPartial: (rows) => client.setQueryData(queryKey, rows),
+            onProgress: (progress) =>
+              client.setQueryData(invoiceListProgressKey(account, range), progress),
             start: range.start,
             store: localWeekStore(account.key),
           }),

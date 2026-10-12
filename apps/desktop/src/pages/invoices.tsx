@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Kbd,
+  Progress,
   Select,
   SelectContent,
   SelectItem,
@@ -11,16 +12,21 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@angaria/ui';
-import { colors, radius, spacing } from '@angaria/ui/tokens.stylex';
+import { colors, font, radius, spacing } from '@angaria/ui/tokens.stylex';
 import { create, keyframes, props } from '@stylexjs/stylex';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useNavigate, useParams } from '@tanstack/react-router';
 import { FilePlusIcon, RefreshCwIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { UNNAMED_CUSTOMER } from '@/lib/copy.ts';
-import { toastError } from '@/lib/gib-errors.ts';
-import { invoiceDetailQuery, invoiceListQuery, useGIBAccount } from '@/lib/gib.ts';
-import { localWeekStore } from '@/lib/invoice-weeks.ts';
+import { errorMessage, toastError } from '@/lib/gib-errors.ts';
+import {
+  invoiceDetailQuery,
+  invoiceListProgressKey,
+  invoiceListQuery,
+  useGIBAccount,
+} from '@/lib/gib.ts';
+import { localWeekStore, type WeekProgress } from '@/lib/invoice-weeks.ts';
 import {
   invoiceStatus,
   matchesStatus,
@@ -52,6 +58,39 @@ const spin = keyframes({
 });
 
 const styles = create({
+  // Above the list while GİB sends it week by week, or when it stopped part way.
+  banner: {
+    borderBlockEndColor: colors.border,
+    borderBlockEndStyle: 'solid',
+    borderBlockEndWidth: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    paddingBlock: spacing.s3,
+    paddingInline: spacing.s4,
+  },
+  bannerRow: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s3,
+    justifyContent: 'space-between',
+  },
+  bannerText: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  pane: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    minHeight: 0,
+  },
+  paneBody: {
+    flexGrow: 1,
+    minHeight: 0,
+  },
   // Menu and tooltip triggers carry their own data-slot, so the theme's
   // button icon size does not reach their icons.
   icon: {
@@ -267,10 +306,25 @@ export function InvoicesScreen() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [refresh]);
 
+  // How many of the range's weeks GİB has sent (lib/invoice-weeks.ts).
+  const progress = useQuery<WeekProgress>({
+    enabled: false,
+    queryFn: () => ({ done: 0, total: 0 }),
+    queryKey: invoiceListProgressKey(account, invoiceDateRange),
+    staleTime: Number.POSITIVE_INFINITY,
+  }).data;
+  const loadingWeeks =
+    list.isFetching &&
+    progress !== undefined &&
+    progress.total > 1 &&
+    progress.done < progress.total;
+  // A week failed after others came: the list shows what came, and says so.
+  const incomplete = list.isError && list.data !== undefined && !list.isFetching;
+
   let listPane;
   if (list.data === undefined && list.isError) {
     listPane = <ErrorState error={list.error} onRetry={refresh} title="Faturalar alınamadı" />;
-  } else if (list.data === undefined) {
+  } else if (list.data === undefined || (list.data.length === 0 && list.isFetching)) {
     listPane = <ListSkeleton />;
   } else if (list.data.length === 0) {
     listPane = (
@@ -355,7 +409,41 @@ export function InvoicesScreen() {
         <ListDetail
           defaultListWidth={360}
           detail={<Outlet />}
-          list={listPane}
+          list={
+            loadingWeeks || incomplete ? (
+              <div {...props(styles.pane)}>
+                <div {...props(styles.banner)}>
+                  {loadingWeeks && progress ? (
+                    <>
+                      <Progress
+                        label="Faturalar GİB’den alınıyor"
+                        max={progress.total}
+                        value={progress.done}
+                        valueText={`${progress.done}/${progress.total} hafta`}
+                      />
+                      <p {...props(styles.bannerText)}>
+                        GİB faturaları haftalık veriyor, bu yüzden uzun bir aralık biraz sürer.
+                        Liste geldikçe doluyor; geçmiş haftalar bu Mac’te saklanır, bir dahaki
+                        sefere hemen açılır.
+                      </p>
+                    </>
+                  ) : (
+                    <div {...props(styles.bannerRow)}>
+                      <p {...props(styles.bannerText)}>
+                        Liste eksik: GİB bazı haftaları vermedi. {errorMessage(list.error)}
+                      </p>
+                      <Button onClick={() => void refetch()} variant="outline">
+                        Tekrar dene
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div {...props(styles.paneBody)}>{listPane}</div>
+              </div>
+            ) : (
+              listPane
+            )
+          }
           storageKey="faturalar-list-width"
         />
       ) : (

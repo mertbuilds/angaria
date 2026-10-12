@@ -41,6 +41,7 @@ describe('loadInvoiceWeeks', () => {
   test('fetches newest week first, never past today, and reports each week', async () => {
     const asked: Array<string> = [];
     const partial: Array<number> = [];
+    const progress: Array<string> = [];
     const rows = await loadInvoiceWeeks({
       end: '12/10/2026',
       fetchWeek: async (start, end) => {
@@ -48,6 +49,7 @@ describe('loadInvoiceWeeks', () => {
         return start === '12/10/2026' ? [row('12-10-2026')] : [row(`0${asked.length}-10-2026`)];
       },
       onPartial: (so) => partial.push(so.length),
+      onProgress: ({ done, total }) => progress.push(`${done}/${total}`),
       start: '01/10/2026',
       store: memoryStore(),
       today: TODAY,
@@ -58,6 +60,7 @@ describe('loadInvoiceWeeks', () => {
       '28/09/2026-04/10/2026',
     ]);
     expect(partial).toEqual([1, 2, 3]);
+    expect(progress).toEqual(['0/3', '1/3', '2/3', '3/3']);
     expect(rows[0].belgeTarihi).toBe('12-10-2026');
   });
 

@@ -15,6 +15,12 @@ export const SETTLED_DAYS = 30;
 const STORAGE_PREFIX = 'angaria-invoice-weeks:';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** How far a list is: weeks read (from GİB or this Mac) of all it needs. */
+export interface WeekProgress {
+  done: number;
+  total: number;
+}
+
 export interface Week {
   end: Date;
   start: Date;
@@ -98,6 +104,7 @@ export async function loadInvoiceWeeks({
   end,
   fetchWeek,
   onPartial,
+  onProgress,
   start,
   store,
   today = new Date(),
@@ -105,6 +112,7 @@ export async function loadInvoiceWeeks({
   end: string;
   fetchWeek: (start: string, end: string) => Promise<Array<Invoice>>;
   onPartial?: (rows: Array<Invoice>) => void;
+  onProgress?: (progress: WeekProgress) => void;
   start: string;
   store: WeekStore;
   today?: Date;
@@ -120,7 +128,9 @@ export async function loadInvoiceWeeks({
   };
   const lastDay = startOfDay(today);
   const rows: Array<Invoice> = [];
-  for (const week of weeksOf(from, to)) {
+  const weeks = weeksOf(from, to);
+  onProgress?.({ done: 0, total: weeks.length });
+  for (const [index, week] of weeks.entries()) {
     const monday = toGIB(week.start);
     let found = store.get(monday);
     if (!found) {
@@ -132,6 +142,7 @@ export async function loadInvoiceWeeks({
     }
     rows.push(...found.filter(inRange));
     onPartial?.(newestFirst(rows));
+    onProgress?.({ done: index + 1, total: weeks.length });
   }
   return newestFirst(rows);
 }
