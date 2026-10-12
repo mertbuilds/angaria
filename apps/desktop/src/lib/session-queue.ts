@@ -65,6 +65,9 @@ type Job = {
 );
 
 /** How long the app's GİB session stays open after the queue empties. */
+/** What a task waiting while the app quits rejects with. */
+const QUITTING = 'Angaria kapanıyor.';
+
 export const SESSION_LINGER_MS = 45_000;
 
 /** GİB refused because the user has a session open (on the portal, in a browser, or left by a crash). */
@@ -99,6 +102,8 @@ export function createSessionQueue(
   let linger: ReturnType<typeof setTimeout> | null = null;
   // close() asked while a task ran: no later task uses this session.
   let stale = false;
+  // The app is quitting: no task logs in again.
+  let quitting = false;
   // The store's sessions, read once; then kept in step with every write.
   let stored: Promise<Map<string, SessionInfo>> | null = null;
   let writes: Promise<void> = Promise.resolve();
@@ -224,6 +229,10 @@ export function createSessionQueue(
     stopLinger();
     while (jobs.length > 0) {
       for (let job = take(); job; job = take()) {
+        if (quitting) {
+          job.reject(new Error(QUITTING));
+          continue;
+        }
         if (job.account === null) {
           await job.run().catch(job.reject);
           continue;
@@ -420,5 +429,32 @@ export function createSessionQueue(
     return close();
   }
 
-  return { close: closeSession, endLeftovers, forceClose, lease, leaseWith, run };
+  /**
+   * The app quits: logs out of the open session at once, even under a running
+   * task or a lease (the SMS dialog, an MCP signing operation, an import's
+   * request), which fail as the app goes; drops the waiting tasks and logs in
+   * no more. Settles when the logout does; a failed one keeps the session
+   * stored for the next launch to end.
+   */
+  function quit(): Promise<void> {
+    quitting = true;
+    stopLinger();
+    for (const job of jobs.splice(0)) {
+      job.reject(new Error(QUITTING));
+    }
+    const current = open;
+    open = null;
+    stale = false;
+    if (current) {
+      closing = closing.then(() =>
+        client.logout(current.session).then(
+          () => remember(current.key, null),
+          () => {},
+        ),
+      );
+    }
+    return closing;
+  }
+
+  return { close: closeSession, endLeftovers, forceClose, lease, leaseWith, quit, run };
 }

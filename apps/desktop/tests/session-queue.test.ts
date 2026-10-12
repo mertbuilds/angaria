@@ -360,6 +360,37 @@ describe('the session after the queue empties', () => {
     }
   });
 
+  test('quit logs out at once, even under a lease, and logs in no more', async () => {
+    const { client, log } = fakeClient();
+    const queue = createSessionQueue(client, { lingerMs: 45_000 });
+    const user = account('33333301');
+
+    const lease = await queue.lease(user);
+    const waiting = queue.run(user, async () => {});
+    await queue.quit();
+    expect(log).toEqual(['login 33333301', 'logout t1']);
+    await expect(waiting).rejects.toThrow('Angaria kapanıyor.');
+    lease.release();
+    await expect(queue.run(user, async () => {})).rejects.toThrow('Angaria kapanıyor.');
+    await tick();
+    expect(log).toEqual(['login 33333301', 'logout t1']);
+  });
+
+  test('quit during a running call logs out without waiting for it', async () => {
+    const { client, log } = fakeClient();
+    const queue = createSessionQueue(client);
+    const call = deferred<void>();
+    const running = queue.run(account('33333301'), () => call.promise);
+    await tick();
+    await tick();
+    await queue.quit();
+    expect(log).toEqual(['login 33333301', 'logout t1']);
+    call.resolve();
+    await running;
+    await tick();
+    expect(log).toEqual(['login 33333301', 'logout t1']);
+  });
+
   test('another account logs out of the lingering session first', async () => {
     vi.useFakeTimers();
     try {
