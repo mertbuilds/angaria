@@ -303,7 +303,7 @@ export function createEmulator(options: EmulatorOptions = {}): Emulator {
  * Bind addresses that stay on this machine. On any other, a LAN client could
  * send a loopback Host and reach /__emulator, which has no auth.
  */
-const LOOPBACK_BIND = /^(?:127(?:\.\d{1,3}){3}|localhost|::1)$/i;
+const LOOPBACK_BIND = /^(?:127\.0\.0\.1|localhost|::1)$/i;
 
 /**
  * Starts the emulator on `host:port` (port 0 picks a free one). Refuses a host
