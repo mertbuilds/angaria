@@ -26,4 +26,20 @@ describe('analytics', () => {
       expect.objectContaining({ transport: 'sendBeacon' }),
     );
   });
+
+  test('sends events tracked while PostHog loads once it starts', async () => {
+    vi.resetModules();
+    const { default: posthog } = await import('posthog-js');
+    vi.mocked(posthog.capture).mockClear();
+    const analytics = await import('./analytics.ts');
+    const started = analytics.startAnalytics('phc_test');
+    analytics.track('download_click', { location: 'hero' });
+    expect(posthog.capture).not.toHaveBeenCalled();
+    await started;
+    expect(posthog.capture).toHaveBeenCalledWith(
+      'download_click',
+      { location: 'hero' },
+      expect.objectContaining({ transport: 'sendBeacon' }),
+    );
+  });
 });
