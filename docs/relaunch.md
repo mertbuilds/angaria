@@ -10,7 +10,7 @@ Decisions from the grilling session with Mert. Every agent working on the relaun
 
 ## Repo layout (target)
 
-Monorepo in web-starter shape (`/Users/duzgundev/code/mertbuilds/web-starter` is the reference; copy its tooling, not its api/db/auth):
+Monorepo in web-starter shape (the web-starter template is the reference; copy its tooling, not its api/db/auth):
 
 - pnpm + Turborepo, oxlint (`@nkzw/oxlint-config`, type-aware) + oxfmt, lefthook, mprocs, portless
 - `apps/web`: landing page, TanStack Start on Cloudflare Workers, StyleX + shadcn-cssinjs components, Paraglide with base locale `tr`, PostHog EU (cookieless: `persistence: 'memory'`); no Sentry, no api app, no db
@@ -22,9 +22,9 @@ Monorepo in web-starter shape (`/Users/duzgundev/code/mertbuilds/web-starter` is
 
 ## Design canon
 
-Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/ui/src/theme.css` (+ `tokens.stylex.ts`, `ui/*.tsx`).
+Source of truth: the attentionawareness repo's `packages/ui/src/theme.css` (+ `tokens.stylex.ts`, `ui/*.tsx`).
 
-- Suisse Intl 400/500 only (woff2 gitignored, fetched by `scripts/fetch-fonts.sh`; local copies in `/Users/duzgundev/code/mertbuilds/knobs.dev/packages/ui/fonts/`). Inter fallback. Headings weight 500, never bold. Its commercial license covers app embedding, not redistribution in source: the files never enter the repo, official releases fetch them, builds from source use Inter.
+- Suisse Intl 400/500 only (woff2 gitignored, fetched by `scripts/fetch-fonts.sh`). Inter fallback. Headings weight 500, never bold. Its commercial license covers app embedding, not redistribution in source: the files never enter the repo, official releases fetch them, builds from source use Inter.
 - Black/white; grays `#f5f5f5/#1a1a1a`, `#d4d4d4/#3f3f3f`, `#8a8a8a`. Only chroma: destructive `#dc2626/#f87171`, warning `#d97706/#fbbf24`. No emerald.
 - Website only (2026-10-02): one bright blue, `#0098f2` (`--brand`, `apps/web/src/brand.css`), used sparingly: primary buttons, the selected plan, section markers, the compare slider. White text on it is 3.1:1 and fails AA, so buttons carry black text (6.8:1). Text in the blue (link hovers, check marks, the focus ring) uses the deeper `#006abb` on white (5.6:1). The hero sits on a still dot grid in a faint text color, faded at the edges and behind the headline.
 - Desktop app (2026-10-02, after Mert found it hard to look at, dark mode most): `apps/desktop/src/palettes.css` layers a palette over the kit. Two palettes, both a user setting under Ayarlar › Görünüm › Renk paleti and in ⌘K: mist (Serin, cool blue-gray, the default) and paper (Sıcak, warm neutral); the brand-forward tide candidate was dropped. Tinted neutrals instead of black and white, soft text on a deep tinted gray in dark mode, regions parted by tone instead of borders, and the blue for primary buttons, selection, focus and the Onaylı badge. The content floats as a panel with 12px corners, 8px from the window edges and the sidebar, on the sidebar's tone (a very soft shadow in light mode, a faint 1px hairline in dark mode). A blue fill with white text is `#0077c8` (4.7:1); `#0098f2` carries dark text.
@@ -47,7 +47,7 @@ Source of truth: `/Users/duzgundev/code/mertbuilds/attentionawareness/packages/u
 - Network: strict CSP + http allowlist. Allowed hosts only: `earsivportal.efatura.gov.tr`, `www.tcmb.gov.tr`, `dl.angaria.app` (updater). Nothing else; no analytics/telemetry in the app. The system browser opens the rule sources, angaria.app and the source code on GitHub.
 - Licensing (2026-10-12): none. The Polar license gate, its grace period and the license record in the vault are gone. Ayarlar › Hakkında says Angaria is free software under the AGPL, links the source code (the AGPL source offer), shows the license text and the third-party notices.
 - Updates: Tauri updater, signed manifest + bundles served from `https://dl.angaria.app` (Cloudflare R2). Check on launch, user confirms install.
-- macOS universal, signed + notarized `.dmg` (reference pipeline: `/Users/duzgundev/code/mertbuilds/caffeinagent/scripts`). Windows later.
+- macOS universal, signed + notarized `.dmg` (reference pipeline: the Agent Caffeine release scripts). Windows later.
 - Bundle id stays `com.vinena.angaria` (keeps existing localStorage data).
 
 ## Landing page (angaria.app)
