@@ -1,6 +1,6 @@
 # 0005. Cookieless PostHog on the site, no telemetry in the app
 
-Accepted, 2026-10-01.
+Accepted, 2026-10-01. Since `0013-free-and-open-source.md` (2026-10-12) the app reaches no Polar host.
 
 ## Context
 

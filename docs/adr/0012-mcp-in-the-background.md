@@ -1,6 +1,6 @@
 # 0012. MCP without the window: background mode, menu bar, settings in Rust
 
-Accepted, 2026-10-10. Builds on `0009-built-in-mcp-server.md` and `0010-mcp-agent-actions.md`; their server, access checks, tools and switches stand.
+Accepted, 2026-10-10. Builds on `0009-built-in-mcp-server.md` and `0010-mcp-agent-actions.md`; their server, access checks, tools and switches stand. Since `0013-free-and-open-source.md` (2026-10-12) there is no license error.
 
 ## Context
 
