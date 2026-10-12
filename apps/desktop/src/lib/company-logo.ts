@@ -3,8 +3,11 @@
 
 export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml'];
 
-/** Largest file accepted */
-const MAX_LOGO_FILE_BYTES = 1024 * 1024;
+/**
+ * Largest file accepted. Only a guard against decoding a huge file: every logo
+ * is scaled down to MAX_SIDE and stored as a small PNG anyway.
+ */
+const MAX_LOGO_FILE_BYTES = 10 * 1024 * 1024;
 
 /** Longest side of the stored PNG: sharp in the PDF's 180 by 44 point box */
 const MAX_SIDE = 800;
@@ -46,7 +49,7 @@ export async function readLogo(file: File): Promise<string> {
     throw new Error('Logo PNG, JPG ya da SVG olmalı');
   }
   if (file.size > MAX_LOGO_FILE_BYTES) {
-    throw new Error('Logo en fazla 1 megabayt olabilir');
+    throw new Error('Logo en fazla 10 megabayt olabilir');
   }
   const url = URL.createObjectURL(file.type === 'image/svg+xml' ? await sizedSVG(file) : file);
   try {

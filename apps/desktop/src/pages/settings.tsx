@@ -769,7 +769,7 @@ function CompanyLogoRow() {
 
   return (
     <SettingsRow
-      hint="PNG, JPG ya da SVG, en fazla 1 megabayt. Logo yoksa PDF’te firma adı yazılır"
+      hint="PNG, JPG ya da SVG, en fazla 10 megabayt. Logo yoksa PDF’te firma adı yazılır"
       label="Logo"
     >
       {companyInfo.logo && (
