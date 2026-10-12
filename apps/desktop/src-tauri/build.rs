@@ -24,8 +24,6 @@ fn main() {
       "mcp_stop",
       "mcp_status",
       "mcp_respond",
-      "mcp_token",
-      "mcp_rotate_token",
       "mcp_agents",
       "mcp_agents_add",
       "mcp_agents_remove",

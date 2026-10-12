@@ -104,15 +104,6 @@ pub fn ensure_token(dir: &Path) -> Result<String, String> {
   Ok(state.token)
 }
 
-/// A new token; clients added with the old one in a header stop working.
-pub fn rotate_token(dir: &Path) -> Result<String, String> {
-  let _lock = FILE_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-  let mut state = read_state(dir).map_err(|error| error.to_string())?;
-  state.token = new_token()?;
-  write_state(dir, &state)?;
-  Ok(state.token)
-}
-
 /// Records the port the server listens on, or that it stopped.
 pub fn set_port(dir: &Path, port: Option<u16>) -> Result<(), String> {
   let _lock = FILE_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -184,14 +175,11 @@ mod tests {
       let mode = fs::metadata(state_path(&dir)).unwrap().permissions().mode();
       assert_eq!(mode & 0o777, 0o600);
     }
-    let rotated = rotate_token(&dir).unwrap();
-    assert_ne!(rotated, token);
-    assert_eq!(read_state(&dir).unwrap().port, Some(41234));
     clear_port(&dir, 41235).unwrap();
     assert_eq!(read_state(&dir).unwrap().port, Some(41234));
     clear_port(&dir, 41234).unwrap();
     assert_eq!(read_state(&dir).unwrap().port, None);
-    assert_eq!(read_state(&dir).unwrap().token, rotated);
+    assert_eq!(read_state(&dir).unwrap().token, token);
     fs::remove_dir_all(dir).unwrap();
   }
 

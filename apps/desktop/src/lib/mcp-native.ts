@@ -54,8 +54,6 @@ export const mcpStop = () => invoke<void>('mcp_stop');
 export const mcpStatus = () => invoke<McpStatus>('mcp_status');
 export const mcpRespond = (id: number, result: McpToolResult) =>
   invoke<void>('mcp_respond', { id, result });
-export const mcpToken = () => invoke<string>('mcp_token');
-export const mcpRotateToken = () => invoke<string>('mcp_rotate_token');
 /** The settings Rust keeps in mcp.json; null before the webview first saved them. */
 export const mcpSettings = () => invoke<McpSettings | null>('mcp_settings');
 export const mcpSetSettings = (settings: McpSettings) =>

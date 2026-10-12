@@ -1,6 +1,6 @@
 # 0011. MCP client setup ported from add-mcp
 
-Accepted, 2026-10-10.
+Accepted, 2026-10-10. Since 2026-10-12 the page offers only the bridge: the HTTP command under Gelişmiş is gone, and a client that wants Streamable HTTP is set up by hand from the README.
 
 ## Context
 

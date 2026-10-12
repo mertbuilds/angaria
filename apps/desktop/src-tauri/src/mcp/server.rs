@@ -117,7 +117,7 @@ pub struct ClientSeen {
 
 struct Shared {
   port: u16,
-  token: RwLock<String>,
+  token: String,
   /// As tools/list shows them, and what else the server knows of each.
   tools: RwLock<Arc<(Value, Notes)>>,
   clients: Mutex<Vec<ClientSeen>>,
@@ -154,10 +154,6 @@ impl RunningServer {
     *self.shared.tools.write().unwrap() = Arc::new(inputs::split(tools));
   }
 
-  pub fn set_token(&self, token: String) {
-    *self.shared.token.write().unwrap() = token;
-  }
-
   pub fn clients(&self) -> Vec<ClientSeen> {
     self.shared.clients.lock().unwrap().clone()
   }
@@ -190,7 +186,7 @@ pub async fn start(options: ServerOptions) -> io::Result<RunningServer> {
   let listener = bind(options.port, options.attempts).await?;
   let shared = Arc::new(Shared {
     port: listener.local_addr()?.port(),
-    token: RwLock::new(options.token),
+    token: options.token,
     tools: RwLock::new(Arc::new(inputs::split(options.tools))),
     clients: Mutex::new(Vec::new()),
     host: options.host,
@@ -455,8 +451,7 @@ async fn run_tool(shared: &Shared, name: String, arguments: Value) -> Value {
 }
 
 async fn handle(request: Request<Incoming>, shared: Arc<Shared>) -> Result<Reply, Infallible> {
-  let token = shared.token.read().unwrap().clone();
-  if let Some(reply) = access_refusal(request.headers(), shared.port, &token) {
+  if let Some(reply) = access_refusal(request.headers(), shared.port, &shared.token) {
     return Ok(reply);
   }
   if request.uri().path() != MCP_PATH {
@@ -683,18 +678,6 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn a_new_token_replaces_the_old_one() {
-    let server = server().await;
-    let port = server.port();
-    server.set_token("fedcba9876543210".into());
-    let old = format!("Authorization: Bearer {TOKEN}\r\n");
-    assert_eq!(send(port, &post(port, &old), INITIALIZE).await.0, 401);
-    let new = "Authorization: Bearer fedcba9876543210\r\n";
-    assert_eq!(send(port, &post(port, new), INITIALIZE).await.0, 200);
-    server.stop().await;
-  }
-
-  #[tokio::test]
   async fn stopping_frees_the_port() {
     let server = server().await;
     let port = server.port();
@@ -836,7 +819,7 @@ mod tests {
     ]);
     Arc::new(Shared {
       port: 0,
-      token: RwLock::new(TOKEN.into()),
+      token: TOKEN.into(),
       tools: RwLock::new(Arc::new(inputs::split(tools))),
       clients: Mutex::new(Vec::new()),
       host,

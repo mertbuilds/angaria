@@ -16,8 +16,6 @@
     "allow-mcp-stop",
     "allow-mcp-status",
     "allow-mcp-respond",
-    "allow-mcp-token",
-    "allow-mcp-rotate-token",
     "allow-mcp-agents",
     "allow-mcp-agents-add",
     "allow-mcp-agents-remove",
