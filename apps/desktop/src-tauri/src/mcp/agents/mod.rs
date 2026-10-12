@@ -212,23 +212,36 @@ fn write(path: &Path, text: &str, previous: Option<&str>, private: bool) -> std:
   let permissions = fs::metadata(&target)
     .ok()
     .map(|metadata| metadata.permissions());
+  // The backup and the temp file are created with the config's own mode (0600
+  // for a private one), never the umask's 0644: a token in ~/.claude.json must
+  // not sit in a world-readable copy, even for a moment.
+  let new_file = || {
+    let mut options = OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+      use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+      let mode = match &permissions {
+        Some(permissions) => permissions.mode() & 0o777,
+        None if private => 0o600,
+        None => 0o644,
+      };
+      options.mode(if private { 0o600 } else { mode });
+    }
+    options
+  };
   if let Some(previous) = previous {
     let backup = backup_path(&target);
-    fs::write(&backup, previous)?;
+    let mut file = new_file().open(&backup)?;
     if let Some(permissions) = &permissions {
       fs::set_permissions(&backup, permissions.clone())?;
     }
+    file.write_all(previous.as_bytes())?;
   }
   let mut name = target.file_name().unwrap_or_default().to_os_string();
   name.push(".angaria-tmp");
   let temp = dir.join(name);
-  let mut options = OpenOptions::new();
-  options.write(true).create(true).truncate(true);
-  #[cfg(unix)]
-  if private {
-    use std::os::unix::fs::OpenOptionsExt;
-    options.mode(0o600);
-  }
+  let options = new_file();
   let written = (|| {
     let mut file = options.open(&temp)?;
     file.write_all(text.as_bytes())?;
@@ -567,6 +580,23 @@ mod tests {
     let mode = |path: &Path| fs::metadata(path).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode(Path::new(&fx.path)), 0o600);
     assert_eq!(mode(&home.join(".fx")), 0o700);
+    fs::remove_dir_all(home).unwrap();
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn the_backup_keeps_a_private_config_private() {
+    use std::os::unix::fs::PermissionsExt;
+    let home = temp_home("backup-mode");
+    let env = home_env(&home);
+    let path = home.join(".cursor/mcp.json");
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(&path, "{ \"mcpServers\": {} }").unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+    assert!(upsert_server(agent("cursor"), &env, BRIDGE).changed);
+    let mode = |path: &Path| fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode(&backup_path(&path)), 0o600);
+    assert_eq!(mode(&path), 0o600);
     fs::remove_dir_all(home).unwrap();
   }
 }
