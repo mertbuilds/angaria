@@ -264,7 +264,7 @@
   "mcp_faq_queue_q": "Angaria'yı kullanırken çakışma olur mu?",
   "mcp_faq_queue_a": "Olmaz. Claude'un istekleri Angaria'nın GİB bağlantısında sıraya girer. Ekranda yaptığın işi ya da süren bir SMS onayını bölmez.",
   "mcp_faq_log_q": "Claude'un ne yaptığını nereden görürüm?",
-  "mcp_faq_log_a": "Angaria'nın MCP bölümünde. Ajan etkinliği listesi son 200 çağrıyı gösterir: hangi araç, ne zaman, hangi şirkette ve sonucu. Araca verilen bilgiler ve SMS şifreleri tutulmaz. Claude bir faturayı onayladığında ya da bir şeyi sildiğinde Angaria ayrıca haber verir.",
+  "mcp_faq_log_a": "Angaria'nın MCP bölümünde. Ajan etkinliği listesi son 200 çağrıyı gösterir: hangi araç, ne zaman, hangi şirkette, araca verilen girdi ve sonucu. SMS şifreleri ve şifreler gizlenir. Claude bir faturayı onayladığında ya da bir şeyi sildiğinde Angaria ayrıca haber verir.",
   "mcp_faq_price_q": "MCP için ayrıca ödeme yapar mıyım?",
   "mcp_faq_price_a": "Hayır. MCP Angaria'ya dahil. Araçlar lisansın etkin olduğu sürece çalışır.",
 

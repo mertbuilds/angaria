@@ -23,6 +23,7 @@ import { saveAngariaPDF, saveEArchive } from '@/lib/invoice-files.ts';
 import { cleanItems, invoiceDefaults, upsertSavedItems } from '@/lib/invoice-form.ts';
 import { parseGIBInvoice, rangeCovering } from '@/lib/invoices.ts';
 import { useLicense } from '@/lib/license-context.tsx';
+import { activityInput } from '@/lib/mcp-activity-input.ts';
 import {
   mcpRespond,
   mcpStart,
@@ -352,6 +353,7 @@ export function McpHost() {
           ...activity,
           at: new Date().toISOString(),
           id: `${Date.now()}-${id}`,
+          input: activityInput(args),
           tool: name,
         });
         await mcpRespond(id, result);

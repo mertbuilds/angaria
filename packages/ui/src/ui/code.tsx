@@ -5,9 +5,25 @@ import type { StyleXStyles } from '@stylexjs/stylex';
 import type { ComponentProps } from 'react';
 import { optional } from '../lib/tokens.stylex.ts';
 import { customClassName } from '../lib/utils.stylex.ts';
-import { font } from '../tokens.stylex.ts';
+import { font, radius, spacing } from '../tokens.stylex.ts';
 
 const styles = create({
+  block: {
+    backgroundColor: optional.codeBackground,
+    borderRadius: radius.base,
+    color: 'inherit',
+    fontFamily: font.mono,
+    fontSize: font.sizeXs,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: 400,
+    lineHeight: 1.5,
+    margin: 0,
+    minWidth: 0,
+    overflowWrap: 'anywhere',
+    paddingBlock: spacing.s2,
+    paddingInline: spacing.s3,
+    whiteSpace: 'pre-wrap',
+  },
   root: {
     backgroundColor: optional.codeBackground,
     borderRadius: '4px',
@@ -38,6 +54,25 @@ export function Code({
       translate="no"
       {...props}
       {...stylexProps(styles.root, customClassName(className), style)}
+    />
+  );
+}
+
+/**
+ * Lines of a technical value: JSON, a config snippet. Code's mono and chip on
+ * a block that keeps line breaks and indents and wraps long lines, so it
+ * never scrolls sideways.
+ */
+export function CodeBlock({
+  className,
+  style,
+  ...props
+}: Omit<ComponentProps<'pre'>, 'style'> & { style?: StyleXStyles }) {
+  return (
+    <pre
+      translate="no"
+      {...props}
+      {...stylexProps(styles.block, customClassName(className), style)}
     />
   );
 }

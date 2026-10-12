@@ -67,8 +67,8 @@ const sameSettings = (a: McpSettings, b: McpSettings) =>
 
 /**
  * A tool call as the MCP page lists it. The summary and result are the tool's
- * own short Turkish lines: never the arguments, an SMS code, a password or a
- * token.
+ * own short Turkish lines; the input is the arguments with SMS codes,
+ * passwords and tokens masked (mcp-activity-input.ts).
  */
 export interface McpActivity {
   /** ISO 8601 */
@@ -76,6 +76,8 @@ export interface McpActivity {
   /** The company the call acted on */
   company?: string;
   id: string;
+  /** The arguments as indented JSON, secrets masked, cut at INPUT_SIZE; none before 2026-10-12 */
+  input?: string;
   ok: boolean;
   /** What came of it: the tool's line, or the error the agent got. */
   result: string;
@@ -92,6 +94,7 @@ const isActivity = (value: unknown): value is McpActivity => {
     typeof entry.at === 'string' &&
     (entry.company === undefined || typeof entry.company === 'string') &&
     typeof entry.id === 'string' &&
+    (entry.input === undefined || typeof entry.input === 'string') &&
     typeof entry.ok === 'boolean' &&
     typeof entry.result === 'string' &&
     typeof entry.summary === 'string' &&

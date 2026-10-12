@@ -33,7 +33,7 @@ export {
 } from './ui/card.tsx';
 export { Checkbox, type CheckboxProps } from './ui/checkbox.tsx';
 export { ChoiceChips, type ChoiceChipsProps, type ChoiceOption } from './ui/choice-chips.tsx';
-export { Code } from './ui/code.tsx';
+export { Code, CodeBlock } from './ui/code.tsx';
 export {
   Combobox,
   ComboboxChip,
