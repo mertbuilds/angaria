@@ -264,10 +264,15 @@ describe('portal limits and failures', () => {
     const all = (await client.getDrafts(session, daysAgo(45), today)) as Array<
       Record<string, string>
     >;
+    // Six weeks of Mert Düzgün's demo documents (gib-emulator config.ts).
     expect(all.map((row) => row.onayDurumu).toSorted()).toEqual([
       'Onaylandı',
       'Onaylandı',
       'Onaylandı',
+      'Onaylandı',
+      'Onaylandı',
+      'Onaylanmadı',
+      'Onaylanmadı',
       'Silinmiş',
     ]);
     await client.logout(session);
