@@ -12,8 +12,6 @@ export const CONTACT_EMAIL = 'destek@angaria.app';
 /** Every link to one of our own sites carries utm tags, so the visit is traced to this one. */
 const AUTHOR_URL =
   'https://mertbuilds.com/?utm_source=angaria.app&utm_medium=referral&utm_campaign=footer';
-/** Read once per load, not per render: the copyright line only moves at New Year. */
-const YEAR = new Date().getFullYear();
 /** The mark on the brand's line, as large as the header draws it. */
 const MARK_SIZE = 24;
 
@@ -202,8 +200,7 @@ export function SiteFooter() {
                   {m.footer_author()}
                 </a>
               }
-            />{' '}
-            {m.footer_copyright({ year: YEAR })}
+            />
           </p>
           <p {...props(styles.line)}>{m.footer_disclaimer()}</p>
         </div>
