@@ -16,15 +16,23 @@ function readAll(storage: DueDateStorage): Record<string, string> {
   }
 }
 
-/** Keeps `dueDate` (dd/MM/yyyy) for the invoice `ettn`; empty forgets it. */
+/**
+ * Keeps `dueDate` (dd/MM/yyyy) for the invoice `ettn`; empty forgets it. It
+ * runs after GİB has the draft, so a full or blocked storage never fails the
+ * creation: the PDF then prints without the due date.
+ */
 export function saveDueDate(ettn: string, dueDate: string, storage: DueDateStorage = localStorage) {
-  const all = readAll(storage);
-  if (dueDate) {
-    all[ettn] = dueDate;
-  } else {
-    delete all[ettn];
+  try {
+    const all = readAll(storage);
+    if (dueDate) {
+      all[ettn] = dueDate;
+    } else {
+      delete all[ettn];
+    }
+    storage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // Optional: the draft exists either way.
   }
-  storage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
 
 /** The due date the invoice `ettn` was created with, if any. */

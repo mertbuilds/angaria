@@ -27,3 +27,13 @@ test('reads nothing from a broken entry', () => {
   storage.setItem('fatura-due-dates', '{');
   expect(dueDateOf('a', storage)).toBeUndefined();
 });
+
+test('never throws when the storage refuses the write', () => {
+  const full = {
+    getItem: () => null,
+    setItem: () => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    },
+  };
+  expect(() => saveDueDate('a', '15/10/2026', full)).not.toThrow();
+});
