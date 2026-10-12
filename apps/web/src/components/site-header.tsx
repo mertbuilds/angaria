@@ -3,8 +3,9 @@ import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import { brand } from '../lib/brand.stylex.ts';
+import { SOURCE_URL } from '../lib/config.ts';
 import { m } from '../paraglide/messages.js';
-import { CheckoutButton } from './cta.tsx';
+import { DownloadButton } from './cta.tsx';
 
 const styles = create({
   actions: {
@@ -22,7 +23,7 @@ const styles = create({
     color: 'inherit',
     textDecorationLine: 'none',
   },
-  // Plain text beside the trial button, padded to a comfortable hit area.
+  // Plain text beside the download button, padded to a comfortable hit area.
   link: {
     color: {
       ':hover': brand.ink,
@@ -40,6 +41,9 @@ const styles = create({
       default: colors.fg,
     },
   },
+  nav: {
+    display: 'flex',
+  },
   wordmark: {
     fontSize: 20,
   },
@@ -54,12 +58,15 @@ export function SiteHeader() {
         <Wordmark style={styles.wordmark} />
       </Link>
       <div {...props(styles.actions)}>
-        <nav aria-label={m.header_nav()}>
+        <nav aria-label={m.header_nav()} {...props(styles.nav)}>
           <Link to="/mcp" {...props(styles.link, onMcp && styles.linkCurrent)}>
             {m.header_mcp()}
           </Link>
+          <a href={SOURCE_URL} {...props(styles.link)}>
+            {m.header_source()}
+          </a>
         </nav>
-        <CheckoutButton label={m.header_trial()} location="header" />
+        <DownloadButton label={m.header_download()} location="header" variant="outline" />
       </div>
     </header>
   );

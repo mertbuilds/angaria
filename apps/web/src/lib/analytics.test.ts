@@ -19,10 +19,10 @@ describe('analytics', () => {
       'phc_test',
       expect.objectContaining({ autocapture: false, persistence: 'memory' }),
     );
-    track('checkout_click', { location: 'pricing', plan: 'monthly' });
+    track('source_click', { location: 'free' });
     expect(posthog.capture).toHaveBeenCalledWith(
-      'checkout_click',
-      { location: 'pricing', plan: 'monthly' },
+      'source_click',
+      { location: 'free' },
       expect.objectContaining({ transport: 'sendBeacon' }),
     );
   });

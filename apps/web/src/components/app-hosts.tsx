@@ -10,13 +10,11 @@ const MOTION = '@media (prefers-reduced-motion: no-preference)';
 
 /**
  * Every host the desktop app talks to, and nothing else. Keep it in step with
- * the app's CSP and http allowlist (docs/relaunch.md); the Polar sandbox is in
- * dev builds only and stays off this list.
+ * the app's CSP and http allowlist (docs/relaunch.md).
  */
 export const APP_HOSTS = [
   { host: 'earsivportal.efatura.gov.tr', purpose: m.host_gib },
   { host: 'www.tcmb.gov.tr', purpose: m.host_tcmb },
-  { host: 'api.polar.sh', purpose: m.host_polar },
   { host: 'dl.angaria.app', purpose: m.host_updates },
 ] as const;
 

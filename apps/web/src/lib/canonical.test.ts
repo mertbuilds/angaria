@@ -3,9 +3,9 @@ import { canonicalRedirect } from './canonical.ts';
 
 describe('canonicalRedirect', () => {
   test('sends www to the apex with path and query', () => {
-    const response = canonicalRedirect(new URL('https://www.angaria.app/fiyat?ref=x'));
+    const response = canonicalRedirect(new URL('https://www.angaria.app/mcp?ref=x'));
     expect(response?.status).toBe(301);
-    expect(response?.headers.get('location')).toBe('https://angaria.app/fiyat?ref=x');
+    expect(response?.headers.get('location')).toBe('https://angaria.app/mcp?ref=x');
   });
 
   test('leaves the apex and local hosts alone', () => {

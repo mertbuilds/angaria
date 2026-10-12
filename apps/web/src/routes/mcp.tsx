@@ -4,7 +4,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { KeyRound, Laptop, MessageSquareLock, Power, type LucideIcon } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { AppIcon } from '../components/app-icon.tsx';
-import { CheckoutButton, DownloadButton } from '../components/cta.tsx';
+import { DownloadButton, SourceButton } from '../components/cta.tsx';
 import { McpScene } from '../components/mcp-scene.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
 import { Screenshot } from '../components/screenshot.tsx';
@@ -66,7 +66,6 @@ const QUESTIONS = [
   [m.mcp_faq_company_q, m.mcp_faq_company_a],
   [m.mcp_faq_queue_q, m.mcp_faq_queue_a],
   [m.mcp_faq_log_q, m.mcp_faq_log_a],
-  [m.mcp_faq_price_q, m.mcp_faq_price_a],
 ] as const;
 
 const WIDE = '@media (min-width: 640px)';
@@ -329,7 +328,7 @@ function McpPage() {
         <p {...props(layout.text, styles.lead)}>{m.mcp_lead()}</p>
         <div {...props(styles.actions)}>
           <DownloadButton location="mcp" />
-          <CheckoutButton location="mcp" />
+          <SourceButton location="mcp" />
         </div>
         <p {...props(layout.text, layout.muted, layout.small)}>{m.mcp_note()}</p>
       </header>
@@ -482,7 +481,7 @@ function McpPage() {
         </Reveal>
         <Reveal index={1} style={[styles.actions, styles.actionsCentered]}>
           <DownloadButton location="mcp" />
-          <CheckoutButton location="mcp" />
+          <SourceButton location="mcp" />
         </Reveal>
         <Reveal index={2}>
           <p {...props(layout.text, layout.muted, layout.small)}>{m.hero_note()}</p>

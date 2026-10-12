@@ -58,11 +58,18 @@ const mcpLink = () =>
   });
 
 describe('header', () => {
-  test('links to the MCP page next to the trial button', async () => {
+  test('links to the MCP page and the source next to the download button', async () => {
     const router = await renderSite('/');
 
     expect(mcpLink()).toHaveAttribute('href', '/mcp');
-    expect(screen.getByRole('link', { name: 'Ücretsiz dene' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/vinenastudio/angaria',
+    );
+    expect(screen.getByRole('link', { name: 'İndir' })).toHaveAttribute(
+      'href',
+      'https://dl.angaria.app/latest/Angaria.dmg',
+    );
 
     fireEvent.click(mcpLink());
     expect(

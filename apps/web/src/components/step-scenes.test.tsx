@@ -82,8 +82,8 @@ describe('with reduced motion', () => {
     act(() => observers.intersect(true));
 
     expect(stub.animate).not.toHaveBeenCalled();
-    expect(install).toHaveTextContent('7Q4K-M2XD-9PLW-3HTR');
-    expect(install).toHaveTextContent('Etkin');
+    expect(install).toHaveTextContent('Uygulamalar');
+    expect(install.querySelector('[data-part="check"]')).toBeInTheDocument();
     expect(connect).toHaveTextContent("GİB'den geldi");
     expect(connect).toHaveTextContent('Kestrel Analytics');
     expect(sign).toHaveTextContent('Onaylandı');

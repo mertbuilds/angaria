@@ -78,6 +78,17 @@ const styles = create({
     // The lowercase a sits low in its line box; up a pixel it looks centered.
     paddingBlockEnd: 2,
   },
+  arrow: {
+    color: colors.muted,
+    display: 'block',
+    height: 14,
+  },
+  // The check that lands on the folder once the app is in it.
+  badge: {
+    bottom: 0,
+    position: 'absolute',
+    right: -4,
+  },
   between: {
     alignItems: 'center',
     display: 'flex',
@@ -98,6 +109,11 @@ const styles = create({
     paddingInline: 12,
     transformOrigin: '0 100%',
     whiteSpace: 'nowrap',
+  },
+  caption: {
+    fontSize: 11,
+    textAlign: 'center',
+    width: 80,
   },
   check: {
     alignItems: 'center',
@@ -174,24 +190,15 @@ const styles = create({
     justifyContent: 'center',
     width: 22,
   },
-  done: {
-    alignItems: 'center',
-    display: 'flex',
-    fontSize: 12,
-    fontWeight: font.weightMedium,
-    gap: 6,
-    height: 28,
-    position: 'absolute',
-    right: 16,
-    top: 94,
-  },
   fill: {
     inset: 0,
     position: 'absolute',
   },
-  label: {
-    fontSize: 12,
-    fontWeight: font.weightMedium,
+  folder: {
+    alignItems: 'center',
+    color: brand.fill,
+    display: 'flex',
+    justifyContent: 'center',
   },
   lock: {
     flexShrink: 0,
@@ -319,6 +326,14 @@ const styles = create({
     flexDirection: 'column',
     justifyContent: 'center',
   },
+  // The app's icon on the disk image, and the copy dragged off it.
+  tile: {
+    borderRadius: 10,
+    display: 'flex',
+    fontSize: 22,
+    justifyContent: 'center',
+    paddingBlockEnd: 3,
+  },
   value: {
     fontSize: 11,
   },
@@ -364,91 +379,105 @@ function LockIcon() {
   );
 }
 
-/* 1. İndir ve etkinleştir: the app bounces in the Dock, its window opens, the
-   license key is typed in and Etkinleştir turns into Etkin. */
+/* 1. İndir ve kur: the disk image's window opens, the app is dragged onto
+   Uygulamalar, the window closes and the app bounces in the Dock. */
 
-const LICENSE_KEY = '7Q4K-M2XD-9PLW-3HTR';
-const KEY_AT = 1500;
-const KEY_EVERY = 50;
-const KEY_DONE = typedAt(KEY_AT, KEY_EVERY, LICENSE_KEY.length - 1);
-/** Etkinleştir's center on the stage. */
-const ACTIVATE = { x: 184, y: 114 } as const;
-const ACTIVATE_AT = 3030;
+/** The app's and the folder's centers on the stage. */
+const APP = { x: 82, y: 66 } as const;
+const FOLDER = { x: 182, y: 66 } as const;
+const GRAB_AT = 1250;
+const DROP_AT = 2300;
+const DOCK_AT = 3400;
 
 export const installLoop: Loop = {
   duration: 5600,
   tracks: [
     {
       frames: [
-        [0, { transform: translateY(0) }],
-        [200, { transform: translateY(0) }, 'cubic-bezier(0.25, 0.6, 0.4, 1)'],
-        [380, { transform: translateY(-9) }, 'cubic-bezier(0.6, 0, 0.75, 0.4)'],
-        [560, { transform: translateY(0) }, 'cubic-bezier(0.25, 0.6, 0.4, 1)'],
-        [660, { transform: translateY(-3) }, 'cubic-bezier(0.6, 0, 0.75, 0.4)'],
-        [760, { transform: translateY(0) }],
+        [0, { opacity: 0, transform: 'scale(0.96)' }],
+        [100, { opacity: 0, transform: 'scale(0.96)' }],
+        [500, { opacity: 1, transform: 'scale(1)' }],
+        [3000, { opacity: 1, transform: 'scale(1)' }, AWAY],
+        [3300, { opacity: 0, transform: 'scale(0.97)' }],
+      ],
+      part: 'window',
+    },
+    pointer([
+      [0, { opacity: 0, ...tip(232, 186) }],
+      [600, { opacity: 0, ...tip(232, 186) }, 'linear'],
+      [750, { opacity: 1, ...tip(200, 160) }, GLIDE],
+      [GRAB_AT - 150, { opacity: 1, ...tip(APP.x, APP.y) }],
+      ...press(GRAB_AT - 150, APP.x, APP.y).slice(0, 2),
+      [GRAB_AT, { opacity: 1, ...tip(APP.x, APP.y, 0.88) }, GLIDE],
+      [DROP_AT, { opacity: 1, ...tip(FOLDER.x, FOLDER.y, 0.88) }],
+      [DROP_AT + 90, { opacity: 1, ...tip(FOLDER.x, FOLDER.y) }],
+      [DROP_AT + 400, { opacity: 1, ...tip(FOLDER.x, FOLDER.y) }, AWAY],
+      [DROP_AT + 700, { opacity: 0, ...tip(FOLDER.x + 14, FOLDER.y + 16) }],
+    ]),
+    {
+      frames: [
+        [0, { opacity: 0, transform: 'translateX(0) scale(1)' }],
+        [GRAB_AT - 60, { opacity: 0, transform: 'translateX(0) scale(1)' }],
+        [GRAB_AT, { opacity: 0.9, transform: 'translateX(0) scale(1.06)' }, GLIDE],
+        [
+          DROP_AT,
+          { opacity: 0.9, transform: `translateX(${FOLDER.x - APP.x}px) scale(1.06)` },
+          AWAY,
+        ],
+        [DROP_AT + 200, { opacity: 0, transform: `translateX(${FOLDER.x - APP.x}px) scale(0.5)` }],
+      ],
+      part: 'ghost',
+    },
+    {
+      frames: [
+        [0, { transform: 'scale(1)' }],
+        [DROP_AT + 60, { transform: 'scale(1)' }],
+        [DROP_AT + 200, { transform: 'scale(1.1)' }, SNAP],
+        [DROP_AT + 450, { transform: 'scale(1)' }],
+      ],
+      part: 'folder',
+    },
+    enter('check', DROP_AT + 250, { opacity: 0, transform: 'scale(0.25)' }, 300),
+    {
+      frames: [
+        [0, { opacity: 0, transform: translateY(0) }],
+        [DOCK_AT, { opacity: 0, transform: translateY(0) }],
+        [
+          DOCK_AT + 150,
+          { opacity: 1, transform: translateY(0) },
+          'cubic-bezier(0.25, 0.6, 0.4, 1)',
+        ],
+        [
+          DOCK_AT + 330,
+          { opacity: 1, transform: translateY(-9) },
+          'cubic-bezier(0.6, 0, 0.75, 0.4)',
+        ],
+        [
+          DOCK_AT + 510,
+          { opacity: 1, transform: translateY(0) },
+          'cubic-bezier(0.25, 0.6, 0.4, 1)',
+        ],
+        [
+          DOCK_AT + 610,
+          { opacity: 1, transform: translateY(-3) },
+          'cubic-bezier(0.6, 0, 0.75, 0.4)',
+        ],
+        [DOCK_AT + 710, { opacity: 1, transform: translateY(0) }],
+        [5000, { opacity: 1, transform: translateY(0) }],
+        [5300, { opacity: 0, transform: translateY(0) }],
       ],
       part: 'app',
     },
     {
       frames: [
         [0, hidden],
-        [600, hidden],
-        [800, shown],
+        [DOCK_AT + 550, hidden],
+        [DOCK_AT + 750, shown],
         [5000, shown],
         [5300, hidden],
       ],
       part: 'running',
     },
-    {
-      frames: [
-        [0, { opacity: 0, transform: 'scale(0.9)' }],
-        [700, { opacity: 0, transform: 'scale(0.9)' }],
-        [1100, { opacity: 1, transform: 'scale(1)' }],
-        [4900, { opacity: 1, transform: 'scale(1)' }, AWAY],
-        [5250, { opacity: 0, transform: 'scale(0.97)' }],
-      ],
-      part: 'window',
-    },
-    {
-      frames: [
-        [0, hidden],
-        [1150, hidden],
-        [1300, shown],
-        [ACTIVATE_AT + 60, shown],
-        [ACTIVATE_AT + 200, hidden],
-      ],
-      part: 'focus',
-    },
-    blink('caret-start', 1200, KEY_AT),
-    ...typing('key', LICENSE_KEY, KEY_AT, KEY_EVERY),
-    blink('caret-end', KEY_DONE, ACTIVATE_AT + 60),
-    pointer([
-      [0, { opacity: 0, ...tip(244, 206) }],
-      [2300, { opacity: 0, ...tip(244, 206) }, 'linear'],
-      [2450, { opacity: 1, ...tip(232, 188) }, GLIDE],
-      [2950, { opacity: 1, ...tip(ACTIVATE.x, ACTIVATE.y) }],
-      ...press(ACTIVATE_AT, ACTIVATE.x, ACTIVATE.y),
-      [3450, { opacity: 1, ...tip(ACTIVATE.x, ACTIVATE.y) }, AWAY],
-      [3750, { opacity: 0, ...tip(ACTIVATE.x + 14, ACTIVATE.y + 16) }],
-    ]),
-    {
-      frames: [
-        ...pressed(ACTIVATE_AT),
-        [ACTIVATE_AT + 230, { opacity: 1, transform: 'scale(1)' }, AWAY],
-        [ACTIVATE_AT + 370, { opacity: 0, transform: 'scale(0.96)' }],
-      ],
-      part: 'activate',
-    },
-    {
-      frames: [
-        [0, hidden],
-        [ACTIVATE_AT, hidden],
-        [ACTIVATE_AT + 50, shown],
-      ],
-      part: 'activate-on',
-    },
-    enter('done', ACTIVATE_AT + 320, { opacity: 0, transform: translateY(4) }, 350),
-    enter('check', ACTIVATE_AT + 420, { opacity: 0, transform: 'scale(0.25)' }, 300),
     progress(4900),
   ],
 };
@@ -465,33 +494,64 @@ export function InstallScene() {
         </span>
         <span data-part="running" {...props(styles.activeDot)} />
       </div>
-      {/* Opens from the Dock icon: 174, 176 on the stage. */}
-      <Window height={142} part="window" style={scene.origin(154, 170)} width={224} x={20} y={6}>
-        <span {...props(scene.at(16, 28), styles.label)}>{m.scene_install_label()}</span>
-        <div {...props(scene.at(16, 50), scene.size(192, 30), scene.input)}>
-          <span data-part="focus" {...props(scene.focus)} />
-          <span data-part="caret-start" {...props(scene.caret)} />
-          <Typed part="key" text={LICENSE_KEY} />
-          <span data-part="caret-end" {...props(scene.caret)} />
-        </div>
-        <span
-          data-part="activate"
-          {...props(scene.at(120, 94), scene.size(88, 28), scene.button, scene.hidden)}
-        >
-          {m.scene_install_activate()}
-          <span data-part="activate-on" {...props(scene.pressed)}>
-            {m.scene_install_activate()}
-          </span>
+      <Window height={124} part="window" width={224} x={20} y={6}>
+        <span {...props(scene.at(40, 38), scene.size(44, 44), styles.appIcon, styles.tile)}>
+          {'a'}
         </span>
-        <span data-part="done" {...props(styles.done)}>
-          <span data-part="check" {...props(styles.check)}>
+        <span {...props(scene.at(22, 90), styles.caption)}>{m.scene_install_app()}</span>
+        <span {...props(scene.at(96, 59), styles.arrow)}>
+          <ArrowIcon />
+        </span>
+        <span data-part="folder" {...props(scene.at(140, 38), scene.size(44, 44), styles.folder)}>
+          <FolderIcon />
+          <span data-part="check" {...props(styles.badge, styles.check)}>
             <CheckIcon />
           </span>
-          {m.scene_install_active()}
         </span>
+        <span {...props(scene.at(122, 90), styles.caption)}>{m.scene_install_applications()}</span>
       </Window>
+      <span
+        data-part="ghost"
+        {...props(
+          scene.at(APP.x - 22, APP.y - 22),
+          scene.size(44, 44),
+          styles.appIcon,
+          styles.tile,
+          scene.hidden,
+        )}
+      >
+        {'a'}
+      </span>
       <Pointer />
     </Stage>
+  );
+}
+
+/** The dashed arrow from the app to the folder, as on the real disk image. */
+function ArrowIcon() {
+  return (
+    <svg fill="none" height="14" viewBox="0 0 32 14" width="32">
+      <path d="M1 7h26" stroke="currentColor" strokeDasharray="3 3" strokeWidth="1.2" />
+      <path
+        d="M24 3l4 4-4 4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.2"
+      />
+    </svg>
+  );
+}
+
+/** The Applications folder. */
+function FolderIcon() {
+  return (
+    <svg fill="none" height="36" viewBox="0 0 44 36" width="44">
+      <path
+        d="M2 6a3 3 0 0 1 3-3h11l4 4h19a3 3 0 0 1 3 3v21a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 

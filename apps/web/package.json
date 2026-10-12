@@ -7,7 +7,7 @@
     "brand": "node scripts/render-brand.ts",
     "build": "vite build",
     "cf-typegen": "wrangler types",
-    "deploy": "ANGARIA_DEPLOY=1 vite build && wrangler deploy",
+    "deploy": "vite build && wrangler deploy",
     "dev": "vite dev",
     "preview": "vite preview",
     "test": "vitest run",
