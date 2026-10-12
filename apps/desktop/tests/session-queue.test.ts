@@ -11,7 +11,7 @@ function fakeClient() {
   const log: Array<string> = [];
   let logins = 0;
   const client = {
-    login: vi.fn(async (username: string) => {
+    login: vi.fn(async (username: string): Promise<SessionInfo> => {
       logins++;
       log.push(`login ${username}`);
       return { baseUrl: username, cookies: [], token: `t${logins}` } satisfies SessionInfo;
@@ -389,6 +389,31 @@ describe('the session after the queue empties', () => {
     await running;
     await tick();
     expect(log).toEqual(['login 33333301', 'logout t1']);
+  });
+
+  test('quit during a login waits for it and logs it out, and its task never runs', async () => {
+    const { client, log } = fakeClient();
+    const signedIn = deferred<SessionInfo>();
+    client.login.mockImplementationOnce(async (username: string) => {
+      log.push(`login ${username}`);
+      return signedIn.promise;
+    });
+    const queue = createSessionQueue(client, { lingerMs: 45_000 });
+    const task = vi.fn(async () => {});
+    const running = queue.run(account('33333301'), task);
+    await tick();
+
+    let quit = false;
+    const quitting = queue.quit().then(() => {
+      quit = true;
+    });
+    await tick();
+    expect(quit).toBe(false);
+    signedIn.resolve({ baseUrl: 'gib', cookies: [], token: 't1' });
+    await quitting;
+    expect(log).toEqual(['login 33333301', 'logout t1']);
+    await expect(running).rejects.toThrow('Angaria kapanıyor.');
+    expect(task).not.toHaveBeenCalled();
   });
 
   test('another account logs out of the lingering session first', async () => {
