@@ -9,6 +9,15 @@
   }
 }
 
+/* The page does not stretch past its ends: no elastic pull at the top or the
+   foot, so the morphing sticky header never drifts off the page. Where a
+   browser still pulls, what shows is the page's own ground, set on html by
+   base.css and named to the browser as theme-color (routes/__root.tsx). */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
 /* The hero's pattern sits at z-index -1, under every in-flow box. html keeps
    painting the page color; a body background would cover the pattern. */
 body {

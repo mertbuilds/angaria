@@ -31,6 +31,9 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 
 const OG_IMAGE = `${SITE_URL}/og.png`;
 
+/** The page's ground in each system theme, as `--background` in @angaria/ui/theme.css has it. */
+const THEME_GROUND = { dark: '#000000', light: '#ffffff' } as const;
+
 const styles = create({
   main: {
     display: 'flex',
@@ -135,6 +138,15 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang={getLocale()}>
       <head>
         <HeadContent />
+        {/* The page's ground, for the browser's own chrome and what it shows
+        behind the page: one per system theme, written here because the head's
+        list keeps one meta per name. */}
+        <meta
+          content={THEME_GROUND.light}
+          media="(prefers-color-scheme: light)"
+          name="theme-color"
+        />
+        <meta content={THEME_GROUND.dark} media="(prefers-color-scheme: dark)" name="theme-color" />
       </head>
       <body>
         <div {...props(styles.shell)}>
