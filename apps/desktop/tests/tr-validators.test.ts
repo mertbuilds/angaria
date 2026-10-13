@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   formatPhone,
   ibanBankCode,
+  isBarePhonePrefix,
   isTaxIDPlaceholder,
   isValidEmail,
   isValidPhone,
@@ -173,6 +174,23 @@ describe('isValidEmail', () => {
   });
 });
 
+/** What the phone field holds once `data` is typed or pasted at the end of `value`. */
+function typeInto(value: string, data: string) {
+  const [preprocess] = PHONE_MASK.preprocessors ?? [];
+  const [postprocess] = PHONE_MASK.postprocessors ?? [];
+  const before = { selection: [value.length, value.length] as const, value };
+  const inserted = preprocess?.({ data, elementState: before }, 'insert');
+  const state = inserted?.elementState ?? before;
+  const put = inserted?.data ?? data;
+  const [from, to] = state.selection;
+  const end = from + put.length;
+  const next = {
+    selection: [end, end] as const,
+    value: state.value.slice(0, from) + put + state.value.slice(to),
+  };
+  return postprocess?.(next, before).value ?? next.value;
+}
+
 describe('phone numbers', () => {
   test('a Turkish number reads +90 532 123 45 67 however it is typed', () => {
     for (const typed of [
@@ -202,6 +220,17 @@ describe('phone numbers', () => {
     expect(isValidPhone('+49 3012 3456 7890 12')).toBe(false);
     expect(isValidPhone('+')).toBe(false);
     expect(isValidPhone('+0 123 456 789')).toBe(false);
+    // No country code is a lone 9.
+    expect(isValidPhone('+9 532 123 45 67')).toBe(false);
+  });
+
+  test('only a start of +90 counts as an empty phone', () => {
+    for (const bare of ['', ' ', '+', '+9', '+90', '+90 ', '9', '90', '0', '+0']) {
+      expect(isBarePhonePrefix(bare), bare).toBe(true);
+    }
+    for (const typed of ['+4', '+90 5', '05', '+91']) {
+      expect(isBarePhonePrefix(typed), typed).toBe(false);
+    }
   });
 
   test('the mask formats as typed and caps the digits', () => {
@@ -210,5 +239,16 @@ describe('phone numbers', () => {
     expect(maskitoTransform('+90 0532', PHONE_MASK)).toBe('+90 532');
     expect(maskitoTransform('+4930123456', PHONE_MASK)).toBe('+4930123456');
     expect(maskitoTransform('+4930123456789012', PHONE_MASK)).toBe('+493012345678901');
+  });
+
+  test("the mask keeps the spaces typed or pasted in another country's number", () => {
+    const typed = (start: string, text: string) =>
+      [...text].reduce((value, char) => typeInto(value, char), start);
+    expect(typed('', '+49 30 1234 5678')).toBe('+49 30 1234 5678');
+    expect(typeInto('+90 ', '+49 30 1234 5678')).toBe('+49 30 1234 5678');
+    expect(typeInto('', ' +1 415 555 0100')).toBe('+1 415 555 0100');
+    // A Turkish number is grouped its own way, however it is spaced.
+    expect(typed('', '0532 1234 567')).toBe('+90 532 123 45 67');
+    expect(typeInto('+90 ', '532 1234567')).toBe('+90 532 123 45 67');
   });
 });

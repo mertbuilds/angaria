@@ -171,6 +171,7 @@ export interface InvoicePDFData {
   items: Array<InvoiceItem>;
   language: PDFLanguage;
   note?: string;
+  /** Ödenecek tutar, printed when it differs from the total (a withholding, a typed amount) */
   paymentTotal?: number;
   /** The text GİB's QR code encodes; unsigned drafts have none */
   qrValue?: string;
@@ -192,6 +193,7 @@ function invoiceView(data: InvoicePDFData) {
   const currency = settings.currency;
   const totals = invoiceTotals(items);
   const rate = currency === 'TRY' ? null : parseDecimal(settings.currencyRate);
+  const payable = data.paymentTotal ?? data.total;
 
   return {
     bank: [
@@ -209,8 +211,8 @@ function invoiceView(data: InvoicePDFData) {
           },
           {
             label: t.totalInTRY,
-            // As GİB counts it: the total in kuruş, times the rate, rounded to kuruş.
-            value: formatPDFAmount(language, 'TRY', roundKurus(roundKurus(data.total) * rate)),
+            // As GİB counts it: the payable amount in kuruş, times the rate, rounded to kuruş.
+            value: formatPDFAmount(language, 'TRY', roundKurus(roundKurus(payable) * rate)),
           },
         ]
       : [],
@@ -245,6 +247,10 @@ function invoiceView(data: InvoicePDFData) {
         value: number(vat),
       })),
     ].filter(present),
+    payable:
+      roundKurus(payable) === roundKurus(data.total)
+        ? null
+        : { label: t.paymentTotal, value: formatPDFAmount(language, currency, payable) },
     total: formatPDFAmount(language, currency, data.total),
     upper: (text: string) => pdfUpper(language, text),
   };
@@ -499,6 +505,12 @@ function MinimalInvoice({ data, view }: { data: InvoicePDFData; view: InvoiceVie
               <Text style={m.grandLabel}>{stack(t.total)}</Text>
               <Text style={m.grandValue}>{view.total}</Text>
             </View>
+            {view.payable ? (
+              <View style={m.totalRow}>
+                <Text style={m.totalLabel}>{stack(view.payable.label)}</Text>
+                <Text style={m.totalValue}>{view.payable.value}</Text>
+              </View>
+            ) : null}
             {view.exchange.map(({ label, value }) => (
               <View key={label} style={m.exchangeRow}>
                 <Text style={m.exchange}>{label}</Text>
@@ -720,6 +732,12 @@ function ClassicInvoice({ data, view }: { data: InvoicePDFData; view: InvoiceVie
                 <Text style={c.grandLabel}>{stack(upper(t.total))}</Text>
                 <Text style={c.grandValue}>{view.total}</Text>
               </View>
+              {view.payable ? (
+                <View style={c.totalRow}>
+                  <Text style={c.totalLabel}>{stack(view.payable.label)}</Text>
+                  <Text style={c.totalValue}>{view.payable.value}</Text>
+                </View>
+              ) : null}
             </View>
             {view.exchange.map(({ label, value }) => (
               <View key={label} style={c.exchangeRow}>

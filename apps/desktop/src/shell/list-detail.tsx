@@ -1,5 +1,12 @@
 import { create, props } from '@stylexjs/stylex';
-import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 import { tones } from './palette.stylex.ts';
 
 const KEYBOARD_STEP = 16;
@@ -108,16 +115,38 @@ export function ListDetail({
   minListWidth = 240,
   storageKey,
 }: ListDetailProps) {
-  const clamp = (value: number) => Math.min(maxListWidth, Math.max(minListWidth, value));
-  const [width, setWidth] = useState(() => clamp(readWidth(storageKey) ?? defaultListWidth));
+  const [width, setWidth] = useState(() =>
+    Math.min(maxListWidth, Math.max(minListWidth, readWidth(storageKey) ?? defaultListWidth)),
+  );
   const drag = useRef<{ startWidth: number; startX: number } | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  // The split's own width: a narrow window keeps the detail its minimum, as the CSS does.
+  const [room, setRoom] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const element = root.current;
+    if (!element) {
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => setRoom(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const limit =
+    room === null
+      ? maxListWidth
+      : Math.min(maxListWidth, Math.max(minListWidth, room - MIN_DETAIL_WIDTH));
+  const clamp = (value: number) => Math.min(limit, Math.max(minListWidth, value));
+  // The width on screen: the saved one, unless the window has no room for it.
+  const shown = clamp(width);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = { startWidth: width, startX: event.clientX };
+    drag.current = { startWidth: shown, startX: event.clientX };
   };
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -129,7 +158,7 @@ export function ListDetail({
   const onPointerEnd = () => {
     if (drag.current) {
       drag.current = null;
-      writeWidth(storageKey, width);
+      writeWidth(storageKey, shown);
     }
   };
 
@@ -138,21 +167,21 @@ export function ListDetail({
       event.key === 'ArrowLeft' ? -KEYBOARD_STEP : event.key === 'ArrowRight' ? KEYBOARD_STEP : 0;
     if (step !== 0) {
       event.preventDefault();
-      const next = clamp(width + step);
+      const next = clamp(shown + step);
       setWidth(next);
       writeWidth(storageKey, next);
     }
   };
 
   return (
-    <div {...props(styles.root)}>
-      <div {...props(styles.list, styles.listWidth(width, minListWidth))}>{list}</div>
+    <div ref={root} {...props(styles.root)}>
+      <div {...props(styles.list, styles.listWidth(shown, minListWidth))}>{list}</div>
       <div
         aria-label="Liste genişliği"
         aria-orientation="vertical"
-        aria-valuemax={maxListWidth}
+        aria-valuemax={limit}
         aria-valuemin={minListWidth}
-        aria-valuenow={width}
+        aria-valuenow={shown}
         onKeyDown={onKeyDown}
         onLostPointerCapture={onPointerEnd}
         onPointerDown={onPointerDown}

@@ -34,6 +34,9 @@ test('imageHeaderSize reads a PNG and a JPEG size without decoding', () => {
     0xb0, 0x03,
   ]);
   expect(imageHeaderSize(jpeg)).toEqual({ height: 600, width: 1200 });
+  // Stray bytes after a segment are skipped, as libjpeg and ImageIO do.
+  const padded = Uint8Array.from([...jpeg.slice(0, 8), 0x00, 0x0a, ...jpeg.slice(8)]);
+  expect(imageHeaderSize(padded)).toEqual({ height: 600, width: 1200 });
   expect(imageHeaderSize(new Uint8Array([1, 2, 3]))).toBeNull();
 });
 

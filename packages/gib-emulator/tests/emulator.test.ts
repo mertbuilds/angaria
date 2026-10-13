@@ -913,7 +913,8 @@ describe('access', () => {
   });
 
   test('refuses to listen on an address other than loopback', async () => {
-    for (const host of ['0.0.0.0', '::', '192.168.1.10']) {
+    // 127.0.0.2 is loopback too, but the Host check answers only 127.0.0.1.
+    for (const host of ['0.0.0.0', '::', '192.168.1.10', '127.0.0.2']) {
       await expect(startEmulator({ host })).rejects.toThrow(/loopback only/);
     }
   });

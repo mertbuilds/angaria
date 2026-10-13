@@ -513,6 +513,7 @@ function GalleryMasked() {
           autoComplete="tel"
           id={`${id}-phone`}
           inputMode="tel"
+          keepSpaces
           mask={PHONE_MASK}
           onInput={(event) => setPhone(event.currentTarget.value)}
           placeholder="+90 5__ ___ __ __"

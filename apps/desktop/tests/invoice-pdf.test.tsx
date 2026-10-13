@@ -2,7 +2,12 @@ import { inflateSync } from 'node:zlib';
 import { describe, expect, test, vi } from 'vitest';
 import { renderInvoicePDF } from '../src/components/invoice-pdf.tsx';
 import { gibInvoicePDFData } from '../src/lib/invoice-files.ts';
-import { PDF_LANGUAGES, PDF_STYLES } from '../src/lib/invoice-pdf-i18n.ts';
+import {
+  formatPDFAmount,
+  PDF_LABELS,
+  PDF_LANGUAGES,
+  PDF_STYLES,
+} from '../src/lib/invoice-pdf-i18n.ts';
 import { parseGIBInvoice } from '../src/lib/invoices.ts';
 import type { PDFLanguage, PDFStyle } from '../src/lib/types.ts';
 import { data, pdfRuns, pdfTextBoxes } from './invoice-pdf-helpers.ts';
@@ -130,6 +135,26 @@ test.each(
   },
 );
 
+test.each(PDF_STYLES.flatMap((style) => PDF_LANGUAGES.map((language) => [style, language])))(
+  '%s %s prints Ödenecek tutar when it differs from the total, and its lira amount',
+  async (style, language) => {
+    const lang = language as PDFLanguage;
+    const label = PDF_LABELS[lang].paymentTotal;
+    const text = pdfRuns(await render(lang, style as PDFStyle, { paymentTotal: 1700 })).join(' ');
+    for (const part of label.split(' / ')) {
+      expect(text).toContain(style === 'classic' ? part.split(' ')[0] : part);
+    }
+    expect(text).toContain(formatPDFAmount(lang, 'USD', 1700));
+    expect(text).toContain(formatPDFAmount(lang, 'USD', 1800));
+    // 1.700 USD at 38,5
+    expect(text).toContain(formatPDFAmount(lang, 'TRY', 65_450));
+
+    const same = pdfRuns(await render(lang, style as PDFStyle, { paymentTotal: 1800 })).join(' ');
+    expect(same).not.toContain(formatPDFAmount(lang, 'USD', 1700));
+    expect(same).toContain(formatPDFAmount(lang, 'TRY', 69_300));
+  },
+);
+
 describe('an invoice read from GİB', () => {
   const source = {
     company: data.company,
@@ -191,7 +216,7 @@ describe('an invoice read from GİB', () => {
     expect(text).toContain('TRY 10.079,55');
   });
 
-  test("prints GİB's payable amount, after a withholding", async () => {
+  test("prints the rows' total and GİB's payable amount, after a withholding", async () => {
     const text = await renderGIB({
       aliciUnvan: 'ÖRNEK TEKNOLOJİ A.Ş.',
       faturaTipi: 'TEVKIFAT',
@@ -203,8 +228,40 @@ describe('an invoice read from GİB', () => {
       odenecekTutar: '1100.00',
       paraBirimi: 'TRY',
     });
-    expect(text).toContain('1.100,00');
-    expect(text).not.toContain('1.200,00');
+    expect(text).toContain('GENEL TOPLAM\nTRY 1.200,00');
+    expect(text).toContain('Ödenecek tutar\nTRY 1.100,00');
+  });
+
+  test('prints the Ödenecek tutar typed on Yeni fatura, as Yeni fatura’s PDF does', async () => {
+    const text = await renderGIB({
+      aliciUnvan: 'ÖRNEK TEKNOLOJİ A.Ş.',
+      faturaTipi: 'SATIS',
+      hesaplanankdv: '200.00',
+      malHizmetTable: [
+        { birimFiyat: '1000.00', kdvOrani: '20', malHizmet: 'Danışmanlık', miktar: 1 },
+      ],
+      matrah: '1000.00',
+      odenecekTutar: '1150.00',
+      paraBirimi: 'TRY',
+    });
+    expect(text).toContain('GENEL TOPLAM\nTRY 1.200,00');
+    expect(text).toContain('Ödenecek tutar\nTRY 1.150,00');
+  });
+
+  test('prints no Ödenecek tutar when it is the total', async () => {
+    const text = await renderGIB({
+      aliciUnvan: 'ÖRNEK TEKNOLOJİ A.Ş.',
+      faturaTipi: 'SATIS',
+      hesaplanankdv: '200.00',
+      malHizmetTable: [
+        { birimFiyat: '1000.00', kdvOrani: '20', malHizmet: 'Danışmanlık', miktar: 1 },
+      ],
+      matrah: '1000.00',
+      odenecekTutar: '1200.00',
+      paraBirimi: 'TRY',
+    });
+    expect(text).toContain('TRY 1.200,00');
+    expect(text).not.toContain('Ödenecek tutar');
   });
 });
 
