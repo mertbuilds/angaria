@@ -15,10 +15,19 @@ pub fn run() {
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_process::init())
-    .plugin(tauri_plugin_autostart::init(
-      MacosLauncher::LaunchAgent,
-      Some(vec![background::BACKGROUND_ARG]),
-    ))
+    // The login item is named after the app; a debug build gets its own, so
+    // `tauri dev` never takes over the release app's (~/Library/LaunchAgents).
+    .plugin(
+      tauri_plugin_autostart::Builder::new()
+        .macos_launcher(MacosLauncher::LaunchAgent)
+        .args([background::BACKGROUND_ARG])
+        .app_name(if cfg!(debug_assertions) {
+          "Angaria Dev"
+        } else {
+          "Angaria"
+        })
+        .build(),
+    )
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
