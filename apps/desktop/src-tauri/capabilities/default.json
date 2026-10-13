@@ -7,14 +7,61 @@
     "core:default",
     "core:window:allow-start-dragging",
     "core:window:allow-toggle-maximize",
+    "core:window:allow-destroy",
+    "allow-vault-read",
+    "allow-vault-write",
+    "allow-secret-get",
+    "allow-secret-delete",
+    "allow-mcp-start",
+    "allow-mcp-stop",
+    "allow-mcp-status",
+    "allow-mcp-respond",
+    "allow-mcp-agents",
+    "allow-mcp-agents-add",
+    "allow-mcp-agents-remove",
+    "allow-mcp-settings",
+    "allow-mcp-set-settings",
+    "allow-tray-set-activity",
+    "allow-window-close-requested",
+    "allow-quit-ready",
+    "allow-html-to-pdf",
+    "allow-save-download",
+    "updater:default",
+    "process:allow-restart",
+    "opener:allow-reveal-item-in-dir",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "$DOWNLOAD/*"
+        }
+      ]
+    },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://angaria.app/*"
+        },
+        {
+          "url": "https://github.com/mertbuilds/angaria"
+        },
+        {
+          "url": "https://www.gib.gov.tr/*"
+        },
+        {
+          "url": "https://www.mevzuat.gov.tr/*"
+        },
+        {
+          "url": "https://www.tcmb.gov.tr/*"
+        }
+      ]
+    },
     {
       "identifier": "http:default",
       "allow": [
         {
           "url": "https://earsivportal.efatura.gov.tr/*"
-        },
-        {
-          "url": "https://earsivportaltest.efatura.gov.tr/*"
         },
         {
           "url": "https://www.tcmb.gov.tr/kurlar/*"

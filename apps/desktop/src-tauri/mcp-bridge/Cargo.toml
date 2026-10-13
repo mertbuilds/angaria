@@ -1,0 +1,13 @@
+[package]
+name = "angaria-mcp"
+version = "0.1.0"
+description = "stdio bridge from MCP clients to the MCP server built into Angaria"
+authors = ["Mert Düzgün"]
+license = "AGPL-3.0-only"
+publish = false
+edition = "2021"
+rust-version = "1.77.2"
+
+[dependencies]
+base64 = "0.22"
+serde_json = "1.0"

@@ -1,0 +1,84 @@
+/* App CSS entry. StyleX build output is injected into this asset. The page
+   shell (background, text color, font) comes from @angaria/ui/base.css. */
+
+/* The header links down the page, so those jumps are eased, for everyone who
+   has not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* The page does not stretch past its ends: no elastic pull at the top or the
+   foot, so the morphing sticky header never drifts off the page. Where a
+   browser still pulls, what shows is the page's own ground, set on html by
+   base.css and named to the browser as theme-color (routes/__root.tsx). */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+/* The hero's pattern sits at z-index -1, under every in-flow box. html keeps
+   painting the page color; a body background would cover the pattern. */
+body {
+  background: transparent;
+}
+
+/* Links turn the site's blue on hover. In @layer base like theme.css's link
+   rules, so StyleX colors (buttons rendered as links) still win. */
+@layer base {
+  a:hover {
+    color: var(--brand-ink);
+  }
+}
+
+/* The header gathers into its pill and opens back out as a view transition
+   (lib/morph.ts). The page takes no part in it: it keeps drawing and
+   scrolling under the moving items, and the pointer goes through to it. */
+:root {
+  view-transition-name: none;
+}
+
+::view-transition {
+  pointer-events: none;
+}
+
+/* Opening back out, the browser's ease per keyframe goes, so the items keep
+   to the ground growing under them. */
+:root:active-view-transition-type(morph-spreading)::view-transition-group(*),
+:root:active-view-transition-type(morph-spreading)::view-transition-old(*),
+:root:active-view-transition-type(morph-spreading)::view-transition-new(*) {
+  animation-timing-function: linear;
+}
+
+/* The picked segment of the theme control (components/theme-switch.tsx), in
+   the page's ink. It is drawn from the choice on the root, which the head's
+   script sets before first paint, so a kept choice never shows as the
+   system's first. No choice on the root is the system's. */
+:root:not([data-theme-choice]) [data-theme-pick='system'],
+:root[data-theme-choice='light'] [data-theme-pick='light'],
+:root[data-theme-choice='dark'] [data-theme-pick='dark'] {
+  background-color: var(--foreground);
+  color: var(--background);
+}
+
+/* A themed screenshot (components/screenshot.tsx) renders both exports; the
+   page's theme shows one. A <picture> media query would follow only the
+   system, not a theme chosen in the footer. */
+[data-shot='dark'] {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) [data-shot='light'] {
+    display: none;
+  }
+  :root:not([data-theme='light']) [data-shot='dark'] {
+    display: block;
+  }
+}
+:root[data-theme='dark'] [data-shot='light'] {
+  display: none;
+}
+:root[data-theme='dark'] [data-shot='dark'] {
+  display: block;
+}

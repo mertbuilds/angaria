@@ -1,0 +1,27 @@
+pre-commit:
+  parallel: false
+  jobs:
+    - name: oxlint
+      glob: '*.{ts,tsx,js,jsx}'
+      # Fix the staged files, then run `pnpm lint` (type-aware) on the whole repo:
+      # a type-aware run on staged files alone misreports files outside every tsconfig.
+      run: |
+        pnpm exec oxlint --fix --no-error-on-unmatched-pattern {staged_files} || exit 1
+        pnpm lint
+      stage_fixed: true
+    - name: oxfmt
+      glob: '*.{ts,tsx,js,jsx,json,jsonc,yaml,yml,md}'
+      run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit {1}
+
+pre-push:
+  jobs:
+    - name: typecheck
+      run: pnpm typecheck
+    - name: test
+      run: pnpm test

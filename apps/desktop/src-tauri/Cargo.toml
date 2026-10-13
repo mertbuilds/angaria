@@ -1,14 +1,26 @@
 [package]
 name = "angaria"
 version = "0.1.0"
-description = "Angaria E-Arşiv Fatura Uygulaması"
-authors = ["you"]
-license = ""
-repository = ""
+description = "GİB e-Arşiv faturaları için masaüstü uygulaması"
+authors = ["Mert Düzgün"]
+license = "AGPL-3.0-only"
+repository = "https://github.com/mertbuilds/angaria"
+publish = false
 edition = "2021"
 rust-version = "1.77.2"
+default-run = "Angaria"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# mcp-bridge: the angaria-mcp stdio bridge the app bundles (bundle.externalBin).
+[workspace]
+members = ["mcp-bridge"]
+
+# The executable is named like the app: macOS shows it in the Dock for `tauri dev`
+# (target/debug/Angaria) and in CFBundleExecutable of the bundle.
+[[bin]]
+name = "Angaria"
+path = "src/main.rs"
 
 [lib]
 name = "angaria_lib"
@@ -18,9 +30,75 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.5.6", features = [] }
 
 [dependencies]
-serde_json = "1.0"
+# preserve_order: MCP client configs keep their key order when the app adds itself.
+serde_json = { version = "1.0", features = ["preserve_order"] }
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.10.3", features = [] }
+# tray-icon, image-png: the menu bar icon (src/tray.rs).
+tauri = { version = "2.10.3", features = ["tray-icon", "image-png"] }
 tauri-plugin-log = "2"
 tauri-plugin-http = "2"
+# Tilde: newer minors need tauri 2.12, the app is on 2.10.
+tauri-plugin-opener = "~2.5"
+tauri-plugin-process = "2"
+# Girişte başlat: a LaunchAgent that starts the app with --background.
+# Tilde: newer minors need tauri 2.12.
+tauri-plugin-autostart = "~2.5"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+# The built-in MCP server (src/mcp): already in the tree through tauri and reqwest.
+base64 = "0.22"
+getrandom = "0.3"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+# Tool inputs' patterns, checked before a call reaches the webview (src/mcp/inputs.rs).
+regex = "1"
+tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
+# MCP client configs (src/mcp/agents): JSONC and TOML edited in place, YAML read.
+jsonc-parser = { version = "0.34", features = ["cst", "serde_json"] }
+serde_norway = "0.9"
+toml_edit = "0.25"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["io-std", "io-util", "rt-multi-thread", "test-util"] }
+
+# examples/html_pdf.rs runs the main run loop itself.
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSDate",
+  "NSRunLoop",
+] }
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2"
+
+# The e-Arşiv PDF (src/pdf.rs): WebKit's createPDF; NSProcessInfo keeps App Nap
+# away while MCP runs (src/mcp/awake.rs). Already in the tree through wry.
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "CFCGTypes",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSData",
+  "NSError",
+  "NSProcessInfo",
+  "NSString",
+  "NSValue",
+] }
+objc2-web-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "objc2-app-kit",
+  "objc2-core-foundation",
+  "WKNavigation",
+  "WKNavigationDelegate",
+  "WKPDFConfiguration",
+  "WKWebView",
+  "WKWebViewConfiguration",
+  "WKWebpagePreferences",
+] }

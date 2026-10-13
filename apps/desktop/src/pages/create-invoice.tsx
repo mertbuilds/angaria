@@ -1,1048 +1,439 @@
-import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { PlusSignIcon, Delete01Icon, FileAddIcon, Invoice01Icon } from "@hugeicons/core-free-icons";
-import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from '@angaria/ui';
+import { spacing } from '@angaria/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
+import { useStore as useFormState } from '@tanstack/react-form';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
+import type { SessionInfo } from 'angaria-earsiv-sdk';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { createDraftInvoice, getDrafts } from '@/lib/angaria.ts';
+import { customerName, defaultPDFLanguage, findCustomer, learnCustomer } from '@/lib/customer.ts';
+import { toastDownloaded, toastPreparing } from '@/lib/download-toast.tsx';
+import { gib, invoiceHTMLQuery, useGIBAccount } from '@/lib/gib.ts';
+import { saveDueDate } from '@/lib/invoice-due-dates.ts';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardAction,
-  CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { DatePicker } from "@/components/ui/date-picker.tsx";
+  cleanItems,
+  invoiceDefaults,
+  invoiceTotals,
+  invoiceWarnings,
+  parseDecimal,
+  sameInvoice,
+  toDraftDetails,
+  toPDFData,
+  unparsableItemFields,
+  upsertSavedItems,
+} from '@/lib/invoice-form.ts';
+import { resolvePDFLanguage } from '@/lib/invoice-pdf-i18n.ts';
+import { readQRValue } from '@/lib/invoice-preview.ts';
+import { localWeekStore } from '@/lib/invoice-weeks.ts';
+import { rangeCovering } from '@/lib/invoices.ts';
+import { useStore } from '@/lib/store.tsx';
+import type { Invoice, InvoiceFormValues, PDFLanguage } from '@/lib/types.ts';
+import { useRequireCredentials } from '@/shell/credentials-guard.tsx';
+import { shell } from '../shell/shell.stylex.ts';
+import { AdvancedSection } from './invoice-advanced.tsx';
+import { InvoiceSection } from './invoice-header.tsx';
+import { InvoiceItems } from './invoice-items.tsx';
+import { displayName, RecipientSection } from './invoice-recipient.tsx';
+import { Section, sectionStyles } from './invoice-section.tsx';
+import { SuccessPanel, SummaryPanel, type CreatedDraft } from './invoice-summary.tsx';
+import { useCurrencyRate } from './use-currency-rate.ts';
+import { useClearInvoiceForm, useInvoiceForm, useStoredInvoiceForm } from './use-invoice-form.ts';
+import { useSMSSign } from './use-sms-sign.tsx';
 
-import { Download } from "lucide-react";
-import { AutocompleteInput } from "@/components/autocomplete-input.tsx";
-import { ConfirmDialog } from "@/components/confirm-dialog.tsx";
-import { InvoicePickerDialog } from "@/components/invoice-picker-dialog.tsx";
-import { downloadInvoicePDF, type InvoicePDFData } from "@/components/invoice-pdf.tsx";
-import { useStore } from "@/lib/store.tsx";
-import {
-  GIB_COUNTRIES,
-  GIB_CURRENCIES,
-  GIB_UNIT_TYPES,
-  GIB_INVOICE_TYPES,
-} from "@/lib/gib-constants.ts";
-import * as angaria from "@/lib/angaria.ts";
-import { parseGIB, toGIB } from "@/lib/utils.ts";
+const isMac = navigator.userAgent.includes('Mac');
 
-const formatMoney = (currency: string, n: number) =>
-  new Intl.NumberFormat("tr-TR", { style: "currency", currency }).format(n);
+// Two columns from this viewport width: the form, and the summary beside it.
+const WIDE = '@media (min-width: 1080px)';
 
-export function CreateInvoicePage({ requireCredentials }: { requireCredentials: () => boolean }) {
+const styles = create({
+  aside: {
+    alignSelf: 'start',
+    // Sticky beside the form, and scrolls itself when the window is short.
+    maxHeight: {
+      [WIDE]: `calc(100dvh - ${shell.toolbarHeight} - ${spacing.s12})`,
+      default: null,
+    },
+    overflowY: {
+      [WIDE]: 'auto',
+      default: null,
+    },
+    position: {
+      [WIDE]: 'sticky',
+      default: 'static',
+    },
+    top: spacing.s6,
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
+  },
+  layout: {
+    alignItems: 'start',
+    display: 'grid',
+    gap: spacing.s8,
+    gridTemplateColumns: {
+      [WIDE]: 'minmax(0, 1fr) 20rem',
+      default: 'minmax(0, 1fr)',
+    },
+  },
+  page: {
+    boxSizing: 'border-box',
+    marginInline: 'auto',
+    maxWidth: '72rem',
+    paddingBottom: spacing.s12,
+    paddingInline: spacing.s6,
+    paddingTop: spacing.s2,
+    width: '100%',
+  },
+});
+
+/**
+ * What takes focus for an invalid control. A chip group (ChoiceChips) is not
+ * focusable itself: its Diğer input, else its chosen chip, else its first chip.
+ */
+function focusTarget(invalid: HTMLElement) {
+  if (invalid.getAttribute('role') !== 'radiogroup') {
+    return invalid;
+  }
+  return (
+    (invalid.id ? document.getElementById(`${invalid.id}-other`) : null) ??
+    invalid.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]') ??
+    invalid.querySelector<HTMLElement>('[role="radio"]:not([data-disabled])') ??
+    invalid
+  );
+}
+
+/**
+ * Opens the first field with a visible error (inside a closed details
+ * section too) and focuses it.
+ */
+function revealFirstError(root: HTMLElement | null) {
+  requestAnimationFrame(() => {
+    const invalid = root?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (!invalid) {
+      return;
+    }
+    const details = invalid.closest('details');
+    if (details) {
+      details.open = true;
+    }
+    const target = focusTarget(invalid);
+    target.scrollIntoView({ block: 'center' });
+    target.focus({ preventScroll: true });
+  });
+}
+
+/**
+ * Yeni fatura: the form on the left, the totals and actions on the right
+ * (stacked on narrow windows). Mount it keyed by the store's
+ * invoiceFormRevision: it starts from the store's form and writes every
+ * change back, so the form survives leaving the screen.
+ */
+export function CreateInvoicePage() {
   const {
     activeEntity,
-    creds,
-    recipient,
-    setRecipient,
-    invoiceSettings,
-    setInvoiceSettings,
-    items,
-    setItems,
-    note,
-    setNote,
-    savedRecipients,
-    savedItems,
-    setSavedItems,
     companyInfo,
-    setInvoiceTemplates,
-    advancedFields,
-    setAdvancedFields,
     newId,
-    defaultItemAdvanced,
-    invoiceStarted,
-    invoiceTemplates,
-    loadTemplate,
-    startBlankInvoice,
-    sourceTemplateId,
-    templateEditMode,
-    loadFromGIBInvoice,
+    resetInvoiceForm,
+    savedRecipients,
+    setAdvancedFields,
     setInvoiceDateRange,
+    setInvoiceSettings,
+    setItems,
+    setNote,
+    setRecipient,
+    setSavedItems,
+    setSavedRecipients,
   } = useStore();
-
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const requireCredentials = useRequireCredentials();
+  const account = useGIBAccount();
+  const clearForm = useClearInvoiceForm();
+  const stored = useStoredInvoiceForm();
+  const [defaultValues] = useState(stored);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [created, setCreated] = useState<{
+    draft: CreatedDraft;
+    values: InvoiceFormValues;
+  } | null>(null);
+  const sms = useSMSSign();
 
-  const [invoiceHTML, setInvoiceHTML] = useState<string | null>(null);
-  const [showInvoicePicker, setShowInvoicePicker] = useState(false);
-  const [showTemplateSaveDialog, setShowTemplateSaveDialog] = useState(false);
-  const [templateName, setTemplateName] = useState("");
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const lastCheckedRef = useRef<string | null>(null);
-
-  const isForeignCurrency = invoiceSettings.currency !== "TRY";
-  const invoiceDate = advancedFields.manualDate || "";
-  const tcmbQuery = useQuery({
-    queryKey: ["tcmb-rates", invoiceDate],
-    queryFn: () => angaria.fetchTCMBRates(parseGIB(invoiceDate)),
-    enabled: isForeignCurrency,
-    staleTime: 5 * 60 * 1000,
-  });
-  const ratesLoading = tcmbQuery.isLoading && isForeignCurrency;
-
-  // Auto-fill currency rate when rates arrive or currency changes
-  useEffect(() => {
-    if (!isForeignCurrency || !tcmbQuery.data) return;
-    const rate = tcmbQuery.data.get(invoiceSettings.currency);
-    if (rate) {
-      setInvoiceSettings((s) => ({ ...s, currencyRate: rate.toFixed(4) }));
-    }
-  }, [tcmbQuery.data, invoiceSettings.currency]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (tcmbQuery.error && isForeignCurrency) {
-      toast.error("TCMB döviz kurları alınamadı");
-    }
-  }, [tcmbQuery.error, isForeignCurrency]);
-
-  const totalDiscount = items.reduce((s, i) => s + (i.discountAmount || 0), 0);
-  const grandTotal = items.reduce(
-    (s, i) => s + i.quantity * i.unitPrice - (i.discountAmount || 0),
-    0,
-  );
-  const totalVAT = items.reduce(
-    (s, i) => s + (i.quantity * i.unitPrice - (i.discountAmount || 0)) * (i.VATRate / 100),
-    0,
-  );
-  const total = grandTotal + totalVAT;
-
-  function selectRecipient(id: string) {
-    const found = savedRecipients.find((r) => r.id === id);
-    if (found) setRecipient({ ...found });
-  }
-
-  function updateItem(id: string, field: string, value: string | number) {
-    setItems((prev) =>
-      prev.map((i) => {
-        if (i.id !== id) return i;
-        const updated = { ...i, [field]: value };
-        // Auto-calculate discount amount from rate
-        if (field === "discountRate") {
-          updated.discountAmount = updated.quantity * updated.unitPrice * (Number(value) / 100);
+  const createDraft = useMutation({
+    mutationFn: async ({
+      sign,
+      values,
+    }: {
+      pdfLanguage: PDFLanguage;
+      sign: boolean;
+      values: InvoiceFormValues;
+    }) => {
+      const createOnGIB = async (session: SessionInfo): Promise<CreatedDraft> => {
+        const result = await createDraftInvoice(session, toDraftDetails(values));
+        if (!result.uuid) {
+          return { date: result.date, uuid: '' };
         }
-        return updated;
-      }),
-    );
-  }
-
-  // Auto-sync items with non-empty names to saved item templates
-  useEffect(() => {
-    const namedItems = items.filter((i) => i.name.trim());
-    if (namedItems.length === 0) return;
-    setSavedItems((prev) => {
-      let next = [...prev];
-      for (const item of namedItems) {
-        const idx = next.findIndex((s) => s.name === item.name);
-        if (idx >= 0) {
-          next[idx] = { ...item, id: next[idx].id };
-        } else {
-          next = [...next, { ...item }];
-        }
-      }
-      return next;
-    });
-  }, [items, setSavedItems]);
-
-  function addItem() {
-    setItems((prev) => [
-      ...prev,
-      { id: newId(), name: "", quantity: 1, unitPrice: 0, VATRate: 20, ...defaultItemAdvanced },
-    ]);
-  }
-
-  function toggleSelectItem(id: string, shiftKey: boolean) {
-    setSelectedItemIds((prev) => {
-      const next = new Set(prev);
-      if (shiftKey && lastCheckedRef.current) {
-        const ids = items.map((i) => i.id);
-        const from = ids.indexOf(lastCheckedRef.current);
-        const to = ids.indexOf(id);
-        const [start, end] = from < to ? [from, to] : [to, from];
-        for (let i = start; i <= end; i++) next.add(ids[i]);
-      } else {
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-      }
-      return next;
-    });
-    lastCheckedRef.current = id;
-  }
-
-  function toggleSelectAll() {
-    if (selectedItemIds.size === items.length) {
-      setSelectedItemIds(new Set());
-    } else {
-      setSelectedItemIds(new Set(items.map((i) => i.id)));
-    }
-  }
-
-  function confirmRemoveItems() {
-    if (selectedItemIds.size === 0) return;
-    setItems((prev) => {
-      const remaining = prev.filter((i) => !selectedItemIds.has(i.id));
-      return remaining.length > 0 ? remaining : [prev[0]];
-    });
-    setSelectedItemIds(new Set());
-    setShowDeleteConfirm(false);
-  }
-
-  function loadItemTemplate(templateId: string, itemId: string) {
-    const t = savedItems.find((x) => x.id === templateId);
-    if (t) setItems((prev) => prev.map((i) => (i.id === itemId ? { ...t, id: itemId } : i)));
-  }
-
-  function saveInvoiceTemplate(name: string) {
-    setInvoiceTemplates((prev) => [
-      ...prev,
-      {
-        id: newId(),
-        name,
-        recipient: { ...recipient },
-        settings: { ...invoiceSettings },
-        items: items.map((i) => ({ ...i })),
-        note,
-      },
-    ]);
-    toast.success("Fatura şablonu kaydedildi");
-  }
-
-  function buildPDFData(invoiceNumber?: string): InvoicePDFData {
-    const now = new Date();
-    const p = (n: number) => String(n).padStart(2, "0");
-    const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
-    const date = advancedFields.manualDate || autoDate;
-    const paymentTotal = advancedFields.paymentTotal ? Number(advancedFields.paymentTotal) : total;
-    return {
-      entityName: activeEntity.name,
-      company: companyInfo,
-      recipient,
-      settings: invoiceSettings,
-      items,
-      date,
-      invoiceNumber,
-      note,
-      grandTotal,
-      totalVAT,
-      total,
-      totalDiscount: totalDiscount || undefined,
-      paymentTotal,
-    };
-  }
-
-  function handleDownloadPDF() {
-    const pdfData = buildPDFData();
-    const id = toast.loading("PDF hazırlanıyor...");
-    downloadInvoicePDF(pdfData)
-      .then(() => toast.success("PDF indirildi", { id }))
-      .catch(() => toast.error("PDF oluşturulamadı", { id }));
-  }
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const now = new Date();
-      const p = (n: number) => String(n).padStart(2, "0");
-      const autoDate = `${p(now.getDate())}/${p(now.getMonth() + 1)}/${now.getFullYear()}`;
-      const autoTime = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
-      const date = advancedFields.manualDate || autoDate;
-      const time = advancedFields.manualTime || autoTime;
-      const paymentTotal = advancedFields.paymentTotal
-        ? Number(advancedFields.paymentTotal)
-        : total;
-
-      const session = await angaria.login(creds.username, creds.password, creds.testMode);
-      try {
-        const draft = await angaria.createDraftInvoice(session, {
-          date,
-          time,
-          currency: invoiceSettings.currency,
-          currencyRate: invoiceSettings.currencyRate || undefined,
-          invoiceType: invoiceSettings.invoiceType,
-          taxIDOrTRID: recipient.taxIDOrTRID,
-          taxOffice: recipient.taxOffice,
-          title: recipient.title,
-          name: recipient.name,
-          surname: recipient.surname,
-          fullAddress: recipient.fullAddress,
-          country: recipient.country || undefined,
-          city: recipient.city || undefined,
-          district: recipient.district || undefined,
-          items: items.map((i) => ({
-            name: i.name,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            price: i.quantity * i.unitPrice,
-            unitType: i.unitType || "C62",
-            VATRate: i.VATRate,
-            VATAmount: (i.quantity * i.unitPrice - (i.discountAmount || 0)) * (i.VATRate / 100),
-            discountRate: i.discountRate || undefined,
-            discountAmount: i.discountAmount || undefined,
-            discountReason: i.discountReason || undefined,
-            gtip: i.gtip || undefined,
-          })),
-          grandTotal,
-          totalVAT,
-          grandTotalInclVAT: total,
-          paymentTotal,
-          totalDiscount: totalDiscount || undefined,
-          irsaliyeNumarasi: advancedFields.irsaliyeNumarasi || undefined,
-          irsaliyeTarihi: advancedFields.irsaliyeTarihi || undefined,
-          note,
+        // The number is an extra: the draft exists either way.
+        const drafts = (await getDrafts(session, result.date, result.date).catch(
+          () => [],
+        )) as Array<Invoice>;
+        const number = drafts.find((row) => row.ettn === result.uuid)?.belgeNumarasi;
+        return { date: result.date, number, uuid: result.uuid };
+      };
+      let draft: CreatedDraft;
+      if (sign) {
+        // Created and signed on one session: the SMS code goes out right away.
+        const result = await sms.sign(async (session) => {
+          const value = await createOnGIB(session);
+          return { ettns: value.uuid ? [value.uuid] : [], value };
         });
-
-        let html: string | undefined;
-        if (draft.uuid) {
-          try {
-            html = await angaria.getInvoiceHTML(session, draft.uuid, "Onaylanmadı");
-          } catch {
-            // preview is optional
-          }
+        if (!result) {
+          return null;
         }
-
-        return { draft, html };
-      } finally {
-        angaria.logout(session).catch(() => {});
-      }
-    },
-    onSuccess: ({ draft, html }) => {
-      if (html) {
-        toast.success("Taslak fatura oluşturuldu!");
-        setInvoiceHTML(html);
+        draft = { ...result.value, signed: result.signed };
       } else {
-        toast.warning(
-          "Taslak fatura oluşturuldu ancak GİB'den doğrulanamadı. Faturalarım sayfasından kontrol edin.",
-        );
+        draft = await gib.run(account, createOnGIB);
+      }
+      if (draft.uuid) {
+        // Cached for the invoice screen too. Optional: without it the draft
+        // still exists, only unverified.
+        draft.html = await queryClient
+          .fetchQuery(
+            invoiceHTMLQuery(account, draft.uuid, draft.signed ? 'Onaylandı' : 'Onaylanmadı'),
+          )
+          .catch(() => undefined);
+      }
+      return { draft, values };
+    },
+    // Null: the screen closed before GİB answered.
+    onSuccess: (result, { pdfLanguage }) => {
+      if (!result) {
+        return;
+      }
+      const { draft, values } = result;
+      const done = draft.signed ? 'Fatura onaylandı' : 'Taslak oluşturuldu';
+      if (draft.html) {
+        toast.success(done);
+      } else {
+        toast.warning(`${done} ama GİB’den doğrulanamadı. Faturalar’da kontrol et.`);
       }
 
       // Make the new draft visible in the invoices list: refetch it and
       // widen the date range to cover the invoice date if needed.
-      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      const createdDate = parseGIB(draft.date);
-      if (createdDate) {
-        setInvoiceDateRange((prev) => {
-          const start = parseGIB(prev.start);
-          const end = parseGIB(prev.end);
-          return {
-            start: start && start <= createdDate ? prev.start : draft.date,
-            end: end && end >= createdDate ? prev.end : draft.date,
-          };
-        });
-      }
+      // A backdated draft can land in a week this Mac keeps: ask GİB for it again.
+      localWeekStore(account.key).forget(draft.date);
+      void queryClient.invalidateQueries({ queryKey: ['invoices', account.key] });
+      setInvoiceDateRange((prev) => rangeCovering(prev, draft.date));
 
-      // Only show save-as-template dialog if form differs from source template
-      const sourceTemplate = sourceTemplateId
-        ? invoiceTemplates.find((t) => t.id === sourceTemplateId)
-        : null;
-      const formMatchesTemplate =
-        sourceTemplate &&
-        sourceTemplate.recipient.taxIDOrTRID === recipient.taxIDOrTRID &&
-        sourceTemplate.recipient.title === recipient.title &&
-        sourceTemplate.recipient.fullAddress === recipient.fullAddress &&
-        sourceTemplate.settings.currency === invoiceSettings.currency &&
-        sourceTemplate.settings.invoiceType === invoiceSettings.invoiceType &&
-        sourceTemplate.note === note &&
-        sourceTemplate.items.length === items.length &&
-        sourceTemplate.items.every(
-          (ti, idx) =>
-            items[idx] &&
-            ti.name === items[idx].name &&
-            ti.quantity === items[idx].quantity &&
-            ti.unitPrice === items[idx].unitPrice &&
-            ti.VATRate === items[idx].VATRate,
-        );
-      if (!formMatchesTemplate) {
-        setTemplateName(recipient.title);
-        setShowTemplateSaveDialog(true);
+      if (draft.uuid && values.advancedFields.dueDate) {
+        saveDueDate(draft.uuid, values.advancedFields.dueDate);
       }
+      // Every invoice keeps its customer and services up to date.
+      setSavedItems((prev) =>
+        upsertSavedItems(prev, cleanItems(values.items), newId, values.invoiceSettings.currency),
+      );
+      const learned = learnCustomer(
+        savedRecipients,
+        values.recipient,
+        invoiceDefaults(values, { date: draft.date, pdfLanguage }),
+        newId,
+      );
+      setSavedRecipients(learned.customers);
+      if (learned.added) {
+        toast('Müşteri kaydedildi', { description: displayName(values.recipient) });
+      }
+      setCreated({ draft, values });
     },
   });
 
-  function createInvoice() {
-    if (!requireCredentials()) return;
-    if (!recipient.taxIDOrTRID || !recipient.title || !recipient.fullAddress) {
-      toast.error("Alıcı bilgileri eksik");
+  /** The invoice's PDF language: its own choice, else its customer's default. */
+  const pdfLanguageOf = (source: InvoiceFormValues) => {
+    const { recipient } = source;
+    const saved = findCustomer(savedRecipients, recipient.taxIDOrTRID, customerName(recipient));
+    return resolvePDFLanguage(recipient.pdfLanguage, defaultPDFLanguage(saved ?? recipient));
+  };
+
+  const form = useInvoiceForm({
+    defaultValues,
+    onSubmit: async (values, { sign }) => {
+      if (!requireCredentials()) {
+        return;
+      }
+      // A failure shows as a toast (the app's MutationCache).
+      await createDraft
+        .mutateAsync({ pdfLanguage: pdfLanguageOf(values), sign, values })
+        .catch(() => {});
+    },
+    onSubmitInvalid: () => revealFirstError(rootRef.current),
+  });
+  const values = useFormState(form.store, (state) => state.values);
+
+  // Write every change back to the store, so the form outlives this screen.
+  useEffect(() => {
+    if (values.recipient !== stored.recipient) {
+      setRecipient(values.recipient);
+    }
+    if (values.invoiceSettings !== stored.invoiceSettings) {
+      setInvoiceSettings(values.invoiceSettings);
+    }
+    if (values.items !== stored.items) {
+      setItems(values.items);
+    }
+    if (values.note !== stored.note) {
+      setNote(values.note);
+    }
+    if (values.advancedFields !== stored.advancedFields) {
+      setAdvancedFields(values.advancedFields);
+    }
+  }, [setAdvancedFields, setInvoiceSettings, setItems, setNote, setRecipient, stored, values]);
+
+  const { foreign, rateDescription } = useCurrencyRate(form, values);
+
+  const pdfLanguage = pdfLanguageOf(values);
+  const setPDFLanguage = (language: PDFLanguage) =>
+    form.setFieldValue('recipient.pdfLanguage', language, { dontUpdateMeta: true });
+
+  /** The PDF of `source`; `created` carries GİB's number and date once the draft exists. */
+  const downloadPDF = (source: InvoiceFormValues, created?: CreatedDraft) => {
+    // A number that does not parse would print as NaN: show its error instead.
+    const unparsable = unparsableItemFields(source.items);
+    if (unparsable.length > 0) {
+      for (const name of unparsable) {
+        form.setFieldMeta(name, (meta) => ({ ...meta, isTouched: true }));
+      }
+      void form.validate('change');
+      revealFirstError(rootRef.current);
       return;
     }
-    if (items.some((i) => !i.name || i.unitPrice <= 0)) {
-      toast.error("Kalem bilgileri eksik veya hatalı");
+    const id = toastPreparing('PDF hazırlanıyor…');
+    const data = toPDFData(source, {
+      company: companyInfo,
+      date: created?.date,
+      entityName: activeEntity.name,
+      ettn: created?.uuid || undefined,
+      gibNumber: created?.number,
+      language: pdfLanguage,
+      // GİB's QR code, once the invoice is signed.
+      qrValue: created?.signed && created.html ? readQRValue(created.html) : undefined,
+    });
+    // react-pdf is large, so it loads with the first PDF.
+    import('@/components/invoice-pdf.tsx')
+      .then(({ downloadInvoicePDF }) => downloadInvoicePDF(data))
+      .then((file) => toastDownloaded(id, 'PDF kaydedildi', file))
+      .catch(() => toast.error('PDF oluşturulamadı. Tekrar dene.', { id }));
+  };
+
+  // The success state lasts until the invoice is edited (the PDF language aside).
+  const success = created && sameInvoice(values, created.values) ? created : null;
+
+  const openCreated = () => {
+    if (!success?.draft.uuid) {
+      void navigate({ to: '/faturalar' });
       return;
     }
-    if (invoiceSettings.currency !== "TRY" && !invoiceSettings.currencyRate) {
-      toast.error("Döviz kuru zorunludur");
+    void navigate({ params: { ettn: success.draft.uuid }, to: '/faturalar/$ettn' });
+  };
+
+  // ⌘↵ creates the draft, ⌘⇧↵ creates and signs it.
+  const submitShortcut = useEffectEvent((event: KeyboardEvent) => {
+    const mod = isMac ? event.metaKey : event.ctrlKey;
+    const target = event.target as Element | null;
+    if (
+      !mod ||
+      event.key !== 'Enter' ||
+      event.altKey ||
+      event.isComposing ||
+      // A chip (Base UI radio) cancels every Enter, ⌘↵ too, only so that Enter
+      // never checks it: that one still submits.
+      (event.defaultPrevented && !target?.closest?.('[role="radio"]')) ||
+      // A dialog's own Enter handling wins (the SMS code dialog).
+      target?.closest?.('[role="dialog"], [role="alertdialog"]')
+    ) {
       return;
     }
-    createMutation.mutate();
-  }
+    event.preventDefault();
+    if (!success && !form.state.isSubmitting) {
+      void form.handleSubmit({ sign: event.shiftKey });
+    }
+  });
 
-  if (!invoiceStarted) {
-    const recentTemplates = [...invoiceTemplates]
-      .sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0))
-      .slice(0, 3);
+  // A new form (Boş fatura, Tekrar kes, undo) replaced what held the focus:
+  // Unvan, the form's first field, takes it.
+  useEffect(() => {
+    if (!document.activeElement || document.activeElement === document.body) {
+      document.getElementById('recipient.title')?.focus();
+    }
+  }, []);
 
-    return (
-      <div className="space-y-6">
-        {recentTemplates.length > 0 && (
-          <>
-            <h2 className="text-sm font-medium text-muted-foreground">Şablondan oluştur</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {recentTemplates.map((t) => (
-                <Card
-                  key={t.id}
-                  className="cursor-pointer transition-colors hover:bg-accent/50"
-                  onClick={() => {
-                    loadTemplate(t.id);
-                    toast.success(`"${t.name}" şablonu yüklendi`);
-                  }}
-                >
-                  <CardHeader>
-                    <CardTitle className="text-sm">{t.name}</CardTitle>
-                    <CardDescription className="text-xs">{t.recipient.title}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-xs text-muted-foreground">
-                      {t.items.length} kalem · {t.settings.currency}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </>
-        )}
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => submitShortcut(event);
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
 
-        <div className="relative">
-          {recentTemplates.length > 0 && (
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-          )}
-          {recentTemplates.length > 0 && (
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">veya</span>
-            </div>
-          )}
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={startBlankInvoice}
-            className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-          >
-            <HugeiconsIcon icon={FileAddIcon} strokeWidth={1.5} className="size-6" />
-            <span className="text-sm font-medium">Sıfırdan Oluştur</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!requireCredentials()) return;
-              setShowInvoicePicker(true);
-            }}
-            className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-          >
-            <HugeiconsIcon icon={Invoice01Icon} strokeWidth={1.5} className="size-6" />
-            <span className="text-sm font-medium">Eski Faturadan Oluştur</span>
-          </button>
-        </div>
-
-        <InvoicePickerDialog
-          open={showInvoicePicker}
-          onOpenChange={setShowInvoicePicker}
-          onSelect={(detail) => {
-            loadFromGIBInvoice(detail as unknown as Record<string, unknown>);
-            setShowInvoicePicker(false);
-          }}
-        />
-      </div>
-    );
-  }
+  const total = useMemo(() => invoiceTotals(values.items).total, [values.items]);
+  const rate = foreign ? parseDecimal(values.invoiceSettings.currencyRate) : null;
+  const warnings = useMemo(
+    () => invoiceWarnings(values, undefined, companyInfo.taxID),
+    [companyInfo.taxID, values],
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Invoice Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Fatura Ayarları</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Fatura Tipi</Label>
-              <Select
-                value={invoiceSettings.invoiceType}
-                onValueChange={(v) => setInvoiceSettings((s) => ({ ...s, invoiceType: v }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {GIB_INVOICE_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Para Birimi</Label>
-              <Select
-                value={invoiceSettings.currency}
-                onValueChange={(v) =>
-                  setInvoiceSettings((s) => ({
-                    ...s,
-                    currency: v,
-                    currencyRate: v === "TRY" ? "" : s.currencyRate,
-                  }))
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {GIB_CURRENCIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      {c.value} - {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>
-                Döviz Kuru
-                {invoiceSettings.currency !== "TRY" && <span className="text-destructive"> *</span>}
-              </Label>
-              <Input
-                value={invoiceSettings.currencyRate}
-                onChange={(e) =>
-                  setInvoiceSettings((s) => ({ ...s, currencyRate: e.target.value }))
-                }
-                placeholder={
-                  invoiceSettings.currency === "TRY"
-                    ? "-"
-                    : ratesLoading
-                      ? "TCMB'den alınıyor..."
-                      : "ör: 38.50"
-                }
-                disabled={invoiceSettings.currency === "TRY" || ratesLoading}
-              />
-              {invoiceSettings.currency !== "TRY" && invoiceSettings.currencyRate && (
-                <p className="text-xs text-muted-foreground">
-                  TCMB alış kuru otomatik alındı, değiştirebilirsiniz
-                </p>
+    <div ref={rootRef} {...props(styles.page)}>
+      <div {...props(styles.layout)}>
+        <div {...props(styles.form)}>
+          <RecipientSection form={form} recipient={values.recipient} />
+          <InvoiceSection
+            form={form}
+            rateDescription={rateDescription}
+            values={values}
+            warnings={warnings}
+          />
+          <Section title="Hizmetler">
+            <InvoiceItems form={form} />
+          </Section>
+          <section {...props(sectionStyles.section)}>
+            <form.AppField name="note">
+              {(field) => (
+                <field.TextareaField label="Not" placeholder="Faturada görünecek not" rows={2} />
               )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Düzenlenme Tarihi</Label>
-              <DatePicker
-                value={parseGIB(advancedFields.manualDate) ?? new Date()}
-                onChange={(d) => setAdvancedFields((f) => ({ ...f, manualDate: toGIB(d) }))}
-                maxDate={new Date()}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Düzenlenme Saati</Label>
-              <Input
-                type="time"
-                step="1"
-                value={advancedFields.manualTime}
-                onChange={(e) => setAdvancedFields((f) => ({ ...f, manualTime: e.target.value }))}
-                className="appearance-none tabular-nums [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recipient */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Alıcı Bilgileri</CardTitle>
-          {savedRecipients.length > 0 && (
-            <CardAction>
-              <Select onValueChange={selectRecipient}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Müşteri seç..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {savedRecipients.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardAction>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>VKN / TCKN</Label>
-              <Input
-                value={recipient.taxIDOrTRID}
-                onChange={(e) => setRecipient((r) => ({ ...r, taxIDOrTRID: e.target.value }))}
-                placeholder="1234567890"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Ünvan</Label>
-              <Input
-                value={recipient.title}
-                onChange={(e) => setRecipient((r) => ({ ...r, title: e.target.value }))}
-                placeholder="Firma Adı"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Adı</Label>
-              <Input
-                value={recipient.name}
-                onChange={(e) => setRecipient((r) => ({ ...r, name: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Soyadı</Label>
-              <Input
-                value={recipient.surname}
-                onChange={(e) => setRecipient((r) => ({ ...r, surname: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Vergi Dairesi</Label>
-              <Input
-                value={recipient.taxOffice}
-                onChange={(e) => setRecipient((r) => ({ ...r, taxOffice: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Ülke</Label>
-              <Select
-                value={recipient.country}
-                onValueChange={(v) => setRecipient((r) => ({ ...r, country: v }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Ülke seçin..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {GIB_COUNTRIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Adres</Label>
-            <Textarea
-              value={recipient.fullAddress}
-              onChange={(e) => setRecipient((r) => ({ ...r, fullAddress: e.target.value }))}
-              placeholder="Tam adres"
-              rows={3}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* İrsaliye Bilgisi */}
-      <Card>
-        <CardHeader>
-          <CardTitle>İrsaliye Bilgisi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>İrsaliye Numarası</Label>
-              <Input
-                value={advancedFields.irsaliyeNumarasi}
-                onChange={(e) =>
-                  setAdvancedFields((f) => ({ ...f, irsaliyeNumarasi: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>İrsaliye Tarihi</Label>
-              <DatePicker
-                value={parseGIB(advancedFields.irsaliyeTarihi)}
-                onChange={(d) => setAdvancedFields((f) => ({ ...f, irsaliyeTarihi: toGIB(d) }))}
-                maxDate={new Date()}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Items */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="leading-8">Kalemler</CardTitle>
-          <CardAction>
-            <Button
-              variant="destructive"
-              size="sm"
-              className={selectedItemIds.size > 0 ? "" : "invisible"}
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.5} data-icon="inline-start" />
-              {selectedItemIds.size} Sil
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-xs text-muted-foreground">
-                <th className="w-10 px-3 py-2">
-                  <Checkbox
-                    checked={items.length > 0 && selectedItemIds.size === items.length}
-                    onCheckedChange={toggleSelectAll}
-                  />
-                </th>
-                <th className="px-2 py-2 text-left font-medium">Mal / Hizmet</th>
-                <th className="w-20 px-2 py-2 text-left font-medium">Miktar</th>
-                <th className="w-24 px-2 py-2 text-left font-medium">Birim</th>
-                <th className="w-28 px-2 py-2 text-left font-medium">Birim Fiyat</th>
-                <th className="w-20 px-2 py-2 text-left font-medium">KDV %</th>
-                <th className="w-28 px-2 py-2 text-right font-medium">Tutar</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="group border-b last:border-0">
-                  <td
-                    className="w-10 px-3 py-2 cursor-pointer"
-                    onClick={(e) => toggleSelectItem(item.id, e.shiftKey)}
-                  >
-                    <Checkbox checked={selectedItemIds.has(item.id)} onCheckedChange={() => {}} />
-                  </td>
-                  <td className="px-2 py-2">
-                    <AutocompleteInput
-                      value={item.name}
-                      onChange={(v) => updateItem(item.id, "name", v)}
-                      onSelect={(id) => loadItemTemplate(id, item.id)}
-                      onCreate={(name) =>
-                        setSavedItems((prev) => [...prev, { ...item, id: newId(), name }])
-                      }
-                      suggestions={savedItems.map((s) => ({ id: s.id, label: s.name }))}
-                      placeholder="Mal / Hizmet adı"
-                      className="h-8"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <Input
-                      inputMode="numeric"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value) || 0)}
-                      className="h-8"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <Select
-                      value={item.unitType}
-                      onValueChange={(v) => updateItem(item.id, "unitType", v)}
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GIB_UNIT_TYPES.map((u) => (
-                          <SelectItem key={u.value} value={u.value}>
-                            {u.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="px-2 py-2">
-                    <Input
-                      inputMode="decimal"
-                      value={item.unitPrice || ""}
-                      onChange={(e) =>
-                        updateItem(item.id, "unitPrice", Number(e.target.value) || 0)
-                      }
-                      className="h-8"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <Input
-                      inputMode="numeric"
-                      value={item.VATRate}
-                      onChange={(e) => updateItem(item.id, "VATRate", Number(e.target.value) || 0)}
-                      className="h-8"
-                    />
-                  </td>
-                  <td className="px-2 py-2 text-right tabular-nums">
-                    {formatMoney(
-                      invoiceSettings.currency,
-                      item.quantity * item.unitPrice - (item.discountAmount || 0),
-                    )}
-                    <div className="whitespace-nowrap text-xs text-muted-foreground">
-                      +
-                      {formatMoney(
-                        invoiceSettings.currency,
-                        (item.quantity * item.unitPrice - (item.discountAmount || 0)) *
-                          (item.VATRate / 100),
-                      )}{" "}
-                      KDV
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Expanded discount/GTIP fields below table */}
-          {items.some((i) => i.discountRate || i.discountAmount || i.discountReason || i.gtip) && (
-            <div className="space-y-3 border-t px-4 py-3">
-              {items.map(
-                (item) =>
-                  (item.discountRate ||
-                    item.discountAmount ||
-                    item.discountReason ||
-                    item.gtip) && (
-                    <div key={item.id} className="space-y-2">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {item.name || "Adsız kalem"} — İskonto & GTİP
-                      </span>
-                      <div className="grid grid-cols-4 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">İskonto %</Label>
-                          <Input
-                            inputMode="numeric"
-                            value={item.discountRate || ""}
-                            onChange={(e) =>
-                              updateItem(item.id, "discountRate", Number(e.target.value) || 0)
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">İskonto Tutarı</Label>
-                          <Input
-                            inputMode="decimal"
-                            value={item.discountAmount || ""}
-                            onChange={(e) =>
-                              updateItem(item.id, "discountAmount", Number(e.target.value) || 0)
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">İskonto Nedeni</Label>
-                          <Input
-                            value={item.discountReason}
-                            onChange={(e) => updateItem(item.id, "discountReason", e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">GTİP</Label>
-                          <Input
-                            value={item.gtip}
-                            onChange={(e) => updateItem(item.id, "gtip", e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ),
-              )}
-            </div>
-          )}
-        </CardContent>
-        <button
-          type="button"
-          onClick={addItem}
-          className="flex w-full items-center justify-center gap-2 border-t py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.5} className="size-4" />
-          Kalem Ekle
-        </button>
-      </Card>
-
-      {/* Note */}
-      <Card>
-        <CardContent>
-          <div className="space-y-2">
-            <Label>Not (opsiyonel)</Label>
-            <Textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Fatura notu"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Totals */}
-      <Card className="overflow-hidden">
-        <CardContent className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Mal/Hizmet Toplam</span>
-            <span className="tabular-nums">
-              {formatMoney(
-                invoiceSettings.currency,
-                items.reduce((s, i) => s + i.quantity * i.unitPrice, 0),
-              )}
-            </span>
-          </div>
-          {totalDiscount > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Toplam İskonto</span>
-              <span className="tabular-nums text-destructive">
-                -{formatMoney(invoiceSettings.currency, totalDiscount)}
-              </span>
-            </div>
-          )}
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Hesaplanan KDV</span>
-            <span className="tabular-nums">{formatMoney(invoiceSettings.currency, totalVAT)}</span>
-          </div>
-        </CardContent>
-        <div className="border-t bg-muted/30 px-4 py-4">
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm font-medium text-muted-foreground">Toplam</span>
-            <span className="text-2xl font-bold tabular-nums tracking-tight">
-              {formatMoney(invoiceSettings.currency, total)}
-            </span>
-          </div>
-          <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
-            <span className="text-sm text-muted-foreground">Ödenecek Tutar</span>
-            <Input
-              inputMode="decimal"
-              className="w-40 text-right"
-              value={advancedFields.paymentTotal || ""}
-              onChange={(e) => setAdvancedFields((f) => ({ ...f, paymentTotal: e.target.value }))}
-              placeholder={total.toFixed(2)}
-            />
-          </div>
+            </form.AppField>
+          </section>
+          <AdvancedSection
+            currency={values.invoiceSettings.currency}
+            form={form}
+            total={total}
+            warnings={warnings}
+          />
         </div>
-      </Card>
-
-      {/* Action */}
-      {templateEditMode ? (
-        <Button
-          className="w-full"
-          size="lg"
-          onClick={() => {
-            setTemplateName(recipient.title);
-            setShowTemplateSaveDialog(true);
-          }}
-        >
-          Şablon Olarak Kaydet
-        </Button>
-      ) : (
-        <div className="flex gap-3">
-          <Button
-            className="flex-1"
-            size="lg"
-            disabled={createMutation.isPending}
-            onClick={createInvoice}
-          >
-            {createMutation.isPending ? "Oluşturuluyor..." : "Taslak Fatura Oluştur"}
-          </Button>
-          <Button variant="outline" size="lg" onClick={handleDownloadPDF}>
-            <Download className="size-4" />
-            PDF
-          </Button>
-        </div>
-      )}
-
-      {/* Invoice Preview */}
-      {invoiceHTML && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Fatura Önizleme</CardTitle>
-            <CardAction>
-              <Button variant="ghost" size="sm" onClick={() => setInvoiceHTML(null)}>
-                Kapat
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <iframe
-              srcDoc={invoiceHTML}
-              className="h-[600px] w-full rounded-md border"
-              title="Fatura önizleme"
+        <aside {...props(styles.aside)}>
+          {success ? (
+            <SuccessPanel
+              created={success.draft}
+              onDownloadPDF={() => downloadPDF(success.values, success.draft)}
+              onNewInvoice={resetInvoiceForm}
+              onOpenInvoice={openCreated}
+              onPDFLanguageChange={setPDFLanguage}
+              pdfLanguage={pdfLanguage}
             />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Template Save Dialog */}
-      <Dialog open={showTemplateSaveDialog} onOpenChange={setShowTemplateSaveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Şablon Olarak Kaydet</DialogTitle>
-            <DialogDescription>
-              Bu faturayı şablon olarak kaydetmek ister misiniz? Sonraki faturalarda tüm alanlar
-              otomatik doldurulur.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Şablon Adı</Label>
-            <Input
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="ör: Aylık danışmanlık faturası"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && templateName.trim()) {
-                  saveInvoiceTemplate(templateName.trim());
-                  setShowTemplateSaveDialog(false);
-                }
-              }}
+          ) : (
+            <SummaryPanel
+              form={form}
+              onClear={clearForm}
+              onDownloadPDF={() => downloadPDF(values)}
+              onPDFLanguageChange={setPDFLanguage}
+              pdfLanguage={pdfLanguage}
+              rate={rate}
+              signing={createDraft.isPending && createDraft.variables?.sign === true}
+              values={values}
+              warnings={[...new Set(Object.values(warnings))]}
             />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTemplateSaveDialog(false)}>
-              Hayır
-            </Button>
-            <Button
-              disabled={!templateName.trim()}
-              onClick={() => {
-                saveInvoiceTemplate(templateName.trim());
-                setShowTemplateSaveDialog(false);
-              }}
-            >
-              Kaydet
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
-        title="Kalemleri Sil"
-        description={`${selectedItemIds.size} kalemi silmek istediğinize emin misiniz?`}
-        onConfirm={confirmRemoveItems}
-      />
+          )}
+        </aside>
+      </div>
+      {sms.dialog}
     </div>
   );
 }

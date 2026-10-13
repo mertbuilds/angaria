@@ -1,0 +1,1233 @@
+// Dev-only gallery of every @angaria/ui component, served from ui-gallery.html
+// (or /?ui-gallery). It loads the @angaria/ui stylesheets and the app's
+// palettes.css; Kit (no palette, the default) renders the components exactly as
+// the package ships them, Serin and Sıcak as the app does.
+import {
+  Accordion,
+  AccordionItem,
+  AccordionPanel,
+  AccordionTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  Badge,
+  Button,
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  ChoiceChips,
+  Code,
+  CodeBlock,
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldWarning,
+  Input,
+  Kbd,
+  KbdGroup,
+  Label,
+  MaskedInput,
+  NumberInput,
+  OTPInput,
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+  Progress,
+  ScrollArea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  Skeleton,
+  SourceLink,
+  SplitButton,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Textarea,
+  toast,
+  Toaster,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Wordmark,
+} from '@angaria/ui';
+import { applyTheme, readTheme, themeChoices } from '@angaria/ui/theme';
+import type { ThemeChoice } from '@angaria/ui/theme';
+import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
+import {
+  CopyIcon,
+  DownloadIcon,
+  EllipsisIcon,
+  FilePlusIcon,
+  FileTextIcon,
+  ListIcon,
+  PlusIcon,
+  RepeatIcon,
+  SettingsIcon,
+  Trash2Icon,
+  UsersIcon,
+} from 'lucide-react';
+import { StrictMode, useEffect, useId, useState } from 'react';
+import type { ReactNode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { DOWNLOAD_TOAST_DURATION, FileName } from '../lib/download-toast.tsx';
+import { paletteChoices, paletteLabels, type PaletteChoice } from '../lib/palette.ts';
+import { GTIP_MASK, IBAN_MASK, isValidTRIBAN, PHONE_MASK } from '../lib/tr-validators.ts';
+import '@angaria/ui/fonts.css';
+import '@angaria/ui/theme.css';
+import '@angaria/ui/base.css';
+import '../palettes.css';
+import { GalleryDates } from './gallery-dates.tsx';
+
+const styles = create({
+  bar: {
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderBottomColor: colors.border,
+    borderBottomStyle: 'solid',
+    borderBottomWidth: '1px',
+    display: 'flex',
+    gap: spacing.s4,
+    justifyContent: 'space-between',
+    paddingBlock: spacing.s3,
+    paddingInline: spacing.s6,
+    position: 'sticky',
+    top: 0,
+    zIndex: 10,
+  },
+  barTitle: {
+    alignItems: 'baseline',
+    display: 'flex',
+    fontSize: font.sizeLg,
+    gap: spacing.s2,
+  },
+  barHint: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+  },
+  barControls: {
+    alignItems: 'center',
+    display: 'flex',
+    gap: spacing.s3,
+  },
+  narrow: {
+    width: '7rem',
+  },
+  readout: {
+    fontVariantNumeric: 'tabular-nums',
+  },
+  cardWidth: {
+    maxWidth: '22rem',
+  },
+  commandInline: {
+    borderColor: colors.border,
+    borderRadius: '8px',
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    maxWidth: '28rem',
+  },
+  frame: {
+    borderColor: colors.border,
+    borderRadius: '8px',
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    display: 'flex',
+    height: '20rem',
+    overflow: 'hidden',
+  },
+  frameMain: {
+    color: colors.muted,
+    flex: 1,
+    fontSize: font.sizeSm,
+    padding: spacing.s4,
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: {
+      '@media (min-width: 1100px)': '1fr 1fr',
+      default: '1fr',
+    },
+  },
+  pane: {
+    backgroundColor: colors.bg,
+    color: colors.fg,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s8,
+    minWidth: 0,
+    padding: spacing.s6,
+  },
+  paneTitle: {
+    color: colors.muted,
+    fontSize: font.sizeSm,
+    fontWeight: font.weightMedium,
+  },
+  row: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: spacing.s3,
+  },
+  scrollBox: {
+    borderColor: colors.border,
+    borderRadius: '8px',
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    height: '8rem',
+    width: '16rem',
+  },
+  scrollInner: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s2,
+    padding: spacing.s3,
+  },
+  section: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+  },
+  sectionTitle: {
+    fontSize: font.sizeMd,
+    fontWeight: font.weightMedium,
+    margin: 0,
+  },
+  sidebarWordmark: {
+    fontSize: font.sizeLg,
+    paddingInline: spacing.s2,
+  },
+  skeletonNarrow: {
+    height: '1rem',
+    width: '8rem',
+  },
+  skeletonWide: {
+    height: '1rem',
+    width: '14rem',
+  },
+  stack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.s3,
+    maxWidth: '22rem',
+  },
+  wordmarkLarge: {
+    fontSize: '3rem',
+  },
+});
+
+const themeLabels: Record<ThemeChoice, string> = {
+  dark: 'Koyu',
+  light: 'Açık',
+  system: 'Sistem',
+};
+
+const customers = ['knobs.dev', 'Agent Caffeine', 'Vinena Studio', 'attention awareness'];
+
+const invoices = [
+  { amount: '1.499,00 ₺', customer: 'Vinena Studio', date: '01.10.2026', no: 'GIB2026000000012' },
+  { amount: '$2,400.00', customer: 'knobs.dev', date: '28.09.2026', no: 'GIB2026000000011' },
+  { amount: '€980.00', customer: 'Agent Caffeine', date: '02.09.2026', no: 'GIB2026000000010' },
+];
+
+// Gallery only: Turkish amounts, dots grouping thousands. The app's NumberField
+// passes invoice-form's parseDecimal and formatDecimal instead.
+const amountFormat = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 4 });
+const formatAmount = (value: number) => amountFormat.format(value);
+
+function parseAmount(text: string) {
+  const trimmed = text.replaceAll(/[\s₺%]/g, '');
+  if (!trimmed) {
+    return 0;
+  }
+  const grouped = trimmed.includes(',') || /^[1-9]\d{0,2}(?:\.\d{3})+$/.test(trimmed);
+  const normalized = grouped ? trimmed.replaceAll('.', '').replace(',', '.') : trimmed;
+  return /^\d+(?:\.\d+)?$/.test(normalized) ? Number(normalized) : null;
+}
+
+const VAT_OPTIONS = [20, 10, 1, 0].map((rate) => ({ label: `%${rate}`, value: rate }));
+
+const INVOICE_TYPES = [
+  { label: 'Satış', value: 'SATIS' },
+  { label: 'İstisna', value: 'ISTISNA' },
+  {
+    description: 'Bu tip için GİB portalını kullan',
+    disabled: true,
+    label: 'Tevkifat',
+    value: 'TEVKIFAT',
+  },
+];
+
+const DISCOUNT_KINDS = [
+  { label: '%', value: 'percent' },
+  { label: '₺', value: 'amount' },
+];
+
+function Readout({ value }: { value: number | string | null }) {
+  return <FieldDescription style={styles.readout}>Değer: {String(value)}</FieldDescription>;
+}
+
+function GalleryNumbers() {
+  const id = useId();
+  const [price, setPrice] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [rate, setRate] = useState(20);
+  const [broken, setBroken] = useState(Number.NaN);
+  return (
+    <FieldGroup style={styles.stack}>
+      <Field>
+        <FieldLabel htmlFor={`${id}-price`}>Birim fiyat</FieldLabel>
+        <NumberInput
+          blankZero
+          format={formatAmount}
+          id={`${id}-price`}
+          onValueChange={setPrice}
+          parse={parseAmount}
+          placeholder="0,00"
+          suffix="₺"
+          value={price}
+        />
+        <Readout value={price} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-quantity`}>Miktar</FieldLabel>
+        <NumberInput
+          format={formatAmount}
+          id={`${id}-quantity`}
+          min={0}
+          onValueChange={setQuantity}
+          parse={parseAmount}
+          steppers
+          style={styles.narrow}
+          value={quantity}
+        />
+        <Readout value={quantity} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-rate`}>Kur farkı</FieldLabel>
+        <NumberInput
+          format={formatAmount}
+          id={`${id}-rate`}
+          max={100}
+          min={0}
+          onValueChange={setRate}
+          parse={parseAmount}
+          suffix="%"
+          value={rate}
+        />
+        <Readout value={rate} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-broken`}>Ödenecek tutar</FieldLabel>
+        <NumberInput
+          aria-describedby={`${id}-broken-error`}
+          aria-invalid={Number.isNaN(broken)}
+          format={formatAmount}
+          id={`${id}-broken`}
+          onValueChange={setBroken}
+          parse={parseAmount}
+          suffix="₺"
+          value={broken}
+        />
+        {Number.isNaN(broken) && (
+          <FieldError id={`${id}-broken-error`}>
+            Ödenecek tutarı rakamla yaz, örneğin 1.250,50
+          </FieldError>
+        )}
+      </Field>
+    </FieldGroup>
+  );
+}
+
+function GalleryChoices() {
+  const id = useId();
+  const [vat, setVAT] = useState<number | null>(20);
+  const [type, setType] = useState<string | null>('SATIS');
+  const [discount, setDiscount] = useState<string | null>('percent');
+  return (
+    <FieldGroup style={styles.stack}>
+      <Field>
+        <FieldLabel id={`${id}-vat-label`}>KDV</FieldLabel>
+        <ChoiceChips
+          aria-describedby={vat === 0 ? `${id}-vat-warning` : undefined}
+          aria-labelledby={`${id}-vat-label`}
+          onValueChange={setVAT}
+          options={VAT_OPTIONS}
+          other={{
+            label: 'Diğer',
+            render: ({ autoFocus, id: otherId }) => (
+              <NumberInput
+                aria-labelledby={`${id}-vat-label`}
+                autoFocus={autoFocus}
+                format={formatAmount}
+                id={otherId}
+                max={100}
+                min={0}
+                onValueChange={setVAT}
+                parse={parseAmount}
+                style={styles.narrow}
+                suffix="%"
+                value={vat ?? Number.NaN}
+              />
+            ),
+          }}
+          value={vat}
+        />
+        <Readout value={vat} />
+        {vat === 0 && (
+          <FieldWarning id={`${id}-vat-warning`}>
+            %0 KDV için fatura tipi İstisna olmalı ya da KDV oranını seç.
+          </FieldWarning>
+        )}
+      </Field>
+      <Field>
+        <FieldLabel id={`${id}-type-label`}>Fatura tipi</FieldLabel>
+        <ChoiceChips
+          aria-labelledby={`${id}-type-label`}
+          onValueChange={setType}
+          options={INVOICE_TYPES}
+          value={type}
+        />
+        <Readout value={type} />
+      </Field>
+      <Field>
+        <FieldLabel id={`${id}-discount-label`}>İskonto</FieldLabel>
+        <ChoiceChips
+          aria-labelledby={`${id}-discount-label`}
+          onValueChange={setDiscount}
+          options={DISCOUNT_KINDS}
+          size="sm"
+          value={discount}
+        />
+      </Field>
+      <Field>
+        <FieldLabel id={`${id}-disabled-label`}>Devre dışı</FieldLabel>
+        <ChoiceChips
+          aria-labelledby={`${id}-disabled-label`}
+          disabled
+          onValueChange={() => {}}
+          options={VAT_OPTIONS}
+          value={0}
+        />
+      </Field>
+    </FieldGroup>
+  );
+}
+
+function GalleryMasked() {
+  const id = useId();
+  const [iban, setIBAN] = useState('');
+  const [phone, setPhone] = useState('');
+  const [gtip, setGTIP] = useState('');
+  return (
+    <FieldGroup style={styles.stack}>
+      <Field>
+        <FieldLabel htmlFor={`${id}-iban`}>IBAN</FieldLabel>
+        <MaskedInput
+          autoComplete="off"
+          id={`${id}-iban`}
+          mask={IBAN_MASK}
+          onInput={(event) => setIBAN(event.currentTarget.value)}
+          placeholder="TR00 0000 0000 0000 0000 0000 00"
+          value={iban}
+        />
+        <Readout
+          value={iban && (isValidTRIBAN(iban) ? 'mod-97 tutuyor' : 'eksik ya da tutmuyor')}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-phone`}>Telefon</FieldLabel>
+        <MaskedInput
+          autoComplete="tel"
+          id={`${id}-phone`}
+          inputMode="tel"
+          keepSpaces
+          mask={PHONE_MASK}
+          onInput={(event) => setPhone(event.currentTarget.value)}
+          placeholder="+90 5__ ___ __ __"
+          value={phone}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${id}-gtip`}>GTİP</FieldLabel>
+        <MaskedInput
+          autoComplete="off"
+          id={`${id}-gtip`}
+          inputMode="numeric"
+          mask={GTIP_MASK}
+          onInput={(event) => setGTIP(event.currentTarget.value)}
+          placeholder="0000.00.00.00.00"
+          value={gtip}
+        />
+      </Field>
+    </FieldGroup>
+  );
+}
+
+function GalleryOTP() {
+  const id = useId();
+  const [code, setCode] = useState('');
+  const [completed, setCompleted] = useState('');
+  return (
+    <Field>
+      <FieldLabel htmlFor={`${id}-otp`}>SMS şifresi</FieldLabel>
+      <OTPInput
+        aria-describedby={`${id}-otp-hint`}
+        id={`${id}-otp`}
+        invalid={completed !== '' && completed !== '123456'}
+        length={6}
+        onComplete={setCompleted}
+        onValueChange={setCode}
+        value={code}
+      />
+      <FieldDescription id={`${id}-otp-hint`}>
+        {completed
+          ? `Tamamlandı: ${completed}`
+          : 'Telefonuna gelen 6 haneli şifre. Emülatörde 123456.'}
+      </FieldDescription>
+    </Field>
+  );
+}
+
+function Section({ children, title }: { children: ReactNode; title: string }) {
+  return (
+    <section {...props(styles.section)}>
+      <h2 {...props(styles.sectionTitle)}>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function DownloadOptions() {
+  return (
+    <DropdownMenuContent align="end">
+      <DropdownMenuLabel>e-Arşiv faturası (GİB)</DropdownMenuLabel>
+      <DropdownMenuItem>e-Arşiv PDF</DropdownMenuItem>
+      <DropdownMenuItem>HTML/ZIP (GİB)</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Angaria PDF</DropdownMenuLabel>
+      <DropdownMenuItem>Türkçe</DropdownMenuItem>
+      <DropdownMenuItem>İngilizce</DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+}
+
+function Showcase() {
+  const [englishPdf, setEnglishPdf] = useState(false);
+  const [lines, setLines] = useState(true);
+
+  return (
+    <>
+      <Section title="Wordmark">
+        <div {...props(styles.row)}>
+          <Wordmark style={styles.wordmarkLarge} />
+          <Wordmark />
+        </div>
+      </Section>
+
+      <Section title="Accordion">
+        <Accordion>
+          <AccordionItem>
+            <AccordionTrigger>Angaria kimler için?</AccordionTrigger>
+            <AccordionPanel>
+              Ayda birkaç e-Arşiv faturası kesen serbest çalışanlar ve şahıs şirketleri için.
+            </AccordionPanel>
+          </AccordionItem>
+          <AccordionItem>
+            <AccordionTrigger>Windows sürümü var mı?</AccordionTrigger>
+            <AccordionPanel>Henüz yok, Angaria şimdilik yalnızca Mac’te çalışıyor.</AccordionPanel>
+          </AccordionItem>
+        </Accordion>
+      </Section>
+
+      <Section title="Button">
+        <div {...props(styles.row)}>
+          <Button>Fatura kes</Button>
+          <Button variant="secondary">İkincil</Button>
+          <Button variant="outline">Çerçeveli</Button>
+          <Button variant="ghost">Hayalet</Button>
+          <Button variant="destructive">Sil</Button>
+          <Button variant="link">Bağlantı</Button>
+        </div>
+        <div {...props(styles.row)}>
+          <Button>
+            <PlusIcon />
+            Yeni fatura
+          </Button>
+          <Button aria-label="Daha fazla" size="icon" variant="ghost">
+            <EllipsisIcon />
+          </Button>
+          <Button aria-label="Ekle" size="icon" variant="outline">
+            <PlusIcon />
+          </Button>
+          <Button disabled>Devre dışı</Button>
+          <Button render={<a href="#gallery" />}>Bağlantı olarak</Button>
+        </div>
+      </Section>
+
+      <Section title="SplitButton">
+        <div {...props(styles.row)}>
+          <SplitButton menu={<DownloadOptions />} menuLabel="İndirme seçenekleri">
+            <DownloadIcon />
+            Angaria PDF (Türkçe)
+          </SplitButton>
+          <SplitButton menu={<DownloadOptions />} menuLabel="İndirme seçenekleri" variant="outline">
+            e-Arşiv PDF
+          </SplitButton>
+          <SplitButton
+            menu={<DownloadOptions />}
+            menuLabel="İndirme seçenekleri"
+            variant="secondary"
+          >
+            İkincil
+          </SplitButton>
+          <SplitButton disabled menu={<DownloadOptions />} menuLabel="İndirme seçenekleri">
+            Devre dışı
+          </SplitButton>
+          <SplitButton
+            disabled
+            menu={<DownloadOptions />}
+            menuDisabled={false}
+            menuLabel="İndirme seçenekleri"
+            variant="outline"
+          >
+            Yalnız menü
+          </SplitButton>
+        </div>
+      </Section>
+
+      <Section title="Badge">
+        <div {...props(styles.row)}>
+          <Badge>Onaylandı</Badge>
+          <Badge variant="secondary">Taslak</Badge>
+          <Badge variant="outline">Kayıtlı</Badge>
+          <Badge variant="warning">İmza bekliyor</Badge>
+          <Badge variant="destructive">İptal</Badge>
+        </div>
+      </Section>
+
+      <Section title="Field, Input, Textarea, Label">
+        <FieldGroup style={styles.stack}>
+          <Field>
+            <FieldLabel htmlFor="gallery-name">Müşteri adı</FieldLabel>
+            <Input id="gallery-name" placeholder="knobs.dev" />
+            <FieldDescription>Faturada görünen ad.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="gallery-vkn">Vergi numarası</FieldLabel>
+            <Input aria-invalid defaultValue="12345" id="gallery-vkn" />
+            <FieldError>Vergi numarası 10 haneli olmalı.</FieldError>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="gallery-date">Fatura tarihi</FieldLabel>
+            <Input defaultValue="18.09.2026" id="gallery-date" />
+            <FieldWarning>
+              Bu tarih 7 günden eski.{' '}
+              <SourceLink href="https://www.gib.gov.tr/mevzuat/kanun/434" label="VUK md. 231/5">
+                VUK 231/5
+              </SourceLink>
+              ’e göre fatura, hizmetten sonraki 7 gün içinde kesilmeli.
+            </FieldWarning>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="gallery-note">Not</FieldLabel>
+            <Textarea id="gallery-note" placeholder="Faturaya eklenecek not" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="gallery-disabled">Devre dışı</FieldLabel>
+            <Input defaultValue="Değiştirilemez" disabled id="gallery-disabled" />
+          </Field>
+        </FieldGroup>
+      </Section>
+
+      <Section title="NumberInput">
+        <GalleryNumbers />
+      </Section>
+
+      <Section title="ChoiceChips">
+        <GalleryChoices />
+      </Section>
+
+      <Section title="MaskedInput">
+        <GalleryMasked />
+      </Section>
+
+      <Section title="OTPInput">
+        <GalleryOTP />
+      </Section>
+
+      <Section title="DateField, Calendar">
+        <GalleryDates />
+      </Section>
+
+      <Section title="Select">
+        <div {...props(styles.stack)}>
+          <Select
+            defaultValue="TRY"
+            items={[
+              { label: 'Türk lirası', value: 'TRY' },
+              { label: 'ABD doları', value: 'USD' },
+              { label: 'Euro', value: 'EUR' },
+            ]}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TRY">Türk lirası</SelectItem>
+              <SelectItem value="USD">ABD doları</SelectItem>
+              <SelectItem value="EUR">Euro</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select>
+            <SelectTrigger size="sm">
+              <SelectValue placeholder="Dil seç" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tr">Türkçe</SelectItem>
+              <SelectItem value="en">İngilizce</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </Section>
+
+      <Section title="Combobox">
+        <div {...props(styles.stack)}>
+          <Combobox items={customers}>
+            <ComboboxInput placeholder="Müşteri ara" />
+            <ComboboxContent>
+              <ComboboxEmpty>Müşteri bulunamadı.</ComboboxEmpty>
+              <ComboboxList>
+                {(item: string) => (
+                  <ComboboxItem key={item} value={item}>
+                    {item}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
+      </Section>
+
+      <Section title="Checkbox, Switch">
+        <div {...props(styles.row)}>
+          <Label>
+            <Checkbox checked={lines} onCheckedChange={setLines} />
+            Satır açıklamalarını göster
+          </Label>
+          <Label>
+            <Checkbox indeterminate />
+            Kısmen seçili
+          </Label>
+          <Label>
+            <Checkbox disabled />
+            Devre dışı
+          </Label>
+        </div>
+        <div {...props(styles.row)}>
+          <Label>
+            <Switch checked={englishPdf} onCheckedChange={setEnglishPdf} />
+            İngilizce PDF
+          </Label>
+          <Label>
+            <Switch disabled />
+            Devre dışı
+          </Label>
+        </div>
+      </Section>
+
+      <Section title="Progress">
+        <div {...props(styles.stack)}>
+          <Progress label="Faturalar taranıyor…" max={53} value={23} valueText="23/53 hafta" />
+          <Progress label="GİB’e bağlanılıyor…" value={null} />
+        </div>
+      </Section>
+
+      <Section title="Dialog, AlertDialog">
+        <div {...props(styles.row)}>
+          <Dialog>
+            <DialogTrigger render={<Button variant="outline" />}>Müşteri ekle</DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Yeni müşteri</DialogTitle>
+                <DialogDescription>Faturalarda kullanılacak bilgiler.</DialogDescription>
+              </DialogHeader>
+              <Field>
+                <FieldLabel htmlFor="dialog-name">Ad</FieldLabel>
+                <Input id="dialog-name" placeholder="knobs.dev" />
+              </Field>
+              <DialogFooter>
+                <DialogClose render={<Button variant="outline" />}>Vazgeç</DialogClose>
+                <Button>Kaydet</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <AlertDialog>
+            <AlertDialogTrigger render={<Button variant="destructive" />}>
+              Taslağı sil
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Taslak silinsin mi?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Bu taslak GİB portalından da kaldırılır. Bu işlem geri alınamaz.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+                <AlertDialogAction variant="destructive">Sil</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </Section>
+
+      <Section title="Popover, DropdownMenu, Tooltip">
+        <div {...props(styles.row)}>
+          <Popover>
+            <PopoverTrigger render={<Button variant="outline" />}>Kur bilgisi</PopoverTrigger>
+            <PopoverContent>
+              <PopoverHeader>
+                <PopoverTitle>TCMB döviz alış</PopoverTitle>
+                <PopoverDescription>
+                  Fatura tarihinden önceki iş gününün kuru kullanılır.
+                </PopoverDescription>
+              </PopoverHeader>
+            </PopoverContent>
+          </Popover>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" />}>
+              İşlemler
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Fatura</DropdownMenuLabel>
+              <DropdownMenuItem>
+                <RepeatIcon />
+                Tekrar kes
+                <DropdownMenuShortcut>⌘R</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <CopyIcon />
+                ETTN’yi kopyala
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <DownloadIcon />
+                PDF indir
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>PDF dili</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem>Türkçe</DropdownMenuItem>
+                  <DropdownMenuItem>İngilizce</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuCheckboxItem checked={lines} onCheckedChange={setLines}>
+                Satır açıklamaları
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive">
+                <Trash2Icon />
+                Sil
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger
+              render={<Button aria-label="Yeni fatura" size="icon" variant="ghost" />}
+            >
+              <FilePlusIcon />
+            </TooltipTrigger>
+            <TooltipContent>Yeni fatura</TooltipContent>
+          </Tooltip>
+        </div>
+      </Section>
+
+      <Section title="Tabs">
+        <Tabs defaultValue="details">
+          <TabsList>
+            <TabsTrigger value="details">Bilgiler</TabsTrigger>
+            <TabsTrigger value="lines">Satırlar</TabsTrigger>
+            <TabsTrigger value="preview">Önizleme</TabsTrigger>
+          </TabsList>
+          <TabsContent value="details">Fatura bilgileri burada.</TabsContent>
+          <TabsContent value="lines">Fatura satırları burada.</TabsContent>
+          <TabsContent value="preview">PDF önizlemesi burada.</TabsContent>
+        </Tabs>
+        <Tabs defaultValue="tr">
+          <TabsList variant="line">
+            <TabsTrigger value="tr">Türkçe</TabsTrigger>
+            <TabsTrigger value="en">İngilizce</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </Section>
+
+      <Section title="Card">
+        <Card style={styles.cardWidth}>
+          <CardHeader>
+            <CardTitle>Ekim faturası</CardTitle>
+            <CardDescription>knobs.dev, 2.400 € / ay.</CardDescription>
+            <CardAction>
+              <Badge variant="secondary">Taslak</Badge>
+            </CardAction>
+          </CardHeader>
+          <CardContent>SMS ile onaylanınca GİB’e gider.</CardContent>
+          <CardFooter>
+            <Button>SMS ile onayla</Button>
+            <Button variant="ghost">Taslağı sil</Button>
+          </CardFooter>
+        </Card>
+      </Section>
+
+      <Section title="Table">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Fatura no</TableHead>
+              <TableHead>Müşteri</TableHead>
+              <TableHead>Tarih</TableHead>
+              <TableHead>Tutar</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invoices.map((invoice, index) => (
+              <TableRow data-state={index === 0 ? 'selected' : undefined} key={invoice.no}>
+                <TableCell>{invoice.no}</TableCell>
+                <TableCell>{invoice.customer}</TableCell>
+                <TableCell>{invoice.date}</TableCell>
+                <TableCell>{invoice.amount}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Section>
+
+      <Section title="ScrollArea, Separator, Skeleton, Kbd, Code, CodeBlock">
+        <div {...props(styles.row)}>
+          <ScrollArea style={styles.scrollBox}>
+            <div {...props(styles.scrollInner)}>
+              {invoices.concat(invoices, invoices).map((invoice, index) => (
+                <div key={`${invoice.no}-${index}`}>
+                  {invoice.customer}
+                  <Separator />
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <div {...props(styles.stack)}>
+            <Skeleton style={styles.skeletonWide} />
+            <Skeleton style={styles.skeletonNarrow} />
+            <KbdGroup>
+              <Kbd>⌘</Kbd>
+              <Kbd>K</Kbd>
+            </KbdGroup>
+            <span>
+              Çalışıyor, <Code>127.0.0.1:41234</Code>
+            </span>
+            <CodeBlock>
+              {JSON.stringify({ code: '••••••', operationId: 'op-1' }, null, 2)}
+            </CodeBlock>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Toast">
+        <div {...props(styles.row)}>
+          <Button
+            onClick={() => toast('Fatura taslağı oluşturuldu', { description: 'GIB2026000000013' })}
+            variant="outline"
+          >
+            Bildirim göster
+          </Button>
+          <Button onClick={() => toast.error('GİB oturumu kapandı')} variant="outline">
+            Hata bildirimi
+          </Button>
+          <Button
+            onClick={() =>
+              toast.success('e-Arşiv faturası kaydedildi', {
+                action: { label: 'Finder’da göster', onClick: () => {} },
+                cancel: { label: 'Aç', onClick: () => {} },
+                closeButton: true,
+                description: (
+                  <FileName name="e-Arsiv-Fatura-2026-03-05-Ana-Varlık-ACME-GmbH-GIB2026000000001.pdf" />
+                ),
+                duration: DOWNLOAD_TOAST_DURATION,
+              })
+            }
+            variant="outline"
+          >
+            İki eylemli bildirim
+          </Button>
+        </div>
+      </Section>
+
+      <Section title="Command">
+        <Command style={styles.commandInline}>
+          <CommandInput placeholder="Komut ara" />
+          <CommandList>
+            <CommandEmpty>Sonuç yok.</CommandEmpty>
+            <CommandGroup heading="Faturalar">
+              <CommandItem>
+                <FilePlusIcon />
+                Yeni fatura
+                <CommandShortcut>⌘N</CommandShortcut>
+              </CommandItem>
+              <CommandItem>
+                <RepeatIcon />
+                Geçen ayın faturasını tekrar kes
+              </CommandItem>
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Git">
+              <CommandItem>
+                <UsersIcon />
+                Müşteriler
+              </CommandItem>
+              <CommandItem disabled>
+                <SettingsIcon />
+                Ayarlar (devre dışı)
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </Section>
+
+      <Section title="Sidebar">
+        <div {...props(styles.frame)}>
+          <Sidebar>
+            <SidebarHeader>
+              <Wordmark style={styles.sidebarWordmark} />
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive>
+                      <FileTextIcon />
+                      Faturalar
+                      <SidebarMenuBadge>12</SidebarMenuBadge>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton>
+                      <FilePlusIcon />
+                      Yeni fatura
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton>
+                      <UsersIcon />
+                      Müşteriler
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+              <SidebarGroup>
+                <SidebarGroupLabel>Kayıtlı</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton>
+                      <ListIcon />
+                      Hizmetler
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            </SidebarContent>
+            <SidebarFooter>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton>
+                    <SettingsIcon />
+                    Ayarlar
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          </Sidebar>
+          <div {...props(styles.frameMain)}>Liste ve ayrıntı bölmeleri burada.</div>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+type GalleryPalette = 'kit' | PaletteChoice;
+
+const galleryPalettes = [
+  { label: 'Kit', value: 'kit' as GalleryPalette },
+  ...paletteChoices.map((choice) => ({
+    label: paletteLabels[choice],
+    value: choice as GalleryPalette,
+  })),
+];
+
+function Gallery() {
+  const [theme, setTheme] = useState<ThemeChoice>(readTheme);
+  const [palette, setPalette] = useState<GalleryPalette>('kit');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'k' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const chooseTheme = (choice: ThemeChoice) => {
+    applyTheme(choice);
+    setTheme(choice);
+  };
+
+  const choosePalette = (choice: GalleryPalette | null) => {
+    if (!choice) {
+      return;
+    }
+    if (choice === 'kit') {
+      delete document.documentElement.dataset['palette'];
+    } else {
+      document.documentElement.dataset['palette'] = choice;
+    }
+    setPalette(choice);
+  };
+
+  return (
+    <TooltipProvider>
+      <header {...props(styles.bar)} id="gallery">
+        <div {...props(styles.barTitle)}>
+          <Wordmark />
+          <span {...props(styles.barHint)}>
+            Arayüz bileşenleri. Açılır pencereler sayfa temasını izler. Komut paleti için ⌘K.
+          </span>
+        </div>
+        <div {...props(styles.barControls)}>
+          <ChoiceChips
+            aria-label="Renk paleti"
+            onValueChange={choosePalette}
+            options={galleryPalettes}
+            size="sm"
+            value={palette}
+          />
+          <Tabs onValueChange={(value: ThemeChoice) => chooseTheme(value)} value={theme}>
+            <TabsList>
+              {themeChoices.map((choice) => (
+                <TabsTrigger key={choice} value={choice}>
+                  {themeLabels[choice]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+      </header>
+      <div {...props(styles.grid)}>
+        <div {...props(styles.pane)} data-theme="light">
+          <span {...props(styles.paneTitle)}>Açık</span>
+          <Showcase />
+        </div>
+        <div {...props(styles.pane)} data-theme="dark">
+          <span {...props(styles.paneTitle)}>Koyu</span>
+          <Showcase />
+        </div>
+      </div>
+      <CommandDialog onOpenChange={setPaletteOpen} open={paletteOpen}>
+        <CommandInput placeholder="Ne yapmak istersin?" />
+        <CommandList>
+          <CommandEmpty>Sonuç yok.</CommandEmpty>
+          <CommandGroup heading="Faturalar">
+            <CommandItem onSelect={() => setPaletteOpen(false)}>
+              <RepeatIcon />
+              Geçen ayın faturasını tekrar kes
+            </CommandItem>
+            <CommandItem onSelect={() => setPaletteOpen(false)}>
+              <FilePlusIcon />
+              Yeni fatura
+              <CommandShortcut>⌘N</CommandShortcut>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+      <Toaster />
+    </TooltipProvider>
+  );
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <Gallery />
+  </StrictMode>,
+);

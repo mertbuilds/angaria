@@ -9,12 +9,11 @@
     "types": ["node"],
     "strict": true,
     "noUnusedLocals": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
+    "noEmit": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src", "tests", "tsdown.config.ts"]
 }

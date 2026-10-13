@@ -1,12 +1,15 @@
 <!doctype html>
-<html lang="tr">
+<html lang="tr" data-palette="mist">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Angaria</title>
     <script type="module">
       if (import.meta.env.DEV) {
-        import("react-grab");
+        // /?ui-gallery opens the component gallery (dev only).
+        if (new URLSearchParams(location.search).has('ui-gallery')) {
+          location.replace('/ui-gallery.html');
+        }
       }
     </script>
   </head>

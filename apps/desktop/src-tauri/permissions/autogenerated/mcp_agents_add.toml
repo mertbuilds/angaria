@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mcp-agents-add"
+description = "Enables the mcp_agents_add command without any pre-configured scope."
+commands.allow = ["mcp_agents_add"]
+
+[[permission]]
+identifier = "deny-mcp-agents-add"
+description = "Denies the mcp_agents_add command without any pre-configured scope."
+commands.deny = ["mcp_agents_add"]

@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      /* The install window's background, rendered to background.png and
+      background@2x.png by render-background.sh.
+
+      No text: Finder names the two icons itself. The dots are the site's hero
+      grid (apps/web/src/components/hero.tsx): the text colour at 24%, 22px apart,
+      fading toward the edges. The arrow is the site's blue.
+
+      The art is taller than the window, so it fills the content area whatever
+      chrome Finder shows. Keep the icon centres below in step with
+      bundle.macOS.dmg in tauri.conf.json (appPosition, applicationFolderPosition;
+      settings.py reads them from there), then run render-background.sh. */
+      :root {
+        --ground: #ffffff;
+        --dot: rgb(0 0 0 / 0.24);
+        --arrow: #0098f2;
+        --app-x: 180px;
+        --folder-x: 480px;
+        --icon-y: 180px;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #c {
+        position: relative;
+        width: 660px;
+        height: 480px;
+        overflow: hidden;
+        background: var(--ground);
+      }
+      #dots {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.5px);
+        background-size: 22px 22px;
+        background-position: 0 calc(var(--icon-y) - 11px);
+        -webkit-mask-image: radial-gradient(
+          ellipse 50% 46% at 50% calc(var(--icon-y) + 10px),
+          #000 30%,
+          transparent 100%
+        );
+        mask-image: radial-gradient(
+          ellipse 50% 46% at 50% calc(var(--icon-y) + 10px),
+          #000 30%,
+          transparent 100%
+        );
+      }
+      /* Agent Caffeine's three chevrons, centred between the icons on their centre
+      line. The strokes run from x 13 to 81 of the 88 wide box, so the box sits
+      3px left of the midpoint to centre what is drawn. */
+      #arrow {
+        position: absolute;
+        left: calc((var(--app-x) + var(--folder-x)) / 2 - 47px);
+        top: calc(var(--icon-y) - 24px);
+        width: 88px;
+        height: 48px;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="c">
+      <div id="dots"></div>
+      <svg id="arrow" viewBox="0 0 88 48" fill="none">
+        <g stroke="var(--arrow)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 12 L34 24 L16 36" opacity="0.45" />
+          <path d="M38 12 L56 24 L38 36" opacity="0.75" />
+          <path d="M60 12 L78 24 L60 36" opacity="1" />
+        </g>
+      </svg>
+    </div>
+  </body>
+</html>

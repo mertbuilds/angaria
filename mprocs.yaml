@@ -1,0 +1,16 @@
+procs:
+  desktop:
+    # Tauri dev: beforeDevCommand builds the workspace packages, then serves vite on
+    # the fixed port 5173 (Tauri's devUrl, so no portless here) and opens the app window.
+    # tauri.dev.conf.json lets the http plugin reach the gib emulator below.
+    shell: pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json
+  gib:
+    # GİB e-Arşiv portal and TCMB rates emulator (packages/gib-emulator) on the fixed
+    # http://127.0.0.1:5180, aliased as https://gib.angaria.localhost and
+    # https://tcmb.angaria.localhost. The port stays fixed (outside portless's
+    # 4000-4999 PORT pool) because the desktop dev allowlist names it. It restarts
+    # when its code changes (node --watch); in-memory state starts over then.
+    shell: pnpm emulate
+  web:
+    # https://angaria.localhost, the landing page. portless injects PORT; vite reads it.
+    shell: pnpm exec portless angaria pnpm --filter web dev

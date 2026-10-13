@@ -1,0 +1,56 @@
+name: Deploy web
+
+# Live since 2026-10-13: every push to main that touches the site deploys it.
+on:
+  push:
+    branches: [main]
+    paths: ['apps/web/**', 'packages/ui/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  # Without a Cloudflare token there is nothing to deploy to: skip, do not fail.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.token.outputs.ready }}
+    steps:
+      - id: token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::CLOUDFLARE_API_TOKEN is not set, skipping the deploy."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: check
+    if: needs.check.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Suisse Intl from R2 (FONT_BUCKET, default suisse-font). On a failure this
+      # warns and the site falls back to Inter.
+      - run: pnpm fonts
+        env:
+          FONT_BUCKET: ${{ vars.FONT_BUCKET }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      # `run deploy`: a bare `pnpm deploy` is pnpm's own command, not the script.
+      # It builds, then `cf deploy --prebuilt` (cloudflare.config.ts).
+      - run: pnpm --filter web run deploy
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

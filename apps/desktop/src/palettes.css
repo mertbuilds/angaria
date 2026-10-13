@@ -1,0 +1,340 @@
+/*
+ * The desktop app's color palettes, layered over @angaria/ui's theme.css (the
+ * website layers its own brand.css instead). Import after theme.css and
+ * base.css: same variables, later in the cascade and more specific, so these
+ * win.
+ *
+ * Two palettes the user picks from: mist (cool blue-gray, the default) and
+ * paper (warm neutral). `data-palette` on <html> picks one: index.html sets
+ * the default, Ayarlar › Görünüm and ⌘K switch it (src/lib/palette.ts).
+ *
+ * Each palette sets the kit's variables and these:
+ *
+ *   --primary-ink         the blue as text and icons: links, the active nav
+ *                         icon (the kit's link button reads it)
+ *   --selection           a selected list row, with --selection-foreground
+ *   --nav-active          the current sidebar row, with -foreground and -icon
+ *   --tab-active          the chosen segment of a segmented control, with
+ *                         -foreground (the kit's Tabs read it too)
+ *   --input-background    the fill of fields and select triggers (the kit reads it);
+ *                         in dark mode a step lighter than the card
+ *   --input-hover         a field's border under the pointer (the kit reads it)
+ *   --divider             the few hairlines left, between rows of a group
+ *   --paper-edge          the outline of GİB's white page on the canvas
+ *   --paper-filter        dims that page in dark mode, so it does not glare
+ *   --switch-thumb, --tooltip, --tooltip-foreground (the kit reads them)
+ *   --panel-shadow        lifts the content panel off the window's tone
+ *
+ * Regions part by tone, not lines: the window is the sidebar's tone, the
+ * content floats on it as a rounded panel in the canvas tone (the shell's
+ * `main`), and cards and the GİB page sit on the canvas. The kit's borders
+ * stay on controls only (outline buttons, fields, popups).
+ *
+ * The primary fill is #0098f2 or a deeper blue. White text on #0098f2 is
+ * 3.1:1 and fails AA, so that fill carries dark text, and a fill with white
+ * text is #0077c8 (4.7:1). In light mode destructive and warning are deeper
+ * than the kit's: #dc2626 on its own 10% tint is 4.1:1, #d97706 on white 3.2:1.
+ * --input, a field's border, is the lightest value at 3:1 against the fill,
+ * the canvas and the card (WCAG 1.4.11); tests/field-contrast.test.ts checks it.
+ *
+ * Like theme.css, the dark values are written twice: behind the system
+ * preference (skipped when light is forced) and behind data-theme='dark'.
+ * Keep both blocks of a palette in sync.
+ */
+
+/* Shared by every palette. Two attributes, like theme.css's system-dark rule,
+   and later in the cascade, so it wins in both modes. */
+:root[data-palette],
+[data-palette] [data-theme] {
+  --sidebar-border: transparent;
+  --tab-active-edge: transparent;
+}
+
+/* Mist: cool blue-gray neutrals, blue for actions and selection. */
+
+:root[data-palette='mist'],
+[data-palette='mist'] [data-theme='light'] {
+  --background: #f4f7fa;
+  --foreground: #1a1f26;
+  --card: #ffffff;
+  --card-foreground: #1a1f26;
+  --popover: #ffffff;
+  --popover-foreground: #1a1f26;
+  --primary: #0077c8;
+  --primary-foreground: #ffffff;
+  --secondary: rgb(0 119 200 / 0.12);
+  --secondary-foreground: #00609f;
+  --muted: #e8edf2;
+  --muted-foreground: #56616e;
+  --accent: #edf1f5;
+  --accent-foreground: #1a1f26;
+  --destructive: #c41c1c;
+  --warning: #a95209;
+  --border: #d6dde5;
+  --input: #888e97;
+  --ring: #0077c8;
+  --sidebar: #e1e7ed;
+  --sidebar-foreground: #1a1f26;
+  --sidebar-primary: #0077c8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d8dfe6;
+  --sidebar-accent-foreground: #1a1f26;
+  --sidebar-ring: #0077c8;
+  --primary-ink: #0067ad;
+  --selection: #e0ecf8;
+  --selection-foreground: #1a1f26;
+  --nav-active: #cbdcee;
+  --nav-active-foreground: #1a1f26;
+  --nav-active-icon: #0067ad;
+  --tab-active: #ffffff;
+  --tab-active-foreground: #0067ad;
+  --input-background: #ffffff;
+  --input-hover: #7c828b;
+  --divider: #e4e9ef;
+  --paper-edge: rgb(26 31 38 / 0.08);
+  --paper-filter: none;
+  --switch-thumb: #ffffff;
+  --tooltip: #1a1f26;
+  --tooltip-foreground: #f4f7fa;
+  --panel-shadow: 0 1px 2px rgb(26 31 38 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-palette='mist']:not([data-theme='light']) {
+    --background: #12171d;
+    --foreground: #e2e7ed;
+    --card: #181e25;
+    --card-foreground: #e2e7ed;
+    --popover: #1c232b;
+    --popover-foreground: #e2e7ed;
+    --primary: #0098f2;
+    --primary-foreground: #04131f;
+    --secondary: rgb(0 152 242 / 0.2);
+    --secondary-foreground: #6cbdf6;
+    --muted: #1e252d;
+    --muted-foreground: #8d98a4;
+    --accent: #262e37;
+    --accent-foreground: #e2e7ed;
+    --destructive: #f87171;
+    --warning: #fbbf24;
+    --border: #2c343e;
+    --input: #676f77;
+    --ring: #3aa8f4;
+    --sidebar: #0a0d11;
+    --sidebar-foreground: #e2e7ed;
+    --sidebar-primary: #0098f2;
+    --sidebar-primary-foreground: #04131f;
+    --sidebar-accent: #161b21;
+    --sidebar-accent-foreground: #e2e7ed;
+    --sidebar-ring: #3aa8f4;
+    --primary-ink: #5cb6f5;
+    --selection: #17283a;
+    --selection-foreground: #e2e7ed;
+    --nav-active: #172638;
+    --nav-active-foreground: #e2e7ed;
+    --nav-active-icon: #5cb6f5;
+    --tab-active: #2c353f;
+    --tab-active-foreground: #e2e7ed;
+    --input-background: #1d242c;
+    --input-hover: #737a83;
+    --divider: #1f262e;
+    --paper-edge: transparent;
+    --paper-filter: brightness(0.9);
+    --switch-thumb: #f0f3f6;
+    --tooltip: #e2e7ed;
+    --tooltip-foreground: #12171d;
+    --panel-shadow: 0 0 0 1px rgb(255 255 255 / 0.05);
+  }
+}
+
+[data-palette='mist'][data-theme='dark'],
+[data-palette='mist'] [data-theme='dark'] {
+  --background: #12171d;
+  --foreground: #e2e7ed;
+  --card: #181e25;
+  --card-foreground: #e2e7ed;
+  --popover: #1c232b;
+  --popover-foreground: #e2e7ed;
+  --primary: #0098f2;
+  --primary-foreground: #04131f;
+  --secondary: rgb(0 152 242 / 0.2);
+  --secondary-foreground: #6cbdf6;
+  --muted: #1e252d;
+  --muted-foreground: #8d98a4;
+  --accent: #262e37;
+  --accent-foreground: #e2e7ed;
+  --destructive: #f87171;
+  --warning: #fbbf24;
+  --border: #2c343e;
+  --input: #676f77;
+  --ring: #3aa8f4;
+  --sidebar: #0a0d11;
+  --sidebar-foreground: #e2e7ed;
+  --sidebar-primary: #0098f2;
+  --sidebar-primary-foreground: #04131f;
+  --sidebar-accent: #161b21;
+  --sidebar-accent-foreground: #e2e7ed;
+  --sidebar-ring: #3aa8f4;
+  --primary-ink: #5cb6f5;
+  --selection: #17283a;
+  --selection-foreground: #e2e7ed;
+  --nav-active: #172638;
+  --nav-active-foreground: #e2e7ed;
+  --nav-active-icon: #5cb6f5;
+  --tab-active: #2c353f;
+  --tab-active-foreground: #e2e7ed;
+  --input-background: #1d242c;
+  --input-hover: #737a83;
+  --divider: #1f262e;
+  --paper-edge: transparent;
+  --paper-filter: brightness(0.9);
+  --switch-thumb: #f0f3f6;
+  --tooltip: #e2e7ed;
+  --tooltip-foreground: #12171d;
+  --panel-shadow: 0 0 0 1px rgb(255 255 255 / 0.05);
+}
+
+/* Paper: warm off-white and charcoal with cream text; blue only for actions,
+   focus and status, selection stays neutral. */
+
+:root[data-palette='paper'],
+[data-palette='paper'] [data-theme='light'] {
+  --background: #f7f6f3;
+  --foreground: #1f1d1a;
+  --card: #ffffff;
+  --card-foreground: #1f1d1a;
+  --popover: #ffffff;
+  --popover-foreground: #1f1d1a;
+  --primary: #0077c8;
+  --primary-foreground: #ffffff;
+  --secondary: rgb(0 119 200 / 0.1);
+  --secondary-foreground: #00609f;
+  --muted: #eeece7;
+  --muted-foreground: #625d55;
+  --accent: #f2f0ec;
+  --accent-foreground: #1f1d1a;
+  --destructive: #c41c1c;
+  --warning: #a95209;
+  --border: #dfdbd3;
+  --input: #918d87;
+  --ring: #0077c8;
+  --sidebar: #e8e5de;
+  --sidebar-foreground: #1f1d1a;
+  --sidebar-primary: #0077c8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #dfdbd3;
+  --sidebar-accent-foreground: #1f1d1a;
+  --sidebar-ring: #0077c8;
+  --primary-ink: #0067ad;
+  --selection: #ebe8e1;
+  --selection-foreground: #1f1d1a;
+  --nav-active: #d9d4c9;
+  --nav-active-foreground: #1f1d1a;
+  --nav-active-icon: #0067ad;
+  --tab-active: #ffffff;
+  --tab-active-foreground: #1f1d1a;
+  --input-background: #ffffff;
+  --input-hover: #84807a;
+  --divider: #ebe8e2;
+  --paper-edge: rgb(31 29 26 / 0.08);
+  --paper-filter: none;
+  --switch-thumb: #ffffff;
+  --tooltip: #1f1d1a;
+  --tooltip-foreground: #f7f6f3;
+  --panel-shadow: 0 1px 2px rgb(31 29 26 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-palette='paper']:not([data-theme='light']) {
+    --background: #171615;
+    --foreground: #ebe6dc;
+    --card: #1e1d1b;
+    --card-foreground: #ebe6dc;
+    --popover: #232220;
+    --popover-foreground: #ebe6dc;
+    --primary: #0098f2;
+    --primary-foreground: #0d1013;
+    --secondary: rgb(0 152 242 / 0.17);
+    --secondary-foreground: #6cbdf6;
+    --muted: #252421;
+    --muted-foreground: #9d978b;
+    --accent: #2c2a27;
+    --accent-foreground: #ebe6dc;
+    --destructive: #f87171;
+    --warning: #fbbf24;
+    --border: #36332f;
+    --input: #716d66;
+    --ring: #3aa8f4;
+    --sidebar: #0d0c0b;
+    --sidebar-foreground: #ebe6dc;
+    --sidebar-primary: #0098f2;
+    --sidebar-primary-foreground: #0d1013;
+    --sidebar-accent: #1a1917;
+    --sidebar-accent-foreground: #ebe6dc;
+    --sidebar-ring: #3aa8f4;
+    --primary-ink: #5cb6f5;
+    --selection: #2a2825;
+    --selection-foreground: #ebe6dc;
+    --nav-active: #262421;
+    --nav-active-foreground: #ebe6dc;
+    --nav-active-icon: #5cb6f5;
+    --tab-active: #36332f;
+    --tab-active-foreground: #ebe6dc;
+    --input-background: #242320;
+    --input-hover: #7d7972;
+    --divider: #272522;
+    --paper-edge: transparent;
+    --paper-filter: brightness(0.88) sepia(0.06);
+    --switch-thumb: #f3efe8;
+    --tooltip: #ebe6dc;
+    --tooltip-foreground: #171615;
+    --panel-shadow: 0 0 0 1px rgb(255 255 255 / 0.05);
+  }
+}
+
+[data-palette='paper'][data-theme='dark'],
+[data-palette='paper'] [data-theme='dark'] {
+  --background: #171615;
+  --foreground: #ebe6dc;
+  --card: #1e1d1b;
+  --card-foreground: #ebe6dc;
+  --popover: #232220;
+  --popover-foreground: #ebe6dc;
+  --primary: #0098f2;
+  --primary-foreground: #0d1013;
+  --secondary: rgb(0 152 242 / 0.17);
+  --secondary-foreground: #6cbdf6;
+  --muted: #252421;
+  --muted-foreground: #9d978b;
+  --accent: #2c2a27;
+  --accent-foreground: #ebe6dc;
+  --destructive: #f87171;
+  --warning: #fbbf24;
+  --border: #36332f;
+  --input: #716d66;
+  --ring: #3aa8f4;
+  --sidebar: #0d0c0b;
+  --sidebar-foreground: #ebe6dc;
+  --sidebar-primary: #0098f2;
+  --sidebar-primary-foreground: #0d1013;
+  --sidebar-accent: #1a1917;
+  --sidebar-accent-foreground: #ebe6dc;
+  --sidebar-ring: #3aa8f4;
+  --primary-ink: #5cb6f5;
+  --selection: #2a2825;
+  --selection-foreground: #ebe6dc;
+  --nav-active: #262421;
+  --nav-active-foreground: #ebe6dc;
+  --nav-active-icon: #5cb6f5;
+  --tab-active: #36332f;
+  --tab-active-foreground: #ebe6dc;
+  --input-background: #242320;
+  --input-hover: #7d7972;
+  --divider: #272522;
+  --paper-edge: transparent;
+  --paper-filter: brightness(0.88) sepia(0.06);
+  --switch-thumb: #f3efe8;
+  --tooltip: #ebe6dc;
+  --tooltip-foreground: #171615;
+  --panel-shadow: 0 0 0 1px rgb(255 255 255 / 0.05);
+}

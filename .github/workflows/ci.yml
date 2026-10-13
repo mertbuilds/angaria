@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm version comes from packageManager in package.json.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Suisse Intl from R2 (FONT_BUCKET, default suisse-font). Without a
+      # Cloudflare token it warns, and the builds and PDF tests use Inter.
+      - run: pnpm fonts
+        env:
+          FONT_BUCKET: ${{ vars.FONT_BUCKET }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - run: pnpm format:check
+      # Builds the packages and the web app first: the type-aware lint needs the
+      # generated routeTree.gen.ts and paraglide output.
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+        env:
+          # Turbo groups task output in CI, so a hang prints nothing at all.
+          TURBO_LOG_ORDER: stream
+      - run: pnpm exec turbo run build --filter=web
+      # Frontend only, no Rust.
+      - run: pnpm exec turbo run build --filter=desktop

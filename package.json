@@ -2,18 +2,40 @@
   "name": "angaria",
   "version": "0.0.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
-    "ready": "vp fmt && vp lint && vp run test -r && vp run build -r",
-    "dev": "vp run website#dev",
-    "prepare": "vp config"
+    "build": "turbo run build",
+    "dev": "mprocs",
+    "emulate": "pnpm --filter @angaria/gib-emulator start --portless",
+    "fonts": "bash scripts/fetch-fonts.sh",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "icons": "uv run --with pillow --with numpy --with scipy python scripts/build-icons.py",
+    "lint": "turbo run build --filter=./packages/* --filter=web --output-logs=errors-only && oxlint --type-aware --type-check",
+    "prepare": "if [ \"$LEFTHOOK\" = 0 ]; then echo 'lefthook install skipped (LEFTHOOK=0)'; elif git rev-parse --git-dir >/dev/null 2>&1; then lefthook install; else echo 'lefthook install skipped (no git repo)'; fi",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
-    "@typescript/native-preview": "catalog:",
-    "vite-plus": "catalog:"
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@nkzw/eslint-plugin": "^2.0.0",
+    "@nkzw/oxlint-config": "^2.0.1",
+    "eslint-plugin-no-only-tests": "^3.4.0",
+    "eslint-plugin-perfectionist": "^5.11.0",
+    "lefthook": "^2.1.12",
+    "mprocs": "0.9.6",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "portless": "0.15.6",
+    "turbo": "^2.10.12",
+    "typescript": "catalog:",
+    "wawoff2": "catalog:"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24"
   },
-  "packageManager": "pnpm@10.32.1"
+  "packageManager": "pnpm@11.25.0"
 }

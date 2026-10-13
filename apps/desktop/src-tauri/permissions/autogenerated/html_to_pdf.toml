@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-html-to-pdf"
+description = "Enables the html_to_pdf command without any pre-configured scope."
+commands.allow = ["html_to_pdf"]
+
+[[permission]]
+identifier = "deny-html-to-pdf"
+description = "Denies the html_to_pdf command without any pre-configured scope."
+commands.deny = ["html_to_pdf"]
