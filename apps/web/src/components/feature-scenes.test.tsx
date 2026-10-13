@@ -118,7 +118,8 @@ describe('with reduced motion', () => {
 });
 
 // The rules card shows the app's own messages, word for word: a change in the
-// app's wording fails here until the scene follows it.
+// app's wording fails here until the scene follows it. The first import of
+// the desktop form code (and its SDK) is slow on CI runners, hence the timeout.
 test('the rules scene shows the app’s messages and the laws they cite', async () => {
   // Loaded at run time only: the desktop's types follow its own compiler settings.
   const desktop = new URL('../../../desktop/src/lib/invoice-form.ts', import.meta.url).pathname;
@@ -132,4 +133,4 @@ test('the rules scene shows the app’s messages and the laws they cite', async 
   );
   expect(warning).toBe(INVOICE_WINDOW_WARNING);
   expect(error).toBe(ISTISNA_VAT_ERROR);
-});
+}, 30_000);
