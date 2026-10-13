@@ -6,21 +6,18 @@ describe('readConfig', () => {
     expect(
       readConfig({
         VITE_DOWNLOAD_URL: 'https://example.com/Angaria.dmg',
-        VITE_POSTHOG_HOST: 'https://eu.i.posthog.com',
-        VITE_POSTHOG_KEY: 'phc_test',
+        VITE_OPENPANEL_CLIENT_ID: 'client-id',
       }),
     ).toEqual({
       downloadUrl: 'https://example.com/Angaria.dmg',
-      posthogHost: 'https://eu.i.posthog.com',
-      posthogKey: 'phc_test',
+      openpanelClientId: 'client-id',
     });
   });
 
   test('falls back when values are empty or missing', () => {
-    expect(readConfig({ VITE_DOWNLOAD_URL: '  ', VITE_POSTHOG_KEY: '' })).toEqual({
+    expect(readConfig({ VITE_DOWNLOAD_URL: '  ', VITE_OPENPANEL_CLIENT_ID: '' })).toEqual({
       downloadUrl: 'https://dl.angaria.app/latest/Angaria.dmg',
-      posthogHost: '/ingest',
-      posthogKey: null,
+      openpanelClientId: null,
     });
   });
 });

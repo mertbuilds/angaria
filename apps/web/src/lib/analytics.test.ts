@@ -1,45 +1,44 @@
-import { describe, expect, test, vi } from 'vitest';
-import { startAnalytics, track } from './analytics.ts';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { resetAnalyticsForTests, startAnalytics, track } from './analytics.ts';
 
-vi.mock('posthog-js', () => ({ default: { capture: vi.fn(), init: vi.fn() } }));
+const instance = { track: vi.fn() };
+const OpenPanel = vi.fn(function OpenPanel(_options: Record<string, unknown>) {
+  return instance;
+});
+vi.mock('@openpanel/web', () => ({ OpenPanel }));
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('analytics', () => {
-  test('does nothing without a PostHog key', async () => {
-    const { default: posthog } = await import('posthog-js');
-    await startAnalytics(null);
+  beforeEach(() => {
+    resetAnalyticsForTests();
+    OpenPanel.mockClear();
+    instance.track.mockClear();
+  });
+
+  test('does nothing without a client id or off the live host', async () => {
+    startAnalytics(null, 'angaria.app');
+    startAnalytics('client-id', 'angaria.localhost');
     track('download_click', { location: 'hero' });
-    expect(posthog.init).not.toHaveBeenCalled();
-    expect(posthog.capture).not.toHaveBeenCalled();
+    await flush();
+    expect(OpenPanel).not.toHaveBeenCalled();
+    expect(instance.track).not.toHaveBeenCalled();
   });
 
-  test('starts cookieless and sends named events with a key', async () => {
-    const { default: posthog } = await import('posthog-js');
-    await startAnalytics('phc_test');
-    expect(posthog.init).toHaveBeenCalledWith(
-      'phc_test',
-      expect.objectContaining({ autocapture: false, persistence: 'memory' }),
-    );
+  test('starts through the proxy without replay or attribute tracking', async () => {
+    startAnalytics('client-id', 'angaria.app');
     track('source_click', { location: 'free' });
-    expect(posthog.capture).toHaveBeenCalledWith(
-      'source_click',
-      { location: 'free' },
-      expect.objectContaining({ transport: 'sendBeacon' }),
+    await flush();
+    expect(OpenPanel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiUrl: '/api/op',
+        clientId: 'client-id',
+        trackAttributes: false,
+        trackOutgoingLinks: false,
+        trackScreenViews: true,
+      }),
     );
-  });
-
-  test('sends events tracked while PostHog loads once it starts', async () => {
-    vi.resetModules();
-    const { default: posthog } = await import('posthog-js');
-    vi.mocked(posthog.capture).mockClear();
-    const analytics = await import('./analytics.ts');
-    const started = analytics.startAnalytics('phc_test');
-    analytics.track('download_click', { location: 'hero' });
-    expect(posthog.capture).not.toHaveBeenCalled();
-    await started;
-    expect(posthog.capture).toHaveBeenCalledWith(
-      'download_click',
-      { location: 'hero' },
-      expect.objectContaining({ transport: 'sendBeacon' }),
-    );
+    expect(OpenPanel.mock.calls[0]?.[0]).not.toHaveProperty('sessionReplay');
+    expect(instance.track).toHaveBeenCalledWith('source_click', { location: 'free' });
   });
 });

@@ -1,7 +1,5 @@
 /** The stable installer link a release writes to (docs/release.md). */
 const DEFAULT_DOWNLOAD_URL = 'https://dl.angaria.app/latest/Angaria.dmg';
-/** The Worker's own proxy to PostHog EU (routes/ingest.$.ts). */
-const DEFAULT_POSTHOG_HOST = '/ingest';
 
 /** Angaria's public source code. */
 export const SOURCE_URL = 'https://github.com/mertbuilds/angaria';
@@ -19,9 +17,8 @@ function read(env: Env, name: keyof ImportMetaEnv): string | null {
 export function readConfig(env: Env) {
   return {
     downloadUrl: read(env, 'VITE_DOWNLOAD_URL') ?? DEFAULT_DOWNLOAD_URL,
-    posthogHost: read(env, 'VITE_POSTHOG_HOST') ?? DEFAULT_POSTHOG_HOST,
-    // No key, no analytics: lib/analytics.ts never loads PostHog.
-    posthogKey: read(env, 'VITE_POSTHOG_KEY'),
+    // No client id, no analytics: lib/analytics.ts never loads OpenPanel.
+    openpanelClientId: read(env, 'VITE_OPENPANEL_CLIENT_ID'),
   };
 }
 

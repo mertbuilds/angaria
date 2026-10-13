@@ -1,4 +1,4 @@
-import type { PostHog } from 'posthog-js';
+import type { OpenPanel } from '@openpanel/web';
 import { config } from './config.ts';
 
 /** Where on the site a button sits, so the events can be told apart. */
@@ -6,66 +6,62 @@ export type CtaLocation = 'footer' | 'free' | 'header' | 'hero';
 
 /**
  * The named events the site sends and what each carries. Page views are
- * captured by PostHog itself.
+ * tracked by OpenPanel itself.
  */
 interface AnalyticsEvents {
   download_click: { location: CtaLocation };
   source_click: { location: CtaLocation };
 }
 
-let client: PostHog | null = null;
-let starting = false;
-/** Events tracked while PostHog loads, sent once it starts. */
-const pending: Array<() => void> = [];
+/** Only the live site counts: local dev, previews and other hosts send nothing. */
+const LIVE_HOST = 'angaria.app';
+
+// Resolves to undefined when the chunk fails, so events wait on it, then drop.
+let openpanel: Promise<OpenPanel | undefined> | undefined;
 
 /**
- * Loads PostHog once, on the client, and only with a key. Without
- * VITE_POSTHOG_KEY nothing is fetched or sent and `track` does nothing.
- * Cookieless: identity lives in memory, so a reload starts a new visitor.
+ * Loads OpenPanel once, on the client, on the live host and only with a
+ * client id (VITE_OPENPANEL_CLIENT_ID). It posts through the same-origin
+ * /api/op proxy (routes/api.op.$.ts). No cookies, no session replay, no
+ * outgoing-link or attribute tracking: page views and the named events only.
  */
-export async function startAnalytics(key = config.posthogKey): Promise<void> {
-  if (key === null || starting || typeof window === 'undefined') {
+export function startAnalytics(
+  clientId = config.openpanelClientId,
+  host = typeof window === 'undefined' ? '' : window.location.hostname,
+): void {
+  if (import.meta.env.SSR || openpanel || clientId === null || host !== LIVE_HOST) {
     return;
   }
-  starting = true;
-  const { default: posthog } = await import('posthog-js');
-  posthog.init(key, {
-    advanced_disable_flags: true,
-    api_host: config.posthogHost,
-    autocapture: false,
-    capture_dead_clicks: false,
-    capture_heatmaps: false,
-    capture_pageleave: false,
-    capture_pageview: 'history_change',
-    capture_performance: false,
-    defaults: '2026-05-30',
-    disable_external_dependency_loading: true,
-    disable_session_recording: true,
-    disable_surveys: true,
-    persistence: 'memory',
-    person_profiles: 'identified_only',
-    ui_host: 'https://eu.posthog.com',
-  });
-  client = posthog;
-  for (const send of pending.splice(0)) {
-    send();
-  }
+  openpanel = import('@openpanel/web')
+    .then(
+      ({ OpenPanel }) =>
+        new OpenPanel({
+          apiUrl: '/api/op',
+          clientId,
+          trackAttributes: false,
+          trackOutgoingLinks: false,
+          trackScreenViews: true,
+        }),
+    )
+    .catch((error: unknown) => {
+      // oxlint-disable-next-line no-console -- the browser console is the only channel this failure has
+      console.warn('openpanel failed to load', error);
+      return undefined;
+    });
 }
 
-/**
- * Sends one named event. A CTA usually leaves the page right after the click,
- * so the event goes out at once as a beacon instead of waiting in the batch.
- * While PostHog still loads, the event waits for it.
- */
+/** Sends one named event; one tracked while OpenPanel loads goes out once it has. */
 export function track<Event extends keyof AnalyticsEvents>(
   event: Event,
   properties: AnalyticsEvents[Event],
 ): void {
-  const send = () =>
-    client?.capture(event, properties, { send_instantly: true, transport: 'sendBeacon' });
-  if (client) {
-    send();
-  } else if (starting) {
-    pending.push(send);
-  }
+  void openpanel
+    ?.then((client) => client?.track(event, properties))
+    // oxlint-disable-next-line no-console -- the browser console is the only channel this failure has
+    .catch((error: unknown) => console.warn('openpanel failed to track', event, error));
+}
+
+/** Tests only: forget the started client. */
+export function resetAnalyticsForTests() {
+  openpanel = undefined;
 }
