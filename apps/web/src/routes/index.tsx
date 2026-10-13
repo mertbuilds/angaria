@@ -26,7 +26,7 @@ import { SectionHeading } from '../components/section-heading.tsx';
 import { ConnectScene, InstallScene, SignScene } from '../components/step-scenes.tsx';
 import { brand } from '../lib/brand.stylex.ts';
 import { SITE_URL } from '../lib/canonical.ts';
-import { LICENSE_URL, SOURCE_URL } from '../lib/config.ts';
+import { APP_HOSTS_SOURCE_URL, LICENSE_URL } from '../lib/config.ts';
 import { layout } from '../lib/layout.ts';
 import { SCREENS, screenSources, type Screen } from '../lib/screens.ts';
 import { Sentence } from '../lib/slot.tsx';
@@ -479,7 +479,7 @@ function Landing() {
           <p {...props(layout.text)}>
             <Sentence
               message={(link) => m.privacy_source({ link })}
-              slot={<a href={SOURCE_URL}>{m.privacy_source_link()}</a>}
+              slot={<a href={APP_HOSTS_SOURCE_URL}>{m.privacy_source_link()}</a>}
             />
           </p>
         </Reveal>
