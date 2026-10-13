@@ -52,6 +52,12 @@ export function startAnalytics(
     });
 }
 
+/** Logs a failed send; the browser console is the only channel it has. */
+const warnTrack = (event: string) => (error: unknown) => {
+  // oxlint-disable-next-line no-console -- the browser console is the only channel this failure has
+  console.warn('openpanel failed to track', event, error);
+};
+
 /**
  * Sends one named event. A loaded client sends it within the click (the SDK
  * posts with fetch keepalive, so it outlives the page); one tracked while
@@ -62,13 +68,10 @@ export function track<Event extends keyof AnalyticsEvents>(
   properties: AnalyticsEvents[Event],
 ): void {
   if (loaded) {
-    void loaded.track(event, properties);
+    void Promise.resolve(loaded.track(event, properties)).catch(warnTrack(event));
     return;
   }
-  void openpanel
-    ?.then((client) => client?.track(event, properties))
-    // oxlint-disable-next-line no-console -- the browser console is the only channel this failure has
-    .catch((error: unknown) => console.warn('openpanel failed to track', event, error));
+  void openpanel?.then((client) => client?.track(event, properties)).catch(warnTrack(event));
 }
 
 /** Tests only: forget the started client. */
