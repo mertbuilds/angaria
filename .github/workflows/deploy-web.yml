@@ -4,7 +4,7 @@ name: Deploy web
 on:
   push:
     branches: [main]
-    paths: ['apps/web/**', 'packages/ui/**']
+    paths: ['apps/web/**', 'packages/ui/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml']
   workflow_dispatch:
 
 concurrency:
