@@ -195,11 +195,11 @@ export function SiteFooter() {
           <p {...props(styles.line)}>
             <Sentence
               message={(author) => m.footer_made_by({ author })}
-              slot={
-                <a href={AUTHOR_URL} rel="noreferrer" target="_blank">
+              slots={[
+                <a href={AUTHOR_URL} key="author" rel="noreferrer" target="_blank">
                   {m.footer_author()}
-                </a>
-              }
+                </a>,
+              ]}
             />
           </p>
           <p {...props(styles.line)}>{m.footer_disclaimer()}</p>

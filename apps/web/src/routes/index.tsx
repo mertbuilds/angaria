@@ -26,7 +26,7 @@ import { SectionHeading } from '../components/section-heading.tsx';
 import { ConnectScene, InstallScene, SignScene } from '../components/step-scenes.tsx';
 import { brand } from '../lib/brand.stylex.ts';
 import { SITE_URL } from '../lib/canonical.ts';
-import { APP_HOSTS_SOURCE_URL, LICENSE_URL } from '../lib/config.ts';
+import { APP_HOSTS_SOURCE_URL, LICENSE_URL, UPDATER_SOURCE_URL } from '../lib/config.ts';
 import { layout } from '../lib/layout.ts';
 import { SCREENS, screenSources, type Screen } from '../lib/screens.ts';
 import { Sentence } from '../lib/slot.tsx';
@@ -324,7 +324,9 @@ function Landing() {
             <span aria-hidden="true">
               <Sentence
                 message={(app) => m.mcp_title({ app })}
-                slot={<CyclingWord part="mcp-app" words={MCP_APPS.map((app) => app())} />}
+                slots={[
+                  <CyclingWord key="app" part="mcp-app" words={MCP_APPS.map((app) => app())} />,
+                ]}
               />
             </span>
           </SectionHeading>
@@ -478,8 +480,15 @@ function Landing() {
         <Reveal index={5}>
           <p {...props(layout.text)}>
             <Sentence
-              message={(link) => m.privacy_source({ link })}
-              slot={<a href={APP_HOSTS_SOURCE_URL}>{m.privacy_source_link()}</a>}
+              message={(hosts, updates) => m.privacy_source({ hosts, updates })}
+              slots={[
+                <a href={APP_HOSTS_SOURCE_URL} key="hosts">
+                  {m.privacy_source_hosts()}
+                </a>,
+                <a href={UPDATER_SOURCE_URL} key="updates">
+                  {m.privacy_source_updates()}
+                </a>,
+              ]}
             />
           </p>
         </Reveal>

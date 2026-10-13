@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import capabilitiesSource from '../../../desktop/src-tauri/capabilities/default.json?raw';
-import { APP_HOSTS_SOURCE, APP_HOSTS_SOURCE_URL, readConfig } from './config.ts';
+import tauriConfigSource from '../../../desktop/src-tauri/tauri.conf.json?raw';
+import {
+  APP_HOSTS_SOURCE,
+  APP_HOSTS_SOURCE_URL,
+  readConfig,
+  UPDATER_SOURCE,
+  UPDATER_SOURCE_URL,
+} from './config.ts';
 
 describe('readConfig', () => {
   test('uses the values that are set', () => {
@@ -34,6 +41,18 @@ describe('APP_HOSTS_SOURCE', () => {
     expect(lines[last]?.trim()).toBe('}');
     expect(APP_HOSTS_SOURCE_URL).toBe(
       `https://github.com/mertbuilds/angaria/blob/main/${APP_HOSTS_SOURCE.file}#L${first}-L${last}`,
+    );
+  });
+});
+
+describe('UPDATER_SOURCE', () => {
+  test('points at the updater endpoint on dl.angaria.app', () => {
+    const [line] = UPDATER_SOURCE.lines;
+    expect(tauriConfigSource.split('\n')[line - 1]).toContain(
+      '"endpoints": ["https://dl.angaria.app/',
+    );
+    expect(UPDATER_SOURCE_URL).toBe(
+      `https://github.com/mertbuilds/angaria/blob/main/${UPDATER_SOURCE.file}#L${line}`,
     );
   });
 });
