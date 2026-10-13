@@ -50,7 +50,7 @@ const renderViewer = () => {
         html="<p>Fatura</p>"
         onOpenChange={() => {}}
         open
-        title="PLASTIC SOFTWARE LLC · GIB202600000041"
+        title="AGENT CAFFEINE INC · GIB202600000041"
       />,
     ),
   );

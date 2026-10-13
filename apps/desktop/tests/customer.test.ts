@@ -136,7 +136,7 @@ describe('countryError', () => {
 
 describe('findCustomerByTaxID', () => {
   const saved = [
-    customer({ id: 'plastic', taxIDOrTRID: '2222222222', title: 'PLASTIC SOFTWARE LLC' }),
+    customer({ id: 'plastic', taxIDOrTRID: '2222222222', title: 'AGENT CAFFEINE INC' }),
     customer({ id: 'ornek', taxIDOrTRID: VKN, title: 'ÖRNEK A.Ş.' }),
   ];
 
@@ -165,14 +165,14 @@ describe('byRecentInvoice', () => {
 
 describe('findCustomer', () => {
   const abroad = [
-    customer({ id: 'plastic', taxIDOrTRID: '2222222222', title: 'PLASTIC SOFTWARE LLC' }),
+    customer({ id: 'plastic', taxIDOrTRID: '2222222222', title: 'AGENT CAFFEINE INC' }),
     customer({ id: 'acme', taxIDOrTRID: '2222222222', title: 'Acme GmbH' }),
     customer({ id: 'ayse', name: 'Ayşe', surname: 'Işık', taxIDOrTRID: '12345678901' }),
   ];
 
   test('tells customers abroad apart by name', () => {
     expect(findCustomer(abroad, '2222222222', 'ACME GMBH')?.id).toBe('acme');
-    expect(findCustomer(abroad, ' 2222222222 ', 'Plastic Software LLC')?.id).toBe('plastic');
+    expect(findCustomer(abroad, ' 2222222222 ', 'Agent Caffeine Inc')?.id).toBe('plastic');
     expect(findCustomer(abroad, '2222222222', 'Initech')).toBeNull();
   });
 
@@ -270,7 +270,7 @@ describe('learnCustomer', () => {
     id: 'plastic',
     pdfLanguage: 'en',
     taxIDOrTRID: '2222222222',
-    title: 'PLASTIC SOFTWARE LLC',
+    title: 'AGENT CAFFEINE INC',
     VATRate: 0,
   });
 
@@ -280,7 +280,7 @@ describe('learnCustomer', () => {
       id: 'form',
       pdfLanguage: 'tr',
       taxIDOrTRID: ' 2222222222 ',
-      title: 'Plastic Software LLC',
+      title: 'Agent Caffeine Inc',
     });
     const { added, customers } = learnCustomer(
       [plastic],
@@ -298,7 +298,7 @@ describe('learnCustomer', () => {
         invoiceType: 'ISTISNA',
         lastInvoicedAt: '2026-10-02T12:00:00.000Z',
         pdfLanguage: 'both',
-        title: 'Plastic Software LLC',
+        title: 'Agent Caffeine Inc',
       },
     ]);
   });

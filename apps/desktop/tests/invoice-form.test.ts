@@ -733,7 +733,7 @@ describe('applyCustomer', () => {
     id: 'plastic',
     taxIDOrTRID: '2222222222',
     taxOffice: '',
-    title: 'PLASTIC SOFTWARE LLC',
+    title: 'AGENT CAFFEINE INC',
   };
 
   test('fills the recipient and the defaults of a customer abroad', () => {
