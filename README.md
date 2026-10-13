@@ -80,6 +80,7 @@ The token is a secret: anyone who has it can call the tools while the app runs. 
 Issues and pull requests are welcome.
 
 - Use conventional commits (`feat:`, `fix:`, ...). lefthook runs lint and format on commit and typecheck and tests on push.
+- `pnpm install` runs `lefthook install`. It fails when a global `core.hooksPath` is set: unset it (`git config --global --unset core.hooksPath`) or install with `LEFTHOOK=0`.
 - Run `pnpm lint`, `pnpm typecheck`, `pnpm format:check` and `pnpm test` before you open a pull request. For Rust changes, also run `cargo clippy --all-targets -- -D warnings` and `cargo test` in `apps/desktop/src-tauri`.
 - App text is Turkish and addresses the user as "sen".
 - Code you port from another project must carry a license compatible with the AGPL. Add its notice to `THIRD_PARTY_NOTICES.md`.
