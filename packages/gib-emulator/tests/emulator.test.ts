@@ -529,7 +529,7 @@ describe('invoice page', () => {
 
     expect(html).toMatch(/^<!DOCTYPE html PUBLIC "-\/\/W3C\/\/DTD HTML 4.01 Transitional\/\/EN"/);
     expect(html).toContain('<body id=mainbody ');
-    expect(html).toContain('<img src="data:image/svg+xml;base64,');
+    expect(html).toContain('<img src="data:image/jpeg;base64,');
     expect(html).toContain('<h1 align="center"><span style="font-weight:bold; ">e-Arşiv Fatura');
     expect(columns(html)).toEqual([
       'Sıra No',

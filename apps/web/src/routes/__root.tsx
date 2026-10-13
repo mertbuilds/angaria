@@ -110,7 +110,7 @@ function RootComponent() {
   useEffect(() => {
     // Marks hydration completion; browser checks wait for html[data-hydrated].
     document.documentElement.dataset['hydrated'] = 'true';
-    void startAnalytics();
+    startAnalytics();
   }, []);
   return (
     <RootDocument>

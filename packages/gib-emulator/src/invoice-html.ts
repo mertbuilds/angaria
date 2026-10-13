@@ -1,5 +1,6 @@
 import type { EmulatorUser } from './config.ts';
 import { dashDate, isoDate, parseGIBDate } from './dates.ts';
+import { GIB_SEAL } from './gib-seal.ts';
 import type { StoredInvoice } from './state.ts';
 import { unitName } from './units.ts';
 
@@ -270,13 +271,8 @@ const STYLE = `
     border-color: gray;
 }`;
 
-/**
- * GİB's seal (T.C. Hazine ve Maliye Bakanlığı, Gelir İdaresi Başkanlığı), drawn
- * for the emulator. The real portal inlines its own JPEG of it.
- */
-const SEAL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><path id="t" d="M16,70A38,38 0 1 1 84,70"/><path id="b" d="M12,58A39,39 0 0 0 88,58"/></defs><circle cx="50" cy="50" r="48" fill="#fff" stroke="#1b3f94" stroke-width="2.4"/><g font-family="Arial,Helvetica,sans-serif" font-weight="bold"><text fill="#1b3f94" font-size="9"><textPath href="#t" startOffset="50%" text-anchor="middle">T.C. Hazine ve Maliye Bakanlığı</textPath></text><text fill="#e3262d" font-size="8" dominant-baseline="hanging"><textPath href="#b" startOffset="50%" text-anchor="middle">Gelir İdaresi Başkanlığı</textPath></text></g><g fill="#e3262d"><path d="M56,21C38,21 27,35 27,52C27,65 33,74 42,77L45,68C40,66 38,60 38,53C38,41 45,31 56,30Z"/><circle cx="63" cy="33" r="6.5"/><path d="M55,43H67L61,74H49Z"/></g></svg>`;
-
-const SEAL = `data:image/svg+xml;base64,${Buffer.from(SEAL_SVG).toString('base64')}`;
+/** GİB's seal, the portal's own JPEG (gib-seal.ts). */
+const SEAL = GIB_SEAL;
 
 /** The portal's watermark: the test portal writes İMZASIZ TEST BELGESİ the same way. */
 const watermark = (label: string) =>
