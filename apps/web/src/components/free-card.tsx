@@ -51,7 +51,11 @@ export function FreeCard() {
       <p {...props(layout.text, layout.muted, layout.small)}>
         <Sentence
           message={(license) => m.free_note({ license })}
-          slot={<a href={LICENSE_URL}>{m.free_license()}</a>}
+          slots={[
+            <a href={LICENSE_URL} key="license">
+              {m.free_license()}
+            </a>,
+          ]}
         />
       </p>
     </div>

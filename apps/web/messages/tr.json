@@ -120,8 +120,9 @@
   "privacy_device": "Mac'in",
   "privacy_blocked_host": "Diğer tüm adresler",
   "privacy_blocked": "Engellenir",
-  "privacy_source": "Kod açık. Bu listeyi {link} sen de kontrol edebilirsin.",
-  "privacy_source_link": "GitHub'daki kaynak kodda",
+  "privacy_source": "Kod açık. Bu listeyi GitHub'daki kaynak kodda sen de kontrol edebilirsin: {hosts} ve {updates}.",
+  "privacy_source_hosts": "izin verilen adresler",
+  "privacy_source_updates": "güncelleme adresi",
 
   "host_gib": "e-Arşiv faturaların",
   "host_tcmb": "Döviz kurları",
