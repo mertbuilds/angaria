@@ -18,6 +18,8 @@ const LIVE_HOST = 'angaria.app';
 
 // Resolves to undefined when the chunk fails, so events wait on it, then drop.
 let openpanel: Promise<OpenPanel | undefined> | undefined;
+// The loaded client, so a click calls it at once: both CTAs leave the page.
+let loaded: OpenPanel | undefined;
 
 /**
  * Loads OpenPanel once, on the client, on the live host and only with a
@@ -35,13 +37,13 @@ export function startAnalytics(
   openpanel = import('@openpanel/web')
     .then(
       ({ OpenPanel }) =>
-        new OpenPanel({
+        (loaded = new OpenPanel({
           apiUrl: '/api/op',
           clientId,
           trackAttributes: false,
           trackOutgoingLinks: false,
           trackScreenViews: true,
-        }),
+        })),
     )
     .catch((error: unknown) => {
       // oxlint-disable-next-line no-console -- the browser console is the only channel this failure has
@@ -50,11 +52,19 @@ export function startAnalytics(
     });
 }
 
-/** Sends one named event; one tracked while OpenPanel loads goes out once it has. */
+/**
+ * Sends one named event. A loaded client sends it within the click (the SDK
+ * posts with fetch keepalive, so it outlives the page); one tracked while
+ * OpenPanel loads goes out once it has.
+ */
 export function track<Event extends keyof AnalyticsEvents>(
   event: Event,
   properties: AnalyticsEvents[Event],
 ): void {
+  if (loaded) {
+    void loaded.track(event, properties);
+    return;
+  }
   void openpanel
     ?.then((client) => client?.track(event, properties))
     // oxlint-disable-next-line no-console -- the browser console is the only channel this failure has
@@ -64,4 +74,5 @@ export function track<Event extends keyof AnalyticsEvents>(
 /** Tests only: forget the started client. */
 export function resetAnalyticsForTests() {
   openpanel = undefined;
+  loaded = undefined;
 }

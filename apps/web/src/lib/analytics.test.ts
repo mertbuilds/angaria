@@ -28,7 +28,7 @@ describe('analytics', () => {
   test('starts through the proxy without replay or attribute tracking', async () => {
     startAnalytics('client-id', 'angaria.app');
     track('source_click', { location: 'free' });
-    await flush();
+    await vi.waitFor(() => expect(instance.track).toHaveBeenCalled());
     expect(OpenPanel).toHaveBeenCalledWith(
       expect.objectContaining({
         apiUrl: '/api/op',
@@ -40,5 +40,9 @@ describe('analytics', () => {
     );
     expect(OpenPanel.mock.calls[0]?.[0]).not.toHaveProperty('sessionReplay');
     expect(instance.track).toHaveBeenCalledWith('source_click', { location: 'free' });
+    // Once loaded, a click sends at once, within the same task.
+    instance.track.mockClear();
+    track('download_click', { location: 'hero' });
+    expect(instance.track).toHaveBeenCalledWith('download_click', { location: 'hero' });
   });
 });
