@@ -7,8 +7,7 @@
   "scripts": {
     "brand": "node scripts/render-brand.ts",
     "build": "vite build",
-    "cf-typegen": "wrangler types",
-    "deploy": "vite build && wrangler deploy",
+    "deploy": "vite build && cf deploy --prebuilt",
     "dev": "vite dev",
     "preview": "vite preview",
     "test": "vitest run",
@@ -25,7 +24,7 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.54.3",
+    "@cloudflare/vite-plugin": "2.0.0-beta.sha-ad79608dd",
     "@inlang/paraglide-js": "^2.25.0",
     "@stylexjs/unplugin": "catalog:",
     "@testing-library/jest-dom": "7.0.1",
@@ -36,6 +35,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "angaria-earsiv-sdk": "workspace:*",
+    "cf": "1.0.0-beta.5",
     "devknobs": "catalog:",
     "fontkit": "^2.0.4",
     "jsdom": "30.0.1",

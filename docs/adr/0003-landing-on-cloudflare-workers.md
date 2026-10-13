@@ -8,7 +8,7 @@ angaria.app needs a server-rendered Turkish landing page, legal pages and a firs
 
 ## Decision
 
-`apps/web` is TanStack Start on Cloudflare Workers (`@cloudflare/vite-plugin`, `wrangler.jsonc`). The apex `angaria.app` is the canonical host. `www.angaria.app` is a second custom domain on the same Worker, and `canonicalRedirect` (`src/lib/canonical.ts`) sends it to the apex with a 301, keeping path and query. Worker request logs are off. Deploys are manual (`pnpm --filter web run deploy`, or the `workflow_dispatch` workflow) until go-live.
+`apps/web` is TanStack Start on Cloudflare Workers (`@cloudflare/vite-plugin` and the `cf` CLI with `cloudflare.config.ts`; wrangler.jsonc until 2026-10-13). The apex `angaria.app` is the canonical host. `www.angaria.app` is a second custom domain on the same Worker, and `canonicalRedirect` (`src/lib/canonical.ts`) sends it to the apex with a 301, keeping path and query. Worker request logs are off. Deploys: `pnpm --filter web run deploy` (`cf deploy --prebuilt`) or the deploy workflow, which runs on every push to `main` that touches the site since go-live (2026-10-13).
 
 ## Consequences
 

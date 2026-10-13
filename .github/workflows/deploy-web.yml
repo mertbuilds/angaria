@@ -1,9 +1,10 @@
 name: Deploy web
 
-# Manual only: nothing goes live before Mert's go (docs/relaunch.md). At go-live,
-# fill apps/web/.env.production and add a trigger:
-#   push: { branches: [main], paths: ['apps/web/**', 'packages/ui/**'] }
+# Live since 2026-10-13: every push to main that touches the site deploys it.
 on:
+  push:
+    branches: [main]
+    paths: ['apps/web/**', 'packages/ui/**']
   workflow_dispatch:
 
 concurrency:
@@ -48,6 +49,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       # `run deploy`: a bare `pnpm deploy` is pnpm's own command, not the script.
+      # It builds, then `cf deploy --prebuilt` (cloudflare.config.ts).
       - run: pnpm --filter web run deploy
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

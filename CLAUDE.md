@@ -35,7 +35,7 @@ packages/
 
 Desktop: `pnpm --filter desktop tauri dev --config src-tauri/tauri.dev.conf.json` (same as `pnpm dev`; the overlay lets the app reach the emulator and gives it the green dev icon, `src-tauri/icons/dev` and `src/assets/app-icon-dev.png` from `pnpm icons`), `pnpm --filter desktop tauri build` for a bundle. Both build the MCP bridge first; before a bare `cargo check`, `clippy` or `test` run `pnpm --filter desktop mcp-bridge` once. `pnpm --filter desktop test:mcp` runs the MCP end-to-end test (Rust harness, bridge, emulator). The `.dmg` install window (dot grid and arrow, no text) is `apps/desktop/src-tauri/dmg`: edit `background.html`, run `render-background.sh`, commit the PNGs; the icon positions live in `bundle.macOS.dmg`.
 
-Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders the OG image `public/og.png` with Suisse Intl; the favicons and other icons come from `pnpm icons`), `run deploy` (build + `wrangler deploy`; not before go-live, and `pnpm deploy` without `run` is pnpm's own command).
+Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders the OG image `public/og.png` with Suisse Intl; the favicons and other icons come from `pnpm icons`), `run deploy` (build + `cf deploy --prebuilt`, the Cloudflare `cf` CLI with `apps/web/cloudflare.config.ts`; `pnpm deploy` without `run` is pnpm's own command; wrangler stays only for the R2 scripts).
 
 ## Tooling
 
