@@ -120,7 +120,7 @@ const userid = (body: unknown) => {
  * POST /__emulator/reset                back to the start config and the seed state
  * POST /__emulator/seed                 { users?: [...], invoices?: [InvoiceFixture] }
  * PATCH /__emulator/config              chaos, maxRangeDays, smsCode, ... (PATCHABLE_CONFIG only)
- * POST /__emulator/sms-code             { code } ('random' for six random digits per SMS)
+ * POST /__emulator/sms-code             { code } ('random' for six random letters and digits per SMS)
  * GET|POST|DELETE /__emulator/faults    list, queue (Fault or Fault[]), clear one-shot failures
  * POST /__emulator/lock                 { userid }: a session opened elsewhere holds the lock
  * POST /__emulator/expire               { userid? }: end sessions as if they timed out
@@ -175,8 +175,8 @@ export function adminReply(ctx: AdminContext, method: string, path: string, body
     }
     case 'POST /__emulator/sms-code': {
       const { code } = asRecord(body);
-      if (typeof code !== 'string' || !/^(?:\d{4,8}|random)$/.test(code)) {
-        return badRequest('code must be 4 to 8 digits or "random".');
+      if (typeof code !== 'string' || !/^(?:[A-Za-z\d]{4,8}|random)$/.test(code)) {
+        return badRequest('code must be 4 to 8 letters and digits or "random".');
       }
       ctx.setConfig(mergeConfig(ctx.config, { smsCode: code }));
       return jsonReply({ smsCode: code });

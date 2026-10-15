@@ -30,7 +30,7 @@ export const SIGNED = 'Fatura onaylandı.';
 const requestSigningSMS = defineTool({
   annotations: { destructiveHint: false, openWorldHint: true },
   description:
-    "Step 1 of signing: checks that each uuid is an unsigned draft (Taslak) of the company and has GİB text an SMS code (SMS şifresi) to the user's registered phone. Returns an operationId, the masked phone and the drafts it covers: show the user what will be signed and ask them for the 6 digit code, then call sign_invoices. The code expires in about three minutes; asking again replaces the operation (at most one SMS a minute). While it waits, Angaria's other GİB calls wait too. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.",
+    "Step 1 of signing: checks that each uuid is an unsigned draft (Taslak) of the company and has GİB text an SMS code (SMS şifresi) to the user's registered phone. Returns an operationId, the masked phone and the drafts it covers: show the user what will be signed and ask them for the 6 character code (letters and digits), then call sign_invoices. The code expires in about three minutes; asking again replaces the operation (at most one SMS a minute). While it waits, Angaria's other GİB calls wait too. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.",
   gib: true,
   inputSchema: signingRequestInput,
   name: 'request_signing_sms',
@@ -153,7 +153,7 @@ async function checkDrafts(
 const signInvoices = defineTool({
   annotations: { destructiveHint: true, openWorldHint: true },
   description:
-    "Step 2 of signing: signs the drafts of a request_signing_sms operation with the 6 digit SMS code the user gave you. A signed invoice is a legal invoice and cannot be deleted, only cancelled on the GİB portal, so call this only with a code the user typed for this operation. Pass the same company as the request. Returns each invoice's status. A wrong code can be tried again up to three times; an expired one needs a new request_signing_sms. Never store or repeat the code. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.",
+    "Step 2 of signing: signs the drafts of a request_signing_sms operation with the 6 character SMS code (letters and digits) the user gave you, passed exactly as typed. A signed invoice is a legal invoice and cannot be deleted, only cancelled on the GİB portal, so call this only with a code the user typed for this operation. Pass the same company as the request. Returns each invoice's status. A wrong code can be tried again up to three times; an expired one needs a new request_signing_sms. Never store or repeat the code. Needs Ajanlar onaylayabilir ve silebilir switched on in Angaria.",
   gib: true,
   inputSchema: signInvoicesInput,
   limit: { max: 10, windowMs: 60_000 },

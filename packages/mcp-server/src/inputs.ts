@@ -113,7 +113,9 @@ export const signingRequestInput = z.object({
 export const signInvoicesInput = z.object({
   code: z
     .string()
-    .describe('The 6 digit SMS code (SMS şifresi) the user received and typed to you'),
+    .describe(
+      'The 6 character SMS code (SMS şifresi: letters and digits) the user received and typed to you, exactly as typed',
+    ),
   operationId: z.string().min(1).describe('operationId from request_signing_sms'),
 });
 

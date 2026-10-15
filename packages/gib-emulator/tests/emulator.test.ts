@@ -392,11 +392,11 @@ describe('dispatch', () => {
   });
 
   test('uses the SMS code set through the control API', async () => {
-    await admin('POST', '/sms-code', { code: '654321' });
+    await admin('POST', '/sms-code', { code: 'A4K9Z2' });
     const { token } = await login();
     await dispatch(token, 'EARSIV_PORTAL_SMSSIFRE_GONDER', { CEPTEL: '5550000001' });
     const state = (await (await admin('GET', '/state')).json()) as { sms: Array<{ code: string }> };
-    expect(state.sms.at(-1)?.code).toBe('654321');
+    expect(state.sms.at(-1)?.code).toBe('A4K9Z2');
   });
 
   test('has no phone for 33333303', async () => {

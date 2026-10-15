@@ -282,6 +282,9 @@ function listDrafts(ctx: CommandContext, data: Record<string, unknown>): Reply {
   return ok(ctx, rows);
 }
 
+/** GİB's SMS şifresi mixes capital letters and digits. */
+const SMS_CODE_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
 function sendSMS(ctx: CommandContext, data: Record<string, unknown>): Reply {
   const phone = str(data.CEPTEL);
   if (!ctx.user.telefon || phone !== ctx.user.telefon) {
@@ -290,7 +293,10 @@ function sendSMS(ctx: CommandContext, data: Record<string, unknown>): Reply {
   const now = ctx.now();
   const code =
     ctx.config.smsCode === 'random'
-      ? String(Math.floor(ctx.random() * 1_000_000)).padStart(6, '0')
+      ? Array.from(
+          { length: 6 },
+          () => SMS_CODE_CHARACTERS[Math.floor(ctx.random() * SMS_CODE_CHARACTERS.length)],
+        ).join('')
       : ctx.config.smsCode;
   const oid = randomHex(10);
   ctx.state.sms.push({
