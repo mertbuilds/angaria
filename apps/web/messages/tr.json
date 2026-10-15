@@ -21,6 +21,13 @@
   "cta_download": "Mac için indir",
   "cta_source": "GitHub'da incele",
 
+  "send_to_mac_title": "Angaria Mac'te çalışır",
+  "send_to_mac_body": "Angaria bir Mac uygulaması. Bu bağlantıyı Mac'ine gönder, oradan indir.",
+  "send_to_mac_copy": "Bağlantıyı kopyala",
+  "send_to_mac_copied": "Kopyalandı",
+  "send_to_mac_share": "Paylaş",
+  "send_to_mac_close": "Kapat",
+
   "hero_title": "GİB portalıyla uğraşma, faturanı Mac'inden kes",
   "hero_lead": "Müşterilerin ve hizmetlerin kayıtlı kalır, geçen ayın faturasını tek tıkla yeniden kesersin. Fatura yine GİB'de, kendi hesabınla kesilir.",
   "hero_note": "Ücretsiz ve açık kaynak. Hesap yok, abonelik yok, kontör yok.",

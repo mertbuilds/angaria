@@ -9,6 +9,7 @@ export type CtaLocation = 'footer' | 'free' | 'header' | 'hero';
  * tracked by OpenPanel itself.
  */
 interface AnalyticsEvents {
+  download_blocked_not_mac: { location: CtaLocation };
   download_click: { location: CtaLocation };
   source_click: { location: CtaLocation };
 }
