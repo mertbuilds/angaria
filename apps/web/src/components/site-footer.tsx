@@ -1,8 +1,9 @@
 import { Wordmark } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
-import { useId } from 'react';
+import { useId, type MouseEvent } from 'react';
 import { config, LICENSE_URL, SOURCE_URL } from '../lib/config.ts';
+import { onDownloadClick } from '../lib/send-to-mac.ts';
 import { Sentence } from '../lib/slot.tsx';
 import { m } from '../paraglide/messages.js';
 import { AppIcon } from './app-icon.tsx';
@@ -125,6 +126,7 @@ interface FooterLink {
   external?: boolean;
   href: string;
   label: string;
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 }
 
 /** A column of links under its name. */
@@ -140,6 +142,7 @@ function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: str
           <li key={link.href}>
             <a
               href={link.href}
+              onClick={link.onClick}
               rel={link.external ? 'noreferrer' : undefined}
               target={link.external ? '_blank' : undefined}
               {...props(styles.link)}
@@ -160,7 +163,11 @@ function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: str
  */
 export function SiteFooter() {
   const product: ReadonlyArray<FooterLink> = [
-    { href: config.downloadUrl, label: m.footer_download() },
+    {
+      href: config.downloadUrl,
+      label: m.footer_download(),
+      onClick: (event) => onDownloadClick(event, 'footer'),
+    },
     { href: '/#mcp', label: m.header_nav_mcp() },
     { href: '/#nasil', label: m.header_nav_how() },
     { href: '/#ozellikler', label: m.header_nav_features() },

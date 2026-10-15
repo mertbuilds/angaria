@@ -3,6 +3,7 @@ import { font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, props } from '@stylexjs/stylex';
 import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router';
 import { useEffect, type ReactNode } from 'react';
+import { SendToMacPopup } from '../components/send-to-mac-popup.tsx';
 import { SiteFooter } from '../components/site-footer.tsx';
 import { SiteHeader } from '../components/site-header.tsx';
 import { startAnalytics } from '../lib/analytics.ts';
@@ -154,6 +155,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           <SiteHeader />
           <main {...props(styles.main)}>{children}</main>
           <SiteFooter />
+          <SendToMacPopup />
         </div>
         <Scripts />
       </body>

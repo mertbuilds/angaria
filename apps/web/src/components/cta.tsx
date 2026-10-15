@@ -2,6 +2,7 @@ import { Button, type ButtonVariant } from '@angaria/ui';
 import { create, props } from '@stylexjs/stylex';
 import { track, type CtaLocation } from '../lib/analytics.ts';
 import { config, SOURCE_URL } from '../lib/config.ts';
+import { onDownloadClick } from '../lib/send-to-mac.ts';
 import { m } from '../paraglide/messages.js';
 
 const styles = create({
@@ -24,7 +25,7 @@ const styles = create({
   }),
 });
 
-/** The installer download, wherever the page offers it. */
+/** The installer download, wherever the page offers it. Off a Mac it opens the send-to-Mac popup instead. */
 export function DownloadButton({
   label = m.cta_download(),
   location,
@@ -40,7 +41,7 @@ export function DownloadButton({
   return (
     <Button
       data-morph={morph}
-      onClick={() => track('download_click', { location })}
+      onClick={(event) => onDownloadClick(event, location)}
       render={<a href={config.downloadUrl} />}
       style={morph === undefined ? undefined : styles.morph(morph)}
       variant={variant}
