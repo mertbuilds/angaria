@@ -21,6 +21,8 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 const APP_ID: &str = "com.vinena.angaria";
+/// A dev build's bundle id (tauri.dev.conf.json), so it keeps its own data.
+const DEV_APP_ID: &str = "com.vinena.angaria.dev";
 /// The app writes it (src/mcp/files.rs):
 /// `{ "token": "...", "port": 41234, "settings": { "enabled": true, ... } }`.
 const STATE_FILE: &str = "mcp.json";
@@ -42,8 +44,20 @@ const NOT_REACHABLE: &str =
 const CONNECTION_LOST: &str =
   "Angaria’yla bağlantı yanıt gelmeden koptu. İşlemin yapılıp yapılmadığını Angaria’da kontrol et.";
 
+/// The bundle id of the app this bridge serves. On macOS a bridge inside an
+/// .app bundle serves that release app and one outside it (target/debug, next
+/// to `tauri dev`'s binary) the dev build. Elsewhere there is no bundle to tell
+/// them apart, so it is always the release app.
+fn app_id(bundled: bool) -> &'static str {
+  if cfg!(target_os = "macos") && !bundled {
+    DEV_APP_ID
+  } else {
+    APP_ID
+  }
+}
+
 /// Where the app keeps `mcp.json`: Tauri's app data dir for the bundle id.
-fn data_dir() -> Option<PathBuf> {
+fn data_dir(bundled: bool) -> Option<PathBuf> {
   if let Some(dir) = env::var_os(DIR_ENV) {
     return Some(PathBuf::from(dir));
   }
@@ -57,7 +71,7 @@ fn data_dir() -> Option<PathBuf> {
       .map(PathBuf::from)
       .or_else(|| home.map(|home| home.join(".local/share")))
   };
-  base.map(|base| base.join(APP_ID))
+  base.map(|base| base.join(app_id(bundled)))
 }
 
 struct Target {
@@ -463,13 +477,11 @@ fn write_line(out: &Mutex<io::Stdout>, value: &Value) {
 }
 
 fn main() {
-  let bridge = Arc::new(Bridge::new(
-    data_dir(),
-    env::current_exe()
-      .ok()
-      .and_then(|exe| exe.canonicalize().ok())
-      .and_then(|exe| app_bundle(&exe)),
-  ));
+  let bundle = env::current_exe()
+    .ok()
+    .and_then(|exe| exe.canonicalize().ok())
+    .and_then(|exe| app_bundle(&exe));
+  let bridge = Arc::new(Bridge::new(data_dir(bundle.is_some()), bundle));
   let out = Arc::new(Mutex::new(io::stdout()));
   let mut running = Vec::new();
   for line in io::stdin().lock().lines() {
@@ -564,6 +576,13 @@ mod tests {
       Some((202, vec![]))
     );
     assert_eq!(parse_response(b"garbage"), None);
+  }
+
+  #[test]
+  fn serves_the_release_app_from_a_bundle_and_the_dev_build_outside_one() {
+    assert_eq!(app_id(true), APP_ID);
+    let unbundled = if cfg!(target_os = "macos") { DEV_APP_ID } else { APP_ID };
+    assert_eq!(app_id(false), unbundled);
   }
 
   #[test]

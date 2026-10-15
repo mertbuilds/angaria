@@ -5,7 +5,13 @@ use std::path::{Path, PathBuf};
 use keyring::{Entry, Error};
 use tauri::State;
 
-const SERVICE: &str = "com.vinena.angaria";
+/// Debug builds use their own service, so a dev build that opts into the
+/// keychain never touches the release app's item.
+const SERVICE: &str = if cfg!(debug_assertions) {
+  "com.vinena.angaria.dev"
+} else {
+  "com.vinena.angaria"
+};
 /// The one keychain item that holds every secret as JSON (src/lib/vault.ts).
 const VAULT_ACCOUNT: &str = "vault";
 /// Set to 1 to keep a dev build's vault in the keychain instead of a file.
