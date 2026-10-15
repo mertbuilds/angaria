@@ -95,7 +95,7 @@ export function SendToMacPopup() {
       open={open}
     >
       <DialogContent
-        // A button gone with the menu it stood in leaves focus where the browser puts it.
+        // A button no longer in the page falls back to Base UI's default return focus.
         finalFocus={() => (opener?.isConnected ? opener : null)}
         showCloseButton={false}
         style={styles.content}
