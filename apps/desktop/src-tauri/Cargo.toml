@@ -1,6 +1,6 @@
 [package]
 name = "angaria"
-version = "0.1.0"
+version = "0.1.1"
 description = "GİB e-Arşiv faturaları için masaüstü uygulaması"
 authors = ["Mert Düzgün"]
 license = "AGPL-3.0-only"
