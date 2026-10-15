@@ -37,7 +37,7 @@ const styles = create({
     },
     outline: 'none',
     padding: 0,
-    // The digit's caps on the middle of the slot.
+    // The character's caps on the middle of the slot.
     paddingTop: `calc(2 * ${fontMetrics.capOffset})`,
     textAlign: 'center',
     width: '2.5rem',
@@ -49,7 +49,7 @@ const styles = create({
       default: `0 0 0 3px color-mix(in oklab, ${colors.destructive} 20%, transparent)`,
     },
   },
-  // Six digits read as two groups of three.
+  // Six characters read as two groups of three.
   slotSplit: {
     marginInlineStart: '0.5rem',
   },
@@ -73,9 +73,10 @@ export interface OTPInputProps {
 }
 
 /**
- * A one-time code in `length` digit slots. Typing moves to the next slot and
- * a paste fills them all; spaces and other non-digits are dropped
- * (`123 456`). The first slot offers the SMS code to autofill.
+ * A one-time code in `length` slots of letters and digits, as GİB's SMS
+ * şifresi can hold both. Typing moves to the next slot and a paste fills them
+ * all; spaces and other characters are dropped (`123 456`). The first slot
+ * offers the SMS code to autofill.
  */
 const OTPInput = ({
   'aria-describedby': describedBy,
@@ -108,7 +109,7 @@ const OTPInput = ({
         length={length}
         onValueChange={(next) => onValueChange(next)}
         onValueComplete={(next) => onComplete(next)}
-        validationType="numeric"
+        validationType="alphanumeric"
         value={value}
         {...stylexProps(styles.root)}
       >

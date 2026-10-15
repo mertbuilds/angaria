@@ -174,7 +174,7 @@ function SMSCodeForm({
           id={codeId}
           invalid={error !== null}
           length={CODE_LENGTH}
-          // Six digits sign at once, typed or pasted, without Enter.
+          // Six characters sign at once, typed or pasted, without Enter.
           onComplete={(value) => void verify(value)}
           onValueChange={setCode}
           value={code}

@@ -105,7 +105,7 @@ export interface EmulatorConfig {
   seedInvoices: Array<InvoiceFixture>;
   /** Idle seconds before a session token expires and its lock is released. */
   sessionTtlSeconds: number;
-  /** The code every SMS carries; 'random' draws six digits per SMS. Always logged. */
+  /** The code every SMS carries; 'random' draws six letters and digits per SMS, like GİB's. Always logged. */
   smsCode: string;
   /** Seconds an SMS code stays valid. */
   smsTtlSeconds: number;

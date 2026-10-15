@@ -520,7 +520,7 @@ describe('stdio bridge', () => {
     const sms = emulatorState.sms.findLast(
       (item: { used: boolean; userid: string }) => item.userid === '12345678' && !item.used,
     );
-    expect(sms.code).toMatch(/^\d{6}$/);
+    expect(sms.code).toMatch(/^[A-Z\d]{6}$/);
 
     const wrong = await client.callTool({
       arguments: {
