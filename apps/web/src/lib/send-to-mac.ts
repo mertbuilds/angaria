@@ -14,31 +14,36 @@ export function isMacDevice(userAgent: string, maxTouchPoints: number): boolean 
 /** The link a visitor off a Mac copies or shares, to open on their Mac. Its tags tell these visits from the others. */
 export const SEND_LINK = `${SITE_URL}/?utm_source=share&utm_medium=phone_popup&utm_campaign=download`;
 
-/** What the popup needs of the button that opened it: to give focus back to it, if it is still in the page. */
-export type Opener = Pick<HTMLElement, 'focus' | 'isConnected'>;
+/** The popup's state: whether it is open, and the download button that last opened it, kept after it closes so focus can go back to it. */
+export interface SendToMac {
+  open: boolean;
+  opener: HTMLElement | null;
+}
 
-let opener: Opener | null = null;
+let state: SendToMac = { open: false, opener: null };
 const listeners = new Set<() => void>();
 
-function set(next: Opener | null) {
-  opener = next;
+function set(next: SendToMac) {
+  state = next;
   for (const listener of listeners) {
     listener();
   }
 }
 
 /** Opens the page's one popup that says the app runs on a Mac. `button` is the download button that was pressed. */
-export function openSendToMac(button: Opener) {
-  set(button);
+export function openSendToMac(button: HTMLElement) {
+  set({ open: true, opener: button });
 }
 
 export function closeSendToMac() {
-  set(null);
+  if (state.open) {
+    set({ ...state, open: false });
+  }
 }
 
-/** The button that opened the popup, or null while it is closed. A snapshot for `useSyncExternalStore`. */
-export function sendToMacOpener(): Opener | null {
-  return opener;
+/** The popup's state, a snapshot for `useSyncExternalStore`. */
+export function sendToMacState(): SendToMac {
+  return state;
 }
 
 export function subscribeSendToMac(onChange: () => void): () => void {
@@ -53,7 +58,10 @@ export function subscribeSendToMac(onChange: () => void): () => void {
  * it is; anywhere else it stays on the page and opens the popup instead. The
  * link's href stays the installer, so a page without JavaScript still has it.
  */
-export function onDownloadClick(event: MouseEvent<HTMLElement>, location: CtaLocation) {
+export function onDownloadClick(
+  event: Pick<MouseEvent<HTMLElement>, 'currentTarget' | 'preventDefault'>,
+  location: CtaLocation,
+) {
   if (isMacDevice(navigator.userAgent, navigator.maxTouchPoints)) {
     track('download_click', { location });
     return;

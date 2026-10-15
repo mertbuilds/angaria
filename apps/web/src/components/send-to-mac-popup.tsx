@@ -1,31 +1,23 @@
-import { Button } from '@angaria/ui';
-import { colors, motion, spacing } from '@angaria/ui/tokens.stylex';
-import { create, keyframes, props } from '@stylexjs/stylex';
+import { Button, Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@angaria/ui';
+import { spacing } from '@angaria/ui/tokens.stylex';
+import { create, props } from '@stylexjs/stylex';
 import { X } from 'lucide-react';
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { layout } from '../lib/layout.ts';
 import {
   closeSendToMac,
   SEND_LINK,
-  sendToMacOpener,
+  sendToMacState,
   subscribeSendToMac,
-  type Opener,
 } from '../lib/send-to-mac.ts';
 import { m } from '../paraglide/messages.js';
 
 /** How long the copy button says the link is copied, in milliseconds. */
 const COPIED_MS = 2000;
-/** The room around the content. The corners are as round as a 28px pill plus this room. */
+/** The dialog's room around its content (the kit's body padding). */
 const INSET = 16;
+/** As round as the 28px pill buttons in its corners plus the room around them. */
 const RADIUS = 14 + INSET;
-
-const popupIn = keyframes({
-  from: { opacity: 0, transform: 'scale(0.97)' },
-});
-
-const dimIn = keyframes({
-  from: { opacity: 0 },
-});
 
 const styles = create({
   // One share of the row each, so the copy's change of words moves nothing.
@@ -37,45 +29,16 @@ const styles = create({
   actions: {
     display: 'flex',
     gap: spacing.s2,
-    marginBlockStart: spacing.s2,
   },
-  body: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.s2,
-    padding: INSET,
-  },
+  // In the top corner, as far from both edges as the content is.
   close: {
     insetBlockStart: INSET,
     insetInlineEnd: INSET,
     position: 'absolute',
   },
-  dialog: {
-    '::backdrop': {
-      animationDuration: motion.fade,
-      animationName: {
-        '@media (prefers-reduced-motion: reduce)': 'none',
-        default: dimIn,
-      },
-      backgroundColor: 'color-mix(in oklab, black 20%, transparent)',
-    },
-    animationDuration: motion.move,
-    animationName: {
-      '@media (prefers-reduced-motion: reduce)': 'none',
-      default: popupIn,
-    },
-    animationTimingFunction: motion.ease,
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
+  content: {
     borderRadius: RADIUS,
-    borderStyle: 'solid',
-    borderWidth: 1,
-    boxSizing: 'border-box',
-    color: colors.fg,
-    margin: 'auto',
-    maxWidth: 360,
-    padding: 0,
-    width: 'calc(100% - 32px)',
+    maxWidth: 'min(360px, calc(100% - 32px))',
   },
   // Clear of the close button.
   title: {
@@ -92,37 +55,18 @@ async function share() {
   }
 }
 
-function onServer(): null {
-  return null;
-}
-
 /**
  * What a download button opens off a Mac, where the app cannot run: it says
  * so, and gives the site's link to copy or share on to a Mac. One of it stands
- * on every page (routes/__root.tsx), and it is in the page only while it is
- * open. Escape, a press outside it and its close button close it, and focus
- * goes back to the button that opened it.
+ * on every page (routes/__root.tsx). Escape, a press outside it and its close
+ * button close it, and focus goes back to the button that opened it while that
+ * button is still in the page.
  */
 export function SendToMacPopup() {
-  const opener = useSyncExternalStore(subscribeSendToMac, sendToMacOpener, onServer);
-  return opener === null ? null : <Popup opener={opener} />;
-}
-
-function Popup({ opener }: { opener: Opener }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  // True while the press under way began on the dimmed page.
-  const pressedOutside = useRef(false);
+  const { open, opener } = useSyncExternalStore(subscribeSendToMac, sendToMacState, sendToMacState);
   const [copied, setCopied] = useState(false);
-  const title = useId();
   // A browser without a share sheet has the copy alone.
-  const canShare = typeof navigator.share === 'function';
-
-  useEffect(() => {
-    const node = dialog.current;
-    if (node !== null && !node.open) {
-      node.showModal();
-    }
-  }, []);
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   useEffect(() => {
     if (!copied) {
@@ -131,14 +75,6 @@ function Popup({ opener }: { opener: Opener }) {
     const timer = window.setTimeout(() => setCopied(false), COPIED_MS);
     return () => window.clearTimeout(timer);
   }, [copied]);
-
-  function onClose() {
-    closeSendToMac();
-    // A button gone with the menu it stood in leaves focus where the browser puts it.
-    if (opener.isConnected) {
-      opener.focus({ preventScroll: true });
-    }
-  }
 
   async function copy() {
     try {
@@ -150,27 +86,24 @@ function Popup({ opener }: { opener: Opener }) {
   }
 
   return (
-    <dialog
-      aria-labelledby={title}
-      // The dialog has no padding, so only a press on the dimmed page lands on the dialog itself.
-      onClick={(event) => {
-        // A drag that began on the popup's words and ended on the dimmed page is not a press outside.
-        if (pressedOutside.current && event.target === event.currentTarget) {
-          event.currentTarget.close();
+    <Dialog
+      onOpenChange={(next) => {
+        if (!next) {
+          closeSendToMac();
         }
       }}
-      onClose={onClose}
-      onPointerDown={(event) => {
-        pressedOutside.current = event.target === event.currentTarget;
-      }}
-      ref={dialog}
-      {...props(styles.dialog)}
+      open={open}
     >
-      <div {...props(styles.body)}>
-        <h2 id={title} {...props(layout.heading, styles.title)}>
-          {m.send_to_mac_title()}
-        </h2>
-        <p {...props(layout.text, layout.small, layout.muted)}>{m.send_to_mac_body()}</p>
+      <DialogContent
+        // A button gone with the menu it stood in leaves focus where the browser puts it.
+        finalFocus={() => (opener?.isConnected ? opener : null)}
+        showCloseButton={false}
+        style={styles.content}
+      >
+        <DialogHeader>
+          <DialogTitle style={[layout.heading, styles.title]}>{m.send_to_mac_title()}</DialogTitle>
+          <p {...props(layout.text, layout.small, layout.muted)}>{m.send_to_mac_body()}</p>
+        </DialogHeader>
         <div {...props(styles.actions)}>
           <Button onClick={() => void copy()} style={styles.action}>
             <span aria-live="polite">{copied ? m.send_to_mac_copied() : m.send_to_mac_copy()}</span>
@@ -181,17 +114,20 @@ function Popup({ opener }: { opener: Opener }) {
             </Button>
           ) : null}
         </div>
-      </div>
-      {/* After the actions, so focus starts on the copy button. */}
-      <Button
-        aria-label={m.send_to_mac_close()}
-        onClick={() => dialog.current?.close()}
-        size="icon"
-        style={styles.close}
-        variant="ghost"
-      >
-        <X aria-hidden="true" size={16} />
-      </Button>
-    </dialog>
+        {/* After the actions, so focus starts on the copy button. */}
+        <DialogClose
+          render={
+            <Button
+              aria-label={m.send_to_mac_close()}
+              size="icon"
+              style={styles.close}
+              variant="ghost"
+            >
+              <X aria-hidden="true" size={16} />
+            </Button>
+          }
+        />
+      </DialogContent>
+    </Dialog>
   );
 }

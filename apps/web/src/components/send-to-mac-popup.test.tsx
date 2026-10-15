@@ -1,6 +1,6 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { closeSendToMac } from '../lib/send-to-mac.ts';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { closeSendToMac, SEND_LINK } from '../lib/send-to-mac.ts';
 import { DownloadButton } from './cta.tsx';
 import { SendToMacPopup } from './send-to-mac-popup.tsx';
 
@@ -10,6 +10,7 @@ const MAC =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
 const IPHONE =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const TITLE = "Angaria Mac'te çalışır";
 
 function device(userAgent: string, maxTouchPoints: number) {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);
@@ -31,30 +32,31 @@ function renderPage() {
 function click(link: HTMLElement) {
   let followed = true;
   act(() => {
+    link.focus();
     followed = fireEvent.click(link);
   });
   return followed;
 }
 
-beforeEach(() => {
-  // jsdom has no modal dialogs: open and close them as a browser would.
-  Object.assign(HTMLDialogElement.prototype, {
-    close(this: HTMLDialogElement) {
-      this.removeAttribute('open');
-      this.dispatchEvent(new Event('close'));
-    },
-    showModal(this: HTMLDialogElement) {
-      this.setAttribute('open', '');
-    },
-  });
-});
+/** Opens the popup from a phone and gives back the link that opened it. */
+async function openFromPhone() {
+  device(IPHONE, 5);
+  const link = renderPage();
+  click(link);
+  await screen.findByRole('dialog', { name: TITLE });
+  return link;
+}
+
+/** Waits for the popup to go and checks focus went back to its link. */
+async function expectClosedTo(link: HTMLElement) {
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(link).toHaveFocus());
+}
 
 afterEach(() => {
   act(() => closeSendToMac());
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
-  Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
 });
 
 describe('download off a Mac', () => {
@@ -69,49 +71,66 @@ describe('download off a Mac', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  test('on a phone the link stays on the page and opens the popup', () => {
+  test('on a phone the link stays on the page and opens the popup', async () => {
     device(IPHONE, 5);
     expect(click(renderPage())).toBe(false);
-    expect(screen.getByRole('dialog', { name: "Angaria Mac'te çalışır" })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: TITLE })).toBeInTheDocument();
   });
 
-  test('on an iPad asking for the desktop site the popup opens too', () => {
+  test('on an iPad asking for the desktop site the popup opens too', async () => {
     device(MAC, 5);
     expect(click(renderPage())).toBe(false);
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: TITLE })).toBeInTheDocument();
   });
 
-  test('closing gives focus back to the button that opened it', () => {
-    device(IPHONE, 5);
-    const link = renderPage();
-    click(link);
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Kapat' }));
-    });
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(link).toHaveFocus();
+  test('the close button closes it and gives focus back to the link', async () => {
+    const link = await openFromPhone();
+    fireEvent.click(screen.getByRole('button', { name: 'Kapat' }));
+    await expectClosedTo(link);
+  });
+
+  test('Escape closes it and gives focus back to the link', async () => {
+    const link = await openFromPhone();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await expectClosedTo(link);
+  });
+
+  test('a press outside closes it and gives focus back to the link', async () => {
+    const link = await openFromPhone();
+    fireEvent.pointerDown(document.body);
+    fireEvent.mouseDown(document.body);
+    fireEvent.pointerUp(document.body);
+    fireEvent.mouseUp(document.body);
+    fireEvent.click(document.body);
+    await expectClosedTo(link);
   });
 
   test('copies the tagged link and says so', async () => {
-    device(IPHONE, 5);
     const writeText = vi.fn(() => Promise.resolve());
     vi.stubGlobal(
       'navigator',
       Object.assign(Object.create(navigator), { clipboard: { writeText } }),
     );
-    click(renderPage());
+    await openFromPhone();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Bağlantıyı kopyala' }));
     });
-    expect(writeText).toHaveBeenCalledWith(
-      'https://angaria.app/?utm_source=share&utm_medium=phone_popup&utm_campaign=download',
-    );
+    expect(writeText).toHaveBeenCalledWith(SEND_LINK);
     expect(screen.getByRole('button', { name: 'Kopyalandı' })).toBeInTheDocument();
   });
 
-  test('offers the share sheet only where the browser has one', () => {
-    device(IPHONE, 5);
-    click(renderPage());
+  test('shares the tagged link where the browser has a share sheet', async () => {
+    const share = vi.fn(() => Promise.resolve());
+    vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { share }));
+    await openFromPhone();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Paylaş' }));
+    });
+    expect(share).toHaveBeenCalledWith({ title: 'Angaria', url: SEND_LINK });
+  });
+
+  test('offers no share where the browser has no share sheet', async () => {
+    await openFromPhone();
     expect(screen.queryByRole('button', { name: 'Paylaş' })).not.toBeInTheDocument();
   });
 });

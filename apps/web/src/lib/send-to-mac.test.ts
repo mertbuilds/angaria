@@ -6,7 +6,7 @@ import {
   onDownloadClick,
   openSendToMac,
   SEND_LINK,
-  sendToMacOpener,
+  sendToMacState,
   subscribeSendToMac,
 } from './send-to-mac.ts';
 
@@ -61,15 +61,16 @@ test('the link to send on is the home page, tagged as shared from the popup', ()
   );
 });
 
-test('the popup opens with its button, closes, and tells who listens each time', () => {
+test('the popup opens with its button, closes keeping it, and tells who listens each time', () => {
   let told = 0;
   const stop = subscribeSendToMac(() => told++);
-  const button = { focus() {}, isConnected: true };
-  expect(sendToMacOpener()).toBeNull();
+  const button = document.createElement('a');
+  expect(sendToMacState().open).toBe(false);
   openSendToMac(button);
-  expect(sendToMacOpener()).toBe(button);
+  expect(sendToMacState()).toEqual({ open: true, opener: button });
   closeSendToMac();
-  expect(sendToMacOpener()).toBeNull();
+  expect(sendToMacState()).toEqual({ open: false, opener: button });
+  closeSendToMac();
   expect(told).toBe(2);
   stop();
   openSendToMac(button);
@@ -86,7 +87,7 @@ function click(userAgent: string, maxTouchPoints: number) {
   });
   const link = document.createElement('a');
   const event = { currentTarget: link, preventDefault: vi.fn() };
-  onDownloadClick(event as unknown as Parameters<typeof onDownloadClick>[0], 'hero');
+  onDownloadClick(event, 'hero');
   return { event, link };
 }
 
@@ -95,13 +96,13 @@ describe('onDownloadClick', () => {
     const { event } = click(MAC[0] ?? '', 0);
     expect(event.preventDefault).not.toHaveBeenCalled();
     expect(track).toHaveBeenCalledWith('download_click', { location: 'hero' });
-    expect(sendToMacOpener()).toBeNull();
+    expect(sendToMacState().open).toBe(false);
   });
 
   test('off a Mac the link stays on the page and opens the popup', () => {
     const { event, link } = click(IPAD_DESKTOP, 5);
     expect(event.preventDefault).toHaveBeenCalled();
     expect(track).toHaveBeenCalledWith('download_blocked_not_mac', { location: 'hero' });
-    expect(sendToMacOpener()).toBe(link);
+    expect(sendToMacState()).toEqual({ open: true, opener: link });
   });
 });
