@@ -96,7 +96,7 @@ const requestSigningSMS = defineTool({
           total: checked.totals[index],
           uuid,
         })),
-        message: `SMS şifresi ${phone} numarasına gönderildi. Telefonuna gelen 6 haneli şifreyi yaz; ${SIGNING_TTL_MS / 60_000} dakika içinde kullanılmalı.`,
+        message: `SMS şifresi ${phone} numarasına gönderildi. Telefonuna gelen 6 haneli şifreyi olduğu gibi yaz, harf de içerebilir; ${SIGNING_TTL_MS / 60_000} dakika içinde kullanılmalı.`,
         operationId: operation.id,
         phone,
       },
