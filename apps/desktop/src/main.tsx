@@ -14,6 +14,18 @@ import '@angaria/ui/base.css';
 import './palettes.css';
 import './app.css';
 
+if (import.meta.env.DEV) {
+  // Dev-only: devknobs emulates color scheme, motion, contrast, locale and
+  // layout from inside the webview (⇧K toggles it), and grabs an element's
+  // context for an agent (⇧G). import.meta.env.DEV is statically false in
+  // production builds, so the chunk never ships.
+  // oxlint-disable-next-line unicorn/prefer-top-level-await -- awaiting here would hold the app's first render on a dev panel
+  void import('devknobs')
+    .then(({ mount }) => mount())
+    // oxlint-disable-next-line no-console -- the console is the only channel this dev-only failure has
+    .catch((error: unknown) => console.warn('devknobs failed to load', error));
+}
+
 restoreTheme();
 restorePalette();
 flushVaultOnClose(closeGIBSession);

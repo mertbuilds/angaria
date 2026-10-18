@@ -95,7 +95,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders the OG image 
 ## Web (`apps/web`)
 
 - Config: public `VITE_` values (the download URL, the OpenPanel client id) in `apps/web/.env.development` and `.env.production`; local overrides in `.env.*.local`. There is no pricing and no checkout: Angaria is free (`docs/adr/0013-free-and-open-source.md`).
-- Dev only: `src/routes/__root.tsx` mounts devknobs (⇧K opens the panel, ⇧G grabs an element's context for an agent). react-grab is gone; devknobs' grab replaces it.
+- Dev only, web and desktop: `apps/web/src/routes/__root.tsx` and `apps/desktop/src/main.tsx` mount devknobs through a dynamic import behind `import.meta.env.DEV`, so no build ships it. ⇧K opens the panel, ⇧G grabs an element's context for an agent, ⇧C inspects an element's CSS, ⇧N lists the page's requests, ⇧S opens storage, ⇧R replays animations, ⇧⌫ resets every knob. react-grab is gone; devknobs' grab replaces it.
 - Every user-facing string is a Paraglide message in `messages/tr.json`. Generated `src/paraglide/` and `src/routeTree.gen.ts` come from the web build, which `pnpm lint` and `pnpm typecheck` run first.
 - Analytics: self-hosted OpenPanel (analytics.vinena.studio) through the same-origin `/api/op` proxy (`routes/api.op.$.ts`, forwards the visitor IP as `openpanel-client-ip` so visitors are told apart), no cookies, no session replay, page views plus named CTA events only. It loads only on the host `angaria.app` and only with `VITE_OPENPANEL_CLIENT_ID`.
 - The privacy section lists exactly the hosts the desktop app reaches (`src/components/app-hosts.tsx`); a test fails when the desktop http allowlist or updater endpoint changes without it.
