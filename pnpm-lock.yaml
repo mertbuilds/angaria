@@ -88,8 +88,8 @@ catalogs:
       specifier: ^4.1.0
       version: 4.1.0
     devknobs:
-      specifier: ^0.1.2
-      version: 0.1.2
+      specifier: 0.2.0
+      version: 0.2.0
     jsdom:
       specifier: 30.0.1
       version: 30.0.1
@@ -279,6 +279,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
         version: 6.1.1(vite@8.3.1(@types/node@24.12.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.1))
+      devknobs:
+        specifier: 'catalog:'
+        version: 0.2.0(react@19.3.0)
       jsdom:
         specifier: 'catalog:'
         version: 30.0.1(@noble/hashes@1.8.0)
@@ -357,7 +360,7 @@ importers:
         version: 1.0.0-beta.5(@types/node@24.12.0)
       devknobs:
         specifier: 'catalog:'
-        version: 0.1.2(react@19.3.0)
+        version: 0.2.0(react@19.3.0)
       fontkit:
         specifier: ^2.0.4
         version: 2.0.4
@@ -3550,8 +3553,8 @@ packages:
   detect-node-es@1.1.0:
     resolution: {integrity: sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ==}
 
-  devknobs@0.1.2:
-    resolution: {integrity: sha512-gqm3DkiwxybL1H9K+O07OwUFuYag8eqD+Xt/kXbhgLN+CgU85RgvIPqG7NGuYeqhz0w+vYe25hXn0TLkgCHefA==}
+  devknobs@0.2.0:
+    resolution: {integrity: sha512-vFsvuROmXKDQq+7tZ08TZ0jUy4uqq9enupRI/RDI5A1NR4PSHXi4NcTLcQQ1S8a4W4QL/Z3dTzjqKKA2t5pYsg==}
     peerDependencies:
       react: '>=18'
     peerDependenciesMeta:
@@ -8120,7 +8123,7 @@ snapshots:
 
   detect-node-es@1.1.0: {}
 
-  devknobs@0.1.2(react@19.3.0):
+  devknobs@0.2.0(react@19.3.0):
     optionalDependencies:
       react: 19.3.0
 
