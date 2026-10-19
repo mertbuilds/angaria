@@ -45,6 +45,7 @@ Web: `pnpm --filter web dev`, `build`, `test`, `brand` (re-renders the OG image 
 - Workspace packages are consumed from their built `dist/`. Turbo's `^build` builds them before any dependent build, typecheck, or test, and Tauri's `beforeDevCommand` and `beforeBuildCommand` (`apps/desktop/src-tauri/tauri.conf.json`) go through turbo, so the app never bundles a stale SDK.
 - The desktop dev server stays on the fixed port 5173 because Tauri loads `devUrl`. Web apps run behind portless (`https://<name>.localhost`) from `mprocs.yaml`.
 - Never edit generated output: `dist/`, `apps/desktop/src-tauri/gen/`, `apps/desktop/src-tauri/target/`.
+- `patches/@stylexjs__unplugin@<version>.patch` (`patchedDependencies` in `pnpm-workspace.yaml`) adds `sourceMaps: true` to the plugin's Babel call. Without it the plugin returns no source map, so served maps describe StyleX's output instead of the file and DevTools and devknobs grab show wrong lines. A StyleX bump needs the patch redone for the new version (`pnpm patch`, `pnpm patch-commit`); delete it once upstream `@stylexjs/unplugin` ships the fix.
 
 ## GİB emulator (`packages/gib-emulator`)
 
