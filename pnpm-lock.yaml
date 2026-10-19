@@ -130,6 +130,9 @@ catalogs:
       specifier: ^4.6.5
       version: 4.6.5
 
+patchedDependencies:
+  '@stylexjs/unplugin@0.19.1': 35090544f66b615a52f1d94c35d7f824ade7696d764098d8ca9c1696b251381f
+
 importers:
 
   .:
@@ -260,7 +263,7 @@ importers:
         version: 1.31.0(supports-color@10.2.2)(zod@4.6.5)
       '@stylexjs/unplugin':
         specifier: 'catalog:'
-        version: 0.19.1(supports-color@10.2.2)(unplugin@2.3.11)
+        version: 0.19.1(patch_hash=35090544f66b615a52f1d94c35d7f824ade7696d764098d8ca9c1696b251381f)(supports-color@10.2.2)(unplugin@2.3.11)
       '@tanstack/router-plugin':
         specifier: 'catalog:'
         version: 1.168.41(@tanstack/react-router@1.170.40(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.28.1)(rolldown@1.2.11)(supports-color@10.2.2)(vite@8.3.1(@types/node@24.12.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.1))
@@ -330,7 +333,7 @@ importers:
         version: 2.25.4(typescript@7.0.2)(vite@8.3.1(@types/node@24.12.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.1))
       '@stylexjs/unplugin':
         specifier: 'catalog:'
-        version: 0.19.1(supports-color@10.2.2)(unplugin@2.3.11)
+        version: 0.19.1(patch_hash=35090544f66b615a52f1d94c35d7f824ade7696d764098d8ca9c1696b251381f)(supports-color@10.2.2)(unplugin@2.3.11)
       '@testing-library/jest-dom':
         specifier: 7.0.1
         version: 7.0.1(@testing-library/dom@10.4.2)(vitest@4.1.11(@types/node@24.12.0)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.12.13(@types/node@24.12.0)(typescript@7.0.2))(vite@8.3.1(@types/node@24.12.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.1)))
@@ -6994,7 +6997,7 @@ snapshots:
       invariant: 2.2.4
       styleq: 0.2.1
 
-  '@stylexjs/unplugin@0.19.1(supports-color@10.2.2)(unplugin@2.3.11)':
+  '@stylexjs/unplugin@0.19.1(patch_hash=35090544f66b615a52f1d94c35d7f824ade7696d764098d8ca9c1696b251381f)(supports-color@10.2.2)(unplugin@2.3.11)':
     dependencies:
       '@babel/core': 7.29.0(supports-color@10.2.2)
       '@babel/plugin-syntax-flow': 7.29.7(@babel/core@7.29.0(supports-color@10.2.2))
