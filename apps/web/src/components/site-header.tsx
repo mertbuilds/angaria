@@ -4,6 +4,7 @@ import { create, defaultMarker, props } from '@stylexjs/stylex';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { track } from '../lib/analytics.ts';
 import { SOURCE_URL } from '../lib/config.ts';
 import { morph } from '../lib/morph.ts';
 import { m } from '../paraglide/messages.js';
@@ -368,7 +369,8 @@ export function SiteHeader() {
           <Button
             aria-label={m.header_source()}
             data-morph="header-github"
-            render={<a href={SOURCE_URL} />}
+            onClick={() => track('source_click', { location: 'header' })}
+            render={<a href={SOURCE_URL} rel="noreferrer" target="_blank" />}
             style={[styles.github, styles.morph('header-github')]}
             variant="outline"
           >

@@ -2,6 +2,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, defaultMarker, keyframes, props } from '@stylexjs/stylex';
 import { useEffect, useState, type ReactNode, type RefObject } from 'react';
+import { track } from '../lib/analytics.ts';
 import { SOURCE_URL } from '../lib/config.ts';
 import { m } from '../paraglide/messages.js';
 import { GitHubMark } from './cta.tsx';
@@ -163,12 +164,14 @@ const styles = create({
 function Item({
   children,
   current = false,
+  external = false,
   href,
   onPick,
   place,
 }: {
   children: ReactNode;
   current?: boolean;
+  external?: boolean;
   href: string;
   onPick: () => void;
   place: number;
@@ -178,6 +181,8 @@ function Item({
       aria-current={current ? 'location' : undefined}
       href={href}
       onClick={onPick}
+      rel={external ? 'noreferrer' : undefined}
+      target={external ? '_blank' : undefined}
       {...props(styles.item, styles.after(place * STAGGER), defaultMarker())}
     >
       {children}
@@ -274,7 +279,15 @@ export function SiteMenu({
           ))}
         </nav>
         <div aria-hidden="true" {...props(styles.rule)} />
-        <Item href={SOURCE_URL} onPick={pick} place={links.length}>
+        <Item
+          external
+          href={SOURCE_URL}
+          onPick={() => {
+            track('source_click', { location: 'header' });
+            pick();
+          }}
+          place={links.length}
+        >
           <GitHubMark />
           {m.cta_source()}
         </Item>
