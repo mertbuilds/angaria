@@ -65,7 +65,7 @@ export function SourceButton({
   return (
     <Button
       onClick={() => track('source_click', { location })}
-      render={<a href={SOURCE_URL} />}
+      render={<a href={SOURCE_URL} rel="noreferrer" target="_blank" />}
       variant={variant}
     >
       <GitHubMark />
