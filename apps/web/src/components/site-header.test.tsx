@@ -69,10 +69,9 @@ describe('header', () => {
       ['SSS', '#sss'],
     ]);
     expect(screen.getByRole('link', { name: 'Angaria ana sayfa' })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
-      'href',
-      'https://github.com/mertbuilds/angaria',
-    );
+    const github = screen.getByRole('link', { name: 'GitHub' });
+    expect(github).toHaveAttribute('href', 'https://github.com/mertbuilds/angaria');
+    expect(github).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: 'İndir' })).toHaveAttribute(
       'href',
       'https://dl.angaria.app/latest/Angaria.dmg',
