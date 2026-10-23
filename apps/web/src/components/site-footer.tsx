@@ -158,7 +158,7 @@ function Column({ links, title }: { links: ReadonlyArray<FooterLink>; title: str
 
 /**
  * The same footer on every page: the name and what Angaria is, then the
- * product, the project and the legal pages in three columns of links, then
+ * product, support and the legal pages in three columns of links, then
  * who made it, the GİB note and the theme control in a last row.
  */
 export function SiteFooter() {
@@ -174,7 +174,7 @@ export function SiteFooter() {
     { href: '/#fiyat', label: m.header_nav_pricing() },
     { href: '/#sss', label: m.header_nav_faq() },
   ];
-  const project: ReadonlyArray<FooterLink> = [
+  const support: ReadonlyArray<FooterLink> = [
     { external: true, href: CUSTOMER_PORTAL_URL, label: m.footer_portal() },
     { href: `mailto:${CONTACT_EMAIL}`, label: CONTACT_EMAIL },
   ];
@@ -194,7 +194,7 @@ export function SiteFooter() {
           <p {...props(styles.tagline)}>{m.footer_tagline()}</p>
         </div>
         <Column links={product} title={m.footer_product()} />
-        <Column links={project} title={m.footer_project()} />
+        <Column links={support} title={m.footer_support()} />
         <Column links={legal} title={m.footer_legal()} />
       </div>
       <div {...props(styles.last)}>

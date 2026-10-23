@@ -55,12 +55,10 @@ export function DownloadButton({
  * monthly plan; every other button sells the yearly one.
  */
 export function CheckoutButton({
-  label = m.cta_trial(),
   location,
   plan = 'yearly',
   variant = 'outline',
 }: {
-  label?: string | undefined;
   location: CtaLocation;
   plan?: Plan | undefined;
   variant?: ButtonVariant | undefined;
@@ -71,7 +69,7 @@ export function CheckoutButton({
       render={<a href={CHECKOUT_URLS[plan]} />}
       variant={variant}
     >
-      {label}
+      {m.cta_trial()}
     </Button>
   );
 }
