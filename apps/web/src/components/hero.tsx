@@ -6,7 +6,7 @@ import { layout } from '../lib/layout.ts';
 import { prefersReducedMotion } from '../lib/motion.ts';
 import { SCREENS } from '../lib/screens.ts';
 import { m } from '../paraglide/messages.js';
-import { DownloadButton, SourceButton } from './cta.tsx';
+import { CheckoutButton, DownloadButton } from './cta.tsx';
 import { Screenshot } from './screenshot.tsx';
 
 const WIDE = '@media (min-width: 640px)';
@@ -214,7 +214,7 @@ export function Hero() {
         </p>
         <div {...props(styles.actions, styles.enter, styles.enterAfter(2))}>
           <DownloadButton location="hero" />
-          <SourceButton location="hero" />
+          <CheckoutButton location="hero" />
         </div>
         <p {...props(layout.text, layout.muted, layout.small, styles.enter, styles.enterAfter(3))}>
           {m.hero_note()}

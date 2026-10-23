@@ -2,10 +2,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, defaultMarker, keyframes, props } from '@stylexjs/stylex';
 import { useEffect, useState, type ReactNode, type RefObject } from 'react';
-import { track } from '../lib/analytics.ts';
-import { SOURCE_URL } from '../lib/config.ts';
 import { m } from '../paraglide/messages.js';
-import { GitHubMark } from './cta.tsx';
 
 /** One of the header's links, as the menu lists it. */
 export interface MenuLink {
@@ -152,26 +149,18 @@ const styles = create({
     paddingInline: spacing.s4,
     width: `calc(100vw - 2 * ${spacing.s4})`,
   },
-  // A line between the places on the page and the source code.
-  rule: {
-    backgroundColor: colors.border,
-    height: 1,
-    marginBlock: spacing.s2,
-  },
 });
 
 /** One row of the menu, in its place in the order they come in by. */
 function Item({
   children,
   current = false,
-  external = false,
   href,
   onPick,
   place,
 }: {
   children: ReactNode;
   current?: boolean;
-  external?: boolean;
   href: string;
   onPick: () => void;
   place: number;
@@ -181,8 +170,6 @@ function Item({
       aria-current={current ? 'location' : undefined}
       href={href}
       onClick={onPick}
-      rel={external ? 'noreferrer' : undefined}
-      target={external ? '_blank' : undefined}
       {...props(styles.item, styles.after(place * STAGGER), defaultMarker())}
     >
       {children}
@@ -278,19 +265,6 @@ export function SiteMenu({
             </Item>
           ))}
         </nav>
-        <div aria-hidden="true" {...props(styles.rule)} />
-        <Item
-          external
-          href={SOURCE_URL}
-          onPick={() => {
-            track('source_click', { location: 'header' });
-            pick();
-          }}
-          place={links.length}
-        >
-          <GitHubMark />
-          {m.cta_source()}
-        </Item>
       </PopoverContent>
     </Popover>
   );

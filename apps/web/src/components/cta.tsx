@@ -1,7 +1,7 @@
 import { Button, type ButtonVariant } from '@angaria/ui';
 import { create, props } from '@stylexjs/stylex';
 import { track, type CtaLocation } from '../lib/analytics.ts';
-import { config, SOURCE_URL } from '../lib/config.ts';
+import { CHECKOUT_URLS, config, type Plan } from '../lib/config.ts';
 import { onDownloadClick } from '../lib/send-to-mac.ts';
 import { m } from '../paraglide/messages.js';
 
@@ -12,11 +12,6 @@ const styles = create({
     fill: 'currentColor',
     height: '0.875rem',
     transform: 'translateY(-1px)',
-    width: '0.875rem',
-  },
-  mark: {
-    fill: 'currentColor',
-    height: '0.875rem',
     width: '0.875rem',
   },
   // An item the header's morph carries, by the name a view transition knows it by.
@@ -54,31 +49,29 @@ export function DownloadButton({
   );
 }
 
-/** The source code on GitHub. */
-export function SourceButton({
+/**
+ * The Polar checkout of one plan. The 14-day trial is part of the subscription,
+ * so trying and buying are the same link. Only the pricing section offers the
+ * monthly plan; every other button sells the yearly one.
+ */
+export function CheckoutButton({
+  label = m.cta_trial(),
   location,
+  plan = 'yearly',
   variant = 'outline',
 }: {
+  label?: string | undefined;
   location: CtaLocation;
+  plan?: Plan | undefined;
   variant?: ButtonVariant | undefined;
 }) {
   return (
     <Button
-      onClick={() => track('source_click', { location })}
-      render={<a href={SOURCE_URL} rel="noreferrer" target="_blank" />}
+      onClick={() => track('checkout_click', { location, plan })}
+      render={<a href={CHECKOUT_URLS[plan]} />}
       variant={variant}
     >
-      <GitHubMark />
-      {m.cta_source()}
+      {label}
     </Button>
-  );
-}
-
-/** The GitHub mark, sized like the Apple mark beside its label. */
-export function GitHubMark() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 16 16" {...props(styles.mark)}>
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-    </svg>
   );
 }

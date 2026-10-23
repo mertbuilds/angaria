@@ -1,17 +1,17 @@
 import type { OpenPanel } from '@openpanel/web';
-import { config } from './config.ts';
+import { config, type Plan } from './config.ts';
 
 /** Where on the site a button sits, so the events can be told apart. */
-export type CtaLocation = 'footer' | 'free' | 'header' | 'hero';
+export type CtaLocation = 'footer' | 'header' | 'hero' | 'pricing' | 'thanks';
 
 /**
  * The named events the site sends and what each carries. Page views are
  * tracked by OpenPanel itself.
  */
 interface AnalyticsEvents {
+  checkout_click: { location: CtaLocation; plan: Plan };
   download_blocked_not_mac: { location: CtaLocation };
   download_click: { location: CtaLocation };
-  source_click: { location: CtaLocation };
 }
 
 /** Only the live site counts: local dev, previews and other hosts send nothing. */

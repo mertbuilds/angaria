@@ -1,6 +1,7 @@
 // TODO(lawyer): these terms are a plain-language draft, not reviewed. Before
-// go-live a lawyer checks them against Turkish law and the AGPL-3.0 warranty
-// disclaimer, and fills in the publisher's (Mert Düzgün) legal details and address.
+// go-live a lawyer checks them against Turkish consumer law (6502 sayılı Kanun,
+// mesafeli sözleşmeler, cayma hakkı) and Polar's merchant-of-record terms, and
+// fills in the publisher's (Mert Düzgün) legal details and address.
 import { createFileRoute } from '@tanstack/react-router';
 import { LegalPage, LegalSection, Paragraph } from '../components/legal.tsx';
 import { SITE_URL } from '../lib/canonical.ts';
@@ -25,6 +26,18 @@ export const Route = createFileRoute('/kosullar')({
 function Terms() {
   return (
     <LegalPage intro={m.terms_page_intro()} title={m.terms_page_title()}>
+      <LegalSection title={m.terms_seller_title()}>
+        <Paragraph>{m.terms_seller_body()}</Paragraph>
+      </LegalSection>
+      <LegalSection title={m.terms_subscription_title()}>
+        <Paragraph>{m.terms_subscription_body()}</Paragraph>
+      </LegalSection>
+      <LegalSection title={m.terms_trial_title()}>
+        <Paragraph>{m.terms_trial_body()}</Paragraph>
+      </LegalSection>
+      <LegalSection title={m.terms_cancel_title()}>
+        <Paragraph>{m.terms_cancel_body()}</Paragraph>
+      </LegalSection>
       <LegalSection title={m.terms_license_title()}>
         <Paragraph>{m.terms_license_body()}</Paragraph>
       </LegalSection>
