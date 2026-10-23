@@ -60,7 +60,7 @@ The key pair already exists: the public key is `plugins.updater.pubkey` in `taur
 
 ### Fonts
 
-The commercially licensed Suisse Intl woff2 files (never committed: the repository is public under the AGPL, the fonts are not) live in the private R2 bucket `suisse-font` (no public URL). `scripts/fetch-fonts.sh` reads them with the repo's wrangler (`wrangler r2 object get --remote`), so the wrangler login needs access to the account that holds the bucket (`FONT_BUCKET` overrides the bucket name). It decompresses the woff2 files to the TrueType files the PDF embeds. Check with `pnpm fonts`: it prints `fetched` or `have` for all four files.
+The commercially licensed Suisse Intl woff2 files (never committed, even to the private repository) live in the private R2 bucket `suisse-font` (no public URL). `scripts/fetch-fonts.sh` reads them with the repo's wrangler (`wrangler r2 object get --remote`), so the wrangler login needs access to the account that holds the bucket (`FONT_BUCKET` overrides the bucket name). It decompresses the woff2 files to the TrueType files the PDF embeds. Check with `pnpm fonts`: it prints `fetched` or `have` for all four files.
 
 ### Environment file
 
@@ -92,8 +92,8 @@ The dashboard path is R2, `angaria-downloads`, Settings, Custom Domains, Connect
 
 ## Go-live checklist
 
-- Make https://github.com/mertbuilds/angaria public: Ayarlar › Hakkında links it as the AGPL source offer.
-- The desktop build needs no environment values. Official releases need Suisse Intl (Fonts above); builds from source use Inter.
+- Keep https://github.com/mertbuilds/angaria private: new versions are proprietary (`docs/adr/0014-paid-again.md`).
+- The production build needs the Polar values in `apps/desktop/.env.production` (`VITE_POLAR_*`; `vite.config.ts` fails without them) and Suisse Intl (Fonts above). The checkout link there is the yearly plan's, the same as the site's.
 
 ## Release steps
 

@@ -1,6 +1,6 @@
 # 0007. One vault item for secrets, a file in dev builds
 
-Accepted, 2026-10-01. Since `0013-free-and-open-source.md` (2026-10-12) the vault holds no license record: `{ v: 1, gibPasswords, gibSessions? }`. A `license` key from a paid build is dropped on the next write.
+Accepted, 2026-10-01. Under `0013-free-and-open-source.md` (2026-10-12) the vault held no license record. Since `0014-paid-again.md` (2026-10-23) it holds the license and the trial again: `{ v: 1, license?, trial?, gibPasswords, gibSessions? }`, and every write keeps both.
 
 ## Context
 

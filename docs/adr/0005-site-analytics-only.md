@@ -1,6 +1,6 @@
 # 0005. Cookieless analytics on the site, no telemetry in the app
 
-Accepted, 2026-10-01. Since `0013-free-and-open-source.md` (2026-10-12) the app reaches no Polar host.
+Accepted, 2026-10-01. From `0013-free-and-open-source.md` (2026-10-12) to `0014-paid-again.md` (2026-10-23) the app reached no Polar host; it reaches `api.polar.sh` again for license checks.
 
 ## Context
 

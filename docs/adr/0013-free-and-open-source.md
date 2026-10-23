@@ -1,6 +1,6 @@
 # 0013. Free and open source under the AGPL
 
-Accepted, 2026-10-12. Supersedes `0002-polar-merchant-of-record.md`.
+Accepted, 2026-10-12. Supersedes `0002-polar-merchant-of-record.md`. Superseded by `0014-paid-again.md` on 2026-10-23: Angaria is paid again and the repository is private.
 
 ## Context
 
