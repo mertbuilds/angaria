@@ -4,9 +4,6 @@ import { KEYCHAIN_ACCESS_HINT, keychainErrorMessage } from '../src/lib/keychain-
 import type { StoredLicense } from '../src/lib/license.ts';
 import {
   createVault,
-  LEGACY_LICENSE_SECRET_KEY,
-  LEGACY_LICENSE_STORAGE_KEY,
-  LICENSE_SECRET_KEY,
   parseVault,
   PASSWORD_SAVE_DELAY_MS,
   passwordKey,
@@ -73,13 +70,7 @@ function memorySecrets(initial: Record<string, string> = {}, { failDelete = fals
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
-  return {
-    data,
-    getItem: (key: string) => data.get(key) ?? null,
-    removeItem: (key: string) => {
-      data.delete(key);
-    },
-  };
+  return { getItem: (key: string) => data.get(key) ?? null };
 }
 
 const entities = (...ids: Array<string>) =>
@@ -263,10 +254,9 @@ describe('cache', () => {
 });
 
 describe('migration from the old items', () => {
-  test('fills the vault once from the password and license items, then removes them', async () => {
+  test('fills the vault once from the password items, then removes them', async () => {
     const storage = memoryStorage({ [ENTITIES_STORAGE_KEY]: entities('a', 'b') });
     const { gets, items, secrets } = memorySecrets({
-      [LICENSE_SECRET_KEY]: JSON.stringify(license),
       [passwordKey('a')]: 'secret-a',
       [passwordKey('gone')]: 'not a stored company',
     });
@@ -275,13 +265,8 @@ describe('migration from the old items', () => {
 
     const vault = createVault({ backend: memory.backend, migrate });
     expect(await vault.getPassword('a')).toBe('secret-a');
-    expect(await vault.getLicense()).toEqual(license);
     expect(memory.writes).toHaveLength(1);
-    expect(parseVault(memory.writes[0])).toEqual({
-      gibPasswords: { a: 'secret-a' },
-      license,
-      v: 1,
-    });
+    expect(parseVault(memory.writes[0])).toEqual({ gibPasswords: { a: 'secret-a' }, v: 1 });
     expect([...items.keys()]).toEqual([passwordKey('gone')]);
 
     // The next launch reads the vault alone.
@@ -293,10 +278,10 @@ describe('migration from the old items', () => {
   });
 
   test('keeps the old items when the vault write fails, and retries on the next load', async () => {
-    const storage = memoryStorage({ [ENTITIES_STORAGE_KEY]: entities('a') });
+    const storage = memoryStorage({ [ENTITIES_STORAGE_KEY]: entities('a', 'b') });
     const { items, secrets } = memorySecrets({
-      [LICENSE_SECRET_KEY]: JSON.stringify(license),
       [passwordKey('a')]: 'secret-a',
+      [passwordKey('b')]: 'secret-b',
     });
     const memory = memoryBackend();
     memory.state.failWrite = true;
@@ -344,75 +329,26 @@ describe('migration from the old items', () => {
 
     await vault.load();
 
-    expect(gets).toEqual([LICENSE_SECRET_KEY]);
+    expect(gets).toEqual([]);
     expect(memory.writes).toEqual(['{"v":1,"gibPasswords":{}}']);
   });
 
   test('an old item that cannot be removed stays behind and the vault still loads', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { items, secrets } = memorySecrets(
-      { [LICENSE_SECRET_KEY]: JSON.stringify(license) },
+      { [passwordKey('a')]: 'secret-a' },
       { failDelete: true },
     );
     const vault = createVault({
       backend: memoryBackend().backend,
-      migrate: () => readLegacyItems(secrets, memoryStorage()),
+      migrate: () =>
+        readLegacyItems(secrets, memoryStorage({ [ENTITIES_STORAGE_KEY]: entities('a') })),
     });
 
-    expect(await vault.getLicense()).toEqual(license);
-    expect(items.has(LICENSE_SECRET_KEY)).toBe(true);
+    expect(await vault.getPassword('a')).toBe('secret-a');
+    expect(items.has(passwordKey('a'))).toBe(true);
     expect(log).toHaveBeenCalled();
     log.mockRestore();
-  });
-
-  test('moves the localStorage license record and the keychain key into the vault', async () => {
-    const storage = memoryStorage({ [LEGACY_LICENSE_STORAGE_KEY]: JSON.stringify(legacyRecord) });
-    const { items, secrets } = memorySecrets({ [LEGACY_LICENSE_SECRET_KEY]: 'ANGARIA-KEY' });
-    const { cleanup, data } = await readLegacyItems(secrets, storage);
-
-    expect(data.license).toEqual({ ...license, lastSeenAt: license.lastValidatedAt });
-    expect(items.size).toBe(1);
-    await cleanup();
-    expect(items.size).toBe(0);
-    expect(storage.data.size).toBe(0);
-  });
-
-  test('drops a legacy record without its key, and an unreadable one with its key', async () => {
-    const withoutKey = memoryStorage({
-      [LEGACY_LICENSE_STORAGE_KEY]: JSON.stringify(legacyRecord),
-    });
-    const first = await readLegacyItems(memorySecrets().secrets, withoutKey);
-    expect(first.data.license).toBeUndefined();
-    await first.cleanup();
-    expect(withoutKey.data.size).toBe(0);
-
-    const unreadable = memoryStorage({ [LEGACY_LICENSE_STORAGE_KEY]: '{not json' });
-    const { items, secrets } = memorySecrets({ [LEGACY_LICENSE_SECRET_KEY]: 'ANGARIA-KEY' });
-    const second = await readLegacyItems(secrets, unreadable);
-    expect(second.data.license).toBeUndefined();
-    await second.cleanup();
-    expect(items.size).toBe(0);
-    expect(unreadable.data.size).toBe(0);
-  });
-
-  test('ignores the legacy copies once the license item exists', async () => {
-    const storage = memoryStorage({ [LEGACY_LICENSE_STORAGE_KEY]: JSON.stringify(legacyRecord) });
-    const { items, secrets } = memorySecrets({
-      [LEGACY_LICENSE_SECRET_KEY]: 'OLD-KEY',
-      [LICENSE_SECRET_KEY]: JSON.stringify(license),
-    });
-
-    const { cleanup, data } = await readLegacyItems(secrets, storage);
-    await cleanup();
-
-    expect(data.license).toEqual(license);
-    expect(items.get(LEGACY_LICENSE_SECRET_KEY)).toBe('OLD-KEY');
-    expect(storage.data.has(LEGACY_LICENSE_STORAGE_KEY)).toBe(true);
-  });
-
-  test('reads an unreadable license item as no license', async () => {
-    const { secrets } = memorySecrets({ [LICENSE_SECRET_KEY]: '{not json' });
-    expect((await readLegacyItems(secrets, memoryStorage())).data.license).toBeUndefined();
   });
 });
 

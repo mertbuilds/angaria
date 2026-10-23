@@ -331,14 +331,7 @@ export function createVault({
   };
 }
 
-// The keychain items before the vault.
-/** The license record as one JSON item */
-export const LICENSE_SECRET_KEY = 'license';
-// Dev builds before that kept the key alone in the keychain and the rest of
-// the record in localStorage.
-export const LEGACY_LICENSE_SECRET_KEY = 'license-key';
-export const LEGACY_LICENSE_STORAGE_KEY = 'angaria-license';
-/** One item per company */
+/** The keychain items before the vault, one per company */
 export const passwordKey = (entityId: string) => `gib-password:${entityId}`;
 
 export interface LegacySecrets {
@@ -346,7 +339,7 @@ export interface LegacySecrets {
   get: (key: string) => Promise<string | null>;
 }
 
-export type LegacyStorage = Pick<Storage, 'getItem' | 'removeItem'>;
+export type LegacyStorage = Pick<Storage, 'getItem'>;
 
 function storedEntityIds(storage: LegacyStorage): Array<string> {
   const entities = parseJSON(storage.getItem(ENTITIES_STORAGE_KEY) ?? 'null');
@@ -359,9 +352,8 @@ function storedEntityIds(storage: LegacyStorage): Array<string> {
 
 /**
  * Reads the keychain items the vault replaces: a password item per stored
- * company, the license item, or before it the legacy license key with its
- * localStorage record. The cleanup removes them; run it only once the vault
- * holds what they had, so a failed write keeps them for the next launch.
+ * company. The cleanup removes them; run it only once the vault holds what
+ * they had, so a failed write keeps them for the next launch.
  */
 export async function readLegacyItems(
   secrets: LegacySecrets,
@@ -369,32 +361,12 @@ export async function readLegacyItems(
 ): Promise<VaultMigration> {
   const data = emptyVault();
   const oldKeys: Array<string> = [];
-  const oldStorageKeys: Array<string> = [];
 
   for (const entityId of storedEntityIds(storage)) {
     const password = await secrets.get(passwordKey(entityId));
     if (password !== null) {
       oldKeys.push(passwordKey(entityId));
       setPasswordIn(data, entityId, password);
-    }
-  }
-
-  const stored = await secrets.get(LICENSE_SECRET_KEY);
-  if (stored !== null) {
-    oldKeys.push(LICENSE_SECRET_KEY);
-    setLicenseIn(data, parseStoredLicense(parseJSON(stored)));
-  } else {
-    const legacy = storage.getItem(LEGACY_LICENSE_STORAGE_KEY);
-    if (legacy !== null) {
-      const key = await secrets.get(LEGACY_LICENSE_SECRET_KEY);
-      const record = parseJSON(legacy);
-      const license =
-        key && isRecord(record) && 'lastValidatedAt' in record
-          ? parseStoredLicense({ ...record, key, lastSeenAt: record.lastValidatedAt })
-          : null;
-      setLicenseIn(data, license);
-      oldKeys.push(LEGACY_LICENSE_SECRET_KEY);
-      oldStorageKeys.push(LEGACY_LICENSE_STORAGE_KEY);
     }
   }
 
@@ -407,9 +379,6 @@ export async function readLegacyItems(
           .catch((error: unknown) =>
             reportKeychainError('Eski anahtar zinciri kaydı silinemedi.', error),
           );
-      }
-      for (const key of oldStorageKeys) {
-        storage.removeItem(key);
       }
     },
     data,
