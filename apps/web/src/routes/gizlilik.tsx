@@ -36,6 +36,7 @@ function PrivacyPolicy() {
         <AppHosts />
         <Paragraph>{m.privacy_page_app_gib()}</Paragraph>
         <Paragraph>{m.privacy_page_app_tcmb()}</Paragraph>
+        <Paragraph>{m.privacy_page_app_polar()}</Paragraph>
         <Paragraph>{m.privacy_page_app_updates()}</Paragraph>
         <Paragraph>{m.privacy_page_app_mcp()}</Paragraph>
       </LegalSection>

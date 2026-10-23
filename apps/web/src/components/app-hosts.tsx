@@ -15,6 +15,7 @@ const MOTION = '@media (prefers-reduced-motion: no-preference)';
 export const APP_HOSTS = [
   { host: 'earsivportal.efatura.gov.tr', purpose: m.host_gib },
   { host: 'www.tcmb.gov.tr', purpose: m.host_tcmb },
+  { host: 'api.polar.sh', purpose: m.host_polar },
   { host: 'dl.angaria.app', purpose: m.host_updates },
 ] as const;
 
