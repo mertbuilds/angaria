@@ -16,9 +16,9 @@ import {
   RulesScene,
   StartScene,
 } from '../components/feature-scenes.tsx';
-import { FreeCard } from '../components/free-card.tsx';
 import { Hero, HERO_SIZES } from '../components/hero.tsx';
 import { McpScene } from '../components/mcp-scene.tsx';
+import { PRICES_TRY, Pricing } from '../components/pricing.tsx';
 import { Reveal, RevealSection } from '../components/reveal.tsx';
 import { Sequence } from '../components/scene.tsx';
 import { Screenshot } from '../components/screenshot.tsx';
@@ -26,13 +26,33 @@ import { SectionHeading } from '../components/section-heading.tsx';
 import { ConnectScene, InstallScene, SignScene } from '../components/step-scenes.tsx';
 import { brand } from '../lib/brand.stylex.ts';
 import { SITE_URL } from '../lib/canonical.ts';
-import { APP_HOSTS_SOURCE_URL, LICENSE_URL, UPDATER_SOURCE_URL } from '../lib/config.ts';
+import type { Plan } from '../lib/config.ts';
 import { layout } from '../lib/layout.ts';
 import { SCREENS, screenSources, type Screen } from '../lib/screens.ts';
 import { Sentence } from '../lib/slot.tsx';
 import { m } from '../paraglide/messages.js';
 
-/** What search engines read about the app: a free, open source macOS business app. */
+/** UN/CEFACT codes for the unit each plan's price is per. */
+const BILLING_UNITS: Record<Plan, 'ANN' | 'MON'> = { monthly: 'MON', yearly: 'ANN' };
+
+/** One plan as an offer: its price before tax, billed once per year or month. */
+const offer = (plan: Plan, name: string) => ({
+  '@type': 'Offer',
+  name,
+  price: String(PRICES_TRY[plan]),
+  priceCurrency: 'TRY',
+  priceSpecification: {
+    '@type': 'UnitPriceSpecification',
+    billingIncrement: 1,
+    price: PRICES_TRY[plan],
+    priceCurrency: 'TRY',
+    unitCode: BILLING_UNITS[plan],
+    valueAddedTaxIncluded: false,
+  },
+  url: `${SITE_URL}/#fiyat`,
+});
+
+/** What search engines read about the app: a macOS business app with a yearly and a monthly offer. */
 const structuredData = () => ({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -40,10 +60,10 @@ const structuredData = () => ({
   author: { '@type': 'Person', name: 'Mert Düzgün', url: 'https://mertbuilds.com' },
   description: m.meta_app_description(),
   inLanguage: 'tr',
-  license: LICENSE_URL,
   name: 'Angaria',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'TRY' },
+  offers: [offer('yearly', m.pricing_yearly()), offer('monthly', m.pricing_monthly())],
   operatingSystem: 'macOS',
+  publisher: { '@type': 'Organization', name: 'Vinena Yazılım ve Tasarım Ltd. Şti.' },
   url: `${SITE_URL}/`,
 });
 
@@ -57,8 +77,9 @@ const QUESTIONS = [
   [m.faq_foreign_q, m.faq_foreign_a],
   [m.faq_pdf_q, m.faq_pdf_a],
   [m.faq_accountant_q, m.faq_accountant_a],
-  [m.faq_free_q, m.faq_free_a],
-  [m.faq_source_q, m.faq_source_a],
+  [m.faq_price_q, m.faq_price_a],
+  [m.faq_company_q, m.faq_company_a],
+  [m.faq_cancel_q, m.faq_cancel_a],
   [m.faq_windows_q, m.faq_windows_a],
 ] as const;
 
@@ -477,34 +498,19 @@ function Landing() {
         <Reveal index={4}>
           <AppHosts />
         </Reveal>
-        <Reveal index={5}>
-          <p {...props(layout.text)}>
-            <Sentence
-              message={(hosts, updates) => m.privacy_source({ hosts, updates })}
-              slots={[
-                <a href={APP_HOSTS_SOURCE_URL} key="hosts">
-                  {m.privacy_source_hosts()}
-                </a>,
-                <a href={UPDATER_SOURCE_URL} key="updates">
-                  {m.privacy_source_updates()}
-                </a>,
-              ]}
-            />
-          </p>
-        </Reveal>
       </RevealSection>
 
-      <RevealSection aria-labelledby="ucretsiz" style={[layout.section, styles.section]}>
+      <RevealSection aria-labelledby="fiyat" style={[layout.section, styles.section]}>
         <Reveal index={0}>
-          <SectionHeading centered id="ucretsiz">
-            {m.free_title()}
+          <SectionHeading centered id="fiyat">
+            {m.pricing_title()}
           </SectionHeading>
         </Reveal>
         <Reveal index={1}>
-          <p {...props(layout.text, styles.leadCentered)}>{m.free_lead()}</p>
+          <p {...props(layout.text, styles.leadCentered)}>{m.pricing_lead()}</p>
         </Reveal>
         <Reveal index={2}>
-          <FreeCard />
+          <Pricing />
         </Reveal>
       </RevealSection>
 

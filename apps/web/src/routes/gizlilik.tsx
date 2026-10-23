@@ -36,6 +36,7 @@ function PrivacyPolicy() {
         <AppHosts />
         <Paragraph>{m.privacy_page_app_gib()}</Paragraph>
         <Paragraph>{m.privacy_page_app_tcmb()}</Paragraph>
+        <Paragraph>{m.privacy_page_app_polar()}</Paragraph>
         <Paragraph>{m.privacy_page_app_updates()}</Paragraph>
         <Paragraph>{m.privacy_page_app_mcp()}</Paragraph>
       </LegalSection>
@@ -43,6 +44,10 @@ function PrivacyPolicy() {
         <Paragraph>{m.privacy_page_site_body()}</Paragraph>
         <Paragraph>{m.privacy_page_site_storage()}</Paragraph>
         <Paragraph>{m.privacy_page_site_hosting()}</Paragraph>
+      </LegalSection>
+      <LegalSection title={m.privacy_page_payment_title()}>
+        <Paragraph>{m.privacy_page_payment_body()}</Paragraph>
+        <Paragraph>{m.privacy_page_payment_shared()}</Paragraph>
       </LegalSection>
       <LegalSection title={m.privacy_page_email_title()}>
         <Paragraph>{m.privacy_page_email_body()}</Paragraph>
