@@ -27,6 +27,7 @@ import {
   callMcpTool,
   DRAFT_CREATED,
   DRAFT_CREATED_SIGNABLE,
+  LICENSE_LOCKED,
   mcpToolList,
   type McpToolContext,
 } from '../src/lib/mcp-tools.ts';
@@ -105,6 +106,7 @@ let harness: ChildProcessWithoutNullStreams;
 let dir: string;
 let port: number;
 let token: string;
+let license: 'locked' | 'ok' = 'ok';
 let actions = false;
 /** While true the harness's calls go unanswered, as in a webview that is reloading. */
 let away = false;
@@ -150,6 +152,7 @@ beforeAll(async () => {
       gib: (task, signal, options) => queue.run(account, task, { ...options, signal }),
       imports,
       lease: (signal) => queue.lease(account, { signal }),
+      license: async () => license,
       newId: () => crypto.randomUUID(),
       now: () => new Date(),
       onAction: () => {},
@@ -474,6 +477,12 @@ describe('stdio bridge', () => {
     expect(listed.invoices).toContainEqual(
       expect.objectContaining({ status: 'Taslak', uuid: created.uuid }),
     );
+
+    license = 'locked';
+    const locked = await client.callTool({ arguments: {}, name: 'list_customers' });
+    license = 'ok';
+    expect(locked.isError).toBe(true);
+    expect(text(locked).error.message).toBe(LICENSE_LOCKED);
     await client.close();
   });
 
