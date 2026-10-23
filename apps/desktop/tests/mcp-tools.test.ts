@@ -6,6 +6,7 @@ import {
   callMcpTool,
   DRAFT_CREATED,
   DRAFT_CREATED_SIGNABLE,
+  LICENSE_LOCKED,
   mcpToolList,
   NO_LOGIN,
 } from '../src/lib/mcp-tools.ts';
@@ -559,6 +560,16 @@ describe('customers and services', () => {
 });
 
 describe('gates', () => {
+  test('a locked license refuses every tool in Turkish', async () => {
+    const { ctx, log } = setup({ license: 'locked' });
+    for (const name of ['list_customers', 'list_invoices', 'create_invoice']) {
+      const { error, json } = await call(ctx, name, {});
+      expect(error).toBe(true);
+      expect(json.error).toEqual({ code: 'license', message: LICENSE_LOCKED });
+    }
+    expect(log).toEqual([]);
+  });
+
   test('GİB tools need a login; local ones do not', async () => {
     const { ctx, log } = setup({ company: { hasCredentials: false } });
     const list = await call(ctx, 'list_invoices', {

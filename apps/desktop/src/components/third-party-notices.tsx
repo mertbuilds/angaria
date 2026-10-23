@@ -11,8 +11,7 @@ import {
 import { useState } from 'react';
 import { SettingsRow } from './settings-section.tsx';
 
-// The repository root's LICENSE and THIRD_PARTY_NOTICES.md, loaded when their dialog opens.
-const loadLicense = () => import('../../../../LICENSE?raw').then((module) => module.default);
+// The repository root's THIRD_PARTY_NOTICES.md, loaded when its dialog opens.
 const loadNotices = () =>
   import('../../../../THIRD_PARTY_NOTICES.md?raw').then((module) => module.default);
 
@@ -50,19 +49,6 @@ function TextFileRow({
         </DialogContent>
       </Dialog>
     </SettingsRow>
-  );
-}
-
-/** Ayarlar › Hakkında: Angaria's own license, the GNU AGPL version 3. */
-export function LicenseRow() {
-  return (
-    <TextFileRow
-      description="Lisansın İngilizce resmî metni."
-      hint="Angaria’yı kullanabilir, değiştirebilir ve paylaşabilirsin. Değiştirdiğin bir sürümü başkalarına sunarsan onun kaynak kodunu da açarsın."
-      label="Lisans"
-      load={loadLicense}
-      title="GNU Affero Genel Kamu Lisansı, sürüm 3"
-    />
   );
 }
 

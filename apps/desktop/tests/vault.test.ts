@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { ENTITIES_STORAGE_KEY } from '../src/lib/credentials.ts';
 import { KEYCHAIN_ACCESS_HINT, keychainErrorMessage } from '../src/lib/keychain-error.ts';
+import type { StoredLicense } from '../src/lib/license.ts';
 import {
   createVault,
   parseVault,
@@ -12,8 +13,17 @@ import {
 
 const DENIED = 'PlatformFailure: Platform secure storage failure: User interaction is not allowed.';
 
-/** What the paid builds kept in the vault. */
-const oldLicense = { activationId: 'activation-1', key: 'ANGARIA-KEY' };
+const license: StoredLicense = {
+  activationId: 'activation-1',
+  customerEmail: 'mert@example.com',
+  displayKey: '****-ABCD',
+  expiresAt: null,
+  key: 'ANGARIA-KEY',
+  lastSeenAt: '2026-10-02T09:00:00.000Z',
+  lastValidatedAt: '2026-10-01T09:00:00.000Z',
+};
+
+const { key: _key, lastSeenAt: _seen, ...legacyRecord } = license;
 
 function memoryBackend(stored: string | null = null) {
   const state = { failRead: false, failWrite: false, reads: 0, stored };
@@ -84,11 +94,12 @@ afterEach(() => {
 
 describe('cache', () => {
   test('reads the backend once per launch and serves every read from memory', async () => {
-    const { state, vault } = vaultOver({ gibPasswords: { a: 'secret-a' } });
+    const { state, vault } = vaultOver({ gibPasswords: { a: 'secret-a' }, license });
 
-    await Promise.all([vault.getPassword('a'), vault.getPassword('b'), vault.load()]);
+    await Promise.all([vault.getPassword('a'), vault.getLicense(), vault.load()]);
     expect(await vault.getPassword('a')).toBe('secret-a');
     expect(await vault.getPassword('b')).toBeNull();
+    expect(await vault.getLicense()).toEqual(license);
     expect(vault.hasPassword('a')).toBe(true);
     expect(vault.hasPassword('b')).toBe(false);
 
@@ -122,6 +133,7 @@ describe('cache', () => {
         ['b', 'secret-b'],
         ['a', 'secret-a'],
       ]),
+      license: { ...legacyRecord, key: license.key, lastSeenAt: license.lastSeenAt },
       v: 1,
     });
     const { backend, writes } = memoryBackend(text);
@@ -133,6 +145,7 @@ describe('cache', () => {
     const typed = vault.setPassword('a', 'secret-a');
     await vi.advanceTimersByTimeAsync(PASSWORD_SAVE_DELAY_MS);
     await typed;
+    await vault.setLicense({ ...license }, { save: true });
     await vault.savePasswords({ b: 'secret-b' });
 
     expect(writes).toEqual([]);
@@ -201,20 +214,42 @@ describe('cache', () => {
     expect(vault.hasPassword('a')).toBe(false);
   });
 
-  test('a vault from the paid builds loads, and its license record goes with the next write', async () => {
-    const { state, vault, writes } = vaultOver({
-      gibPasswords: { a: 'secret-a' },
-      license: oldLicense,
-    });
-
-    expect(await vault.getPassword('a')).toBe('secret-a');
-    expect(writes).toEqual([]);
+  test('password and session writes keep the license', async () => {
+    const { state, vault } = vaultOver({ gibPasswords: { a: 'secret-a' }, license });
 
     await vault.savePasswords({ b: 'secret-b' });
-    expect(JSON.parse(state.stored ?? '')).toEqual({
-      gibPasswords: { a: 'secret-a', b: 'secret-b' },
+    await vault.deletePassword('a');
+    await vault.saveSession('12345678', { baseUrl: 'https://gib', cookies: [], token: 't' });
+    await vault.saveSession('12345678', null);
+
+    expect(parseVault(state.stored ?? '')).toEqual({
+      gibPasswords: { b: 'secret-b' },
+      license,
       v: 1,
     });
+  });
+
+  test('a license kept in memory goes out with the next write', async () => {
+    const { vault, writes } = vaultOver({ license });
+    const seen = { ...license, lastSeenAt: '2026-10-02T10:00:00.000Z' };
+
+    await vault.setLicense(seen, { save: false });
+    expect(writes).toEqual([]);
+    expect(await vault.getLicense()).toEqual(seen);
+    expect(vault.savedLicense()).toEqual(license);
+
+    await vault.savePasswords({ a: 'secret-a' });
+    expect(parseVault(writes[0]).license).toEqual(seen);
+    expect(vault.savedLicense()).toEqual(seen);
+  });
+
+  test('a failed license write puts the previous license back', async () => {
+    const { state, vault } = vaultOver({ license });
+    await vault.load();
+    state.failWrite = true;
+
+    await expect(vault.setLicense(null, { save: true })).rejects.toThrow('keychain unavailable');
+    expect(await vault.getLicense()).toEqual(license);
   });
 });
 

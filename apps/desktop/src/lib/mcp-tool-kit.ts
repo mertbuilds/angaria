@@ -132,6 +132,8 @@ export interface McpToolContext {
   imports: ImportRunner;
   /** Holds the company's GİB session until released (SMS signing). */
   lease: (signal?: AbortSignal) => Promise<SessionLease>;
+  /** 'checking' when the license check did not settle in time. */
+  license: () => Promise<'checking' | 'locked' | 'ok'>;
   newId: () => string;
   now: () => Date;
   onAction: (action: McpAction) => void;
@@ -145,6 +147,9 @@ export interface McpToolContext {
   state: McpState;
 }
 
+export const LICENSE_LOCKED =
+  'Angaria kilitli: lisans etkin değil, doğrulanamadı ya da süresi doldu. Angaria’yı aç ve lisansını kontrol et.';
+export const LICENSE_CHECKING = 'Angaria lisansı hâlâ doğruluyor. Birkaç saniye sonra tekrar dene.';
 export const NO_LOGIN =
   'Bu şirketin GİB hesabı Angaria’da bağlı değil. Angaria’da şirketi seçip Ayarlar › GİB hesabı’ndan kullanıcı kodunu ve şifreni gir.';
 export const UNKNOWN_COMPANY = 'Bu şirket Angaria’da yok. Şirketleri list_companies ile listele.';

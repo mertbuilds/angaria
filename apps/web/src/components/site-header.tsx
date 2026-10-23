@@ -1,15 +1,13 @@
-import { Button, Wordmark } from '@angaria/ui';
+import { Wordmark } from '@angaria/ui';
 import { colors, font, spacing } from '@angaria/ui/tokens.stylex';
 import { create, defaultMarker, props } from '@stylexjs/stylex';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { track } from '../lib/analytics.ts';
-import { SOURCE_URL } from '../lib/config.ts';
 import { morph } from '../lib/morph.ts';
 import { m } from '../paraglide/messages.js';
 import { AppIcon } from './app-icon.tsx';
-import { DownloadButton, GitHubMark } from './cta.tsx';
+import { DownloadButton } from './cta.tsx';
 import { SiteMenu, type MenuLink } from './site-menu.tsx';
 
 /** Where the header has room for its links; under it they are in the menu (WIDE_QUERY). */
@@ -40,11 +38,12 @@ const SECTIONS = [
   { id: 'nasil', label: m.header_nav_how, name: 'header-how' },
   { id: 'ozellikler', label: m.header_nav_features, name: 'header-features' },
   { id: 'gizlilik', label: m.header_nav_privacy, name: 'header-privacy' },
+  { id: 'fiyat', label: m.header_nav_pricing, name: 'header-pricing' },
   { id: 'sss', label: m.header_nav_faq, name: 'header-faq' },
 ] as const;
 
 const styles = create({
-  // The download and GitHub at the far edge.
+  // The download at the far edge.
   actions: {
     alignItems: 'center',
     display: 'inline-flex',
@@ -107,16 +106,6 @@ const styles = create({
   },
   brandPill: {
     borderRadius: '50%',
-  },
-  // A round icon button as tall as the download. A narrow window has no room
-  // for it; the menu has GitHub there.
-  github: {
-    display: {
-      default: 'none',
-      [WIDE]: 'inline-flex',
-    },
-    paddingInline: 0,
-    width: 28,
   },
   // The strip at the top of the window, wider than the text column like the
   // hero's screenshot. Only the row takes the pointer, so the page beside
@@ -275,7 +264,7 @@ function useSectionInView(home: boolean) {
 
 /**
  * The app's icon and name at the left and the way home, the landing's
- * sections in the middle, and GitHub and the download at the right, as on
+ * sections in the middle, and the download at the right, as on
  * attentionawareness and Agent Caffeine. The link of the section in view
  * takes the text's own color. Once the page has run a little way under it,
  * the items gather into a pill in the middle, the icon alone for the name, and
@@ -366,16 +355,6 @@ export function SiteHeader() {
           ))}
         </nav>
         <span {...props(styles.actions)}>
-          <Button
-            aria-label={m.header_source()}
-            data-morph="header-github"
-            onClick={() => track('source_click', { location: 'header' })}
-            render={<a href={SOURCE_URL} rel="noreferrer" target="_blank" />}
-            style={[styles.github, styles.morph('header-github')]}
-            variant="outline"
-          >
-            <GitHubMark />
-          </Button>
           <DownloadButton label={m.header_download()} location="header" morph="header-download" />
         </span>
         <SiteMenu anchor={bar} links={links} morph="header-menu" />

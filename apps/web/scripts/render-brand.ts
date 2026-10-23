@@ -3,7 +3,7 @@ import path from 'node:path';
 /**
  * Renders the site's share image, public/og.png (1200x630), in the layout of
  * Agent Caffeine's (caffeinagent.com): the app icon and name at the top, the
- * hero's headline large over two lines with "Ücretsiz ve açık kaynak" in the
+ * hero's headline large over two lines with "7 gün ücretsiz dene" in the
  * brand blue under it. No link and no small print: a share image is read
  * at a glance. Real
  * Suisse Intl Medium; the PNG is a screenshot of a headless Chromium page. The
@@ -45,7 +45,7 @@ body { background: #ffffff; color: #000000; display: flex; flex-direction: colum
 .headline .blue { color: #006abb; }
 </style><div class="dots"></div>
 <div class="brand"><img src="${dataUrl(iconFile, 'image/png')}" alt="">Angaria</div>
-<div class="headline">${first},<br>${second}<br><span class="blue">Ücretsiz ve açık kaynak</span></div>
+<div class="headline">${first},<br>${second}<br><span class="blue">7 gün ücretsiz dene</span></div>
 `;
 
 const browser = await chromium.launch();

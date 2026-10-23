@@ -30,7 +30,6 @@ import type { MaskitoOptions } from '@maskito/core';
 import { create, props } from '@stylexjs/stylex';
 import { getVersion } from '@tauri-apps/api/app';
 import { isTauri } from '@tauri-apps/api/core';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   CheckIcon,
   CircleAlertIcon,
@@ -42,13 +41,14 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Disclosure } from '@/components/disclosure.tsx';
+import { LicenseCard } from '@/components/license-card.tsx';
 import {
   SettingsField,
   SettingsRow,
   SettingsSection,
   SettingsValue,
 } from '@/components/settings-section.tsx';
-import { LicenseRow, ThirdPartyNoticesRow } from '@/components/third-party-notices.tsx';
+import { ThirdPartyNoticesRow } from '@/components/third-party-notices.tsx';
 import {
   bankFields,
   companyFieldError,
@@ -964,13 +964,6 @@ function updateStatus(state: UpdateState) {
   }
 }
 
-// The AGPL's source offer: every copy of the app links its full source.
-const SOURCE_CODE_URL = 'https://github.com/mertbuilds/angaria';
-
-function openSourceCode() {
-  openUrl(SOURCE_CODE_URL).catch(() => toast.error('Sayfa tarayıcıda açılamadı. Tekrar dene.'));
-}
-
 function AboutSection() {
   const [version, setVersion] = useState<string | null>(null);
   const [state, setState] = useState<UpdateState>({ kind: 'idle' });
@@ -1016,10 +1009,7 @@ function AboutSection() {
   const busy = state.kind === 'checking' || state.kind === 'downloading';
 
   return (
-    <SettingsSection
-      description="Angaria özgür ve açık kaynaklı bir yazılım. GNU Affero Genel Kamu Lisansı sürüm 3 ile dağıtılıyor."
-      title="Hakkında"
-    >
+    <SettingsSection title="Hakkında">
       <SettingsRow label="Sürüm">
         <SettingsValue>{version ?? ''}</SettingsValue>
       </SettingsRow>
@@ -1044,15 +1034,6 @@ function AboutSection() {
           </Button>
         )}
       </SettingsRow>
-      <SettingsRow
-        hint="Bu sürümün tam kaynak kodu herkese açık: github.com/mertbuilds/angaria"
-        label="Kaynak kodu"
-      >
-        <Button onClick={openSourceCode} variant="outline">
-          GitHub’da aç
-        </Button>
-      </SettingsRow>
-      <LicenseRow />
       <ThirdPartyNoticesRow />
     </SettingsSection>
   );
@@ -1079,6 +1060,7 @@ export function SettingsPage() {
         >
           <CompanyFields fields={bankFields} />
         </SettingsSection>
+        <LicenseCard />
         <AppearanceSection />
         <AboutSection />
         <AdvancedSection />

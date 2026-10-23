@@ -11,16 +11,16 @@ describe('keychainErrorMessage', () => {
   test('keeps the message for other keychain errors', () => {
     expect(
       keychainErrorMessage(
-        'GİB şifresi sistem anahtar zincirine kaydedilemedi.',
+        'Lisans anahtarı sistem anahtar zincirine kaydedilemedi.',
         'NoStorageAccess: Couldn’t access platform secure storage: The keychain is locked.',
       ),
-    ).toBe('GİB şifresi sistem anahtar zincirine kaydedilemedi.');
+    ).toBe('Lisans anahtarı sistem anahtar zincirine kaydedilemedi.');
   });
 
   test('adds the macOS hint when keychain access was not allowed', () => {
     expect(
-      keychainErrorMessage('GİB şifresi sistem anahtar zincirine kaydedilemedi.', DENIED),
-    ).toBe(`GİB şifresi sistem anahtar zincirine kaydedilemedi. ${KEYCHAIN_ACCESS_HINT}`);
+      keychainErrorMessage('Lisans anahtarı sistem anahtar zincirine kaydedilemedi.', DENIED),
+    ).toBe(`Lisans anahtarı sistem anahtar zincirine kaydedilemedi. ${KEYCHAIN_ACCESS_HINT}`);
   });
 
   test('ends a message without a period before the hint', () => {

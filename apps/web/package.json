@@ -2,7 +2,7 @@
   "name": "web",
   "version": "0.0.0",
   "private": true,
-  "license": "AGPL-3.0-only",
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "brand": "node scripts/render-brand.ts",

@@ -1,7 +1,7 @@
 import { toast } from '@angaria/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { isTauri } from '@tauri-apps/api/core';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   cancelInvoice,
   createDraftInvoice,
@@ -24,6 +24,8 @@ import { saveAngariaPDF, saveEArchive } from '@/lib/invoice-files.ts';
 import { cleanItems, invoiceDefaults, upsertSavedItems } from '@/lib/invoice-form.ts';
 import { localWeekStore } from '@/lib/invoice-weeks.ts';
 import { parseGIBInvoice, rangeCovering } from '@/lib/invoices.ts';
+import { useLicense } from '@/lib/license-context.tsx';
+import { createLicenseWait } from '@/lib/license-wait.ts';
 import { activityInput } from '@/lib/mcp-activity-input.ts';
 import {
   mcpRespond,
@@ -66,12 +68,15 @@ const go = (to: '/ayarlar' | '/faturalar' | '/hizmetler' | '/musteriler') =>
  * (docs/adr/0009-built-in-mcp-server.md, docs/adr/0010-mcp-agent-actions.md):
  * starts the Rust server with the tool list, runs each `mcp:call` with the
  * active company's store, login and GİB queue, logs it, and sends the result
- * back. What an agent signs, deletes or changes shows as a toast.
+ * back. What an agent signs, deletes or changes shows as a toast. Mounted
+ * outside the license gate, so a locked app still answers with the license
+ * error.
  */
 export function McpHost() {
   const { allowActions, enabled, port } = useMcpSettings();
   const store = useStore();
   const queryClient = useQueryClient();
+  const { status } = useLicense();
 
   // Calls outlive the render they started in.
   const latest = useRef(store);
@@ -88,6 +93,9 @@ export function McpHost() {
       state.current?.signing.endAll('cancelled');
     }
   }, [allowActions]);
+
+  const [license] = useState(() => createLicenseWait(status.kind));
+  useEffect(() => license.set(status.kind), [license, status.kind]);
 
   const onAction = useCallback(
     (action: McpAction, account: GIBAccount, entity: Entity, mcpState: McpState) => {
@@ -240,6 +248,7 @@ export function McpHost() {
           gib.run(account, (session) => task(session), { ...options, signal }),
         imports: importRuns,
         lease: (signal) => gib.lease(account, { signal }),
+        license: () => license.answer(),
         newId: () => crypto.randomUUID(),
         now: () => new Date(),
         onAction: (action) => onAction(action, account, entity, mcpState),
@@ -291,7 +300,7 @@ export function McpHost() {
         state: mcpState,
       };
     },
-    [onAction, queryClient],
+    [license, onAction, queryClient],
   );
 
   useEffect(() => {

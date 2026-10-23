@@ -1,11 +1,12 @@
-// Every secret (each company's GİB password and the GİB sessions open right
-// now) lives in one keychain item as JSON, read once per
+// Every secret (the license record, each company's GİB password and the GİB
+// sessions open right now) lives in one keychain item as JSON, read once per
 // launch and served from memory. Dev builds keep it in a file instead
 // (src-tauri/src/secrets.rs). This module has no Tauri imports so tests can
 // inject the backend and the legacy items.
 import type { SessionInfo } from 'angaria-earsiv-sdk';
 import { ENTITIES_STORAGE_KEY } from './credentials.ts';
 import { reportKeychainError } from './keychain-error.ts';
+import { parseStoredLicense, type StoredLicense } from './license.ts';
 
 export interface VaultData {
   /** Passwords by entity id */
@@ -15,6 +16,7 @@ export interface VaultData {
    * after a crash logs them out (src/lib/session-queue.ts).
    */
   gibSessions?: Record<string, SessionInfo>;
+  license?: StoredLicense;
   v: 1;
 }
 
@@ -45,6 +47,14 @@ function parseJSON(text: string): unknown {
 }
 
 const emptyVault = (): VaultData => ({ gibPasswords: {}, v: 1 });
+
+function setLicenseIn(data: VaultData, license: StoredLicense | null) {
+  if (license) {
+    data.license = license;
+  } else {
+    delete data.license;
+  }
+}
 
 function setPasswordIn(data: VaultData, entityId: string, password: string) {
   if (password) {
@@ -87,11 +97,7 @@ function setSessionIn(data: VaultData, userCode: string, session: SessionInfo | 
   }
 }
 
-/**
- * The vault in a stored text. Unreadable parts read as missing, and so do keys
- * the app no longer keeps (the license record of the paid builds): the next
- * write leaves them out.
- */
+/** The vault in a stored text. Unreadable parts read as missing. */
 export function parseVault(text: string): VaultData {
   const value = parseJSON(text);
   const vault = emptyVault();
@@ -110,11 +116,12 @@ export function parseVault(text: string): VaultData {
       setSessionIn(vault, userCode, parseSession(stored));
     }
   }
+  setLicenseIn(vault, parseStoredLicense(value.license));
   return vault;
 }
 
 /** One text per content: keys in a fixed order, so equal vaults compare equal. */
-function serializeVault({ gibPasswords, gibSessions }: VaultData): string {
+function serializeVault({ gibPasswords, gibSessions, license }: VaultData): string {
   const passwords = Object.fromEntries(
     Object.keys(gibPasswords)
       .toSorted()
@@ -122,6 +129,8 @@ function serializeVault({ gibPasswords, gibSessions }: VaultData): string {
   );
   return JSON.stringify({
     v: 1,
+    // parseStoredLicense lists the fields in a fixed order.
+    ...(license && { license: parseStoredLicense(license) }),
     gibPasswords: passwords,
     ...(gibSessions && {
       gibSessions: Object.fromEntries(
@@ -162,6 +171,7 @@ export interface Vault {
    * window). Never rejects: the change's own promise reports a failure.
    */
   flush: () => Promise<void>;
+  getLicense: () => Promise<StoredLicense | null>;
   getPassword: (entityId: string) => Promise<string | null>;
   getSessions: () => Promise<Record<string, SessionInfo>>;
   /** From memory: false until the vault is loaded. */
@@ -171,10 +181,17 @@ export interface Vault {
    * every later call. A failed read rejects and the next call tries again.
    */
   load: () => Promise<void>;
+  /** The license as last written or read, to decide whether a change is worth a write. */
+  savedLicense: () => StoredLicense | null;
   /** Sets several passwords and writes at once. */
   savePasswords: (passwords: Record<string, string>) => Promise<void>;
   /** Keeps a GİB user's open session (null forgets it) and writes at once when that changes it. */
   saveSession: (userCode: string, session: SessionInfo | null) => Promise<void>;
+  /**
+   * Replaces the license in memory, and writes it when `save` is set. A failed
+   * write puts the previous license back and rejects.
+   */
+  setLicense: (license: StoredLicense | null, options: { save: boolean }) => Promise<void>;
   /**
    * Sets a password in memory at once ('' removes it) and writes it after
    * PASSWORD_SAVE_DELAY_MS without another change. Resolves once written.
@@ -263,6 +280,10 @@ export function createVault({
       return save();
     },
     flush: () => (scheduled ? save() : writes).then(noop, noop),
+    getLicense: async () => {
+      await load();
+      return data.license ?? null;
+    },
     getPassword: async (entityId) => {
       await load();
       return data.gibPasswords[entityId] ?? null;
@@ -278,12 +299,29 @@ export function createVault({
       setSessionIn(data, userCode, session);
       return save();
     },
+    savedLicense: () => (persisted === null ? null : (parseVault(persisted).license ?? null)),
     savePasswords: async (passwords) => {
       await load();
       for (const [entityId, password] of Object.entries(passwords)) {
         setPasswordIn(data, entityId, password);
       }
       return save();
+    },
+    setLicense: async (license, { save: now }) => {
+      await load();
+      const previous = data.license ?? null;
+      setLicenseIn(data, license);
+      if (!now) {
+        return;
+      }
+      try {
+        await save();
+      } catch (error) {
+        if ((data.license ?? null) === license) {
+          setLicenseIn(data, previous);
+        }
+        throw error;
+      }
     },
     setPassword: async (entityId, password) => {
       await load();

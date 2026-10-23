@@ -118,7 +118,7 @@ export function describeError(error: unknown): UserError {
   if (NETWORK.test(message)) {
     return { text: NETWORK_ERROR };
   }
-  // The app's own errors (keychain, settings) are Turkish already.
+  // The app's own errors (license, keychain, settings) are Turkish already.
   return { text: TURKISH.test(message) ? message : UNEXPECTED_ERROR };
 }
 
