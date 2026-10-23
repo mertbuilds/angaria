@@ -1,7 +1,7 @@
 // TODO(lawyer): these terms are a plain-language draft, not reviewed. Before
 // go-live a lawyer checks them against Turkish consumer law (6502 sayılı Kanun,
 // mesafeli sözleşmeler, cayma hakkı) and Polar's merchant-of-record terms, and
-// fills in the publisher's (Mert Düzgün) legal details and address.
+// fills in the publisher's (Vinena Yazılım ve Tasarım Ltd. Şti.) MERSİS number and address.
 import { createFileRoute } from '@tanstack/react-router';
 import { LegalPage, LegalSection, Paragraph } from '../components/legal.tsx';
 import { SITE_URL } from '../lib/canonical.ts';

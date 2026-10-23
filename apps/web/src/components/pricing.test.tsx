@@ -10,7 +10,7 @@ vi.mock('../lib/analytics.ts', () => ({ track: vi.fn() }));
 /** A lira amount as the copy writes it: 1.499 TL. */
 const tl = (n: number) => `${new Intl.NumberFormat('tr-TR').format(n)} TL`;
 
-const checkout = () => screen.getByRole('link', { name: '14 gün ücretsiz dene' });
+const checkout = () => screen.getByRole('link', { name: '7 gün ücretsiz dene' });
 
 describe('Pricing', () => {
   test('starts on the yearly plan and its checkout', () => {
@@ -53,13 +53,28 @@ describe('Pricing', () => {
     await waitFor(() => expect(yearly).toHaveFocus());
   });
 
-  test('every price in the copy matches the prices', () => {
+  test('every price and the 7-day trial in the copy match', () => {
     const saving = Math.round((1 - PRICES_TRY.yearly / (PRICES_TRY.monthly * 12)) * 100);
     expect(m.pricing_yearly_amount()).toBe(tl(PRICES_TRY.yearly));
     expect(m.pricing_monthly_amount()).toBe(tl(PRICES_TRY.monthly));
     expect(m.pricing_yearly_saving()).toContain(tl(Math.round(PRICES_TRY.yearly / 12)));
     expect(m.pricing_yearly_saving()).toContain(`%${saving}`);
     expect(m.hero_note()).toContain(tl(PRICES_TRY.yearly));
+    for (const copy of [
+      m.cta_trial(),
+      m.meta_description(),
+      m.hero_note(),
+      m.pricing_trial(),
+      m.pricing_note(),
+      m.faq_price_a(),
+      m.faq_cancel_a(),
+      m.footer_tagline(),
+      m.terms_trial_body(),
+      m.thanks_lead(),
+    ]) {
+      expect(copy).toMatch(/\b7 gün/);
+      expect(copy).not.toContain('14 gün');
+    }
     for (const copy of [m.faq_price_a(), m.terms_subscription_body()]) {
       expect(copy).toContain(tl(PRICES_TRY.yearly));
       expect(copy).toContain(tl(PRICES_TRY.monthly));

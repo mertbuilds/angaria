@@ -63,6 +63,7 @@ const structuredData = () => ({
   name: 'Angaria',
   offers: [offer('yearly', m.pricing_yearly()), offer('monthly', m.pricing_monthly())],
   operatingSystem: 'macOS',
+  publisher: { '@type': 'Organization', name: 'Vinena Yazılım ve Tasarım Ltd. Şti.' },
   url: `${SITE_URL}/`,
 });
 

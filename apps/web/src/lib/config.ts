@@ -3,7 +3,7 @@ const DEFAULT_DOWNLOAD_URL = 'https://dl.angaria.app/latest/Angaria.dmg';
 
 /**
  * The two ways to pay, one Polar product each in the Angaria org. Both start
- * with the 14-day trial and grant the same license key.
+ * with the 7-day trial and grant the same license key.
  */
 export type Plan = 'monthly' | 'yearly';
 

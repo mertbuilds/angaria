@@ -50,7 +50,7 @@ export function DownloadButton({
 }
 
 /**
- * The Polar checkout of one plan. The 14-day trial is part of the subscription,
+ * The Polar checkout of one plan. The 7-day trial is part of the subscription,
  * so trying and buying are the same link. Only the pricing section offers the
  * monthly plan; every other button sells the yearly one.
  */
