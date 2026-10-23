@@ -223,9 +223,8 @@ describe('cache', () => {
     expect(vault.hasPassword('a')).toBe(false);
   });
 
-  test('password and session writes keep the license and the trial', async () => {
-    const trial = { startedAt: '2026-10-23T09:00:00.000Z' };
-    const { state, vault } = vaultOver({ gibPasswords: { a: 'secret-a' }, license, trial });
+  test('password and session writes keep the license', async () => {
+    const { state, vault } = vaultOver({ gibPasswords: { a: 'secret-a' }, license });
 
     await vault.savePasswords({ b: 'secret-b' });
     await vault.deletePassword('a');
@@ -235,10 +234,8 @@ describe('cache', () => {
     expect(parseVault(state.stored ?? '')).toEqual({
       gibPasswords: { b: 'secret-b' },
       license,
-      trial,
       v: 1,
     });
-    expect(await vault.getTrial()).toEqual(trial);
   });
 
   test('a license kept in memory goes out with the next write', async () => {

@@ -1,7 +1,6 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const GRACE_PERIOD_MS = 7 * DAY_MS;
-export const TRIAL_PERIOD_MS = 14 * DAY_MS;
 
 export interface LicenseDetails {
   customerEmail: string | null;
@@ -18,26 +17,15 @@ export interface StoredLicense extends LicenseDetails {
   lastValidatedAt: string;
 }
 
-/**
- * The trial of a Mac without a license, in the vault next to the license. It
- * starts on the first launch that finds neither (a new install or one updated
- * from the free builds) and is never started again.
- */
-export interface StoredTrial {
-  startedAt: string;
-}
-
 export type LicenseStatus =
   | { kind: 'unlicensed' }
   | { kind: 'valid' }
   | { daysLeft: number; kind: 'grace' }
-  | { daysLeft: number; kind: 'trial' }
-  | { kind: 'expired'; reason: 'offline' | 'subscription' | 'trial' }
+  | { kind: 'expired'; reason: 'offline' | 'subscription' }
   | { kind: 'invalid' };
 
-/** Whether the app opens: a valid license, its offline grace period or the trial. */
-export const isUnlocked = ({ kind }: { kind: string }) =>
-  kind === 'valid' || kind === 'grace' || kind === 'trial';
+/** Whether the app opens: a valid license or its offline grace period. */
+export const isUnlocked = ({ kind }: { kind: string }) => kind === 'valid' || kind === 'grace';
 
 // inactive: Polar knows the key but it is revoked, disabled or past expires_at.
 // invalid: unknown key, or this device's activation was removed.
@@ -227,50 +215,4 @@ export function parseStoredLicense(value: unknown): StoredLicense | null {
     lastSeenAt: license.lastSeenAt,
     lastValidatedAt: license.lastValidatedAt,
   };
-}
-
-export const startedTrial = (now: number): StoredTrial => ({
-  startedAt: new Date(now).toISOString(),
-});
-
-/**
- * Usable for TRIAL_PERIOD_MS after the start. A clock behind the start counts
- * as the first day, so a small correction right after the start never locks.
- */
-export function trialStatus(trial: StoredTrial, now: number): LicenseStatus {
-  const elapsed = Math.max(0, now - Date.parse(trial.startedAt));
-  if (Number.isNaN(elapsed) || elapsed > TRIAL_PERIOD_MS) {
-    return { kind: 'expired', reason: 'trial' };
-  }
-  return { daysLeft: Math.ceil((TRIAL_PERIOD_MS - elapsed) / DAY_MS), kind: 'trial' };
-}
-
-export function parseStoredTrial(value: unknown): StoredTrial | null {
-  if (typeof value !== 'object' || value === null) {
-    return null;
-  }
-  const { startedAt } = value as Record<string, unknown>;
-  return typeof startedAt === 'string' && !Number.isNaN(Date.parse(startedAt))
-    ? { startedAt }
-    : null;
-}
-
-/**
- * The status of a Mac without a license: its trial, which the first such
- * launch starts and saves. A failed save rejects, and the next launch starts
- * the trial again.
- */
-export async function trialOf(
-  vault: {
-    getTrial: () => Promise<StoredTrial | null>;
-    saveTrial: (trial: StoredTrial) => Promise<void>;
-  },
-  now: number,
-): Promise<LicenseStatus> {
-  let trial = await vault.getTrial();
-  if (!trial) {
-    trial = startedTrial(now);
-    await vault.saveTrial(trial);
-  }
-  return trialStatus(trial, now);
 }

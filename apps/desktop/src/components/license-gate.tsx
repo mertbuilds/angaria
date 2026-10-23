@@ -9,16 +9,10 @@ import { openCheckout, openCustomerPortal, useLicense } from '@/lib/license-cont
 import { normalizeLicenseKey, type LicenseStatus } from '@/lib/license.ts';
 import { shell } from '../shell/shell.stylex.ts';
 
-type LockedStatus = Exclude<
-  LicenseStatus,
-  { kind: 'grace' } | { kind: 'trial' } | { kind: 'valid' }
->;
-
-/** The trial's last days show a banner. */
-const TRIAL_BANNER_DAYS = 3;
+type LockedStatus = Exclude<LicenseStatus, { kind: 'grace' } | { kind: 'valid' }>;
 
 const lockedCopy: Record<
-  'invalid' | 'offline' | 'subscription' | 'trial' | 'unlicensed',
+  'invalid' | 'offline' | 'subscription' | 'unlicensed',
   { description: string; title: string }
 > = {
   unlicensed: {
@@ -37,19 +31,7 @@ const lockedCopy: Record<
     title: 'Lisans doğrulanmalı',
     description: 'Lisansını doğrulamak için internete bağlan ve tekrar dene.',
   },
-  trial: {
-    title: 'Deneme süren doldu',
-    description:
-      'Devam etmek için Angaria’yı satın al ve e-postana gelen lisans anahtarını gir. Kestiğin faturalar GİB’de durur.',
-  },
 };
-
-function checkoutLabel(status: LockedStatus) {
-  if (status.kind === 'unlicensed') {
-    return '14 gün ücretsiz dene';
-  }
-  return status.kind === 'expired' && status.reason === 'trial' ? 'Satın al' : 'Abone ol';
-}
 
 const copyFor = (status: LockedStatus) =>
   lockedCopy[status.kind === 'expired' ? status.reason : status.kind];
@@ -314,7 +296,7 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
         )}
         <div {...props(styles.links)}>
           <Button onClick={openCheckout} variant="link">
-            {checkoutLabel(status)}
+            {status.kind === 'unlicensed' ? '7 gün ücretsiz dene' : 'Abone ol'}
           </Button>
           {status.kind === 'expired' && status.reason === 'subscription' && (
             <Button onClick={openCustomerPortal} variant="link">
@@ -327,34 +309,18 @@ function LicenseScreen({ status }: { status: LockedStatus }) {
   );
 }
 
-function Banner({ children }: { children: string }) {
+function GraceBanner({ daysLeft }: { daysLeft: number }) {
   return (
     <div {...props(styles.bannerWrap)}>
       <p role="status" {...props(styles.banner)}>
         <TriangleAlertIcon aria-hidden {...props(styles.bannerIcon)} />
-        <span {...props(capStyles.text)}>{children}</span>
+        <span {...props(capStyles.text)}>
+          {daysLeft > 0
+            ? `Lisans sunucusuna ulaşılamadı. ${daysLeft} gün içinde doğrulanmazsa Angaria kilitlenir.`
+            : 'Lisans sunucusuna ulaşılamadı. Bugün doğrulanmazsa Angaria kilitlenir.'}
+        </span>
       </p>
     </div>
-  );
-}
-
-function GraceBanner({ daysLeft }: { daysLeft: number }) {
-  return (
-    <Banner>
-      {daysLeft > 0
-        ? `Lisans sunucusuna ulaşılamadı. ${daysLeft} gün içinde doğrulanmazsa Angaria kilitlenir.`
-        : 'Lisans sunucusuna ulaşılamadı. Bugün doğrulanmazsa Angaria kilitlenir.'}
-    </Banner>
-  );
-}
-
-function TrialBanner({ daysLeft }: { daysLeft: number }) {
-  return (
-    <Banner>
-      {daysLeft > 0
-        ? `Deneme sürenin bitmesine ${daysLeft} gün kaldı. Lisansını Ayarlar’dan etkinleştirebilirsin.`
-        : 'Deneme süren bugün bitiyor. Lisansını Ayarlar’dan etkinleştirebilirsin.'}
-    </Banner>
   );
 }
 
@@ -371,13 +337,6 @@ export function LicenseGate({ children }: { children: ReactNode }) {
         <>
           {children}
           <GraceBanner daysLeft={status.daysLeft} />
-        </>
-      );
-    case 'trial':
-      return (
-        <>
-          {children}
-          {status.daysLeft <= TRIAL_BANNER_DAYS && <TrialBanner daysLeft={status.daysLeft} />}
         </>
       );
     default:

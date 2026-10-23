@@ -23,7 +23,6 @@ import {
   refreshLicense,
   resolveLicense,
   shouldSaveLicense,
-  trialOf,
   type LicenseStatus,
   type StoredLicense,
 } from './license.ts';
@@ -72,15 +71,6 @@ const unlicensed = (error: string | null = null): LicenseSnapshot => ({
   status: { kind: 'unlicensed' },
 });
 
-// No license: the trial, started now when this Mac never had one.
-async function trialSnapshot(): Promise<LicenseSnapshot> {
-  try {
-    return { error: null, license: null, status: await trialOf(vault, Date.now()) };
-  } catch (error) {
-    return unlicensed(reportKeychainError(KEYCHAIN_ERROR, error));
-  }
-}
-
 // Keeps the license in memory and writes it only when shouldSaveLicense says
 // the change is worth it. The status before the first check counts as no change.
 const keepLicense = (
@@ -99,7 +89,7 @@ async function checkLicense(previous: LicenseState): Promise<LicenseSnapshot> {
   try {
     const stored = await vault.getLicense();
     if (!stored) {
-      return await trialSnapshot();
+      return unlicensed();
     }
     const outcome = await polar.validate(stored.key, stored.activationId);
     const next = resolveLicense(stored, outcome, Date.now());
@@ -110,12 +100,9 @@ async function checkLicense(previous: LicenseState): Promise<LicenseSnapshot> {
   }
 }
 
-// Between checks: recounts the trial or the grace period and records the time seen.
+// Between checks: recounts the grace period and records the time seen.
 async function refreshSnapshot(snapshot: LicenseSnapshot): Promise<LicenseSnapshot> {
   const { license, status } = snapshot;
-  if (status.kind === 'trial') {
-    return trialSnapshot();
-  }
   if (!license || (status.kind !== 'valid' && status.kind !== 'grace')) {
     return snapshot;
   }
@@ -204,7 +191,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
           }
         }
         await vault.setLicense(null, { save: true });
-        update(await trialSnapshot());
+        update(unlicensed());
       }),
     [update],
   );

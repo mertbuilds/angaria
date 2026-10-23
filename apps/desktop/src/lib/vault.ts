@@ -1,17 +1,12 @@
-// Every secret (the license record and the trial, each company's GİB password
-// and the GİB sessions open right now) lives in one keychain item as JSON, read once per
+// Every secret (the license record, each company's GİB password and the GİB
+// sessions open right now) lives in one keychain item as JSON, read once per
 // launch and served from memory. Dev builds keep it in a file instead
 // (src-tauri/src/secrets.rs). This module has no Tauri imports so tests can
 // inject the backend and the legacy items.
 import type { SessionInfo } from 'angaria-earsiv-sdk';
 import { ENTITIES_STORAGE_KEY } from './credentials.ts';
 import { reportKeychainError } from './keychain-error.ts';
-import {
-  parseStoredLicense,
-  parseStoredTrial,
-  type StoredLicense,
-  type StoredTrial,
-} from './license.ts';
+import { parseStoredLicense, type StoredLicense } from './license.ts';
 
 export interface VaultData {
   /** Passwords by entity id */
@@ -22,7 +17,6 @@ export interface VaultData {
    */
   gibSessions?: Record<string, SessionInfo>;
   license?: StoredLicense;
-  trial?: StoredTrial;
   v: 1;
 }
 
@@ -123,15 +117,11 @@ export function parseVault(text: string): VaultData {
     }
   }
   setLicenseIn(vault, parseStoredLicense(value.license));
-  const trial = parseStoredTrial(value.trial);
-  if (trial) {
-    vault.trial = trial;
-  }
   return vault;
 }
 
 /** One text per content: keys in a fixed order, so equal vaults compare equal. */
-function serializeVault({ gibPasswords, gibSessions, license, trial }: VaultData): string {
+function serializeVault({ gibPasswords, gibSessions, license }: VaultData): string {
   const passwords = Object.fromEntries(
     Object.keys(gibPasswords)
       .toSorted()
@@ -141,7 +131,6 @@ function serializeVault({ gibPasswords, gibSessions, license, trial }: VaultData
     v: 1,
     // parseStoredLicense lists the fields in a fixed order.
     ...(license && { license: parseStoredLicense(license) }),
-    ...(trial && { trial: { startedAt: trial.startedAt } }),
     gibPasswords: passwords,
     ...(gibSessions && {
       gibSessions: Object.fromEntries(
@@ -185,7 +174,6 @@ export interface Vault {
   getLicense: () => Promise<StoredLicense | null>;
   getPassword: (entityId: string) => Promise<string | null>;
   getSessions: () => Promise<Record<string, SessionInfo>>;
-  getTrial: () => Promise<StoredTrial | null>;
   /** From memory: false until the vault is loaded. */
   hasPassword: (entityId: string) => boolean;
   /**
@@ -199,8 +187,6 @@ export interface Vault {
   savePasswords: (passwords: Record<string, string>) => Promise<void>;
   /** Keeps a GİB user's open session (null forgets it) and writes at once when that changes it. */
   saveSession: (userCode: string, session: SessionInfo | null) => Promise<void>;
-  /** Keeps the trial and writes at once. */
-  saveTrial: (trial: StoredTrial) => Promise<void>;
   /**
    * Replaces the license in memory, and writes it when `save` is set. A failed
    * write puts the previous license back and rejects.
@@ -306,20 +292,11 @@ export function createVault({
       await load();
       return { ...data.gibSessions };
     },
-    getTrial: async () => {
-      await load();
-      return data.trial ?? null;
-    },
     hasPassword: (entityId) => Boolean(data.gibPasswords[entityId]),
     load,
     saveSession: async (userCode, session) => {
       await load();
       setSessionIn(data, userCode, session);
-      return save();
-    },
-    saveTrial: async (trial) => {
-      await load();
-      data.trial = trial;
       return save();
     },
     savedLicense: () => (persisted === null ? null : (parseVault(persisted).license ?? null)),

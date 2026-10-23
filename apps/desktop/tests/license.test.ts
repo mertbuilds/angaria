@@ -10,12 +10,7 @@ import {
   parseStoredLicense,
   refreshLicense,
   resolveLicense,
-  parseStoredTrial,
   shouldSaveLicense,
-  startedTrial,
-  TRIAL_PERIOD_MS,
-  trialOf,
-  trialStatus,
   type LicenseStatus,
   type StoredLicense,
 } from '../src/lib/license.ts';
@@ -377,133 +372,9 @@ describe('normalizeLicenseKey', () => {
   });
 });
 
-describe('trialStatus', () => {
-  const trial = startedTrial(validatedAt);
-
-  test('a new trial has all 14 days left, partial days round up', () => {
-    expect(trialStatus(trial, validatedAt)).toEqual({ daysLeft: 14, kind: 'trial' });
-    expect(trialStatus(trial, validatedAt + 13.5 * DAY)).toEqual({ daysLeft: 1, kind: 'trial' });
-  });
-
-  test('exactly 14 days after the start is the last moment of the trial', () => {
-    expect(trialStatus(trial, validatedAt + TRIAL_PERIOD_MS)).toEqual({
-      daysLeft: 0,
-      kind: 'trial',
-    });
-    expect(trialStatus(trial, validatedAt + TRIAL_PERIOD_MS + 1)).toEqual({
-      kind: 'expired',
-      reason: 'trial',
-    });
-  });
-
-  test('a clock behind the start counts as the first day', () => {
-    expect(trialStatus(trial, validatedAt - HOUR)).toEqual({ daysLeft: 14, kind: 'trial' });
-  });
-
-  test('an unreadable start has no trial left', () => {
-    expect(trialStatus({ startedAt: 'garbage' }, validatedAt)).toEqual({
-      kind: 'expired',
-      reason: 'trial',
-    });
-  });
-});
-
-describe('parseStoredTrial', () => {
-  test('accepts a stored trial, rejects anything else', () => {
-    expect(parseStoredTrial({ startedAt: iso(validatedAt) })).toEqual({
-      startedAt: iso(validatedAt),
-    });
-    expect(parseStoredTrial(null)).toBeNull();
-    expect(parseStoredTrial({ startedAt: 5 })).toBeNull();
-    expect(parseStoredTrial({ startedAt: 'garbage' })).toBeNull();
-  });
-});
-
-/** A vault over an in-memory backend that counts writes. */
-function trialVault(stored: string | null) {
-  const backend = { stored, writes: 0 };
-  const vault = createVault({
-    backend: {
-      read: async () => backend.stored,
-      write: async (json) => {
-        backend.stored = json;
-        backend.writes++;
-      },
-    },
-    migrate: async () => ({ cleanup: async () => {}, data: { gibPasswords: {}, v: 1 } }),
-  });
-  return { backend, vault };
-}
-
-describe('trialOf', () => {
-  test('a vault from the free builds starts a trial on the first launch and keeps its passwords', async () => {
-    // The free 0.1.x builds kept passwords and sessions, never a license or a trial.
-    const { backend, vault } = trialVault(
-      JSON.stringify({ gibPasswords: { a: 'secret-a' }, v: 1 }),
-    );
-
-    expect(await trialOf(vault, validatedAt)).toEqual({ daysLeft: 14, kind: 'trial' });
-    expect(parseVault(backend.stored!)).toEqual({
-      gibPasswords: { a: 'secret-a' },
-      trial: { startedAt: iso(validatedAt) },
-      v: 1,
-    });
-
-    // Later launches count from that start and never start it again.
-    const next = trialVault(backend.stored);
-    expect(await trialOf(next.vault, validatedAt + 10 * DAY)).toEqual({
-      daysLeft: 4,
-      kind: 'trial',
-    });
-    expect(await trialOf(next.vault, validatedAt + 15 * DAY)).toEqual({
-      kind: 'expired',
-      reason: 'trial',
-    });
-    expect(next.backend.writes).toBe(0);
-  });
-
-  test('a new install starts its trial too', async () => {
-    const { backend, vault } = trialVault(null);
-    expect(await trialOf(vault, validatedAt)).toEqual({ daysLeft: 14, kind: 'trial' });
-    expect(parseVault(backend.stored!).trial).toEqual({ startedAt: iso(validatedAt) });
-  });
-
-  test('removing a license keeps the trial it had', async () => {
-    const { backend, vault } = trialVault(
-      JSON.stringify({
-        gibPasswords: {},
-        license: stored,
-        trial: { startedAt: iso(validatedAt) },
-        v: 1,
-      }),
-    );
-    await vault.setLicense(null, { save: true });
-    expect(parseVault(backend.stored!)).toEqual({
-      gibPasswords: {},
-      trial: { startedAt: iso(validatedAt) },
-      v: 1,
-    });
-    expect(await trialOf(vault, validatedAt + 20 * DAY)).toEqual({
-      kind: 'expired',
-      reason: 'trial',
-    });
-  });
-
-  test('a failed write rejects', async () => {
-    const vault = createVault({
-      backend: {
-        read: async () => JSON.stringify({ gibPasswords: {}, v: 1 }),
-        write: () => Promise.reject(new Error('keychain unavailable')),
-      },
-      migrate: () => Promise.reject(new Error('no migration')),
-    });
-    await expect(trialOf(vault, validatedAt)).rejects.toThrow('keychain unavailable');
-  });
-});
-
 describe('isUnlocked', () => {
-  test('a valid license, its grace period and the trial open the app; MCP follows it', () => {
-    for (const kind of ['valid', 'grace', 'trial']) {
+  test('a valid license and its grace period open the app; MCP follows it', () => {
+    for (const kind of ['valid', 'grace']) {
       expect(isUnlocked({ kind })).toBe(true);
     }
     for (const kind of ['checking', 'unlicensed', 'expired', 'invalid']) {

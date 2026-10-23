@@ -8,24 +8,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  Input,
   toast,
 } from '@angaria/ui';
 import { useState } from 'react';
-import {
-  SettingsField,
-  SettingsRow,
-  SettingsSection,
-  SettingsValue,
-} from '@/components/settings-section.tsx';
-import { errorMessage, toastError } from '@/lib/gib-errors.ts';
-import {
-  openCheckout,
-  openCustomerPortal,
-  useLicense,
-  type LicenseState,
-} from '@/lib/license-context.tsx';
-import { normalizeLicenseKey } from '@/lib/license.ts';
+import { SettingsRow, SettingsSection, SettingsValue } from '@/components/settings-section.tsx';
+import { toastError } from '@/lib/gib-errors.ts';
+import { openCustomerPortal, useLicense, type LicenseState } from '@/lib/license-context.tsx';
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString('tr-TR', { dateStyle: 'long', timeStyle: 'short' });
@@ -39,77 +27,9 @@ function describe(status: LicenseState, bypassed: boolean) {
       return 'Bu Mac’te etkin';
     case 'grace':
       return `Sunucuya ulaşılamadı. ${status.daysLeft} gün içinde doğrulanmalı`;
-    case 'trial':
-      return status.daysLeft > 0
-        ? `Deneme sürümü, ${status.daysLeft} gün kaldı`
-        : 'Deneme sürümü, bugün bitiyor';
     default:
       return 'Etkin değil';
   }
-}
-
-/** During the trial: the key from the checkout's e-mail activates this Mac. */
-function LicenseKeyRow() {
-  const { activate } = useLicense();
-  const [key, setKey] = useState('');
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-
-  async function handleActivate() {
-    if (!key) {
-      setError('Lisans anahtarını yaz');
-      return;
-    }
-    setPending(true);
-    setError(undefined);
-    try {
-      await activate(key);
-      toast.success('Angaria bu Mac’te etkinleştirildi');
-    } catch (activateError) {
-      setError(errorMessage(activateError));
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <SettingsRow align="top" fill htmlFor="license-key" label="Lisans anahtarı">
-      <SettingsField error={error} id="license-key">
-        {(describedBy) => (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleActivate();
-            }}
-          >
-            <Input
-              aria-describedby={describedBy}
-              aria-invalid={error ? true : undefined}
-              autoCapitalize="off"
-              autoComplete="off"
-              autoCorrect="off"
-              id="license-key"
-              onChange={(event) => {
-                setKey(normalizeLicenseKey(event.target.value));
-                setError(undefined);
-              }}
-              placeholder="ANGARIA-…"
-              spellCheck={false}
-              value={key}
-            />
-          </form>
-        )}
-      </SettingsField>
-      <Button
-        disabled={pending}
-        focusableWhenDisabled
-        onClick={() => void handleActivate()}
-        variant="outline"
-      >
-        {pending ? 'Etkinleştiriliyor…' : 'Etkinleştir'}
-      </Button>
-    </SettingsRow>
-  );
 }
 
 export function LicenseCard() {
@@ -157,9 +77,7 @@ export function LicenseCard() {
           </SettingsRow>
         </>
       )}
-      {!license && !bypassed && <LicenseKeyRow />}
       <SettingsRow>
-        {!license && <Button onClick={openCheckout}>Satın al</Button>}
         <Button onClick={openCustomerPortal} variant="outline">
           Aboneliği yönet
         </Button>
