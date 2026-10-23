@@ -1,7 +1,7 @@
 import { toast } from '@angaria/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { isTauri } from '@tauri-apps/api/core';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   cancelInvoice,
   createDraftInvoice,
@@ -25,7 +25,7 @@ import { cleanItems, invoiceDefaults, upsertSavedItems } from '@/lib/invoice-for
 import { localWeekStore } from '@/lib/invoice-weeks.ts';
 import { parseGIBInvoice, rangeCovering } from '@/lib/invoices.ts';
 import { useLicense } from '@/lib/license-context.tsx';
-import { isUnlocked } from '@/lib/license.ts';
+import { createLicenseWait } from '@/lib/license-wait.ts';
 import { activityInput } from '@/lib/mcp-activity-input.ts';
 import {
   mcpRespond,
@@ -49,8 +49,6 @@ import { router } from '../router.tsx';
  * retries never leaves a second draft behind. A started call runs to its end.
  */
 const QUEUE_DEADLINE_MS = 45_000;
-/** How long a call waits for the launch license check. */
-const LICENSE_WAIT_MS = 20_000;
 
 type Store = ReturnType<typeof useStore>;
 
@@ -96,16 +94,8 @@ export function McpHost() {
     }
   }, [allowActions]);
 
-  const license = useRef({ kind: status.kind, waiters: new Set<() => void>() });
-  useEffect(() => {
-    license.current.kind = status.kind;
-    if (status.kind !== 'checking') {
-      for (const wake of license.current.waiters) {
-        wake();
-      }
-      license.current.waiters.clear();
-    }
-  }, [status.kind]);
+  const [license] = useState(() => createLicenseWait(status.kind));
+  useEffect(() => license.set(status.kind), [license, status.kind]);
 
   const onAction = useCallback(
     (action: McpAction, account: GIBAccount, entity: Entity, mcpState: McpState) => {
@@ -258,19 +248,7 @@ export function McpHost() {
           gib.run(account, (session) => task(session), { ...options, signal }),
         imports: importRuns,
         lease: (signal) => gib.lease(account, { signal }),
-        license: async () => {
-          const state = license.current;
-          if (state.kind === 'checking') {
-            await new Promise<void>((resolve) => {
-              state.waiters.add(resolve);
-              setTimeout(resolve, LICENSE_WAIT_MS);
-            });
-          }
-          if (state.kind === 'checking') {
-            return 'checking';
-          }
-          return isUnlocked(state) ? 'ok' : 'locked';
-        },
+        license: () => license.answer(),
         newId: () => crypto.randomUUID(),
         now: () => new Date(),
         onAction: (action) => onAction(action, account, entity, mcpState),
@@ -322,7 +300,7 @@ export function McpHost() {
         state: mcpState,
       };
     },
-    [onAction, queryClient],
+    [license, onAction, queryClient],
   );
 
   useEffect(() => {
