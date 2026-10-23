@@ -3,7 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "description": "Internal MCP server exposing GİB e-Arşiv invoice tools via the Angaria SDK",
-  "license": "AGPL-3.0-only",
   "bin": {
     "angaria-mcp": "./dist/index.mjs"
   },

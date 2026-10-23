@@ -3,7 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "description": "Local emulator of the GİB e-Arşiv portal and the TCMB exchange rate feed",
-  "license": "AGPL-3.0-only",
   "files": [
     "dist"
   ],
