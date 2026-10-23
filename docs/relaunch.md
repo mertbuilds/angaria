@@ -5,7 +5,7 @@ Decisions from the grilling session with Mert. Every agent working on the relaun
 ## Product
 
 - Angaria: Tauri desktop app that replaces the GİB e-Arşiv portal UI for Turkish freelancers (1-2 invoices/month).
-- **Paid again** (2026-10-23, Mert's call; free and open source under the AGPL from 2026-10-12, `docs/adr/0013-free-and-open-source.md`): Polar, yearly 1,499 TRY (or $30) and monthly 199 TRY (or $4), each with a 14-day Polar trial and the same license key (3 Macs). Every Mac without a license also gets a 14-day trial in the app from its first launch of a paid build, the free 0.1.x users included. The repository is private and new versions are proprietary (`LICENSE`). Details: `docs/adr/0014-paid-again.md`.
+- **Paid again** (2026-10-23, Mert's call; free and open source under the AGPL from 2026-10-12, `docs/adr/0013-free-and-open-source.md`): Polar, yearly 1,499 TRY (or $30) and monthly 199 TRY (or $4), each with a 7-day Polar trial and the same license key (3 Macs). No trial in the app: a key is needed from the first launch, the free 0.1.x users included. The repository is private and new versions are proprietary (`LICENSE`). Details: `docs/adr/0014-paid-again.md`.
 - Turkish only (app + site). Wordmark-only brand: `Angaria` with a capital A (Turkish suffixes after an apostrophe: Angaria'yı, Angaria'nın) in Suisse Intl Medium. No symbol mark.
 
 ## Repo layout (target)
@@ -45,7 +45,7 @@ Source of truth: the attentionawareness repo's `packages/ui/src/theme.css` (+ `t
 - PDF: add TR/EN language toggle per invoice; keep the current visual template. Turkish labels + Turkish date/number formatting when TR.
 - GİB credentials move to the OS keychain (Rust `keyring` crate via Tauri commands). One-time migration from localStorage (`fatura-entities` creds, legacy `fatura-creds`), then delete plaintext.
 - Network: strict CSP + http allowlist. Allowed hosts only: `earsivportal.efatura.gov.tr`, `www.tcmb.gov.tr`, Polar API (`api.polar.sh`, `sandbox-api.polar.sh` in dev), `dl.angaria.app` (updater). Nothing else; no analytics/telemetry in the app. The system browser opens the rule sources, angaria.app and Polar's checkout and customer portal.
-- Licensing (Polar license keys, back 2026-10-23): customer-portal `activate` + `validate` endpoints (no org token in the app). Max 3 activations. Validate on every launch; offline/Polar down → keep working up to 7 days since last successful validation. Invalid/expired/canceled → lock to license screen. Without a license: a 14-day trial from the first launch that finds none (kept in the vault, never restarted). Polar org id + env (sandbox/production) are build-time config. Ayarlar › Hakkında shows the third-party notices only.
+- Licensing (Polar license keys, back 2026-10-23): customer-portal `activate` + `validate` endpoints (no org token in the app). Max 3 activations. Validate on every launch; offline/Polar down → keep working up to 7 days since last successful validation. Invalid/expired/canceled → lock to license screen. Polar org id + env (sandbox/production) are build-time config. Ayarlar › Hakkında shows the third-party notices only.
 - Updates: Tauri updater, signed manifest + bundles served from `https://dl.angaria.app` (Cloudflare R2). Check on launch, user confirms install.
 - macOS universal, signed + notarized `.dmg` (reference pipeline: the Agent Caffeine release scripts). Windows later.
 - Bundle id stays `com.vinena.angaria` (keeps existing localStorage data).
@@ -54,13 +54,13 @@ Source of truth: the attentionawareness repo's `packages/ui/src/theme.css` (+ `t
 
 Turkish. Sections:
 
-1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" CTA (free and open source 2026-10-12 to 2026-10-23; paid again since, with the 14-day trial).
+1. Hero: "GİB ekranı yerine" message + app screenshot + "Mac için indir" CTA (free and open source 2026-10-12 to 2026-10-23; paid again since, with the 7-day trial).
 2. MCP (2026-10-12, moved from its own /mcp page, which now redirects to `/#mcp`): Claude, Cursor and other AI apps list, draft and, with the user's SMS code, sign invoices; Angaria runs in the background from the menu bar; one-click setup; it runs on the Mac.
 3. GİB vs Angaria: a compare slider over the GİB portal's e-Arşiv fatura form and Angaria's Yeni fatura.
 4. Nasıl çalışır: three steps, each a looping scene.
 5. Features, each a looping scene with a motion of its own (2026-10-12; cropped screenshots before): mevzuata göre uyarılar (the app's own rule messages, the cited law linked), geçen faturadan başla, geçen ayın faturasını tekrar kes, müşteri ve hizmet kayıtları, **Türkçe ve İngilizce güzel PDF faturalar** (to send to customers), yurt dışı müşteri ve TCMB kuru, birden fazla şirket.
 6. Privacy: no Angaria server, no tracking, no analytics in the app; exact list of hosts the app talks to (GİB, TCMB, Polar license check, update check); credentials in system keychain; data stays on device.
-7. Fiyat (`#fiyat`, back 2026-10-23): Yıllık and Aylık with the 14-day trial, each opening its Polar checkout; buyers come back to `/tesekkurler`.
+7. Fiyat (`#fiyat`, back 2026-10-23): Yıllık and Aylık with the 7-day trial, each opening its Polar checkout; buyers come back to `/tesekkurler`.
 8. SSS (FAQ) as an accordion, all answers closed at first; footer.
 
 Header (2026-10-12): the same as attentionawareness and Agent Caffeine: the app icon beside the name, the sections and İndir (GitHub dropped 2026-10-23, the repository is private); it gathers into a pill on scroll and has a menu on a phone. The app icon is in the header, not in the hero.

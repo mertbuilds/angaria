@@ -72,9 +72,9 @@ The official app uses Suisse Intl. Its license is commercial, so the font files 
 
 How Angaria is sold: `docs/adr/0014-paid-again.md` (it brings back `docs/adr/0002-polar-merchant-of-record.md`).
 
-- Polar is the merchant of record (Angaria org, Vinena Yazılım ve Tasarım Ltd. Şti.): a yearly and a monthly plan, each with a 14-day Polar trial, both granting the same license key (3 Macs). The app's Satın al opens the yearly checkout.
+- Polar is the merchant of record (Angaria org, Vinena Yazılım ve Tasarım Ltd. Şti.): a yearly and a monthly plan, each with a 7-day Polar trial, both granting the same license key (3 Macs). The app's Satın al opens the yearly checkout.
 - The app activates and validates keys through Polar's customer-portal endpoints (no org token in the app), on every launch and every few hours while open. Polar unreachable: 7 days of grace after the last successful check. Invalid, expired or canceled: the license screen.
-- A Mac without a license gets a 14-day trial in the app from its first launch of a paid build, the free 0.1.x users included. The trial's start lives in the keychain vault next to the license and never restarts.
+- There is no trial in the app: a key is needed from the first launch. The license screen's 7 gün ücretsiz dene opens the yearly checkout, where the trial starts.
 - While the app is locked, every MCP tool answers with a Turkish license error.
 - Config: `VITE_POLAR_API_BASE`, `VITE_POLAR_ORGANIZATION_ID`, `VITE_POLAR_CHECKOUT_URL` (the yearly checkout link) and `VITE_POLAR_PORTAL_URL`, production in `apps/desktop/.env.production`, the sandbox in `apps/desktop/.env.development`. They are public values that ship in the bundle, no secrets.
 
